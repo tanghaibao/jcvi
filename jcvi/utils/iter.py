@@ -4,7 +4,21 @@ Itertools recipes
 with some modifications.
 """
 
-from itertools import *
+import collections
+import random
+
+from itertools import (
+    islice,
+    count,
+    chain,
+    repeat,
+    starmap,
+    tee,
+    cycle,
+    combinations,
+    groupby,
+)
+from operator import mul, itemgetter
 
 try:
     from collections.abc import Iterable
@@ -20,7 +34,7 @@ def take(n, iterable):
 
 def tabulate(function, start=0):
     "Return function(0), function(1), ..."
-    return imap(function, count(start))
+    return map(function, count(start))
 
 
 def consume(iterator, n):
@@ -41,7 +55,7 @@ def nth(iterable, n, default=None):
 
 def quantify(iterable, pred=bool):
     "Count how many times the predicate is true"
-    return sum(imap(pred, iterable))
+    return sum(map(pred, iterable))
 
 
 def padnone(iterable):
@@ -58,7 +72,7 @@ def ncycles(iterable, n):
 
 
 def dotproduct(vec1, vec2):
-    return sum(imap(operator.mul, vec1, vec2))
+    return sum(map(mul, vec1, vec2))
 
 
 def flatten(listOfLists):
@@ -114,10 +128,14 @@ def unique_everseen(iterable, key=None):
     "List unique elements, preserving order. Remember all elements ever seen."
     # unique_everseen('AAAABBBCCDAABBB') --> A B C D
     # unique_everseen('ABBCcAD', str.lower) --> A B C D
+    try:
+        from itertools import filterfalse  # Python 3
+    except ImportError:
+        from itertools import ifilterfalse as filterfalse  # Python 2
     seen = set()
     seen_add = seen.add
     if key is None:
-        for element in ifilterfalse(seen.__contains__, iterable):
+        for element in filterfalse(seen.__contains__, iterable):
             seen_add(element)
             yield element
     else:
@@ -132,7 +150,7 @@ def unique_justseen(iterable, key=None):
     "List unique elements, preserving order. Remember only the element just seen."
     # unique_justseen('AAAABBBCCDAABBB') --> A B C D A B
     # unique_justseen('ABBCcAD', str.lower) --> A B C A D
-    return imap(next, imap(itemgetter(1), groupby(iterable, key)))
+    return map(next, map(itemgetter(1), groupby(iterable, key)))
 
 
 def iter_except(func, exception, first=None):
@@ -177,7 +195,7 @@ def random_combination(iterable, r):
     "Random selection from itertools.combinations(iterable, r)"
     pool = tuple(iterable)
     n = len(pool)
-    indices = sorted(random.sample(xrange(n), r))
+    indices = sorted(random.sample(range(n), r))
     return tuple(pool[i] for i in indices)
 
 
@@ -185,7 +203,7 @@ def random_combination_with_replacement(iterable, r):
     "Random selection from itertools.combinations_with_replacement(iterable, r)"
     pool = tuple(iterable)
     n = len(pool)
-    indices = sorted(random.randrange(n) for i in xrange(r))
+    indices = sorted(random.randrange(n) for i in range(r))
     return tuple(pool[i] for i in indices)
 
 
@@ -240,7 +258,7 @@ class peekable(object):
     Call ``peek()`` on the result to get the value that will next pop out of
     ``next()``, without advancing the iterator:
 
-        >>> p = peekable(xrange(2))
+        >>> p = peekable(range(2))
         >>> p.peek()
         0
         >>> p.next()
@@ -263,7 +281,7 @@ class peekable(object):
     To test whether there are more items in the iterator, examine the
     peekable's truth value. If it is truthy, there are more items.
 
-        >>> assert peekable(xrange(1))
+        >>> assert peekable(range(1))
         >>> assert not peekable([])
 
     """

@@ -782,7 +782,7 @@ class OptionParser(OptionP):
             "--min_contig_length",
             default=90,
             type="int",
-            help="Minimum assembled contig length to report" + "",
+            help="Minimum assembled contig length to report",
         )
         topts.add_option(
             "--bflyGCThreads",
@@ -794,7 +794,7 @@ class OptionParser(OptionP):
             "--grid_conf_file",
             default="JCVI_SGE.0689.conf",
             type="str",
-            help="HpcGridRunner config file for supported compute farms" + "",
+            help="HpcGridRunner config file for supported compute farms",
         )
         topts.add_option(
             "--cleanup",
@@ -808,7 +808,7 @@ class OptionParser(OptionP):
             "--bam",
             default=None,
             type="str",
-            help="provide coord-sorted bam file as starting point" + "",
+            help="provide coord-sorted bam file as starting point",
         )
         ggopts.add_option(
             "--max_intron",
@@ -858,7 +858,7 @@ class OptionParser(OptionP):
                 "--annots_gff3",
                 default=None,
                 type="str",
-                help="Reference annotation to load and compare against" + "",
+                help="Reference annotation to load and compare against",
             )
             genetic_code = [
                 "universal",
@@ -954,7 +954,7 @@ class OptionParser(OptionP):
             "--uc",
             default=False,
             action="store_true",
-            help="Toggle gene identifier upper case" + "",
+            help="Toggle gene identifier upper case",
         )
 
     def set_home(self, prog, default=None):

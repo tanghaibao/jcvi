@@ -24,20 +24,20 @@ def main():
 
     actions = (
         # Identify true gene loss
-        ('loss', 'extract likely gene loss candidates'),
-        ('validate', 'confirm synteny loss against CDS bed overlaps'),
-        ('summary', 'provide summary of fractionation'),
-        ('gaps', 'check gene locations against gaps'),
+        ("loss", "extract likely gene loss candidates"),
+        ("validate", "confirm synteny loss against CDS bed overlaps"),
+        ("summary", "provide summary of fractionation"),
+        ("gaps", "check gene locations against gaps"),
         # Gene specific status
-        ('gffselect', 'dump gff for the missing genes'),
-        ('genestatus', 'tag genes based on translation from GMAP models'),
+        ("gffselect", "dump gff for the missing genes"),
+        ("genestatus", "tag genes based on translation from GMAP models"),
         # Specific study for napus (requires specific datasets)
-        ('napus', 'extract gene loss vs diploid ancestors (napus)'),
-        ('merge', 'merge protein quartets table with registry (napus)'),
-        ('segment', 'merge adjacent gene loss into segmental loss (napus)'),
-        ('offdiag', 'find gene pairs that are off diagonal'),
-        ('diff', 'calculate diff of size of syntenic regions'),
-            )
+        ("napus", "extract gene loss vs diploid ancestors (napus)"),
+        ("merge", "merge protein quartets table with registry (napus)"),
+        ("segment", "merge adjacent gene loss into segmental loss (napus)"),
+        ("offdiag", "find gene pairs that are off diagonal"),
+        ("diff", "calculate diff of size of syntenic regions"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -56,7 +56,7 @@ def offdiag(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    anchorsfile, = args
+    (anchorsfile,) = args
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorsfile, p, opts)
 
     fp = open(anchorsfile)
@@ -65,23 +65,23 @@ def offdiag(args):
     print("\t".join(header))
     i = -1
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             i += 1
             continue
         q, s, score = row.split()
-        rbh = 'no' if score[-1] == 'L' else 'yes'
+        rbh = "no" if score[-1] == "L" else "yes"
         qi, qq = qorder[q]
         si, ss = sorder[s]
         oqseqid = qseqid = qq.seqid
         osseqid = sseqid = ss.seqid
         sseqid = sseqid.split("_")[0][-3:]
-        if qseqid[0] == 'A':
-            qseqid = qseqid[-3:]       # A09 => A09
-        elif qseqid[0] == 'C':
-            qseqid = 'C0' + qseqid[-1]  # C9 => C09
+        if qseqid[0] == "A":
+            qseqid = qseqid[-3:]  # A09 => A09
+        elif qseqid[0] == "C":
+            qseqid = "C0" + qseqid[-1]  # C9 => C09
         else:
             continue
-        if qseqid == sseqid or sseqid[-2:] == 'nn':
+        if qseqid == sseqid or sseqid[-2:] == "nn":
             continue
         block_id = pf + "-block-{0}".format(i)
         print("\t".join((block_id, q, s, oqseqid, osseqid, rbh)))
@@ -101,7 +101,7 @@ def diff(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    simplefile, = args
+    (simplefile,) = args
     fp = open(simplefile)
     data = [x.split() for x in fp]
     spans = []
@@ -127,7 +127,7 @@ def estimate_size(accns, bed, order, conservative=True):
     accns = [order[x] for x in accns]
     ii, bb = zip(*accns)
     mini, maxi = min(ii), max(ii)
-    if not conservative: # extend one gene
+    if not conservative:  # extend one gene
         mini -= 1
         maxi += 1
     minb = bed[mini]
@@ -158,8 +158,9 @@ def segment(args):
     from jcvi.formats.base import SetFile
 
     p = OptionParser(segment.__doc__)
-    p.add_option("--chain", default=1, type="int",
-                 help="Allow next N genes to be chained [default: %default]")
+    p.add_option(
+        "--chain", default=1, type="int", help="Allow next N genes to be chained",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -173,7 +174,7 @@ def segment(args):
     skip = opts.chain
     for i, a in enumerate(bed):
         a = a.accn
-        for j in xrange(i + 1, i + 1 + skip):
+        for j in range(i + 1, i + 1 + skip):
             if j >= len(bed):
                 break
             b = bed[j].accn
@@ -190,8 +191,12 @@ def segment(args):
 
     # Summary for all segments
     for x in sorted(singletons) + sorted(segments):
-        print("\t".join(str(x) for x in ("|".join(sorted(x)), len(x),
-                        estimate_size(x, bed, order))))
+        print(
+            "\t".join(
+                str(x)
+                for x in ("|".join(sorted(x)), len(x), estimate_size(x, bed, order))
+            )
+        )
 
     # Find longest segment stretch
     if segments:
@@ -199,24 +204,33 @@ def segment(args):
         print("Longest stretch: run of {0} genes".format(mx), file=sys.stderr)
         print("  {0}".format("|".join(sorted(maxsegment))), file=sys.stderr)
         seg_asize = sum(estimate_size(x, bed, order) for x in segments)
-        seg_bsize = sum(estimate_size(x, bed, order, conservative=False) \
-                             for x in segments)
+        seg_bsize = sum(
+            estimate_size(x, bed, order, conservative=False) for x in segments
+        )
     else:
         seg_asize = seg_bsize = 0
 
     sing_asize = sum(estimate_size(x, bed, order) for x in singletons)
-    sing_bsize = sum(estimate_size(x, bed, order, conservative=False) \
-                           for x in singletons)
+    sing_bsize = sum(
+        estimate_size(x, bed, order, conservative=False) for x in singletons
+    )
     total_asize = sing_asize + seg_asize
     total_bsize = sing_bsize + seg_bsize
-    print("Singleton ({0}): {1} - {2} bp".\
-                         format(ns, sing_asize, sing_bsize), file=sys.stderr)
-    print("Segment ({0}): {1} - {2} bp".\
-                         format(nm, seg_asize, seg_bsize), file=sys.stderr)
-    print("Total ({0}): {1} - {2} bp".\
-                         format(nt, total_asize, total_bsize), file=sys.stderr)
-    print("Average ({0}): {1} bp".\
-                         format(nt, (total_asize + total_bsize) / 2), file=sys.stderr)
+    print(
+        "Singleton ({0}): {1} - {2} bp".format(ns, sing_asize, sing_bsize),
+        file=sys.stderr,
+    )
+    print(
+        "Segment ({0}): {1} - {2} bp".format(nm, seg_asize, seg_bsize), file=sys.stderr
+    )
+    print(
+        "Total ({0}): {1} - {2} bp".format(nt, total_asize, total_bsize),
+        file=sys.stderr,
+    )
+    print(
+        "Average ({0}): {1} bp".format(nt, (total_asize + total_bsize) / 2),
+        file=sys.stderr,
+    )
 
 
 def merge(args):
@@ -236,7 +250,7 @@ def merge(args):
 
     quartets, registry, lost = args
     qq = DictFile(registry, keypos=1, valuepos=3)
-    lost = DictFile(lost, keypos=1, valuepos=0, delimiter='|')
+    lost = DictFile(lost, keypos=1, valuepos=0, delimiter="|")
     qq.update(lost)
     fp = open(quartets)
     cases = {
@@ -272,11 +286,11 @@ def merge(args):
         a, b, c, d = [qq.get(x, ".").rsplit("-", 1)[-1] for x in genes]
         qqs = [c, d, a, b]
         for i, q in enumerate(qqs):
-            if atoms[i] != '.':
+            if atoms[i] != ".":
                 qqs[i] = "syntenic_model"
         # Make comment
         comment = "Case{0}".format(cases[tag])
-        dots = sum([1 for x in genes if x == '.'])
+        dots = sum([1 for x in genes if x == "."])
         if dots == 1:
             idx = genes.index(".")
             status = qqs[idx]
@@ -303,8 +317,7 @@ def gffselect(args):
 
     gmapped, expected, idsfile, tag = args
     data = get_tags(idsfile)
-    completeness = dict((a.replace("mrna", "path"), c) \
-                         for (a, b, c) in data)
+    completeness = dict((a.replace("mrna", "path"), c) for (a, b, c) in data)
 
     seen = set()
     idsfile = expected.rsplit(".", 1)[0] + ".ids"
@@ -340,8 +353,7 @@ def gaps(args):
     from jcvi.utils.cbook import percentage
 
     p = OptionParser(gaps.__doc__)
-    p.add_option("--bdist", default=0, type="int",
-                 help="Base pair distance [default: %default]")
+    p.add_option("--bdist", default=0, type="int", help="Base pair distance")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -349,7 +361,7 @@ def gaps(args):
 
     idsfile, frfile, gapsbed = args
     bdist = opts.bdist
-    d =  DictFile(frfile, keypos=1, valuepos=2)
+    d = DictFile(frfile, keypos=1, valuepos=2)
     bedfile = idsfile + ".bed"
     fw = open(bedfile, "w")
     fp = open(idsfile)
@@ -368,8 +380,7 @@ def gaps(args):
     not_in_gaps = popen(cmd).read()
     not_in_gaps = int(not_in_gaps)
     in_gaps = total - not_in_gaps
-    print("Ids in gaps: {1}".\
-            format(total, percentage(in_gaps, total)), file=sys.stderr)
+    print("Ids in gaps: {1}".format(total, percentage(in_gaps, total)), file=sys.stderr)
 
 
 def get_tags(idsfile):
@@ -382,8 +393,7 @@ def get_tags(idsfile):
             tag = "complete"
         if "cannot_translate" in labelatoms:
             tag = "pseudogene"
-        elif "five_prime_missing" in labelatoms or \
-             "three_prime_missing" in labelatoms:
+        elif "five_prime_missing" in labelatoms or "three_prime_missing" in labelatoms:
             tag = "partial"
         data.append((mRNA, label, tag))
     return data
@@ -402,7 +412,7 @@ def genestatus(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    idsfile, = args
+    (idsfile,) = args
     data = get_tags(idsfile)
     key = lambda x: x[0].split(".")[0]
     for gene, cc in groupby(data, key=key):
@@ -428,7 +438,7 @@ def summary(args):
     from jcvi.utils.cbook import percentage, Registry
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--extra", help="Cross with extra tsv file [default: %default]")
+    p.add_option("--extra", help="Cross with extra tsv file")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -440,20 +450,20 @@ def summary(args):
     registry = Registry()  # keeps all the tags for any given gene
     for row in fp:
         seqid, gene, tag = row.split()
-        if tag == '.':
+        if tag == ".":
             registry[gene].append("outside")
         else:
             registry[gene].append("inside")
-            if tag[0] == '[':
+            if tag[0] == "[":
                 registry[gene].append("no_syntenic_model")
                 if tag.startswith("[S]"):
                     registry[gene].append("[S]")
                     gstatus = status.get(gene, None)
-                    if gstatus == 'complete':
+                    if gstatus == "complete":
                         registry[gene].append("complete")
-                    elif gstatus == 'pseudogene':
+                    elif gstatus == "pseudogene":
                         registry[gene].append("pseudogene")
-                    elif gstatus == 'partial':
+                    elif gstatus == "partial":
                         registry[gene].append("partial")
                     else:
                         registry[gene].append("gmap_fail")
@@ -524,8 +534,8 @@ def summary(args):
 
 
 def get_tag(name, order):
-    if name[0] == '[':
-        tag, tname = name[1:].split(']')
+    if name[0] == "[":
+        tag, tname = name[1:].split("]")
         seqid, se = tname.split(":")
         start, end = se.split("-")
         start, end = int(start), int(end)
@@ -578,12 +588,12 @@ def napus(args):
     CL = "CN LOST"
     for row in fp:
         br, bo = row.split()
-        if '.' in (br, bo):
+        if "." in (br, bo):
             continue
         an, cn = retention[br], retention[bo]
         row = "\t".join((br, bo, an, cn))
-        if '.' in (an, cn):
-            #print row
+        if "." in (an, cn):
+            # print row
             continue
 
         # label loss candidates
@@ -599,8 +609,7 @@ def napus(args):
         print(row, file=fw)
     fw.close()
 
-    logging.debug("Quartets and gene losses written to `{0}`.".\
-                    format(quartetsfile))
+    logging.debug("Quartets and gene losses written to `{0}`.".format(quartetsfile))
 
     # Parse the quartets file to extract singletons vs.segmental losses
     fp = open(quartetsfile)
@@ -615,7 +624,7 @@ def napus(args):
             continue
         g.join(i, i)
         itag = data[i][-1].split("|")[0]
-        for j in xrange(i + 1, i + skip + 1):
+        for j in range(i + 1, i + skip + 1):
             jtag = data[j][-1].split("|")[0]
             if j < len(losses) and losses[j] and itag == jtag:
                 g.join(i, j)
@@ -626,8 +635,9 @@ def napus(args):
     ns, nm = len(singletons), len(segments)
     assert len(losses) == ns + nm
 
-    grab_tag = lambda pool, tag: \
-            [x for x in pool if all(data[z][-1].startswith(tag) for z in x)]
+    grab_tag = lambda pool, tag: [
+        x for x in pool if all(data[z][-1].startswith(tag) for z in x)
+    ]
 
     an_loss_singletons = grab_tag(singletons, AL)
     cn_loss_singletons = grab_tag(singletons, CL)
@@ -639,10 +649,8 @@ def napus(args):
     mixed = len(segments) - alm - clm
     assert mixed == 0
 
-    logging.debug("Singletons: {0} (AN LOSS: {1}, CN LOSS: {2})".\
-                        format(ns, als, cls))
-    logging.debug("Segments: {0} (AN LOSS: {1}, CN LOSS: {2})".\
-                        format(nm, alm, clm))
+    logging.debug("Singletons: {0} (AN LOSS: {1}, CN LOSS: {2})".format(ns, als, cls))
+    logging.debug("Segments: {0} (AN LOSS: {1}, CN LOSS: {2})".format(nm, alm, clm))
     print(SummaryStats([len(x) for x in losses]), file=sys.stderr)
 
     for x in singletons + segments:
@@ -663,12 +671,16 @@ def loss(args):
     Extract likely gene loss candidates between genome a and b.
     """
     p = OptionParser(loss.__doc__)
-    p.add_option("--bed", default=False, action="store_true",
-                 help="Genomic BLAST is in bed format [default: %default]")
-    p.add_option("--gdist", default=20, type="int",
-                 help="Gene distance [default: %default]")
-    p.add_option("--bdist", default=20000, type="int",
-                 help="Base pair distance [default: %default]")
+    p.add_option(
+        "--bed",
+        default=False,
+        action="store_true",
+        help="Genomic BLAST is in bed format",
+    )
+    p.add_option("--gdist", default=20, type="int", help="Gene distance")
+    p.add_option(
+        "--bdist", default=20000, type="int", help="Base pair distance",
+    )
     p.set_beds()
     opts, args = p.parse_args(args)
 
@@ -676,7 +688,7 @@ def loss(args):
         sys.exit(not p.print_help())
 
     blocksfile = args[0]
-    emptyblast = (len(args) == 1)
+    emptyblast = len(args) == 1
     if emptyblast:
         genomicblast = "empty.blast"
         sh("touch {0}".format(genomicblast))
@@ -703,7 +715,7 @@ def loss(args):
     for i, (key, rows) in enumerate(data):
         if i == 0 or i == imax:
             continue
-        if key != '.':
+        if key != ".":
             continue
 
         before, br = data[i - 1]
@@ -834,5 +846,5 @@ def validate(args):
     fw.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

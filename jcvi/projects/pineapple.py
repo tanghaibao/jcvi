@@ -12,7 +12,7 @@ import logging
 from jcvi.formats.base import DictFile, LineFile, SetFile, must_open, get_number
 from jcvi.formats.bed import Bed
 from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import Rectangle, plt, savefig
+from jcvi.graphics.base import Rectangle, panel_labels, plt, savefig
 from jcvi.graphics.chromosome import Chromosome
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
@@ -21,8 +21,7 @@ from jcvi.annotation.ahrd import read_interpro
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
-class RegionsLine (object):
-
+class RegionsLine(object):
     def __init__(self, line):
         args = line.split()
         self.karyotype = args[0][0]
@@ -33,8 +32,7 @@ class RegionsLine (object):
         self.span = abs(self.start - self.end)
 
 
-class RegionsFile (LineFile):
-
+class RegionsFile(LineFile):
     def __init__(self, filename):
         super(RegionsFile, self).__init__(filename)
         fp = open(filename)
@@ -54,16 +52,16 @@ def main():
 
     actions = (
         # main figures in text
-        ('ancestral', 'karoytype evolution of pineapple (requires data)'),
-        ('ploidy', 'plot pineapple macro-synteny (requires data)'),
+        ("ancestral", "karoytype evolution of pineapple (requires data)"),
+        ("ploidy", "plot pineapple macro-synteny (requires data)"),
         # build pseudomolecule
-        ('agp', 'make agp file'),
-        ('breakpoints', 'make breakpoints'),
-        ('check', 'check agreement'),
+        ("agp", "make agp file"),
+        ("breakpoints", "make breakpoints"),
+        ("check", "check agreement"),
         # build gene info table
-        ('geneinfo', 'build gene info table'),
-        ('flanking', 'extract flanking genes for given SI loci'),
-            )
+        ("geneinfo", "build gene info table"),
+        ("flanking", "extract flanking genes for given SI loci"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -75,8 +73,7 @@ def flanking(args):
     Extract flanking genes for given SI loci.
     """
     p = OptionParser(flanking.__doc__)
-    p.add_option("-N", default=50, type="int",
-                  help="How many genes on both directions")
+    p.add_option("-N", default=50, type="int", help="How many genes on both directions")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -84,7 +81,7 @@ def flanking(args):
 
     SI, liftover, master, te = args
     N = opts.N
-    SI = SetFile(SI, column=0, delimiter='.')
+    SI = SetFile(SI, column=0, delimiter=".")
     liftover = Bed(liftover)
     order = liftover.order
     neighbors = set()
@@ -92,14 +89,14 @@ def flanking(args):
         si, s = order[s]
         LB = max(si - N, 0)
         RB = min(si + N, len(liftover))
-        for j in xrange(LB, RB + 1):
+        for j in range(LB, RB + 1):
             a = liftover[j]
             if a.seqid != s.seqid:
                 continue
             neighbors.add(a.accn)
 
-    dmain = DictFile(master, keypos=0, valuepos=None, delimiter='\t')
-    dte = DictFile(te, keypos=0, valuepos=None, delimiter='\t')
+    dmain = DictFile(master, keypos=0, valuepos=None, delimiter="\t")
+    dte = DictFile(te, keypos=0, valuepos=None, delimiter="\t")
     header = next(open(master))
     print("\t".join(("SI/Neighbor", "Gene/TE", header.strip())))
     for a in liftover:
@@ -145,38 +142,39 @@ def ancestral(args):
     sizes = Sizes(sizesfile).mapping
     sizes = dict((k, v) for (k, v) in sizes.iteritems() if k[:2] == "LG")
     maxsize = max(sizes.values())
-    ratio = .5 / maxsize
+    ratio = 0.5 / maxsize
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
 
     from jcvi.graphics.base import set2
+
     a, b, c, d, e, f, g = set2[:7]
     set2 = (c, g, b, e, d, a, f)
 
     # Upper panel is the evolution of segments
     # All segments belong to one of seven karyotypes 1 to 7
     karyotypes = regions.karyotypes
-    xgap = 1. / (1 + len(karyotypes))
-    ygap = .05
+    xgap = 1.0 / (1 + len(karyotypes))
+    ygap = 0.05
     mgap = xgap / 4.5
-    gwidth = mgap * .75
-    tip = .02
+    gwidth = mgap * 0.75
+    tip = 0.02
     coords = {}
     for i, k in enumerate(regions.karyotypes):
         x = (i + 1) * xgap
-        y = .9
+        y = 0.9
         root.text(x, y + tip, "Anc" + k, ha="center")
         root.plot((x, x), (y, y - ygap), "k-", lw=2)
         y -= 2 * ygap
-        coords['a'] = (x - 1.5 * mgap , y)
-        coords['b'] = (x - .5 * mgap , y)
-        coords['c'] = (x + .5 * mgap , y)
-        coords['d'] = (x + 1.5 * mgap , y)
-        coords['ab'] = join_nodes_vertical(root, coords, 'a', 'b', y + ygap / 2)
-        coords['cd'] = join_nodes_vertical(root, coords, 'c', 'd', y + ygap / 2)
-        coords['abcd'] = join_nodes_vertical(root, coords, 'ab', 'cd', y + ygap)
-        for n in 'abcd':
+        coords["a"] = (x - 1.5 * mgap, y)
+        coords["b"] = (x - 0.5 * mgap, y)
+        coords["c"] = (x + 0.5 * mgap, y)
+        coords["d"] = (x + 1.5 * mgap, y)
+        coords["ab"] = join_nodes_vertical(root, coords, "a", "b", y + ygap / 2)
+        coords["cd"] = join_nodes_vertical(root, coords, "c", "d", y + ygap / 2)
+        coords["abcd"] = join_nodes_vertical(root, coords, "ab", "cd", y + ygap)
+        for n in "abcd":
             nx, ny = coords[n]
             root.text(nx, ny - tip, n, ha="center")
             coords[n] = (nx, ny - ygap / 2)
@@ -187,16 +185,16 @@ def ancestral(args):
             gx, gy = coords[g]
             gsize = ratio * kd.span
             gy -= gsize
-            p = Rectangle((gx - gwidth / 2, gy),
-                           gwidth, gsize, lw=0, color=set2[i])
+            p = Rectangle((gx - gwidth / 2, gy), gwidth, gsize, lw=0, color=set2[i])
             root.add_patch(p)
-            root.text(gx, gy + gsize / 2, kd.chromosome,
-                      ha="center", va="center", color='w')
+            root.text(
+                gx, gy + gsize / 2, kd.chromosome, ha="center", va="center", color="w"
+            )
             coords[g] = (gx, gy - tip)
 
     # Bottom panel shows the location of segments on chromosomes
     # TODO: redundant code, similar to graphics.chromosome
-    ystart = .54
+    ystart = 0.54
     chr_number = len(sizes)
     xstart, xend = xgap - 2 * mgap, 1 - xgap + 2 * mgap
     xinterval = (xend - xstart - gwidth) / (chr_number - 1)
@@ -205,7 +203,7 @@ def ancestral(args):
         chr = get_number(chr)
         xx = xstart + a * xinterval + gwidth / 2
         chrpos[chr] = xx
-        root.text(xx, ystart + .01, chr, ha="center")
+        root.text(xx, ystart + 0.01, chr, ha="center")
         Chromosome(root, xx, ystart, ystart - clen * ratio, width=gwidth)
 
     # Start painting
@@ -213,8 +211,13 @@ def ancestral(args):
         xx = chrpos[r.chromosome]
         yystart = ystart - r.start * ratio
         yyend = ystart - r.end * ratio
-        p = Rectangle((xx - gwidth / 2, yystart), gwidth, yyend - yystart,
-                      color=set2[int(r.karyotype) - 1], lw=0)
+        p = Rectangle(
+            (xx - gwidth / 2, yystart),
+            gwidth,
+            yyend - yystart,
+            color=set2[int(r.karyotype) - 1],
+            lw=0,
+        )
         root.add_patch(p)
 
     root.set_xlim(0, 1)
@@ -247,9 +250,11 @@ def geneinfo(args):
     scfbed = Bed(scfbed)
     lgorder = Bed(lgbed).order
     liftover = Bed(liftoverbed).order
-    header = "Accession Scaffold-position LG-position "\
-             "Description Interpro-domain Interpro-description "\
-             "GO-term KEGG".split()
+    header = (
+        "Accession Scaffold-position LG-position "
+        "Description Interpro-domain Interpro-description "
+        "GO-term KEGG".split()
+    )
     ipr = read_interpro(ipr)
 
     fw_clean = must_open("master.txt", "w")
@@ -270,8 +275,21 @@ def geneinfo(args):
         interpro = interpro_description = go = kegg = ""
         if accession in ipr:
             interpro, interpro_description, go, kegg = ipr[accession]
-        print("\t".join((accession, scaffold_position, lg_position,
-                        description, interpro, interpro_description, go, kegg)), file=fw)
+        print(
+            "\t".join(
+                (
+                    accession,
+                    scaffold_position,
+                    lg_position,
+                    description,
+                    interpro,
+                    interpro_description,
+                    go,
+                    kegg,
+                )
+            ),
+            file=fw,
+        )
     fw.close()
 
 
@@ -299,21 +317,21 @@ def ploidy(args):
     Synteny(fig, root, datafile, bedfile, slayout, switch=opts.switch)
 
     # legend showing the orientation of the genes
-    draw_gene_legend(root, .27, .37, .52)
+    draw_gene_legend(root, 0.27, 0.37, 0.52)
 
     # annotate the WGD events
-    fc = 'lightslategrey'
-    x = .09
-    radius = .012
-    TextCircle(root, x, .825, r'$\tau$', radius=radius, fc=fc)
-    TextCircle(root, x, .8, r'$\sigma$', radius=radius, fc=fc)
-    TextCircle(root, x, .72, r'$\rho$', radius=radius, fc=fc)
-    for ypos in (.825, .8, .72):
-        root.text(.12, ypos, r"$\times2$", color=fc, ha="center", va="center")
-    root.plot([x, x], [.85, .775], ":", color=fc, lw=2)
-    root.plot([x, x], [.75, .675], ":", color=fc, lw=2)
+    fc = "lightslategrey"
+    x = 0.09
+    radius = 0.012
+    TextCircle(root, x, 0.825, r"$\tau$", radius=radius, fc=fc)
+    TextCircle(root, x, 0.8, r"$\sigma$", radius=radius, fc=fc)
+    TextCircle(root, x, 0.72, r"$\rho$", radius=radius, fc=fc)
+    for ypos in (0.825, 0.8, 0.72):
+        root.text(0.12, ypos, r"$\times2$", color=fc, ha="center", va="center")
+    root.plot([x, x], [0.85, 0.775], ":", color=fc, lw=2)
+    root.plot([x, x], [0.75, 0.675], ":", color=fc, lw=2)
 
-    labels = ((.04, .96, 'A'), (.04, .54, 'B'))
+    labels = ((0.04, 0.96, "A"), (0.04, 0.54, "B"))
     panel_labels(root, labels)
 
     root.set_xlim(0, 1)
@@ -356,15 +374,14 @@ def agp(args):
         atoms = row.split()
         assert len(atoms) in (4, 5)
         if len(atoms) == 4:
-            atoms.append('?')
+            atoms.append("?")
         scaf, tag, linkage, no, strand = atoms
         strand = strand.lower()
-        strand = {'f': '+', 'r': '-', '?': '?'}[strand]
+        strand = {"f": "+", "r": "-", "?": "?"}[strand]
         scaf = "scaffold_" + scaf
         scaf_size = sizes[scaf]
-        linkage = "LG{0:02d}".format(ord(linkage.lower()) - ord('a') + 1)
-        print("\t".join(str(x) for x in \
-                    (scaf, 0, scaf_size, linkage, 1000, strand)))
+        linkage = "LG{0:02d}".format(ord(linkage.lower()) - ord("a") + 1)
+        print("\t".join(str(x) for x in (scaf, 0, scaf_size, linkage, 1000, strand)))
 
 
 def breakpoints(args):
@@ -385,9 +402,13 @@ def breakpoints(args):
         print("\t".join(str(x) for x in (old, start - 1, end)))
         nbreaks += 1
         scaffolds.add(old)
-    print("{0} breakpoints in total, {1} scaffolds broken"\
-                    .format(nbreaks, len(scaffolds)), file=sys.stderr)
+    print(
+        "{0} breakpoints in total, {1} scaffolds broken".format(
+            nbreaks, len(scaffolds)
+        ),
+        file=sys.stderr,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

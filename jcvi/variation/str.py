@@ -11,6 +11,7 @@ import os
 import os.path as op
 import json
 import sys
+
 try:
     import vcf
 except ImportError:
@@ -31,8 +32,14 @@ from jcvi.formats.bed import natsorted
 from jcvi.apps.grid import MakeManager
 from jcvi.formats.base import LineFile, must_open
 from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3, ls_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update, \
-            datafile, sh
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    mkdir,
+    need_update,
+    datafile,
+    sh,
+)
 
 
 REF = "hg38"
@@ -85,7 +92,6 @@ DYS635 DYS643 GATA-H4
 
 
 class TREDsRepo(dict):
-
     def __init__(self, ref=REF):
 
         self.ref = ref
@@ -97,8 +103,8 @@ class TREDsRepo(dict):
         self.df = df
 
     def to_json(self):
-        s = self.df.to_json(orient='index')
-        s = s.decode('windows-1252').encode('utf8')
+        s = self.df.to_json(orient="index")
+        s = s.decode("windows-1252").encode("utf8")
         s = json.dumps(json.loads(s), sort_keys=True, indent=2)
         return s
 
@@ -111,15 +117,18 @@ class TREDsRepo(dict):
 
     def get_info(self, tredName):
         tr = self.get(tredName)
-        info = "END={};MOTIF={};NS=1;REF={};CR={};IH={};RL={};VT=STR".\
-                    format(tr.repeat_end, tr.repeat, tr.ref_copy,
-                           tr.cutoff_risk, tr.inheritance,
-                           tr.ref_copy * len(tr.repeat))
+        info = "END={};MOTIF={};NS=1;REF={};CR={};IH={};RL={};VT=STR".format(
+            tr.repeat_end,
+            tr.repeat,
+            tr.ref_copy,
+            tr.cutoff_risk,
+            tr.inheritance,
+            tr.ref_copy * len(tr.repeat),
+        )
         return tr.chr, tr.repeat_start, tr.ref_copy, tr.repeat, info
 
 
 class TRED(object):
-
     def __init__(self, name, row, ref=REF):
 
         self.row = row
@@ -142,25 +151,32 @@ class TRED(object):
         self.cutoff_prerisk = row["cutoff_prerisk"]
         self.cutoff_risk = row["cutoff_risk"]
         self.inheritance = row["inheritance"]
-        self.is_xlinked = self.inheritance[0] == 'X'
-        self.is_recessive = self.inheritance[-1] == 'R'
-        self.is_expansion = row["mutation_nature"] == 'increase'
+        self.is_xlinked = self.inheritance[0] == "X"
+        self.is_recessive = self.inheritance[-1] == "R"
+        self.is_expansion = row["mutation_nature"] == "increase"
         self.ploidy = 2
 
     def __repr__(self):
-        return "{} inheritance={} id={}_{}_{}".\
-                format(self.name, self.inheritance,
-                       self.chr, self.repeat_start, self.repeat)
+        return "{} inheritance={} id={}_{}_{}".format(
+            self.name, self.inheritance, self.chr, self.repeat_start, self.repeat
+        )
 
     def __str__(self):
-        return ";".join(str(x) for x in \
-                (self.name, self.repeat,
-                 self.chr, self.repeat_start, self.repeat_end,
-                 self.prefix, self.suffix))
+        return ";".join(
+            str(x)
+            for x in (
+                self.name,
+                self.repeat,
+                self.chr,
+                self.repeat_start,
+                self.repeat_end,
+                self.prefix,
+                self.suffix,
+            )
+        )
 
 
 class STRLine(object):
-
     def __init__(self, line):
         args = line.split()
         self.seqid = args[0]
@@ -182,24 +198,37 @@ class STRLine(object):
         self.name = args[15] if len(args) > 15 else None
 
     def __str__(self):
-        fields = [self.seqid, self.start, self.end,
-                  self.period, self.copynum, self.consensusSize,
-                  self.pctmatch, self.pctindel, self.score,
-                  self.A, self.C, self.G, self.T,
-                  "{0:.2f}".format(self.entropy), self.motif]
+        fields = [
+            self.seqid,
+            self.start,
+            self.end,
+            self.period,
+            self.copynum,
+            self.consensusSize,
+            self.pctmatch,
+            self.pctindel,
+            self.score,
+            self.A,
+            self.C,
+            self.G,
+            self.T,
+            "{0:.2f}".format(self.entropy),
+            self.motif,
+        ]
         if self.name is not None:
             fields += [self.name]
         return "\t".join(str(x) for x in fields)
 
     @property
     def longname(self):
-        return "_".join(str(x) for x in \
-                    (self.seqid, self.start, self.motif))
+        return "_".join(str(x) for x in (self.seqid, self.start, self.motif))
 
     def is_valid(self, maxperiod=6, maxlength=READLEN, minscore=MINSCORE):
-        return 1 <= self.period <= maxperiod and \
-               (self.end - self.start + 1) <= maxlength and \
-               self.score >= minscore
+        return (
+            1 <= self.period <= maxperiod
+            and (self.end - self.start + 1) <= maxlength
+            and self.score >= minscore
+        )
 
     def calc_entropy(self):
         total = self.A + self.C + self.G + self.T
@@ -212,7 +241,7 @@ class STRLine(object):
     def iter_exact_str(self, genome):
         pat = re.compile("(({0}){{2,}})".format(self.motif))
         start = self.start
-        s = genome[self.seqid][self.start - 1: self.end].upper()
+        s = genome[self.seqid][self.start - 1 : self.end].upper()
         for m in re.finditer(pat, s):
             self.start = start + m.start()
             length = m.end() - m.start()
@@ -232,15 +261,14 @@ class STRLine(object):
         length = int(ceil(self.period * float(self.copynum)))
         # Sanity check for length, otherwise lobSTR misses units
         self.end = max(self.end, self.start + length - 1)
-        self.A = subseq.count('A')
-        self.C = subseq.count('C')
-        self.G = subseq.count('G')
-        self.T = subseq.count('T')
+        self.A = subseq.count("A")
+        self.C = subseq.count("C")
+        self.G = subseq.count("G")
+        self.T = subseq.count("T")
         self.entropy = self.calc_entropy()
 
 
-class STRFile (LineFile):
-
+class STRFile(LineFile):
     def __init__(self, lobstr_home, db="hg38"):
         filename = op.join(lobstr_home, "{0}/index.info".format(db))
         super(STRFile, self).__init__(filename)
@@ -258,15 +286,17 @@ class STRFile (LineFile):
 
 
 class LobSTRvcf(dict):
-
     def __init__(self, columnidsfile="STR.ids"):
         self.samplekey = None
         self.evidence = {}  # name: (supporting reads, stutter reads)
         if columnidsfile:
             fp = open(columnidsfile)
             self.columns = [x.strip() for x in fp]
-            logging.debug("A total of {} markers imported from `{}`".\
-                            format(len(self.columns), columnidsfile))
+            logging.debug(
+                "A total of {} markers imported from `{}`".format(
+                    len(self.columns), columnidsfile
+                )
+            )
 
     def parse(self, filename, filtered=True, cleanup=False):
         self.samplekey = op.basename(filename).split(".")[0]
@@ -307,7 +337,7 @@ class LobSTRvcf(dict):
                     k, v = r.split("|")
                     k, v = int(k), int(v)
                     min_dist = min([abs(k - x) for x in adjusted_alleles])
-                    if motif_length * .5 < min_dist < motif_length * 1.5:
+                    if motif_length * 0.5 < min_dist < motif_length * 1.5:
                         stutters += v
                     support += v
                 self.evidence[name] = "{},{}".format(stutters, support)
@@ -328,25 +358,25 @@ def main():
 
     actions = (
         # Compile population data - pipeline: compilevcf->mergecsv->meta->data->mask
-        ('bin', 'convert tsv to binary format'),
-        ('filtervcf', 'filter lobSTR VCF'),
-        ('compilevcf', "compile vcf results into master spreadsheet"),
-        ('mergecsv', "combine csv into binary array"),
-        ('meta', 'compute allele frequencies and write to meta'),
-        ('data', 'filter data based on the meta calls'),
-        ('mask', 'compute P-values based on meta calls and data'),
-        ('treds', 'compile allele_frequency for TRED results'),
+        ("bin", "convert tsv to binary format"),
+        ("filtervcf", "filter lobSTR VCF"),
+        ("compilevcf", "compile vcf results into master spreadsheet"),
+        ("mergecsv", "combine csv into binary array"),
+        ("meta", "compute allele frequencies and write to meta"),
+        ("data", "filter data based on the meta calls"),
+        ("mask", "compute P-values based on meta calls and data"),
+        ("treds", "compile allele_frequency for TRED results"),
         # lobSTR related
-        ('lobstrindex', 'make lobSTR index'),
-        ('batchlobstr', "run batch lobSTR"),
-        ('lobstr', 'run lobSTR on a big BAM'),
-        ('locus', 'extract selected locus and run lobSTR'),
-        ('stutter', 'extract info from lobSTR vcf file'),
+        ("lobstrindex", "make lobSTR index"),
+        ("batchlobstr", "run batch lobSTR"),
+        ("lobstr", "run lobSTR on a big BAM"),
+        ("locus", "extract selected locus and run lobSTR"),
+        ("stutter", "extract info from lobSTR vcf file"),
         # Specific markers
-        ('liftover', 'liftOver CODIS/Y-STR markers'),
-        ('trf', 'run TRF on FASTA files'),
-        ('ystr', 'print out Y-STR info given VCF'),
-            )
+        ("liftover", "liftOver CODIS/Y-STR markers"),
+        ("trf", "run TRF on FASTA files"),
+        ("ystr", "print out Y-STR info given VCF"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -359,14 +389,15 @@ def treds(args):
     mask.tsv in one go.
     """
     p = OptionParser(treds.__doc__)
-    p.add_option("--csv", default=False, action="store_true",
-                 help="Also write `meta.csv`")
+    p.add_option(
+        "--csv", default=False, action="store_true", help="Also write `meta.csv`"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    tredresults, = args
+    (tredresults,) = args
     df = pd.read_csv(tredresults, sep="\t")
 
     tredsfile = datafile("TREDs.meta.csv")
@@ -424,7 +455,7 @@ def stutter(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    vcf, = args
+    (vcf,) = args
     pf = op.basename(vcf).split(".")[0]
     execid, sampleid = pf.split("_")
 
@@ -464,8 +495,8 @@ def write_filtered(vcffile, lhome, store=None):
     cmd = "python {}/scripts/lobSTR_filter_vcf.py".format(lhome)
     cmd += " --vcf {}".format(vcffile)
     cmd += " --loc-cov 5 --loc-log-score 0.8"
-    #cmd += " --loc-call-rate 0.8 --loc-max-ref-length 80"
-    #cmd += " --call-cov 5 --call-log-score 0.8 --call-dist-end 20"
+    # cmd += " --loc-call-rate 0.8 --loc-max-ref-length 80"
+    # cmd += " --call-cov 5 --call-log-score 0.8 --call-dist-end 20"
     sh(cmd, outfile=filteredvcf)
 
     if store:
@@ -507,7 +538,7 @@ def filtervcf(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    samples, = args
+    (samples,) = args
     lhome = opts.lobstr_home
     store = opts.output_path
 
@@ -528,8 +559,7 @@ def filtervcf(args):
 def write_meta(af_file, gene_map, blacklist, filename="meta.tsv"):
     fp = open(af_file)
     fw = open(filename, "w")
-    header = "id title gene_name variant_type motif allele_frequency".\
-                replace(" ",  "\t")
+    header = "id title gene_name variant_type motif allele_frequency".replace(" ", "\t")
     print(header, file=fw)
     variant_type = "short tandem repeats"
     title = "Short tandem repeats ({})n"
@@ -542,8 +572,10 @@ def write_meta(af_file, gene_map, blacklist, filename="meta.tsv"):
 
         seqid, pos, motif = locus.split("_")
         gene_name = gene_map.get((seqid, pos), "")
-        print("\t".join((locus, title.format(motif),
-                                gene_name, variant_type, motif, af)), file=fw)
+        print(
+            "\t".join((locus, title.format(motif), gene_name, variant_type, motif, af)),
+            file=fw,
+        )
     fw.close()
     logging.debug("Write meta file to `{}`".format(filename))
 
@@ -584,8 +616,12 @@ def meta(args):
     $ intersectBed -a all-STR.bed -b all-exons.bed -wo > STR-exons.wo.bed
     """
     p = OptionParser(meta.__doc__)
-    p.add_option("--cutoff", default=.5, type="float",
-                 help="Percent observed required (chrY half cutoff)")
+    p.add_option(
+        "--cutoff",
+        default=0.5,
+        type="float",
+        help="Percent observed required (chrY half cutoff)",
+    )
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -617,7 +653,7 @@ def meta(args):
         gene_map[(chr1, start1)] |= set(name.split(","))
     for k, v in gene_map.items():
         non_enst = sorted(x for x in v if not x.startswith("ENST"))
-        #enst = sorted(x.rsplit(".", 1)[0] for x in v if x.startswith("ENST"))
+        # enst = sorted(x.rsplit(".", 1)[0] for x in v if x.startswith("ENST"))
         gene_map[k] = ",".join(non_enst)
 
     TREDS, df = read_treds()
@@ -628,10 +664,10 @@ def meta(args):
 
 
 def alleles_to_counts(a):
-    #xa = a / 1000
+    # xa = a / 1000
     xb = a % 1000
     counts = Counter()
-    #counts.update(xa)
+    # counts.update(xa)
     counts.update(xb)
     del counts[-1]
     del counts[999]
@@ -658,14 +694,13 @@ def bin(args):
     Conver tsv to binary format.
     """
     p = OptionParser(bin.__doc__)
-    p.add_option("--dtype", choices=("float32", "int32"),
-                 help="dtype of the matrix")
+    p.add_option("--dtype", choices=("float32", "int32"), help="dtype of the matrix")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    tsvfile, = args
+    (tsvfile,) = args
     dtype = opts.dtype
     if dtype is None:  # Guess
         dtype = np.int32 if "data" in tsvfile else np.float32
@@ -696,7 +731,7 @@ def counts_to_percentile(counts):
         s += v
         percentile[k] = s
     for k, v in percentile.items():
-        v = "{:.6f}".format(v * 1. / s)
+        v = "{:.6f}".format(v * 1.0 / s)
         percentile[k] = v
     return percentile
 
@@ -736,13 +771,12 @@ def read_meta(metafile):
 def write_mask(cpus, samples, final_columns, run_args, filename="mask.tsv"):
     p = Pool(processes=cpus)
     res = []
-    r = p.map_async(convert_to_percentile, run_args,
-                    callback=res.append)
+    r = p.map_async(convert_to_percentile, run_args, callback=res.append)
     r.wait()
     res.sort()
 
     if len(res) == 1:  # sometimes res end up with one more nest
-        res, = res
+        (res,) = res
 
     # Write mask (P-value) matrix
     ii, pvalues = zip(*res)
@@ -757,8 +791,9 @@ def data(args):
     Make data.tsv based on meta.tsv.
     """
     p = OptionParser(data.__doc__)
-    p.add_option("--notsv", default=False, action="store_true",
-                 help="Do not write data.tsv")
+    p.add_option(
+        "--notsv", default=False, action="store_true", help="Do not write data.tsv"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -784,8 +819,11 @@ def data(args):
     fw = open(filteredstrids, "w")
     print("\n".join(final_columns), file=fw)
     fw.close()
-    logging.debug("Dropped {} columns; Retained {} columns (`{}`)".\
-                    format(len(remove), len(final_columns), filteredstrids))
+    logging.debug(
+        "Dropped {} columns; Retained {} columns (`{}`)".format(
+            len(remove), len(final_columns), filteredstrids
+        )
+    )
 
     # Remove low-quality columns!
     df.drop(remove, inplace=True, axis=1)
@@ -849,11 +887,11 @@ def mask(args):
         logging.debug("File `{}` written.".format(maskfile))
 
 
-def counts_filter(countsd, nalleles, seqid, cutoff=.5):
+def counts_filter(countsd, nalleles, seqid, cutoff=0.5):
     cutoff *= 100
     # Check for missingness
     observed = sum(countsd.values())
-    observed_pct = observed * 100  / nalleles
+    observed_pct = observed * 100 / nalleles
     if observed_pct < cutoff:
         if not (seqid == "chrY" and observed_pct >= cutoff / 2):
             return "MISSING"
@@ -956,8 +994,12 @@ def compilevcf(args):
     """
     p = OptionParser(compilevcf.__doc__)
     p.add_option("--db", default="hg38", help="Use these lobSTR db")
-    p.add_option("--nofilter", default=False, action="store_true",
-                 help="Do not filter the variants")
+    p.add_option(
+        "--nofilter",
+        default=False,
+        action="store_true",
+        help="Do not filter the variants",
+    )
     p.set_home("lobstr")
     p.set_cpus()
     p.set_aws_opts(store="hli-mv-data-science/htang/str-data")
@@ -966,7 +1008,7 @@ def compilevcf(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    samples, = args
+    (samples,) = args
     workdir = opts.workdir
     store = opts.output_path
     cleanup = not opts.nocleanup
@@ -1001,8 +1043,7 @@ def compilevcf(args):
 
 
 def build_ysearch_link(r, ban=["DYS520", "DYS413a", "DYS413b"]):
-    template = \
-    "http://www.ysearch.org/search_search.asp?fail=2&uid=&freeentry=true&"
+    template = "http://www.ysearch.org/search_search.asp?fail=2&uid=&freeentry=true&"
     markers = []
     for i, marker in zip(YSEARCH_LL, YSEARCH_HAPLOTYPE):
         z = r.get(marker, "null")
@@ -1038,7 +1079,7 @@ def ystr(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    vcffile, = args
+    (vcffile,) = args
     si = STRFile(opts.lobstr_home, db="hg38-named")
     register = si.register
 
@@ -1067,15 +1108,17 @@ def ystr(args):
     # Multi-copy markers
     mm = ["DYS385", "DYS413", "YCAII"]
     for m in mm:
-        ma, mb = m + 'a', m + 'b'
+        ma, mb = m + "a", m + "b"
         if ma not in simple_register or mb not in simple_register:
             simple_register[ma] = simple_register[mb] = None
             del simple_register[ma]
             del simple_register[mb]
             continue
         if simple_register[ma] > simple_register[mb]:
-            simple_register[ma], simple_register[mb] = \
-                    simple_register[mb], simple_register[ma]
+            simple_register[ma], simple_register[mb] = (
+                simple_register[mb],
+                simple_register[ma],
+            )
 
     write_csv(header, contents, sep=" ")
     print("[YSEARCH]")
@@ -1092,8 +1135,8 @@ def get_motif(s, motif_length):
     sl = len(s)
     kmers = set()
     # Get all kmers
-    for i in xrange(sl - motif_length):
-        ss = s[i: i + motif_length]
+    for i in range(sl - motif_length):
+        ss = s[i : i + motif_length]
         kmers.add(ss)
 
     kmer_counts = []
@@ -1110,8 +1153,12 @@ def liftover(args):
     LiftOver CODIS/Y-STR markers.
     """
     p = OptionParser(liftover.__doc__)
-    p.add_option("--checkvalid", default=False, action="store_true",
-                help="Check minscore, period and length")
+    p.add_option(
+        "--checkvalid",
+        default=False,
+        action="store_true",
+        help="Check minscore, period and length",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1123,7 +1170,7 @@ def liftover(args):
     fp = open(refbed)
     for i, row in enumerate(fp):
         s = STRLine(row)
-        seq = genome[s.seqid][s.start - 1: s.end].upper()
+        seq = genome[s.seqid][s.start - 1 : s.end].upper()
         s.motif = get_motif(seq, len(s.motif))
         s.fix_counts(seq)
         if opts.checkvalid and not s.is_valid():
@@ -1144,34 +1191,47 @@ def trf(args):
     Run TRF on FASTA files.
     """
     from jcvi.apps.base import iglob
+
     cparams = "1 1 2 80 5 200 2000"
 
     p = OptionParser(trf.__doc__)
-    p.add_option("--mismatch", default=31, type="int",
-                 help="Mismatch and gap penalty")
-    p.add_option("--minscore", default=MINSCORE, type="int",
-                 help="Minimum score to report")
-    p.add_option("--period", default=6, type="int",
-                 help="Maximum period to report")
-    p.add_option("--lobstr", default=False, action="store_true",
-                 help="Generate output for lobSTR")
-    p.add_option("--telomeres", default=False, action="store_true",
-                 help="Run telomere search: minscore=140 period=7")
-    p.add_option("--centromeres", default=False, action="store_true",
-                 help="Run centromere search: {}".format(cparams))
+    p.add_option("--mismatch", default=31, type="int", help="Mismatch and gap penalty")
+    p.add_option(
+        "--minscore", default=MINSCORE, type="int", help="Minimum score to report"
+    )
+    p.add_option("--period", default=6, type="int", help="Maximum period to report")
+    p.add_option(
+        "--lobstr",
+        default=False,
+        action="store_true",
+        help="Generate output for lobSTR",
+    )
+    p.add_option(
+        "--telomeres",
+        default=False,
+        action="store_true",
+        help="Run telomere search: minscore=140 period=7",
+    )
+    p.add_option(
+        "--centromeres",
+        default=False,
+        action="store_true",
+        help="Run centromere search: {}".format(cparams),
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    outdir, = args
+    (outdir,) = args
     minlength = opts.minscore / 2
     mm = MakeManager()
     if opts.telomeres:
         opts.minscore, opts.period = 140, 7
 
-    params = "2 {0} {0} 80 10 {1} {2}".\
-            format(opts.mismatch, opts.minscore, opts.period).split()
+    params = "2 {0} {0} 80 10 {1} {2}".format(
+        opts.mismatch, opts.minscore, opts.period
+    ).split()
     if opts.centromeres:
         params = cparams.split()
 
@@ -1184,8 +1244,9 @@ def trf(args):
         bedfile = "{0}.trf.bed".format(pf)
         cmd2 = "cat {} | grep -v ^Parameters".format(datfile)
         if opts.lobstr:
-            cmd2 += " | awk '($8 >= {} && $8 <= {})'".\
-                    format(minlength, READLEN - minlength)
+            cmd2 += " | awk '($8 >= {} && $8 <= {})'".format(
+                minlength, READLEN - minlength
+            )
         else:
             cmd2 += " | awk '($8 >= 0)'"
         cmd2 += " | sed 's/ /\\t/g'"
@@ -1217,7 +1278,7 @@ def batchlobstr(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    samplesfile, = args
+    (samplesfile,) = args
     store = opts.output_path
     computed = ls_s3(store)
     fp = open(samplesfile)
@@ -1233,14 +1294,26 @@ def batchlobstr(args):
             skipped += 1
             continue
 
-        print(opts.sep.join("python -m jcvi.variation.str lobstr".split() + \
-                            ["hg38",
-                            "--input_bam_path", bamfile,
-                            "--output_path", store,
-                            "--sample_id", sample_id,
-                            "--workflow_execution_id", exec_id,
-                            "--lobstr_home", opts.lobstr_home,
-                            "--workdir", opts.workdir]))
+        print(
+            opts.sep.join(
+                "python -m jcvi.variation.str lobstr".split()
+                + [
+                    "hg38",
+                    "--input_bam_path",
+                    bamfile,
+                    "--output_path",
+                    store,
+                    "--sample_id",
+                    sample_id,
+                    "--workflow_execution_id",
+                    exec_id,
+                    "--lobstr_home",
+                    opts.lobstr_home,
+                    "--workdir",
+                    opts.workdir,
+                ]
+            )
+        )
     fp.close()
     logging.debug("Total skipped: {0}".format(percentage(skipped, total)))
 
@@ -1254,11 +1327,13 @@ def lobstr(args):
     (e.g. s3://hli-mv-data-science/htang/str-build/lobSTR/)
     """
     p = OptionParser(lobstr.__doc__)
-    p.add_option("--haploid", default="chrY,chrM",
-                 help="Use haploid model for these chromosomes")
+    p.add_option(
+        "--haploid", default="chrY,chrM", help="Use haploid model for these chromosomes"
+    )
     p.add_option("--chr", help="Run only this chromosome")
-    p.add_option("--simulation", default=False, action="store_true",
-                 help="Simulation mode")
+    p.add_option(
+        "--simulation", default=False, action="store_true", help="Simulation mode"
+    )
     p.set_home("lobstr", default="s3://hli-mv-data-science/htang/str-build/lobSTR/")
     p.set_cpus()
     p.set_aws_opts(store="hli-mv-data-science/htang/str-data")
@@ -1270,8 +1345,9 @@ def lobstr(args):
 
     lbindices = args
     if opts.simulation:  # Simulation mode
-        cmd, vcf_file = allelotype_on_chr(bamfile, "chr4", "/mnt/software/lobSTR/",
-                                          "TREDs", haploid=opts.haploid)
+        cmd, vcf_file = allelotype_on_chr(
+            bamfile, "chr4", "/mnt/software/lobSTR/", "TREDs", haploid=opts.haploid
+        )
         stats_file = vcf_file.rsplit(".", 1)[0] + ".allelotype.stats"
         results_dir = "lobstr_results"
         mkdir(results_dir)
@@ -1301,8 +1377,9 @@ def lobstr(args):
         gzfile = pf + ".{0}.vcf.gz".format(lbindices[-1])
         remotegzfile = "{0}/{1}".format(store, gzfile)
         if check_exists_s3(remotegzfile):
-            logging.debug("Object `{0}` exists. Computation skipped."\
-                            .format(remotegzfile))
+            logging.debug(
+                "Object `{0}` exists. Computation skipped.".format(remotegzfile)
+            )
             return
         localbamfile = pf + ".bam"
         localbaifile = localbamfile + ".bai"
@@ -1331,8 +1408,9 @@ def lobstr(args):
         mm = MakeManager(filename=makefile)
         vcffiles = []
         for chr in chrs:
-            cmd, vcffile = allelotype_on_chr(bamfile, chr, lhome,
-                                             lbidx, haploid=opts.haploid)
+            cmd, vcffile = allelotype_on_chr(
+                bamfile, chr, lhome, lbidx, haploid=opts.haploid
+            )
             mm.add(bamfile, vcffile, cmd)
             filteredvcffile = vcffile.replace(".vcf", ".filtered.vcf")
             cmd = "python -m jcvi.variation.str filtervcf {}".format(vcffile)
@@ -1377,23 +1455,21 @@ def locus(args):
     Extract selected locus from a list of TREDs for validation, and run lobSTR.
     """
     from jcvi.formats.sam import get_minibam
+
     # See `Format-lobSTR-database.ipynb` for a list of TREDs for validation
-    INCLUDE = ["HD", "SBMA", "SCA1", "SCA2", "SCA8", "SCA17", "DM1", "DM2",
-               "FXTAS"]
+    INCLUDE = ["HD", "SBMA", "SCA1", "SCA2", "SCA8", "SCA17", "DM1", "DM2", "FXTAS"]
     db_choices = ("hg38", "hg19")
 
     p = OptionParser(locus.__doc__)
-    p.add_option("--tred", choices=INCLUDE,
-                 help="TRED name")
-    p.add_option("--ref", choices=db_choices, default="hg38",
-                 help="Reference genome")
+    p.add_option("--tred", choices=INCLUDE, help="TRED name")
+    p.add_option("--ref", choices=db_choices, default="hg38", help="Reference genome")
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bamfile, = args
+    (bamfile,) = args
     ref = opts.ref
     lhome = opts.lobstr_home
     tred = opts.tred
@@ -1409,7 +1485,7 @@ def locus(args):
     seqid, start_end = row[tag].split(":")
 
     PAD = 1000
-    start, end = start_end.split('-')
+    start, end = start_end.split("-")
     start, end = int(start) - PAD, int(end) + PAD
     region = "{}:{}-{}".format(seqid, start, end)
 
@@ -1426,7 +1502,7 @@ def locus(args):
         return
 
     k, v = parser.items()[0]
-    print("{} => {}".format(tred, v.replace(',', '/')), file=sys.stderr)
+    print("{} => {}".format(tred, v.replace(",", "/")), file=sys.stderr)
 
 
 def lobstrindex(args):
@@ -1438,8 +1514,12 @@ def lobstrindex(args):
     by str().
     """
     p = OptionParser(lobstrindex.__doc__)
-    p.add_option("--notreds", default=False, action="store_true",
-                 help="Remove TREDs from the bed file")
+    p.add_option(
+        "--notreds",
+        default=False,
+        action="store_true",
+        help="Remove TREDs from the bed file",
+    )
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
@@ -1487,5 +1567,5 @@ def lobstrindex(args):
     mm.write()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

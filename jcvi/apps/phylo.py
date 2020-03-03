@@ -39,12 +39,21 @@ import numpy as np
 from ete3 import Tree
 from Bio import SeqIO, AlignIO
 from Bio.Data import CodonTable
-from Bio.Emboss.Applications import FSeqBootCommandline, FDNADistCommandline, \
-            FNeighborCommandline, FConsenseCommandline
+from Bio.Emboss.Applications import (
+    FSeqBootCommandline,
+    FDNADistCommandline,
+    FNeighborCommandline,
+    FConsenseCommandline,
+)
 from Bio.Phylo.Applications import PhymlCommandline, RaxmlCommandline
 
-from jcvi.apps.ks import AbstractCommandline, find_first_isoform, \
-            run_mrtrans, clustal_align_protein, muscle_align_protein
+from jcvi.apps.ks import (
+    AbstractCommandline,
+    find_first_isoform,
+    run_mrtrans,
+    clustal_align_protein,
+    muscle_align_protein,
+)
 from jcvi.formats.base import must_open, DictFile, LineFile
 from jcvi.formats.fasta import Fasta
 from jcvi.utils.orderedcollections import OrderedDict
@@ -65,20 +74,25 @@ class GblocksCommandline(AbstractCommandline):
 
     Accepts alignment in FASTA or NBRF/PIR format.
     """
-    def __init__(self, aln_file, aln_type="c", \
-        command=GBLOCKS_BIN("Gblocks"), **kwargs):
+
+    def __init__(
+        self, aln_file, aln_type="c", command=GBLOCKS_BIN("Gblocks"), **kwargs
+    ):
 
         self.aln_file = aln_file
         self.aln_type = aln_type
         self.command = command
 
-        params = {"b4":5, "b5":"h", "p":"n"}
+        params = {"b4": 5, "b5": "h", "p": "n"}
         params.update(kwargs)
-        self.parameters = ["-{0}={1}".format(k,v) for k,v in params.items()]
+        self.parameters = ["-{0}={1}".format(k, v) for k, v in params.items()]
 
     def __str__(self):
-        return self.command + " %s -t=%s " % (self.aln_file, self.aln_type) \
+        return (
+            self.command
+            + " %s -t=%s " % (self.aln_file, self.aln_type)
             + " ".join(self.parameters)
+        )
 
 
 class FfitchCommandline(AbstractCommandline):
@@ -87,29 +101,50 @@ class FfitchCommandline(AbstractCommandline):
 
     Infer branch lengths of tree.
     """
-    def __init__(self, datafile, outtreefile, command=FPHYLIP_BIN("ffitch"), \
-            intreefile=None, **kwargs):
+
+    def __init__(
+        self,
+        datafile,
+        outtreefile,
+        command=FPHYLIP_BIN("ffitch"),
+        intreefile=None,
+        **kwargs
+    ):
 
         self.datafile = datafile
         self.outtreefile = outtreefile
-        self.outfile = datafile.rsplit(".",1)[0] + ".ffitch"
+        self.outfile = datafile.rsplit(".", 1)[0] + ".ffitch"
         self.command = command
         self.intreefile = intreefile if intreefile else '""'
 
-        self.parameters = ["-{0} {1}".format(k,v) for k,v in kwargs.items()]
+        self.parameters = ["-{0} {1}".format(k, v) for k, v in kwargs.items()]
 
     def __str__(self):
-        return self.command + " -datafile %s -intreefile %s -outfile %s " \
-                "-outtreefile %s " % (self.datafile, self.intreefile, \
-                self.outfile, self.outtreefile) + " ".join(self.parameters)
+        return self.command + " -datafile %s -intreefile %s -outfile %s " "-outtreefile %s " % (
+            self.datafile,
+            self.intreefile,
+            self.outfile,
+            self.outtreefile,
+        ) + " ".join(
+            self.parameters
+        )
 
 
 class TreeFixCommandline(AbstractCommandline):
     """Little commandline for TreeFix
     (http://compbio.mit.edu/treefix/).
     """
-    def __init__(self, input, stree_file, smap_file, a_ext, \
-        command=TREEFIX_BIN("treefix"), r=False, **kwargs):
+
+    def __init__(
+        self,
+        input,
+        stree_file,
+        smap_file,
+        a_ext,
+        command=TREEFIX_BIN("treefix"),
+        r=False,
+        **kwargs
+    ):
 
         self.input = input
         self.s = stree_file
@@ -117,26 +152,42 @@ class TreeFixCommandline(AbstractCommandline):
         self.A = a_ext
         self.command = command
 
-        params = {"V":1, \
-                  "l":input.rsplit(".", 1)[0] + ".treefix.log"}
+        params = {"V": 1, "l": input.rsplit(".", 1)[0] + ".treefix.log"}
         params.update(kwargs)
-        self.parameters = ["-{0} {1}".format(k,v) for k,v in params.items()]
+        self.parameters = ["-{0} {1}".format(k, v) for k, v in params.items()]
         if r:
             self.parameters.append("-r")
 
     def __str__(self):
-        return self.command + " -s %s -S %s -A %s " % (self.s, self.S, self.A) \
-            + " ".join(self.parameters) + " %s" % self.input
+        return (
+            self.command
+            + " -s %s -S %s -A %s " % (self.s, self.S, self.A)
+            + " ".join(self.parameters)
+            + " %s" % self.input
+        )
 
 
-def run_treefix(input, stree_file, smap_file, a_ext=".fasta", \
-                o_ext=".dnd", n_ext = ".treefix.dnd", **kwargs):
+def run_treefix(
+    input,
+    stree_file,
+    smap_file,
+    a_ext=".fasta",
+    o_ext=".dnd",
+    n_ext=".treefix.dnd",
+    **kwargs
+):
     """
     get the ML tree closest to the species tree
     """
-    cl = TreeFixCommandline(input=input, \
-            stree_file=stree_file, smap_file=smap_file, a_ext=a_ext, \
-            o=o_ext, n=n_ext, **kwargs)
+    cl = TreeFixCommandline(
+        input=input,
+        stree_file=stree_file,
+        smap_file=smap_file,
+        a_ext=a_ext,
+        o=o_ext,
+        n=n_ext,
+        **kwargs
+    )
     outtreefile = input.rsplit(o_ext, 1)[0] + n_ext
     print("TreeFix:", cl, file=sys.stderr)
     r, e = cl.run()
@@ -163,23 +214,28 @@ def run_gblocks(align_fasta_file, **kwargs):
         return None
     else:
         print(r, file=sys.stderr)
-        alignp = re.sub(r'.*Gblocks alignment:.*\(([0-9]{1,3}) %\).*', \
-            r'\1', r, flags=re.DOTALL)
+        alignp = re.sub(
+            r".*Gblocks alignment:.*\(([0-9]{1,3}) %\).*", r"\1", r, flags=re.DOTALL
+        )
         alignp = int(alignp)
         if alignp <= 10:
-            print("** WARNING ** Only %s %% positions retained by Gblocks. " \
-                "Results aborted. Using original alignment instead.\n" % alignp, file=sys.stderr)
+            print(
+                "** WARNING ** Only %s %% positions retained by Gblocks. "
+                "Results aborted. Using original alignment instead.\n" % alignp,
+                file=sys.stderr,
+            )
             return None
         else:
-            return align_fasta_file+"-gb"
+            return align_fasta_file + "-gb"
 
 
 def run_ffitch(distfile, outtreefile, intreefile=None, **kwargs):
     """
     Infer tree branch lengths using ffitch in EMBOSS PHYLIP
     """
-    cl = FfitchCommandline(datafile=distfile, outtreefile=outtreefile, \
-            intreefile=intreefile, **kwargs)
+    cl = FfitchCommandline(
+        datafile=distfile, outtreefile=outtreefile, intreefile=intreefile, **kwargs
+    )
     r, e = cl.run()
 
     if e:
@@ -203,13 +259,16 @@ def smart_reroot(treefile, outgroupfile, outfile, format=0):
     for o in must_open(outgroupfile):
         o = o.strip()
         for leaf in leaves:
-            if leaf[:len(o)] == o:
+            if leaf[: len(o)] == o:
                 outgroup.append(leaf)
         if outgroup:
             break
 
     if not outgroup:
-        print("Outgroup not found. Tree {0} cannot be rerooted.".format(treefile), file=sys.stderr)
+        print(
+            "Outgroup not found. Tree {0} cannot be rerooted.".format(treefile),
+            file=sys.stderr,
+        )
         return treefile
 
     try:
@@ -236,49 +295,66 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
     try:
         AlignIO.write(alignment, file(phy_file, "w"), "phylip")
     except ValueError:
-        print("Repeated seq name, possibly due to truncation. NJ tree not built.", file=sys.stderr)
+        print(
+            "Repeated seq name, possibly due to truncation. NJ tree not built.",
+            file=sys.stderr,
+        )
         return None
 
-    seqboot_out = phy_file.rsplit(".",1)[0] + ".fseqboot"
-    seqboot_cl = FSeqBootCommandline(FPHYLIP_BIN("fseqboot"), \
-        sequence=phy_file, outfile=seqboot_out, \
-        seqtype="d", reps=100, seed=12345)
+    seqboot_out = phy_file.rsplit(".", 1)[0] + ".fseqboot"
+    seqboot_cl = FSeqBootCommandline(
+        FPHYLIP_BIN("fseqboot"),
+        sequence=phy_file,
+        outfile=seqboot_out,
+        seqtype="d",
+        reps=100,
+        seed=12345,
+    )
     stdout, stderr = seqboot_cl()
     logging.debug("Resampling alignment: %s" % seqboot_cl)
 
-    dnadist_out = phy_file.rsplit(".",1)[0] + ".fdnadist"
-    dnadist_cl = FDNADistCommandline(FPHYLIP_BIN("fdnadist"), \
-        sequence=seqboot_out, outfile=dnadist_out, method="f")
+    dnadist_out = phy_file.rsplit(".", 1)[0] + ".fdnadist"
+    dnadist_cl = FDNADistCommandline(
+        FPHYLIP_BIN("fdnadist"), sequence=seqboot_out, outfile=dnadist_out, method="f"
+    )
     stdout, stderr = dnadist_cl()
-    logging.debug\
-        ("Calculating distance for bootstrapped alignments: %s" % dnadist_cl)
+    logging.debug("Calculating distance for bootstrapped alignments: %s" % dnadist_cl)
 
-    neighbor_out = phy_file.rsplit(".",1)[0] + ".njtree"
-    e = phy_file.rsplit(".",1)[0] + ".fneighbor"
-    neighbor_cl = FNeighborCommandline(FPHYLIP_BIN("fneighbor"), \
-        datafile=dnadist_out, outfile=e, outtreefile=neighbor_out)
+    neighbor_out = phy_file.rsplit(".", 1)[0] + ".njtree"
+    e = phy_file.rsplit(".", 1)[0] + ".fneighbor"
+    neighbor_cl = FNeighborCommandline(
+        FPHYLIP_BIN("fneighbor"),
+        datafile=dnadist_out,
+        outfile=e,
+        outtreefile=neighbor_out,
+    )
     stdout, stderr = neighbor_cl()
     logging.debug("Building Neighbor Joining tree: %s" % neighbor_cl)
 
-    consense_out = phy_file.rsplit(".",1)[0] + ".consensustree.nodesupport"
-    e = phy_file.rsplit(".",1)[0] + ".fconsense"
-    consense_cl = FConsenseCommandline(FPHYLIP_BIN("fconsense"), \
-        intreefile=neighbor_out, outfile=e, outtreefile=consense_out)
+    consense_out = phy_file.rsplit(".", 1)[0] + ".consensustree.nodesupport"
+    e = phy_file.rsplit(".", 1)[0] + ".fconsense"
+    consense_cl = FConsenseCommandline(
+        FPHYLIP_BIN("fconsense"),
+        intreefile=neighbor_out,
+        outfile=e,
+        outtreefile=consense_out,
+    )
     stdout, stderr = consense_cl()
     logging.debug("Building consensus tree: %s" % consense_cl)
 
     # distance without bootstrapping
-    dnadist_out0 = phy_file.rsplit(".",1)[0] + ".fdnadist0"
-    dnadist_cl0 = FDNADistCommandline(FPHYLIP_BIN("fdnadist"), \
-        sequence=phy_file, outfile=dnadist_out0, method="f")
+    dnadist_out0 = phy_file.rsplit(".", 1)[0] + ".fdnadist0"
+    dnadist_cl0 = FDNADistCommandline(
+        FPHYLIP_BIN("fdnadist"), sequence=phy_file, outfile=dnadist_out0, method="f"
+    )
     stdout, stderr = dnadist_cl0()
-    logging.debug\
-        ("Calculating distance for original alignment: %s" % dnadist_cl0)
+    logging.debug("Calculating distance for original alignment: %s" % dnadist_cl0)
 
     # infer branch length on consensus tree
-    consensustree1 = phy_file.rsplit(".",1)[0] + ".consensustree.branchlength"
-    run_ffitch(distfile=dnadist_out0, outtreefile=consensustree1, \
-            intreefile=consense_out)
+    consensustree1 = phy_file.rsplit(".", 1)[0] + ".consensustree.branchlength"
+    run_ffitch(
+        distfile=dnadist_out0, outtreefile=consensustree1, intreefile=consense_out
+    )
 
     # write final tree
     ct_s = Tree(consense_out)
@@ -296,9 +372,9 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
     for node in ct_s.traverse("postorder"):
         node_children = tuple(sorted([f.name for f in node]))
         if len(node_children) > 1:
-            nodesupport[node_children] = node.dist/100.
+            nodesupport[node_children] = node.dist / 100.0
 
-    for k,v in nodesupport.items():
+    for k, v in nodesupport.items():
         ct_b.get_common_ancestor(*k).support = v
     print(ct_b)
     ct_b.write(format=0, outfile=outfile)
@@ -348,11 +424,18 @@ def build_ml_raxml(alignment, outfile, work_dir=".", **kwargs):
 
     raxml_work = op.abspath(op.join(op.dirname(phy_file), "raxml_work"))
     mkdir(raxml_work)
-    raxml_cl = RaxmlCommandline(cmd=RAXML_BIN("raxmlHPC"), \
-        sequences=phy_file, algorithm="a", model="GTRGAMMA", \
-        parsimony_seed=12345, rapid_bootstrap_seed=12345, \
-        num_replicates=100, name="aln", \
-        working_dir=raxml_work, **kwargs)
+    raxml_cl = RaxmlCommandline(
+        cmd=RAXML_BIN("raxmlHPC"),
+        sequences=phy_file,
+        algorithm="a",
+        model="GTRGAMMA",
+        parsimony_seed=12345,
+        rapid_bootstrap_seed=12345,
+        num_replicates=100,
+        name="aln",
+        working_dir=raxml_work,
+        **kwargs
+    )
 
     logging.debug("Building ML tree using RAxML: %s" % raxml_cl)
     stdout, stderr = raxml_cl()
@@ -381,20 +464,26 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
 
     raxml_work = op.abspath(op.join(op.dirname(phy_file), "raxml_work"))
     mkdir(raxml_work)
-    raxml_cl = RaxmlCommandline(cmd=RAXML_BIN("raxmlHPC"), \
-    sequences=phy_file, algorithm="h", model="GTRGAMMA", \
-    name="SH", starting_tree=reftree, bipartition_filename=querytree, \
-    working_dir=raxml_work)
+    raxml_cl = RaxmlCommandline(
+        cmd=RAXML_BIN("raxmlHPC"),
+        sequences=phy_file,
+        algorithm="h",
+        model="GTRGAMMA",
+        name="SH",
+        starting_tree=reftree,
+        bipartition_filename=querytree,
+        working_dir=raxml_work,
+    )
 
     logging.debug("Running SH test in RAxML: %s" % raxml_cl)
     o, stderr = raxml_cl()
     # hard coded
     try:
-        pval = re.search('(Significantly.*:.*)', o).group(0)
+        pval = re.search("(Significantly.*:.*)", o).group(0)
     except:
         print("SH test failed.", file=sys.stderr)
     else:
-        pval = pval.strip().replace("\t"," ").replace("%","\%")
+        pval = pval.strip().replace("\t", " ").replace("%", "\%")
         print("{0}\t{1}".format(op.basename(querytree), pval), file=shout)
         logging.debug("SH p-value appended to %s" % shout.name)
 
@@ -403,13 +492,41 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
 
 
 CODON_TRANSLATION = CodonTable.standard_dna_table.forward_table
-FOURFOLD = {"CTT": "L", "ACA": "T", "ACG": "T", "CCT": "P", "CTG": "L",
-            "CTA": "L", "ACT": "T", "CCG": "P", "CCA": "P", "CCC": "P",
-            "GGT": "G", "CGA": "R", "CGC": "R", "CGG": "R", "GGG": "G",
-            "GGA": "G", "GGC": "G", "CGT": "R", "GTA": "V", "GTC": "V",
-            "GTG": "V", "GTT": "V", "CTC": "L", "TCT": "S", "TCG": "S",
-            "TCC": "S", "ACC": "T", "TCA": "S", "GCA": "A", "GCC": "A",
-            "GCG": "A", "GCT": "A"}
+FOURFOLD = {
+    "CTT": "L",
+    "ACA": "T",
+    "ACG": "T",
+    "CCT": "P",
+    "CTG": "L",
+    "CTA": "L",
+    "ACT": "T",
+    "CCG": "P",
+    "CCA": "P",
+    "CCC": "P",
+    "GGT": "G",
+    "CGA": "R",
+    "CGC": "R",
+    "CGG": "R",
+    "GGG": "G",
+    "GGA": "G",
+    "GGC": "G",
+    "CGT": "R",
+    "GTA": "V",
+    "GTC": "V",
+    "GTG": "V",
+    "GTT": "V",
+    "CTC": "L",
+    "TCT": "S",
+    "TCG": "S",
+    "TCC": "S",
+    "ACC": "T",
+    "TCA": "S",
+    "GCA": "A",
+    "GCC": "A",
+    "GCG": "A",
+    "GCT": "A",
+}
+
 
 def subalignment(alnfle, subtype, alntype="fasta"):
     """
@@ -424,10 +541,10 @@ def subalignment(alnfle, subtype, alntype="fasta"):
     subalnfile = alnfle.rsplit(".", 1)[0] + "_{0}.{1}".format(subtype, alntype)
 
     if subtype == "synonymous":
-        for j in range( 0, alnlen, 3 ):
+        for j in range(0, alnlen, 3):
             aa = None
             for i in range(nseq):
-                codon = str(aln[i, j: j + 3].seq)
+                codon = str(aln[i, j : j + 3].seq)
                 if codon not in CODON_TRANSLATION:
                     break
                 if aa and CODON_TRANSLATION[codon] != aa:
@@ -436,21 +553,21 @@ def subalignment(alnfle, subtype, alntype="fasta"):
                     aa = CODON_TRANSLATION[codon]
             else:
                 if subaln is None:
-                    subaln = aln[:, j: j + 3]
+                    subaln = aln[:, j : j + 3]
                 else:
-                    subaln += aln[:, j: j + 3]
+                    subaln += aln[:, j : j + 3]
 
     if subtype == "fourfold":
-        for j in range( 0, alnlen, 3 ):
+        for j in range(0, alnlen, 3):
             for i in range(nseq):
-                codon = str(aln[i, j: j + 3].seq)
+                codon = str(aln[i, j : j + 3].seq)
                 if codon not in FOURFOLD:
                     break
             else:
                 if subaln is None:
-                    subaln = aln[:, j: j + 3]
+                    subaln = aln[:, j : j + 3]
                 else:
-                    subaln += aln[:, j: j + 3]
+                    subaln += aln[:, j : j + 3]
 
     if subaln:
         AlignIO.write(subaln, subalnfile, alntype)
@@ -460,20 +577,21 @@ def subalignment(alnfle, subtype, alntype="fasta"):
         return None
 
 
-def merge_rows_local(filename, ignore=".", colsep="\t", local=10, \
-    fieldcheck=True, fsep=","):
+def merge_rows_local(
+    filename, ignore=".", colsep="\t", local=10, fieldcheck=True, fsep=","
+):
     """
     merge overlapping rows within given row count distance
     """
-    fw = must_open(filename+".merged", "w")
+    fw = must_open(filename + ".merged", "w")
     rows = file(filename).readlines()
     rows = [row.strip().split(colsep) for row in rows]
     l = len(rows[0])
 
     for rowi, row in enumerate(rows):
         n = len(rows)
-        i = rowi+1
-        while i <= min(rowi+local, n-1):
+        i = rowi + 1
+        while i <= min(rowi + local, n - 1):
             merge = 1
             row2 = rows[i]
             for j in range(l):
@@ -485,7 +603,7 @@ def merge_rows_local(filename, ignore=".", colsep="\t", local=10, \
                     b = set(b.split(fsep))
                     b = fsep.join(sorted(list(b)))
 
-                if all([a!=ignore, b!=ignore, a not in b, b not in a]):
+                if all([a != ignore, b != ignore, a not in b, b not in a]):
                     merge = 0
                     i += 1
                     break
@@ -512,11 +630,11 @@ def add_tandems(mcscanfile, tandemfile):
     add tandem genes to anchor genes in mcscan file
     """
     tandems = [f.strip().split(",") for f in file(tandemfile)]
-    fw = must_open(mcscanfile+".withtandems", "w")
+    fw = must_open(mcscanfile + ".withtandems", "w")
     fp = must_open(mcscanfile)
-    seen =set()
+    seen = set()
     for i, row in enumerate(fp):
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         anchorslist = row.strip().split("\t")
         anchors = set([a.split(",")[0] for a in anchorslist])
@@ -542,11 +660,15 @@ def add_tandems(mcscanfile, tandemfile):
     fw.close()
     newmcscanfile = merge_rows_local(fw.name)
 
-    logging.debug("Tandems added to `{0}`. Results in `{1}`".\
-        format(mcscanfile, newmcscanfile))
+    logging.debug(
+        "Tandems added to `{0}`. Results in `{1}`".format(mcscanfile, newmcscanfile)
+    )
     fp.seek(0)
-    logging.debug("{0} rows merged to {1} rows".\
-        format(len(fp.readlines()), len(file(newmcscanfile).readlines())))
+    logging.debug(
+        "{0} rows merged to {1} rows".format(
+            len(fp.readlines()), len(file(newmcscanfile).readlines())
+        )
+    )
     sh("rm %s" % fw.name)
 
     return newmcscanfile
@@ -555,10 +677,10 @@ def add_tandems(mcscanfile, tandemfile):
 def main():
 
     actions = (
-        ('prepare', 'prepare cds sequences from .mcscan'),
-        ('build', 'build NJ and ML trees from cds'),
-        ('draw', 'draw Newick formatted trees'),
-            )
+        ("prepare", "prepare cds sequences from .mcscan"),
+        ("build", "build NJ and ML trees from cds"),
+        ("draw", "draw Newick formatted trees"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -578,10 +700,14 @@ def prepare(args):
     from jcvi.graphics.base import discrete_rainbow
 
     p = OptionParser(prepare.__doc__)
-    p.add_option("--addtandem", help="path to tandemfile [default: %default]")
-    p.add_option("--writecolors", default=False, action="store_true", \
-        help="generate a gene_name to color mapping file which will be taken " \
-        "by jcvi.apps.phylo.draw [default: %default]")
+    p.add_option("--addtandem", help="path to tandemfile")
+    p.add_option(
+        "--writecolors",
+        default=False,
+        action="store_true",
+        help="generate a gene_name to color mapping file which will be taken "
+        "by jcvi.apps.phylo.draw",
+    )
     p.set_outdir(outdir="sequences")
 
     opts, args = p.parse_args(args)
@@ -612,10 +738,12 @@ def prepare(args):
                 colors = discrete_rainbow(l, shuffle=False)[1]
             else:
                 colors = discrete_rainbow(l, usepreset=False, shuffle=False)[1]
-                warnings.warn("*** WARNING ***\n" \
-                    "Too many columns. Colors may not be all distinctive.")
+                warnings.warn(
+                    "*** WARNING ***\n"
+                    "Too many columns. Colors may not be all distinctive."
+                )
 
-        assert len(row)==l, "All rows should have same number of fields."
+        assert len(row) == l, "All rows should have same number of fields."
 
         anchors = set()
         for j, atom in enumerate(row):
@@ -632,7 +760,10 @@ def prepare(args):
                 anchors.add(atom)
 
         if len(anchors) <= 3:
-            print("Not enough seqs to build trees for {0}".format(anchors), file=sys.stderr)
+            print(
+                "Not enough seqs to build trees for {0}".format(anchors),
+                file=sys.stderr,
+            )
             continue
 
         pivot = row[0]
@@ -645,7 +776,7 @@ def prepare(args):
             arec = f[a]
             SeqIO.write((arec), fw, "fasta")
         fw.close()
-        n+=1
+        n += 1
 
     if opts.writecolors:
         fc.close()
@@ -687,31 +818,49 @@ def build(args):
     from jcvi.formats.fasta import translate
 
     p = OptionParser(build.__doc__)
-    p.add_option("--longest", action="store_true",
-                 help="Get longest ORF, only works if no pep file, "\
-                      "e.g. ESTs [default: %default]")
-    p.add_option("--nogblocks", action="store_true",
-                 help="don't use Gblocks to edit alignment [default: %default]")
-    p.add_option("--synonymous", action="store_true",
-                 help="extract synonymous sites of the alignment [default: %default]")
-    p.add_option("--fourfold", action="store_true",
-                 help="extract fourfold degenerate sites of the alignment [default: %default]")
-    p.add_option("--msa", default="muscle", choices=("clustalw", "muscle"),
-                 help="software used to align the proteins [default: %default]")
-    p.add_option("--noneighbor", action="store_true",
-                 help="don't build NJ tree [default: %default]")
-    p.add_option("--ml", default=None, choices=("raxml", "phyml"),
-                 help="software used to build ML tree [default: %default]")
-    p.add_option("--outgroup",
-                 help="path to file containing outgroup orders [default: %default]")
-    p.add_option("--SH", help="path to reference Newick tree [default: %default]")
-    p.add_option("--shout", default="SH_out.txt", \
-                 help="SH output file name [default: %default]")
-    p.add_option("--treefix", action="store_true",
-                 help="use TreeFix to rearrange ML tree [default: %default]")
-    p.add_option("--stree", help="path to species Newick tree [default: %default]")
-    p.add_option("--smap", help="path to smap file: " \
-                    "gene_name_pattern<tab>species_name [default: %default]")
+    p.add_option(
+        "--longest",
+        action="store_true",
+        help="Get longest ORF, only works if no pep file, " "e.g. ESTs",
+    )
+    p.add_option(
+        "--nogblocks", action="store_true", help="don't use Gblocks to edit alignment",
+    )
+    p.add_option(
+        "--synonymous",
+        action="store_true",
+        help="extract synonymous sites of the alignment",
+    )
+    p.add_option(
+        "--fourfold",
+        action="store_true",
+        help="extract fourfold degenerate sites of the alignment",
+    )
+    p.add_option(
+        "--msa",
+        default="muscle",
+        choices=("clustalw", "muscle"),
+        help="software used to align the proteins",
+    )
+    p.add_option(
+        "--noneighbor", action="store_true", help="don't build NJ tree",
+    )
+    p.add_option(
+        "--ml",
+        default=None,
+        choices=("raxml", "phyml"),
+        help="software used to build ML tree",
+    )
+    p.add_option("--outgroup", help="path to file containing outgroup orders")
+    p.add_option("--SH", help="path to reference Newick tree")
+    p.add_option("--shout", default="SH_out.txt", help="SH output file name")
+    p.add_option(
+        "--treefix", action="store_true", help="use TreeFix to rearrange ML tree",
+    )
+    p.add_option("--stree", help="path to species Newick tree")
+    p.add_option(
+        "--smap", help="path to smap file: " "gene_name_pattern<tab>species_name",
+    )
     p.set_outdir()
 
     opts, args = p.parse_args(args)
@@ -758,8 +907,9 @@ def build(args):
     mrtrans_fasta = run_mrtrans(align_fasta, n_recs, work_dir, outfmt="fasta")
 
     if not mrtrans_fasta:
-        logging.debug("pal2nal aborted. " \
-            "Cannot reliably build tree for {0}".format(dna_file))
+        logging.debug(
+            "pal2nal aborted. " "Cannot reliably build tree for {0}".format(dna_file)
+        )
         return
 
     codon_aln_fasta = mrtrans_fasta
@@ -783,11 +933,13 @@ def build(args):
 
     mkdir(op.join(treedir, "work"))
     if neighbor:
-        out_file = op.join(treedir, op.basename(dna_file).rsplit(".", 1)[0] + \
-                ".NJ.unrooted.dnd")
+        out_file = op.join(
+            treedir, op.basename(dna_file).rsplit(".", 1)[0] + ".NJ.unrooted.dnd"
+        )
         try:
-            outfile, phy_file = build_nj_phylip(alignment, \
-                outfile=out_file, outgroup=outgroup, work_dir=treedir)
+            outfile, phy_file = build_nj_phylip(
+                alignment, outfile=out_file, outgroup=outgroup, work_dir=treedir
+            )
         except:
             print("NJ tree cannot be built for {0}".format(dna_file))
 
@@ -797,27 +949,31 @@ def build(args):
             SH_raxml(reftree, querytree, phy_file, shout=opts.shout)
 
     if opts.ml:
-        out_file = op.join(treedir, op.basename(dna_file).rsplit(".", 1)[0] + \
-                ".ML.unrooted.dnd")
+        out_file = op.join(
+            treedir, op.basename(dna_file).rsplit(".", 1)[0] + ".ML.unrooted.dnd"
+        )
 
         if opts.ml == "phyml":
             try:
-                outfile, phy_file = build_ml_phyml\
-                    (alignment, outfile=out_file, work_dir=treedir)
+                outfile, phy_file = build_ml_phyml(
+                    alignment, outfile=out_file, work_dir=treedir
+                )
             except:
                 print("ML tree cannot be built for {0}".format(dna_file))
 
         elif opts.ml == "raxml":
             try:
-                outfile, phy_file = build_ml_raxml\
-                    (alignment, outfile=out_file, work_dir=treedir)
+                outfile, phy_file = build_ml_raxml(
+                    alignment, outfile=out_file, work_dir=treedir
+                )
             except:
                 print("ML tree cannot be built for {0}".format(dna_file))
 
         if outgroup:
             new_out_file = out_file.replace(".unrooted", "")
-            t = smart_reroot(treefile=out_file, outgroupfile=outgroup, \
-                outfile=new_out_file)
+            t = smart_reroot(
+                treefile=out_file, outgroupfile=outgroup, outfile=new_out_file
+            )
             if t == new_out_file:
                 sh("rm %s" % out_file)
                 outfile = new_out_file
@@ -836,14 +992,21 @@ def build(args):
             aln_file = input.rsplit(".", 1)[0] + ".fasta"
             SeqIO.write(alignment, aln_file, "fasta")
 
-            outfile = run_treefix(input=input, stree_file=stree, smap_file=smap, \
-                        a_ext=".fasta", o_ext=".dnd", n_ext = ".treefix.dnd")
+            outfile = run_treefix(
+                input=input,
+                stree_file=stree,
+                smap_file=smap,
+                a_ext=".fasta",
+                o_ext=".dnd",
+                n_ext=".treefix.dnd",
+            )
 
     return outfile
 
 
-def _draw_trees(trees, nrow=1, ncol=1, rmargin=.3, iopts=None, outdir=".",
-    shfile=None, **kwargs):
+def _draw_trees(
+    trees, nrow=1, ncol=1, rmargin=0.3, iopts=None, outdir=".", shfile=None, **kwargs
+):
     """
     Draw one or multiple trees on one plot.
     """
@@ -854,27 +1017,33 @@ def _draw_trees(trees, nrow=1, ncol=1, rmargin=.3, iopts=None, outdir=".",
 
     ntrees = len(trees)
     n = nrow * ncol
-    for x in xrange(int(ceil(float(ntrees)/n))):
-        fig = plt.figure(1, (iopts.w, iopts.h)) if iopts \
-              else plt.figure(1, (5, 5))
+    for x in range(int(ceil(float(ntrees) / n))):
+        fig = plt.figure(1, (iopts.w, iopts.h)) if iopts else plt.figure(1, (5, 5))
         root = fig.add_axes([0, 0, 1, 1])
 
-        xiv = 1. / ncol
-        yiv = 1. / nrow
+        xiv = 1.0 / ncol
+        yiv = 1.0 / nrow
         xstart = list(np.arange(0, 1, xiv)) * nrow
         ystart = list(chain(*zip(*[list(np.arange(0, 1, yiv))[::-1]] * ncol)))
-        for i in xrange(n*x, n*(x+1)):
+        for i in range(n * x, n * (x + 1)):
             if i == ntrees:
                 break
-            ax = fig.add_axes([xstart[i%n], ystart[i%n], xiv, yiv])
+            ax = fig.add_axes([xstart[i % n], ystart[i % n], xiv, yiv])
             f = trees.keys()[i]
             tree = trees[f]
             try:
                 SH = SHs[f]
             except:
                 SH = None
-            draw_tree(ax, tree, rmargin=rmargin, reroot=False, \
-                supportcolor="r", SH=SH, **kwargs)
+            draw_tree(
+                ax,
+                tree,
+                rmargin=rmargin,
+                reroot=False,
+                supportcolor="r",
+                SH=SH,
+                **kwargs
+            )
 
         root.set_xlim(0, 1)
         root.set_ylim(0, 1)
@@ -908,29 +1077,53 @@ def draw(args):
     if possible). For drawing general Newick trees from external sources invoke
     jcvi.graphics.tree directly, which also gives more drawing options.
     """
-    trunc_name_options = ['headn', 'oheadn', 'tailn', 'otailn']
+    trunc_name_options = ["headn", "oheadn", "tailn", "otailn"]
     p = OptionParser(draw.__doc__)
-    p.add_option("--input", help="path to single input tree file or a dir "\
-                 "containing ONLY the input tree files")
-    p.add_option("--combine", type="string", default="1x1", \
-                 help="combine multiple trees into one plot in nrowxncol")
-    p.add_option("--trunc_name", default=None, help="Options are: {0}. " \
-                 "truncate first n chars, retains only first n chars, " \
-                 "truncate last n chars, retain only last chars. " \
-                 "n=1~99. [default: %default]".format(trunc_name_options))
-    p.add_option("--SH", default=None,
-                 help="path to a file containing SH test p-values in format:" \
-                 "tree_file_name<tab>p-values " \
-                 "This file can be generated with jcvi.apps.phylo build [default: %default]")
-    p.add_option("--scutoff", default=50, type="int",
-                 help="cutoff for displaying node support, 0-100 [default: %default]")
-    p.add_option("--barcode", default=None,
-                 help="path to seq/taxon name barcode mapping file: " \
-                 "barcode<tab>new_name " \
-                 "This option is downstream of `--trunc_name` [default: %default]")
-    p.add_option("--leafcolorfile", default=None,
-                 help="path to a mapping file containing font colors " \
-                 "for the OTUs: leafname<tab>color [default: %default]")
+    p.add_option(
+        "--input",
+        help="path to single input tree file or a dir "
+        "containing ONLY the input tree files",
+    )
+    p.add_option(
+        "--combine",
+        type="string",
+        default="1x1",
+        help="combine multiple trees into one plot in nrowxncol",
+    )
+    p.add_option(
+        "--trunc_name",
+        default=None,
+        help="Options are: {0}. "
+        "truncate first n chars, retains only first n chars, "
+        "truncate last n chars, retain only last chars. "
+        "n=1~99.".format(trunc_name_options),
+    )
+    p.add_option(
+        "--SH",
+        default=None,
+        help="path to a file containing SH test p-values in format:"
+        "tree_file_name<tab>p-values "
+        "This file can be generated with jcvi.apps.phylo build",
+    )
+    p.add_option(
+        "--scutoff",
+        default=50,
+        type="int",
+        help="cutoff for displaying node support, 0-100",
+    )
+    p.add_option(
+        "--barcode",
+        default=None,
+        help="path to seq/taxon name barcode mapping file: "
+        "barcode<tab>new_name "
+        "This option is downstream of `--trunc_name`",
+    )
+    p.add_option(
+        "--leafcolorfile",
+        default=None,
+        help="path to a mapping file containing font colors "
+        "for the OTUs: leafname<tab>color",
+    )
     p.set_outdir()
     opts, args, iopts = p.set_image_options(figsize="8x6")
     input = opts.input
@@ -965,9 +1158,9 @@ def draw(args):
 
         if ";" in row:
             # sanity check
-            if row.index(";") != len(row)-1:
+            if row.index(";") != len(row) - 1:
                 ts = row.split(";")
-                for ii in xrange(len(ts)-1):
+                for ii in range(len(ts) - 1):
                     ts[ii] += ";"
             else:
                 ts = [row]
@@ -977,7 +1170,7 @@ def draw(args):
                     if tree:
                         trees[treenames[i]] = tree
                         tree = ""
-                        i+=1
+                        i += 1
                 else:
                     tree += t
         else:
@@ -986,11 +1179,20 @@ def draw(args):
     logging.debug("A total of {0} trees imported.".format(len(trees)))
     sh("rm {0}".format(op.join(outdir, "alltrees.dnd")))
 
-    _draw_trees(trees, nrow=int(combine[0]), ncol=int(combine[1]), rmargin=.3,\
-         iopts=iopts, outdir=outdir, shfile=SH, trunc_name=trunc_name, \
-         scutoff=opts.scutoff, barcodefile = opts.barcode,
-         leafcolorfile=opts.leafcolorfile)
+    _draw_trees(
+        trees,
+        nrow=int(combine[0]),
+        ncol=int(combine[1]),
+        rmargin=0.3,
+        iopts=iopts,
+        outdir=outdir,
+        shfile=SH,
+        trunc_name=trunc_name,
+        scutoff=opts.scutoff,
+        barcodefile=opts.barcode,
+        leafcolorfile=opts.leafcolorfile,
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1630,7 +1630,7 @@ def format(args):
         + "[default: %default]",
     )
     g3.add_option(
-        "--remove_feats", help="Comma separated list of features to remove by type" + ""
+        "--remove_feats", help="Comma separated list of features to remove by type"
     )
     g3.add_option(
         "--remove_feats_by_ID",
@@ -3165,21 +3165,19 @@ def load(args):
         "--sep",
         dest="sep",
         default=" ",
-        help='Specify separator used to delimiter header elements [default: "%default"]',
+        help="Specify separator used to delimiter header elements",
     )
     g1.add_option(
         "--datestamp",
         dest="datestamp",
-        help="Specify a datestamp in the format YYYYMMDD or automatically pick `today`"
-        + "",
+        help="Specify a datestamp in the format YYYYMMDD or automatically pick `today`",
     )
     g1.add_option(
         "--conf_class",
         dest="conf_class",
         default=False,
         action="store_true",
-        help="Specify if `conf_class` attribute should be parsed and placed in the header"
-        + "",
+        help="Specify if `conf_class` attribute should be parsed and placed in the header",
     )
     p.add_option_group(g1)
 

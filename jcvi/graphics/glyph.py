@@ -320,7 +320,7 @@ class CartoonRegion(object):
     def __init__(self, n, k=12):
         # Chromosome
         self.n = n
-        self.orientations = [choice([-1, 1]) for i in xrange(n)]
+        self.orientations = [choice([-1, 1]) for i in range(n)]
         self.assign_colors(k)
 
     def draw(self, ax, x, y, gene_len=0.012, strip=True, color=True):

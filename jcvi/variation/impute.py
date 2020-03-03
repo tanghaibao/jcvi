@@ -20,12 +20,12 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 def main():
 
     actions = (
-        ('beagle', 'use BEAGLE4.1 to impute vcf'),
-        ('impute', 'use IMPUTE2 to impute vcf'),
-        ('minimac', 'use MINIMAC3 to impute vcf'),
-        ('passthrough', 'pass through Y and MT vcf'),
-        ('validate', 'validate imputation against withheld variants'),
-            )
+        ("beagle", "use BEAGLE4.1 to impute vcf"),
+        ("impute", "use IMPUTE2 to impute vcf"),
+        ("minimac", "use MINIMAC3 to impute vcf"),
+        ("passthrough", "pass through Y and MT vcf"),
+        ("validate", "validate imputation against withheld variants"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -56,8 +56,9 @@ def passthrough(args):
         v.format = "GT:GP"
         probs = [0] * 3
         probs[gg.index(v.genotype)] = 1
-        v.genotype = v.genotype.replace("/", "|") + \
-                ":{0}".format(",".join("{0:.3f}".format(x) for x in probs))
+        v.genotype = v.genotype.replace("/", "|") + ":{0}".format(
+            ",".join("{0:.3f}".format(x) for x in probs)
+        )
         print(v, file=fw)
     fw.close()
 
@@ -83,8 +84,7 @@ def validate(args):
         v = VcfLine(row)
         register[(v.seqid, v.pos)] = v.genotype
 
-    logging.debug("Imported {0} records from `{1}`".\
-                    format(len(register), withheld))
+    logging.debug("Imported {0} records from `{1}`".format(len(register), withheld))
 
     fp = must_open(imputed)
     hit = concordant = 0
@@ -103,16 +103,15 @@ def validate(args):
         imputed = genotype.split(":")[0]
         if "|" in imputed:
             imputed = "/".join(sorted(genotype.split(":")[0].split("|")))
-            #probs = [float(x) for x in genotype.split(":")[-1].split(",")]
-            #imputed = max(zip(probs, ["0/0", "0/1", "1/1"]))[-1]
+            # probs = [float(x) for x in genotype.split(":")[-1].split(",")]
+            # imputed = max(zip(probs, ["0/0", "0/1", "1/1"]))[-1]
         hit += 1
         if truth == imputed:
             concordant += 1
         else:
             print(row.strip(), "truth={0}".format(truth), file=sys.stderr)
 
-    logging.debug("Total concordant: {0}".\
-            format(percentage(concordant, hit)))
+    logging.debug("Total concordant: {0}".format(percentage(concordant, hit)))
 
 
 def minimac(args):
@@ -133,7 +132,7 @@ def minimac(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    txtfile, = args
+    (txtfile,) = args
     ref = opts.ref
     mm = MakeManager()
     pf = txtfile.split(".")[0]
@@ -167,9 +166,8 @@ def minimac(args):
             minimac_autosome(mm, x, chrvcf, opts)
 
         # keep the best line for multi-allelic markers
-        uniqvcf= "{0}.{1}.minimac.uniq.vcf".format(pf, px)
-        cmd = "python -m jcvi.formats.vcf uniq {0} > {1}".\
-                    format(minimacvcf, uniqvcf)
+        uniqvcf = "{0}.{1}.minimac.uniq.vcf".format(pf, px)
+        cmd = "python -m jcvi.formats.vcf uniq {0} > {1}".format(minimacvcf, uniqvcf)
         mm.add(minimacvcf, uniqvcf, cmd)
 
         minimacvcf_hg38 = "{0}.{1}.minimac.hg38.vcf".format(pf, px)
@@ -190,8 +188,9 @@ def minimac(args):
 
 
 def minimac_liftover(mm, chrvcf, chrvcf_hg38, opts):
-    cmd = "python -m jcvi.formats.vcf liftover {0} {1}/hg19ToHg38.over.chain.gz {2}".\
-            format(chrvcf, opts.ref, chrvcf_hg38)
+    cmd = "python -m jcvi.formats.vcf liftover {0} {1}/hg19ToHg38.over.chain.gz {2}".format(
+        chrvcf, opts.ref, chrvcf_hg38
+    )
     mm.add(chrvcf, chrvcf_hg38, cmd)
 
 
@@ -245,7 +244,9 @@ def minimac_autosome(mm, chr, vcffile, opts, phasing=True):
     minimac_cmd = op.join(opts.minimac_home, "Minimac3")
 
     cmd = minimac_cmd + " --chr {0}".format(chr)
-    cmd += " --refHaps {0}/{1}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz".format(kg, chrtag)
+    cmd += " --refHaps {0}/{1}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz".format(
+        kg, chrtag
+    )
     cmd += " --haps {0} --prefix {1}".format(phasedfile, opf)
     cmd += " --format GT,GP --nobgzip"
     outvcf = opf + ".dose.vcf"
@@ -351,7 +352,7 @@ def impute(args):
         bins += 1
     impute_cmd = op.join(opts.impute_home, "impute2")
     chunks = []
-    for x in xrange(bins + 1):
+    for x in range(bins + 1):
         chunk_start = x * binsize + 1
         chunk_end = min(chunk_start + binsize - 1, size)
         outfile = pf + ".chunk{0:02d}.impute2".format(x)
@@ -373,11 +374,12 @@ def impute(args):
 
     # Convert to vcf
     vcffile = pf + ".impute2.vcf"
-    cmd = "python -m jcvi.formats.vcf fromimpute2 {0} {1} {2} > {3}".\
-                format(imputefile, fastafile, chr, vcffile)
+    cmd = "python -m jcvi.formats.vcf fromimpute2 {0} {1} {2} > {3}".format(
+        imputefile, fastafile, chr, vcffile
+    )
     mm.add(imputefile, vcffile, cmd)
     mm.write()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

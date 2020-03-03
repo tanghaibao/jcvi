@@ -23,12 +23,12 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 def main():
     actions = (
-        ('A50', 'compare A50 graphics for a set of FASTA files'),
-        ('coverage', 'plot coverage from a set of BED files'),
-        ('qc', 'performs QC graphics on given contig/scaffold'),
-        ('scaffold', 'plot the alignment of the scaffold to other evidences'),
-        ('covlen', 'plot coverage vs length'),
-            )
+        ("A50", "compare A50 graphics for a set of FASTA files"),
+        ("coverage", "plot coverage from a set of BED files"),
+        ("qc", "performs QC graphics on given contig/scaffold"),
+        ("scaffold", "plot the alignment of the scaffold to other evidences"),
+        ("covlen", "plot coverage vs length"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -48,10 +48,13 @@ def covlen(args):
     p = OptionParser(covlen.__doc__)
     p.add_option("--maxsize", default=1000000, type="int", help="Max contig size")
     p.add_option("--maxcov", default=100, type="int", help="Max contig size")
-    p.add_option("--color", default='m', help="Color of the data points")
-    p.add_option("--kind", default="scatter",
-                 choices=("scatter", "reg", "resid", "kde", "hex"),
-                 help="Kind of plot to draw")
+    p.add_option("--color", default="m", help="Color of the data points")
+    p.add_option(
+        "--kind",
+        default="scatter",
+        choices=("scatter", "reg", "resid", "kde", "hex"),
+        help="Kind of plot to draw",
+    )
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
     if len(args) != 2:
@@ -79,9 +82,17 @@ def covlen(args):
     xlab, ylab = "Length", "Coverage of depth (X)"
     df[xlab] = x
     df[ylab] = y
-    sns.jointplot(xlab, ylab, kind=opts.kind, data=df,
-                  xlim=(0, maxsize), ylim=(0, maxcov),
-                  stat_func=None, edgecolor="w", color=opts.color)
+    sns.jointplot(
+        xlab,
+        ylab,
+        kind=opts.kind,
+        data=df,
+        xlim=(0, maxsize),
+        ylim=(0, maxcov),
+        stat_func=None,
+        edgecolor="w",
+        color=opts.color,
+    )
 
     figname = covfile + ".pdf"
     savefig(figname, dpi=iopts.dpi, iopts=iopts)
@@ -100,10 +111,13 @@ def coverage(args):
     from jcvi.formats.bed import mates, bedpe
 
     p = OptionParser(coverage.__doc__)
-    p.add_option("--ymax", default=None, type="int",
-                 help="Limit ymax [default: %default]")
-    p.add_option("--spans", default=False, action="store_true",
-                 help="BED files already contain clone spans [default: %default]")
+    p.add_option("--ymax", default=None, type="int", help="Limit ymax")
+    p.add_option(
+        "--spans",
+        default=False,
+        action="store_true",
+        help="BED files already contain clone spans",
+    )
     opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
     if len(args) < 3:
@@ -122,7 +136,7 @@ def coverage(args):
     lines = []
     legends = []
     not_covered = []
-    yy = .9
+    yy = 0.9
     for bedfile, c in zip(bedfiles, "rgbcky"):
         if not opts.spans:
             pf = bedfile.rsplit(".", 1)[0]
@@ -132,8 +146,9 @@ def coverage(args):
 
             bedspanfile = pf + ".spans.bed"
             if need_update(matesfile, bedspanfile):
-                bedpefile, bedspanfile = bedpe([bedfile, "--span",
-                    "--mates={0}".format(matesfile)])
+                bedpefile, bedspanfile = bedpe(
+                    [bedfile, "--span", "--mates={0}".format(matesfile)]
+                )
             bedfile = bedspanfile
 
         bedsum = Bed(bedfile).sum(seqid=ctg)
@@ -143,17 +158,17 @@ def coverage(args):
         msg = "{0}: {1} bp not covered".format(legend, thousands(notcoveredbases))
         not_covered.append(msg)
         print(msg, file=sys.stderr)
-        ax.text(.1, yy, msg, color=c, size=9, transform=ax.transAxes)
-        yy -= .08
+        ax.text(0.1, yy, msg, color=c, size=9, transform=ax.transAxes)
+        yy -= 0.08
 
         cov = Coverage(bedfile, sizes.filename)
         x, y = cov.get_plot_data(ctg, bins=bins)
-        line, = ax.plot(x, y, '-', color=c, lw=2, alpha=.5)
+        (line,) = ax.plot(x, y, "-", color=c, lw=2, alpha=0.5)
         lines.append(line)
         legends.append(legend)
 
     leg = ax.legend(lines, legends, shadow=True, fancybox=True)
-    leg.get_frame().set_alpha(.5)
+    leg.get_frame().set_alpha(0.5)
 
     ylabel = "Average depth per {0}Kb".format(size / bins / 1000)
     ax.set_xlim(0, size)
@@ -162,20 +177,28 @@ def coverage(args):
     ax.set_ylabel(ylabel)
     set_human_base_axis(ax)
 
-    figname ="{0}.{1}.pdf".format(fastafile, ctg)
+    figname = "{0}.{1}.pdf".format(fastafile, ctg)
     savefig(figname, dpi=iopts.dpi, iopts=iopts)
 
 
-def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed,
-                highlights=None):
+def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed, highlights=None):
 
     from jcvi.graphics.blastplot import blastplot
 
     # qsizes, qbed are properties for the evidences
     # ssizes, sbed are properties for the current scaffoldID
-    blastplot(ax, blastf, qsizes, ssizes, qbed, sbed, \
-              style="circle", insetLabels=True, stripNames=True,
-              highlights=highlights)
+    blastplot(
+        ax,
+        blastf,
+        qsizes,
+        ssizes,
+        qbed,
+        sbed,
+        style="circle",
+        insetLabels=True,
+        stripNames=True,
+        highlights=highlights,
+    )
 
     # FPC_scf.bed => FPC
     fname = qbed.filename.split(".")[0].split("_")[0]
@@ -187,8 +210,9 @@ def scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed,
         x.set_visible(False)
 
 
-def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename, iopts,
-                      highlights=None):
+def plot_one_scaffold(
+    scaffoldID, ssizes, sbed, trios, imagename, iopts, highlights=None
+):
     ntrios = len(trios)
     fig = plt.figure(1, (14, 8))
     plt.cla()
@@ -199,11 +223,18 @@ def plot_one_scaffold(scaffoldID, ssizes, sbed, trios, imagename, iopts,
 
     for trio, ax in zip(trios, axes):
         blastf, qsizes, qbed = trio
-        scaffolding(ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed,
-                    highlights=highlights)
+        scaffolding(
+            ax, scaffoldID, blastf, qsizes, ssizes, qbed, sbed, highlights=highlights
+        )
 
-    root.text(.5, .95, "{0}   (size={1})".format(scaffoldID, thousands(scafsize)),
-            size=18, ha="center", color='b')
+    root.text(
+        0.5,
+        0.95,
+        "{0}   (size={1})".format(scaffoldID, thousands(scafsize)),
+        size=18,
+        ha="center",
+        color="b",
+    )
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
@@ -231,10 +262,15 @@ def scaffold(args):
     from jcvi.utils.iter import grouper
 
     p = OptionParser(scaffold.__doc__)
-    p.add_option("--cutoff", type="int", default=1000000,
-            help="Plot scaffolds with size larger than [default: %default]")
-    p.add_option("--highlights",
-            help="A set of regions in BED format to highlight [default: %default]")
+    p.add_option(
+        "--cutoff",
+        type="int",
+        default=1000000,
+        help="Plot scaffolds with size larger than",
+    )
+    p.add_option(
+        "--highlights", help="A set of regions in BED format to highlight",
+    )
     opts, args, iopts = p.set_image_options(args, figsize="14x8", dpi=150)
 
     if len(args) < 4 or len(args) % 3 != 1:
@@ -250,8 +286,7 @@ def scaffold(args):
     for scaffoldID, scafsize in scafsizes.iter_sizes():
         if scafsize < opts.cutoff:
             continue
-        logging.debug("Loading {0} (size={1})".format(scaffoldID,
-            thousands(scafsize)))
+        logging.debug("Loading {0} (size={1})".format(scaffoldID, thousands(scafsize)))
 
         tmpname = scaffoldID + ".sizes"
         tmp = open(tmpname, "w")
@@ -265,8 +300,15 @@ def scaffold(args):
             subhighlights = list(hlbed.sub_bed(scaffoldID))
 
         imagename = ".".join((scaffoldID, opts.format))
-        plot_one_scaffold(scaffoldID, tmpsizes, None, trios, imagename, iopts,
-                          highlights=subhighlights)
+        plot_one_scaffold(
+            scaffoldID,
+            tmpsizes,
+            None,
+            trios,
+            imagename,
+            iopts,
+            highlights=subhighlights,
+        )
 
 
 def qc(args):
@@ -290,7 +332,7 @@ def qc(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    prefix, = args
+    (prefix,) = args
     scf = prefix
 
     # All these files *must* be present in the current folder
@@ -309,22 +351,22 @@ def qc(args):
     root = fig.add_axes([0, 0, 1, 1])
 
     # the scaffold
-    root.add_patch(Rectangle((.1, .15), .8, .03, fc='k'))
+    root.add_patch(Rectangle((0.1, 0.15), 0.8, 0.03, fc="k"))
 
     # basecoverage and matecoverage
-    ax = fig.add_axes([.1, .45, .8, .45])
+    ax = fig.add_axes([0.1, 0.45, 0.8, 0.45])
 
     bins = 200  # Smooth the curve
     basecoverage = Coverage(bedfile, sizesfile)
     matecoverage = Coverage(pairsbedfile, sizesfile)
 
     x, y = basecoverage.get_plot_data(scf, bins=bins)
-    baseline, = ax.plot(x, y, 'g-')
+    (baseline,) = ax.plot(x, y, "g-")
     x, y = matecoverage.get_plot_data(scf, bins=bins)
-    mateline, = ax.plot(x, y, 'r-')
+    (mateline,) = ax.plot(x, y, "r-")
     legends = ("Base coverage", "Mate coverage")
     leg = ax.legend((baseline, mateline), legends, shadow=True, fancybox=True)
-    leg.get_frame().set_alpha(.5)
+    leg.get_frame().set_alpha(0.5)
     ax.set_xlim(0, size)
 
     # draw the read pairs
@@ -338,11 +380,11 @@ def qc(args):
         end = max(aend, bend)
         pairs.append((start, end))
 
-    bpratio = .8 / size
+    bpratio = 0.8 / size
     cutoff = 1000  # inserts smaller than this are not plotted
     # this convert from base => x-coordinate
-    pos = lambda x: (.1 + x * bpratio)
-    ypos = .15 + .03
+    pos = lambda x: (0.1 + x * bpratio)
+    ypos = 0.15 + 0.03
     for start, end in pairs:
         dist = end - start
 
@@ -351,7 +393,7 @@ def qc(args):
 
         dist = min(dist, 10000)
         # 10Kb == .25 canvas height
-        height = .25 * dist / 10000
+        height = 0.25 * dist / 10000
         xstart = pos(start)
         xend = pos(end)
         p0 = (xstart, ypos)
@@ -367,12 +409,12 @@ def qc(args):
         start, end = b.start, b.end
         xstart = pos(start)
         xend = pos(end)
-        root.add_patch(Rectangle((xstart, .15), xend - xstart, .03, fc='w'))
+        root.add_patch(Rectangle((xstart, 0.15), xend - xstart, 0.03, fc="w"))
 
-    root.text(.5, .1, scf, color='b', ha="center")
+    root.text(0.5, 0.1, scf, color="b", ha="center")
     warn_msg = "Only the inserts > {0}bp are shown".format(cutoff)
-    root.text(.5, .1, scf, color='b', ha="center")
-    root.text(.5, .05, warn_msg, color='gray', ha="center")
+    root.text(0.5, 0.1, scf, color="b", ha="center")
+    root.text(0.5, 0.05, warn_msg, color="gray", ha="center")
     # clean up and output
     set_human_base_axis(ax)
     root.set_xlim(0, 1)
@@ -410,12 +452,26 @@ def A50(args):
     Plots A50 graphics, see blog post (http://blog.malde.org/index.php/a50/)
     """
     p = OptionParser(A50.__doc__)
-    p.add_option("--overwrite", default=False, action="store_true",
-            help="overwrite .rplot file if exists [default: %default]")
-    p.add_option("--cutoff", default=0, type="int", dest="cutoff",
-            help="use contigs above certain size [default: %default]")
-    p.add_option("--stepsize", default=10, type="int", dest="stepsize",
-            help="stepsize for the distribution [default: %default]")
+    p.add_option(
+        "--overwrite",
+        default=False,
+        action="store_true",
+        help="overwrite .rplot file if exists",
+    )
+    p.add_option(
+        "--cutoff",
+        default=0,
+        type="int",
+        dest="cutoff",
+        help="use contigs above certain size",
+    )
+    p.add_option(
+        "--stepsize",
+        default=10,
+        type="int",
+        dest="stepsize",
+        help="stepsize for the distribution",
+    )
     opts, args = p.parse_args(args)
 
     if not args:
@@ -429,8 +485,7 @@ def A50(args):
     if not op.exists(rplot) or opts.overwrite:
         fw = open(rplot, "w")
         header = "\t".join(("index", "cumsize", "fasta"))
-        statsheader = ("Fasta", "L50", "N50", "Min", "Max", "Average", "Sum",
-                "Counts")
+        statsheader = ("Fasta", "L50", "N50", "Min", "Max", "Average", "Sum", "Counts")
         statsrows = []
         print(header, file=fw)
         for fastafile in args:
@@ -442,17 +497,15 @@ def A50(args):
             cmin, cmax, cmean = min(ctgsizes), max(ctgsizes), np.mean(ctgsizes)
             csum, counts = np.sum(ctgsizes), len(ctgsizes)
             cmean = int(round(cmean))
-            statsrows.append((fastafile, l50, n50, cmin, cmax, cmean, csum,
-                counts))
+            statsrows.append((fastafile, l50, n50, cmin, cmax, cmean, csum, counts))
 
             logging.debug("`{0}` ctgsizes: {1}".format(fastafile, ctgsizes))
 
-            tag = "{0} (L50={1})".format(\
-                    op.basename(fastafile).rsplit(".", 1)[0], l50)
+            tag = "{0} (L50={1})".format(op.basename(fastafile).rsplit(".", 1)[0], l50)
             logging.debug(tag)
 
-            for i, s in zip(xrange(0, len(a50), stepsize), a50[::stepsize]):
-                print("\t".join((str(i), str(s / 1000000.), tag)), file=fw)
+            for i, s in zip(range(0, len(a50), stepsize), a50[::stepsize]):
+                print("\t".join((str(i), str(s / 1000000.0), tag)), file=fw)
         fw.close()
 
         table = loadtable(statsheader, statsrows)
@@ -461,5 +514,5 @@ def A50(args):
     generate_plot(rplot)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

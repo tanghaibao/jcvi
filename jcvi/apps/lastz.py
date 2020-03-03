@@ -21,15 +21,21 @@ Multiple = "multiple"
 Subsample = "subsample={0}/{1}"
 Lastz_template = "{0} --ambiguous=iupac {1}[{2}] {3}[{4}]"
 
-blast_fields = "query,subject,pctid,hitlen,nmismatch,ngaps,"\
-        "qstart,qstop,sstart,sstop,evalue,score"
+blast_fields = (
+    "query,subject,pctid,hitlen,nmismatch,ngaps,"
+    "qstart,qstop,sstart,sstop,evalue,score"
+)
 
-lastz_fields = "name2,name1,identity,nmismatch,ngap,"\
-        "start2+,end2+,strand2,start1,end1,strand1,score"
+lastz_fields = (
+    "name2,name1,identity,nmismatch,ngap,"
+    "start2+,end2+,strand2,start1,end1,strand1,score"
+)
 
 # For assembly-assembly comparison, Bob Harris recommended:
-similarOptions = " --seed=match12 --notransition --step=20 --exact=50 "\
-                 "--identity=99 --matchcount=1000"
+similarOptions = (
+    " --seed=match12 --notransition --step=20 --exact=50 "
+    "--identity=99 --matchcount=1000"
+)
 
 # conversion between blastz and ncbi is taken from Kent src
 # src/lib/blastOut.c
@@ -50,20 +56,47 @@ def lastz_to_blast(row):
     Obsolete after LASTZ version 1.02.40
     """
     atoms = row.strip().split("\t")
-    name1, name2, coverage, identity, nmismatch, ngap, \
-            start1, end1, strand1, start2, end2, strand2, score = atoms
+    (
+        name1,
+        name2,
+        coverage,
+        identity,
+        nmismatch,
+        ngap,
+        start1,
+        end1,
+        strand1,
+        start2,
+        end2,
+        strand2,
+        score,
+    ) = atoms
     identity = identity.replace("%", "")
     hitlen = coverage.split("/")[1]
     score = float(score)
-    same_strand = (strand1 == strand2)
+    same_strand = strand1 == strand2
     if not same_strand:
         start2, end2 = end2, start2
 
     evalue = blastz_score_to_ncbi_expectation(score)
     score = blastz_score_to_ncbi_bits(score)
     evalue, score = "%.2g" % evalue, "%.1f" % score
-    return "\t".join((name1, name2, identity, hitlen, nmismatch, ngap, \
-            start1, end1, start2, end2, evalue, score))
+    return "\t".join(
+        (
+            name1,
+            name2,
+            identity,
+            hitlen,
+            nmismatch,
+            ngap,
+            start1,
+            end1,
+            start2,
+            end2,
+            evalue,
+            score,
+        )
+    )
 
 
 def add_mask(ref_tags, qry_tags, mask=False):
@@ -88,8 +121,9 @@ def lastz_2bit(t):
     qry_tags = [Darkspace]
     ref_tags, qry_tags = add_mask(ref_tags, qry_tags, mask=mask)
 
-    lastz_cmd = Lastz_template.format(lastz_bin, bfasta_fn, ref_tags, \
-                                                 afasta_fn, qry_tags)
+    lastz_cmd = Lastz_template.format(
+        lastz_bin, bfasta_fn, ref_tags, afasta_fn, qry_tags
+    )
     if extra:
         lastz_cmd += " " + extra.strip()
 
@@ -104,8 +138,7 @@ def lastz_2bit(t):
     logging.debug("job <%d> finished" % proc.pid)
 
 
-def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra,
-          mask=False):
+def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra, mask=False):
 
     ref_tags = [Multiple, Darkspace]
     qry_tags = [Darkspace]
@@ -114,15 +147,16 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra,
 
     ref_tags, qry_tags = add_mask(ref_tags, qry_tags, mask=mask)
 
-    lastz_cmd = Lastz_template.format(lastz_bin, bfasta_fn, ref_tags, \
-                                                 afasta_fn, qry_tags)
+    lastz_cmd = Lastz_template.format(
+        lastz_bin, bfasta_fn, ref_tags, afasta_fn, qry_tags
+    )
     if extra:
         lastz_cmd += " " + extra.strip()
 
     lastz_cmd += " --format=general-:%s" % lastz_fields
     # The above conversion is no longer necessary after LASTZ v1.02.40
     # (of which I contributed a patch)
-    #lastz_cmd += " --format=BLASTN-"
+    # lastz_cmd += " --format=BLASTN-"
 
     proc = Popen(lastz_cmd)
 
@@ -144,18 +178,29 @@ def main():
     """
     p = OptionParser(main.__doc__)
 
-    supported_formats = tuple(x.strip() for x in \
-        "lav, lav+text, axt, axt+, maf, maf+, maf-, sam, softsam, "\
-        "sam-, softsam-, cigar, BLASTN, BLASTN-, differences, rdotplot, text".split(','))
+    supported_formats = tuple(
+        x.strip()
+        for x in "lav, lav+text, axt, axt+, maf, maf+, maf-, sam, softsam, "
+        "sam-, softsam-, cigar, BLASTN, BLASTN-, differences, rdotplot, text".split(",")
+    )
 
-    p.add_option("--format", default="BLASTN-", choices=supported_formats,
-            help="Ooutput format [default: %default]")
-    p.add_option("--path", dest="lastz_path", default=None,
-            help="specify LASTZ path")
-    p.add_option("--mask", dest="mask", default=False, action="store_true",
-            help="treat lower-case letters as mask info [default: %default]")
-    p.add_option("--similar", default=False, action="store_true",
-            help="Use options tuned for close comparison [default: %default]")
+    p.add_option(
+        "--format", default="BLASTN-", choices=supported_formats, help="Ooutput format",
+    )
+    p.add_option("--path", dest="lastz_path", default=None, help="specify LASTZ path")
+    p.add_option(
+        "--mask",
+        dest="mask",
+        default=False,
+        action="store_true",
+        help="treat lower-case letters as mask info",
+    )
+    p.add_option(
+        "--similar",
+        default=False,
+        action="store_true",
+        help="Use options tuned for close comparison",
+    )
     p.set_cpus(cpus=32)
     p.set_params()
     p.set_outfile()
@@ -183,7 +228,7 @@ def main():
     cpus = opts.cpus
     logging.debug("Dispatch job to %d cpus" % cpus)
     format = opts.format
-    blastline = (format == "BLASTN-")
+    blastline = format == "BLASTN-"
 
     # The axt, maf, etc. format can only be run on splitted database (i.e. one
     # FASTA record per file). The splitted files are then parallelized for the
@@ -204,8 +249,7 @@ def main():
         for id in bids:
             bfasta = "/".join((bfasta_2bit, id))
             outfile = op.join(outdir, "{0}.{1}.{2}".format(apf, id, format))
-            args.append((bfasta, afasta_fn, outfile, \
-                         lastz_bin, extra, mask, format))
+            args.append((bfasta, afasta_fn, outfile, lastz_bin, extra, mask, format))
 
         p = Pool(cpus)
         p.map(lastz_2bit, args)
@@ -214,11 +258,13 @@ def main():
 
     lock = Lock()
 
-    args = [(k + 1, cpus, bfasta_fn, afasta_fn, out_fh,
-            lock, lastz_bin, extra, mask) for k in xrange(cpus)]
+    args = [
+        (k + 1, cpus, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra, mask)
+        for k in range(cpus)
+    ]
     g = Jobs(target=lastz, args=args)
     g.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

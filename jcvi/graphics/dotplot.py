@@ -9,10 +9,16 @@ indicating gene pairs, followed by an optional column (e.g. Ks value).
 
 The option --colormap specifies the block color to highlight certain blocks in
 a file.  Block ids are 1-based (non-digit chars will be removed). For example, below
-requests that the 7th blocks to be colored red.
+requests that block 1 is class 'sigma' and block 2 is class 'tau'.
 
-rice-sigma07    sigma
-rice-sigma10    tau
+1    sigma
+2    tau
+3    tau
+
+These classes will be mapped to auto-assigned colors and figure legend added to
+the bottom of the figure.
+
+*Important*
 
 Before running this script it is recommended to check/install
 TeX Live (http://www.tug.org/texlive/) and
@@ -403,7 +409,7 @@ def dotplot_main(args):
     if palette:
         palette = Palette(palette)
 
-    anchorfile, = args
+    (anchorfile,) = args
     cmaptext = opts.cmaptext
     if anchorfile.endswith(".ks"):
         from jcvi.apps.ks import KsFile

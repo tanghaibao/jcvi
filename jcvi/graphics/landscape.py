@@ -281,8 +281,8 @@ def depth(args):
     Use --chrinfo to specify a colormap between seqid, desired color, and
     optionally a new name. For example:
 
-    chr1    r    C1
-    chr2    g    C2
+    chr01A, #c51b7d, 1A
+    chr01B, #4d9221, 1B
     ...
 
     Only seqids that are in the colormap will be plotted, in the order that's

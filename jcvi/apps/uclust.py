@@ -31,8 +31,16 @@ from jcvi.formats.fastq import fasta
 from jcvi.utils.orderedcollections import DefaultOrderedDict
 from jcvi.utils.iter import grouper
 from jcvi.utils.table import write_csv
-from jcvi.apps.base import OptionParser, ActionDispatcher, datadir, listify, mkdir, \
-            iglob, need_update, sh
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    datadir,
+    listify,
+    mkdir,
+    iglob,
+    need_update,
+    sh,
+)
 
 
 SEP = "//"
@@ -50,19 +58,19 @@ ACHEADER_NO_TAXON = ACHEADER[1:]
 
 
 alleles = lambda x: (",".join(x).replace("-", "*") if x else "N")
-getsize = lambda name: (0 if ";" not in name else \
-            int(name.split(";")[1].replace("size=", "")))
+getsize = lambda name: (
+    0 if ";" not in name else int(name.split(";")[1].replace("size=", ""))
+)
 
 
-class ClustFile (BaseFile):
-
+class ClustFile(BaseFile):
     def __init__(self, filename):
         super(ClustFile, self).__init__(filename)
 
     def __iter__(self):
         nstacks = 0
         fp = must_open(self.filename)
-        for tag, contents in groupby(fp, lambda row: row[0] == '/'):
+        for tag, contents in groupby(fp, lambda row: row[0] == "/"):
             if tag:
                 continue
             data = Clust()
@@ -76,8 +84,7 @@ class ClustFile (BaseFile):
                 logging.debug("{0} stacks parsed".format(nstacks))
 
 
-class Clust (list):
-
+class Clust(list):
     def __init__(self):
         super(Clust, self).__init__(self)
 
@@ -88,7 +95,7 @@ class Clust (list):
         return "\n".join(s) + "\n" + SEP
 
 
-class ClustStore (BaseFile):
+class ClustStore(BaseFile):
     def __init__(self, consensfile):
         super(ClustStore, self).__init__(consensfile)
         binfile = consensfile + ".bin"
@@ -109,7 +116,7 @@ class ClustStore (BaseFile):
         return self.bin[start:end, :]
 
 
-class AlleleCount (object):
+class AlleleCount(object):
     """
     Each record represents a line in the .allele_count file
 
@@ -118,6 +125,7 @@ class AlleleCount (object):
     # ALT_COUNT       OTHER_COUNT     TOTAL_READS     A       G       C       T
     # READ_INS        READ_DEL        TOTAL_READS
     """
+
     def __init__(self, taxon, chr, pos, ref_allele, alt_allele, profile):
         self.taxon = taxon
         self.chr = chr
@@ -129,11 +137,24 @@ class AlleleCount (object):
 
     def tostring(self, taxon=False):
         ref_allele = alleles(self.ref_allele)
-        ar = [self.chr, self.pos,
-                ref_allele, ref_allele, alleles(self.alt_allele),
-                self.ref_count, self.alt_count, self.other_count, self.total_count,
-                self.A, self.G, self.C, self.T,
-                self.read_ins, self.read_del, self.total_count]
+        ar = [
+            self.chr,
+            self.pos,
+            ref_allele,
+            ref_allele,
+            alleles(self.alt_allele),
+            self.ref_count,
+            self.alt_count,
+            self.other_count,
+            self.total_count,
+            self.A,
+            self.G,
+            self.C,
+            self.T,
+            self.read_ins,
+            self.read_del,
+            self.total_count,
+        ]
         if taxon:
             ar = [self.taxon] + ar
         return "\t".join(str(x) for x in ar)
@@ -145,17 +166,18 @@ class AlleleCount (object):
         self.total_count = sum(profile) - tgaps
         others = set(BASES) - set(self.ref_allele) - set(self.alt_allele)
         self.other_count = sum(profile[BASES.index(x)] for x in others) - tgaps
-        self.read_ins = self.total_count if '-' in self.ref_allele else 0
+        self.read_ins = self.total_count if "-" in self.ref_allele else 0
         self.read_del = gaps
 
     def clear(self):
         self.update([0] * NBASES)
 
 
-class ClustStores (dict):
+class ClustStores(dict):
     """
     ClustStores provides random access to any consensus read
     """
+
     def __init__(self, consensfiles):
         super(ClustStores, self).__init__(self)
         for cs in consensfiles:
@@ -166,14 +188,14 @@ class ClustStores (dict):
 def main():
 
     actions = (
-        ('align', 'align clustfile to clustSfile'),
-        ('estimateHE', 'estimate heterozygosity and error rate for stacks'),
-        ('cluster', 'cluster within samples'),
-        ('consensus', 'call consensus bases within samples'),
-        ('mcluster', 'cluster across samples'),
-        ('mconsensus', 'call consensus bases across samples'),
-        ('stats', 'generate table summarizing .stats files'),
-            )
+        ("align", "align clustfile to clustSfile"),
+        ("estimateHE", "estimate heterozygosity and error rate for stacks"),
+        ("cluster", "cluster within samples"),
+        ("consensus", "call consensus bases within samples"),
+        ("mcluster", "cluster across samples"),
+        ("mconsensus", "call consensus bases across samples"),
+        ("stats", "generate table summarizing .stats files"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -191,7 +213,7 @@ def stats(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    folder, = args
+    (folder,) = args
     statsfiles = iglob(folder, "*.stats")
     after_equal = lambda x: x.split("=")[-1]
     header = "Library Assembled_reads Contigs".split()
@@ -210,10 +232,12 @@ def stats(args):
 
     all_labels, all_reads, all_contigs = zip(*contents)
     contents.append(("SUM", sum(all_reads), sum(all_contigs)))
-    contents.append(("AVERAGE (per sample)", \
-                    int(np.mean(all_reads)), int(np.mean(all_contigs))))
-    contents.append(("MEDIAN (per sample)", \
-                    int(np.median(all_reads)), int(np.median(all_contigs))))
+    contents.append(
+        ("AVERAGE (per sample)", int(np.mean(all_reads)), int(np.mean(all_contigs)))
+    )
+    contents.append(
+        ("MEDIAN (per sample)", int(np.median(all_reads)), int(np.median(all_contigs)))
+    )
     write_csv(header, contents, filename=opts.outfile)
 
 
@@ -225,8 +249,9 @@ def add_consensus_options(p):
 
 
 def find_pctid(consensusfiles):
-    pctid = min([int(op.basename(x).split(".")[-2].replace("P", "")) \
-            for x in consensusfiles])
+    pctid = min(
+        [int(op.basename(x).split(".")[-2].replace("P", "")) for x in consensusfiles]
+    )
     logging.debug("Set pctid={0}".format(pctid))
     return pctid
 
@@ -260,7 +285,7 @@ def mcluster(args):
             nseqs = 0
             s = op.basename(cf).split(".")[0]
             for name, seq in parse_fasta(cf):
-                name = '.'.join((s, name))
+                name = ".".join((s, name))
                 print(">{0}\n{1}".format(name, seq), file=fw_cons)
                 nseqs += 1
             logging.debug("Read `{0}`: {1} seqs".format(cf, nseqs))
@@ -271,8 +296,9 @@ def mcluster(args):
     userfile = pf + ".u"
     notmatchedfile = pf + ".notmatched"
     if need_update(consensusfile, userfile):
-        cluster_smallmem(consensusfile, userfile, notmatchedfile,
-                         minlength, pctid, cpus)
+        cluster_smallmem(
+            consensusfile, userfile, notmatchedfile, minlength, pctid, cpus
+        )
 
     clustfile = pf + ".clust"
     if need_update((consensusfile, userfile, notmatchedfile), clustfile):
@@ -292,7 +318,7 @@ def makeloci(clustSfile, store, prefix, minsamp=3, pctid=95):
     fw_finalfasta = open(finalfastafile, "w")
     locid = 0
     AC = []
-    diffratio = 1 - pctid / 100.
+    diffratio = 1 - pctid / 100.0
     for data in C:
         names, seqs, nreps = zip(*data)
         # Strip off cut site
@@ -303,22 +329,22 @@ def makeloci(clustSfile, store, prefix, minsamp=3, pctid=95):
         # Record variable sites
         cons_name, cons_seq, cons_nrep = get_seed(data)
         ncols = len(cons_seq)
-        snpsite = [' '] * ncols
+        snpsite = [" "] * ncols
         seed_ungapped_pos = []
         ref_alleles = []
         alt_alleles = []
         ungapped_i = 0
-        for i in xrange(ncols):
+        for i in range(ncols):
             ref_allele = cons_seq[i]
             ref_alleles.append(ref_allele)
             seed_ungapped_pos.append(ungapped_i)
-            if ref_allele in GAPS:        # Skip if reference is a deletion
+            if ref_allele in GAPS:  # Skip if reference is a deletion
                 alt_alleles.append([])
                 continue
             else:
                 ungapped_i += 1
 
-            site = [s[i] for s, nrep in zip(seqs, nreps) if nrep]   # Column slice in MSA
+            site = [s[i] for s, nrep in zip(seqs, nreps) if nrep]  # Column slice in MSA
             reals = [x for x in site if x in REAL]
 
             realcounts = sorted([(reals.count(x), x) for x in REAL], reverse=True)
@@ -326,14 +352,16 @@ def makeloci(clustSfile, store, prefix, minsamp=3, pctid=95):
             refcount = realcounts[0][0]
             altcount = realcounts[1][0]
             # Select SNP column
-            if altcount >= minsamp and \
-                nreals >= ntaxa / 2 and \
-                (refcount + altcount) >= nreals * .9:
-                snpsite[i] = '*'
-            if snpsite.count('*') > ncols * diffratio:
-                snpsite = [' '] * ncols
+            if (
+                altcount >= minsamp
+                and nreals >= ntaxa / 2
+                and (refcount + altcount) >= nreals * 0.9
+            ):
+                snpsite[i] = "*"
+            if snpsite.count("*") > ncols * diffratio:
+                snpsite = [" "] * ncols
             nonzeros = [x for c, x in realcounts if (c and x != ref_allele)]
-            alt_alleles.append(nonzeros[:1])      # Keep only two alleles
+            alt_alleles.append(nonzeros[:1])  # Keep only two alleles
 
         assert len(seed_ungapped_pos) == ncols
         assert len(ref_alleles) == ncols
@@ -342,7 +370,7 @@ def makeloci(clustSfile, store, prefix, minsamp=3, pctid=95):
 
         for name, seq in zip(names, seqs):
             name = name.strip(">")
-            if "." not in name:   # CONSENS0
+            if "." not in name:  # CONSENS0
                 continue
             taxon, readname = name.split(".", 1)
             profile = store[taxon][readname]
@@ -350,20 +378,27 @@ def makeloci(clustSfile, store, prefix, minsamp=3, pctid=95):
 
             ungapped_i = 0
             gap_p = [0, 0, 0, 0, 0, 0, sum(profile[0])]
-            for pos, ref_allele, alt_allele, r, ispoly in \
-                zip(seed_ungapped_pos, ref_alleles, alt_alleles, seq, snpsite):
-                if r in GAPS:     # insertion in ref, deletion in read
+            for pos, ref_allele, alt_allele, r, ispoly in zip(
+                seed_ungapped_pos, ref_alleles, alt_alleles, seq, snpsite
+            ):
+                if r in GAPS:  # insertion in ref, deletion in read
                     p = gap_p
                 else:
                     p = profile[ungapped_i]
                     ungapped_i += 1
 
-                if ispoly != '*':
+                if ispoly != "*":
                     continue
 
-                assert cons_seq[pos] == ref_allele       # Sanity check
-                ac = AlleleCount(taxon, fname, pos + 1,  # 1-based coordinate
-                                 ref_allele, alt_allele, p)
+                assert cons_seq[pos] == ref_allele  # Sanity check
+                ac = AlleleCount(
+                    taxon,
+                    fname,
+                    pos + 1,  # 1-based coordinate
+                    ref_allele,
+                    alt_allele,
+                    p,
+                )
                 AC.append(ac)
 
         longname = max(len(x) for x in names)
@@ -372,13 +407,18 @@ def makeloci(clustSfile, store, prefix, minsamp=3, pctid=95):
         for name, seq, nrep in data:
             print(name.ljust(longname) + seq, file=fw)
 
-        print(">{0} with {1} sequences\n{2}".\
-                    format(fname, sum(nreps), cons_seq), file=fw_finalfasta)
+        print(
+            ">{0} with {1} sequences\n{2}".format(fname, sum(nreps), cons_seq),
+            file=fw_finalfasta,
+        )
         locid += 1
 
     logging.debug("Stacks written to `{0}`".format(locifile))
-    logging.debug("Final consensus sequences written to `{0}` (n={1})".\
-                    format(finalfastafile, locid))
+    logging.debug(
+        "Final consensus sequences written to `{0}` (n={1})".format(
+            finalfastafile, locid
+        )
+    )
     fw.close()
     fw_finalfasta.close()
 
@@ -392,8 +432,11 @@ def mconsensus(args):
     Call consensus along the stacks from cross-sample clustering.
     """
     p = OptionParser(mconsensus.__doc__)
-    p.add_option("--allele_counts", default="allele_counts",
-                 help="Directory to generate allele counts")
+    p.add_option(
+        "--allele_counts",
+        default="allele_counts",
+        help="Directory to generate allele counts",
+    )
     add_consensus_options(p)
     opts, args = p.parse_args(args)
 
@@ -408,13 +451,12 @@ def mconsensus(args):
     pf = prefix + ".P{0}".format(pctid)
 
     clustSfile = pf + ".clustS"
-    AC = makeloci(clustSfile, store, prefix,
-                  minsamp=opts.minsamp, pctid=pctid)
+    AC = makeloci(clustSfile, store, prefix, minsamp=opts.minsamp, pctid=pctid)
 
     mkdir(acdir)
     acfile = pf + ".allele_counts"
     fw = open(acfile, "w")
-    seen = DefaultOrderedDict(list)        # chr, pos => taxa
+    seen = DefaultOrderedDict(list)  # chr, pos => taxa
     print("# " + "\t".join(ACHEADER), file=fw)
     # Sort allele counts into separate files
     for ac in AC:
@@ -444,8 +486,7 @@ def mconsensus(args):
         for ac in aclist:
             print(ac.tostring(), file=fw)
         fw.close()
-        logging.debug("Written {0} sites in `{1}`".\
-                format(len(aclist), tx_acfile))
+        logging.debug("Written {0} sites in `{1}`".format(len(aclist), tx_acfile))
 
 
 def get_seed(data):
@@ -458,8 +499,7 @@ def get_seed(data):
     return name, seq, nrep
 
 
-def compute_consensus(fname, cons_seq, RAD, S, totalsize,
-                      mindepth=3, verbose=False):
+def compute_consensus(fname, cons_seq, RAD, S, totalsize, mindepth=3, verbose=False):
     # Strip N's from either end and gaps
     gaps = set()
     fixed = set()
@@ -471,7 +511,7 @@ def compute_consensus(fname, cons_seq, RAD, S, totalsize,
         good = site[:4] + [site[-1]]
         # Handles terminal regions delete columns if consensus is a terminal gap,
         # or bases plus 'internal' gaps not covering half of the total abundance
-        if base == '_' or sum(good) < max(mindepth, totalsize / 2):
+        if base == "_" or sum(good) < max(mindepth, totalsize / 2):
             gaps.add(i)
             continue
         # Check count for original base for possible ties
@@ -491,20 +531,20 @@ def compute_consensus(fname, cons_seq, RAD, S, totalsize,
     if verbose:
         print(fname)
         print("\n".join(["{0} {1}".format(*x) for x in S]))
-        display = ''
-        basecounts = [''] * NBASES
+        display = ""
+        basecounts = [""] * NBASES
         for i, (b, p) in enumerate(zip(cons_seq, RAD)):
-            display += ('+' if i in fixed else b) if i not in gaps else ' '
+            display += ("+" if i in fixed else b) if i not in gaps else " "
             for j, k in enumerate(p):
-                basecounts[j] += (str(k) if k < 10 else '#') if k else '.'
+                basecounts[j] += (str(k) if k < 10 else "#") if k else "."
         print("=" * len(cons_seq))
         print(cons_seq)
         print(display)
         print("=" * len(cons_seq))
         for j, k in enumerate(basecounts):
-            if BASES[j] == 'N':
+            if BASES[j] == "N":
                 continue
-            print(''.join(k))
+            print("".join(k))
         print("=" * len(cons_seq))
 
     return shortcon, shortRAD
@@ -518,8 +558,9 @@ def consensus(args):
     errors according to error rate, calls consensus.
     """
     p = OptionParser(consensus.__doc__)
-    p.add_option("--ploidy", default=2, type="int",
-                 help="Number of haplotypes per locus")
+    p.add_option(
+        "--ploidy", default=2, type="int", help="Number of haplotypes per locus"
+    )
     add_consensus_options(p)
     p.set_verbose()
     opts, args = p.parse_args(args)
@@ -527,7 +568,7 @@ def consensus(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clustSfile, = args
+    (clustSfile,) = args
     pf = clustSfile.rsplit(".", 1)[0]
     mindepth = opts.mindepth
     minlength = opts.minlength
@@ -549,15 +590,14 @@ def consensus(args):
         fname = first_name.split(";")[0] + ";size={0};".format(total_nreps)
         cons_name, cons_seq, cons_nrep = get_seed(data)
         if len(data) > 1 and cons_name != CONSTAG:
-            logging.debug("Tag {0} not found in cluster {1}".\
-                        format(CONSTAG, cons_name))
+            logging.debug("Tag {0} not found in cluster {1}".format(CONSTAG, cons_name))
 
         # List for sequence data
         S = [(seq, nrep) for name, seq, nrep in data if nrep]
         # Pileups for base counting
         RAD = stack(S)
 
-        if len(data) == 1:   # No computation needed
+        if len(data) == 1:  # No computation needed
             output.append((fname, seq))
             bins.extend(RAD)
             start = end
@@ -565,16 +605,22 @@ def consensus(args):
             indices.append((fname, start, end))
             continue
 
-        shortcon, shortRAD = compute_consensus(fname, cons_seq, \
-                                RAD, S, total_nreps,
-                                mindepth=mindepth, verbose=verbose)
+        shortcon, shortRAD = compute_consensus(
+            fname, cons_seq, RAD, S, total_nreps, mindepth=mindepth, verbose=verbose
+        )
         if len(shortcon) < minlength:
             cons_seq = seq
-            shortcon, shortRAD = compute_consensus(fname, first_seq,\
-                                RAD, S, total_nreps,
-                                mindepth=mindepth, verbose=verbose)
+            shortcon, shortRAD = compute_consensus(
+                fname,
+                first_seq,
+                RAD,
+                S,
+                total_nreps,
+                mindepth=mindepth,
+                verbose=verbose,
+            )
 
-        if len(shortcon) < minlength:   # Stop trying
+        if len(shortcon) < minlength:  # Stop trying
             continue
 
         output.append((fname, shortcon))
@@ -585,7 +631,7 @@ def consensus(args):
         indices.append((fname, start, end))
 
     consensfile = pf + ".consensus"
-    consens = open(consensfile, 'w')
+    consens = open(consensfile, "w")
     for k, v in output:
         print("\n".join((k, v)), file=consens)
     consens.close()
@@ -617,7 +663,7 @@ def stack(S):
     S = np.array([list(x) for x in S])
     rows, cols = S.shape
     counts = []
-    for c in xrange(cols):
+    for c in range(cols):
         freq = [0] * NBASES
         for b, nrep in zip(S[:, c], nreps):
             freq[BASES.index(b)] += nrep
@@ -701,10 +747,10 @@ def L2(E, P, N):
     for l, i in enumerate(N):
         for j, k in enumerate(N):
             if j > l:
-                one = 2. * P[l] * P[j]
-                two = scipy.stats.binom.pmf(s - i - k, s, (2. * E) / 3.)
+                one = 2.0 * P[l] * P[j]
+                two = scipy.stats.binom.pmf(s - i - k, s, (2.0 * E) / 3.0)
                 three = scipy.stats.binom.pmf(i, k + i, 0.5)
-                four = 1. - (sum([q ** 2. for q in P]))
+                four = 1.0 - (sum([q ** 2.0 for q in P]))
                 h.append(one * two * (three / four))
     return sum(h)
 
@@ -719,7 +765,7 @@ def LL(x0, P, C):
     # Log likelihood score given values [H, E]
     H, E = x0
     L = []
-    if H <= 0. or E <= 0.:
+    if H <= 0.0 or E <= 0.0:
         r = np.exp(100)
     else:
         for i in C:
@@ -744,7 +790,7 @@ def estimateHE(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clustSfile, = args
+    (clustSfile,) = args
     HEfile = clustSfile.rsplit(".", 1)[0] + ".HE"
     if not need_update(clustSfile, HEfile):
         logging.debug("File `{0}` found. Computation skipped.".format(HEfile))
@@ -758,7 +804,7 @@ def estimateHE(args):
     P = makeP(D)
     C = makeC(D)
     logging.debug("Solving log-likelihood function ...")
-    x0 = [.01, .001]  # initital values
+    x0 = [0.01, 0.001]  # initital values
     H, E = scipy.optimize.fmin(LL, x0, args=(P, C))
 
     fw = must_open(HEfile, "w")
@@ -773,7 +819,9 @@ def alignfast(names, seqs):
     Performs MUSCLE alignments on cluster and returns output as string
     """
     matfile = op.join(datadir, "blosum80.mat")
-    cmd = "poa -read_fasta - -pir stdout {0} -tolower -silent -hb -fuse_all".format(matfile)
+    cmd = "poa -read_fasta - -pir stdout {0} -tolower -silent -hb -fuse_all".format(
+        matfile
+    )
     p = Popen(cmd, shell=True, stdin=PIPE, stdout=PIPE, stderr=STDOUT, close_fds=True)
     s = ""
     for i, j in zip(names, seqs):
@@ -783,15 +831,23 @@ def alignfast(names, seqs):
 
 def replace_terminal(seq):
     leftjust, rightjust = get_left_right(seq)
-    seq = "_" * leftjust + seq[leftjust: rightjust + 1] \
-                + "_" * (len(seq) - rightjust - 1)
+    seq = (
+        "_" * leftjust
+        + seq[leftjust : rightjust + 1]
+        + "_" * (len(seq) - rightjust - 1)
+    )
     return seq
 
 
 def sortalign(stringnames):
     G = stringnames.split("\n>")
-    aligned = [('>' + i.split("\n")[0].strip('>'),
-               replace_terminal("".join(i.split("\n")[1:]).upper())) for i in G]
+    aligned = [
+        (
+            ">" + i.split("\n")[0].strip(">"),
+            replace_terminal("".join(i.split("\n")[1:]).upper()),
+        )
+        for i in G
+    ]
     return aligned
 
 
@@ -813,7 +869,7 @@ def parallel_musclewrap(clustfile, cpus, minsamp=0):
     shutil.rmtree(outdir)
 
 
-def filter_samples(names, seqs, sep='.'):
+def filter_samples(names, seqs, sep="."):
     """
     When there are uncollapsed contigs within the same sample, only retain the
     first seq, or the seq that is most abundant (with cluster_size).
@@ -838,7 +894,7 @@ def musclewrap(clustfile, minsamp=0):
     cnts = 0
     C = ClustFile(clustfile)
     clustSfile = clustfile.replace(".clust", ".clustS")
-    fw = open(clustSfile, 'w')
+    fw = open(clustSfile, "w")
     for data in C:
         STACK = Clust()
         names = []
@@ -883,8 +939,7 @@ def makestats(clustSfile, statsfile, mindepth):
         std = round(np.std(depth), 3)
     else:
         me = std = 0.0
-    out = dict(label=namecheck, total=sum(depth),
-               cnts=len(depth), mean=me, std=std)
+    out = dict(label=namecheck, total=sum(depth), cnts=len(depth), mean=me, std=std)
     header = "label total cnts mean std".split()
 
     bins = [0, 5, 10, 15, 20, 25, 30, 35, 40, 50, 100, 250, 500, 99999]
@@ -892,10 +947,9 @@ def makestats(clustSfile, statsfile, mindepth):
     hist = [float(i) / sum(ohist) for i in ohist]
     hist = [int(round(i * 30)) for i in hist]
 
-    logging.debug("Sample {0} finished, {1} loci".\
-                    format(clustSfile, len(depth)))
+    logging.debug("Sample {0} finished, {1} loci".format(clustSfile, len(depth)))
 
-    fw = open(statsfile,'w')
+    fw = open(statsfile, "w")
     print("# Params: mindepth={0}".format(mindepth), file=fw)
     print(" ".join("{0}={1}".format(k, out[k]) for k in header), file=fw)
     print("\nbins\tdepth_histogram\tcnts", file=fw)
@@ -905,7 +959,7 @@ def makestats(clustSfile, statsfile, mindepth):
         firststar = " "
         if k > 0:
             firststar = "*"
-        print(i,'\t', firststar + "*" * j + " " * (34 - j), k, file=fw)
+        print(i, "\t", firststar + "*" * j + " " * (34 - j), k, file=fw)
     fw.close()
 
 
@@ -915,8 +969,7 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile, mindepth=3):
     fp = open(userfile)
     for row in fp:
         query, target, id, qcov, tcov = row.rstrip().split("\t")
-        U[target].append((query, getsize(query),
-                          float(id) * float(qcov) * float(tcov)))
+        U[target].append((query, getsize(query), float(id) * float(qcov) * float(tcov)))
 
     fw = open(clustfile, "w")
     for key, members in U.items():
@@ -927,9 +980,9 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile, mindepth=3):
             continue
 
         # Recruit cluster members
-        seqs = [('>' + key, D[key])]
+        seqs = [(">" + key, D[key])]
         for name, size, id in members:
-            seqs.append(('>' + name, D[name]))
+            seqs.append((">" + name, D[name]))
 
         seq = "\n".join("\n".join(x) for x in seqs)
         print("\n".join((seq, SEP)), file=fw)
@@ -939,7 +992,7 @@ def makeclust(derepfile, userfile, notmatchedfile, clustfile, mindepth=3):
     for key in singletons:
         if getsize(key) < mindepth:
             continue
-        print("\n".join(('>' + key, I[key], SEP)), file=fw)
+        print("\n".join((">" + key, I[key], SEP)), file=fw)
     fw.close()
 
 
@@ -951,9 +1004,17 @@ def derep(fastafile, derepfile, minlength, cpus, usearch="vsearch"):
     sh(cmd)
 
 
-def cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, pctid,
-                     cpus, cov=.8, usearch="vsearch"):
-    identity = pctid / 100.
+def cluster_smallmem(
+    derepfile,
+    userfile,
+    notmatchedfile,
+    minlength,
+    pctid,
+    cpus,
+    cov=0.8,
+    usearch="vsearch",
+):
+    identity = pctid / 100.0
     cmd = usearch + " -minseqlength {0}".format(minlength)
     cmd += " -cluster_size {0}".format(derepfile)
     cmd += " -id {0}".format(identity)
@@ -992,9 +1053,14 @@ def cluster(args):
     pctid = opts.pctid
     mindepth = opts.mindepth
     minlength = opts.minlength
-    fastafile, qualfile = fasta(fastqfiles + ["--seqtk",
-                                "--outdir={0}".format(opts.outdir),
-                                "--outfile={0}".format(prefix + ".fasta")])
+    fastafile, qualfile = fasta(
+        fastqfiles
+        + [
+            "--seqtk",
+            "--outdir={0}".format(opts.outdir),
+            "--outfile={0}".format(prefix + ".fasta"),
+        ]
+    )
 
     prefix = op.join(opts.outdir, prefix)
     pf = prefix + ".P{0}".format(pctid)
@@ -1005,13 +1071,11 @@ def cluster(args):
     userfile = pf + ".u"
     notmatchedfile = pf + ".notmatched"
     if need_update(derepfile, userfile):
-        cluster_smallmem(derepfile, userfile, notmatchedfile,
-                         minlength, pctid, cpus)
+        cluster_smallmem(derepfile, userfile, notmatchedfile, minlength, pctid, cpus)
 
     clustfile = pf + ".clust"
     if need_update((derepfile, userfile, notmatchedfile), clustfile):
-        makeclust(derepfile, userfile, notmatchedfile, clustfile,
-                  mindepth=mindepth)
+        makeclust(derepfile, userfile, notmatchedfile, clustfile, mindepth=mindepth)
 
     clustSfile = pf + ".clustS"
     if need_update(clustfile, clustSfile):
@@ -1035,9 +1099,9 @@ def align(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clustfile, = args
+    (clustfile,) = args
     parallel_musclewrap(clustfile, opts.cpus)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

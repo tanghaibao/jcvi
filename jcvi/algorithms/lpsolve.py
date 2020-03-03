@@ -270,7 +270,7 @@ class LPInstance(object):
         self.sum = sums
 
     def add_vars(self, nedges, offset=1, binary=True):
-        vars = [" x{0}".format(i + offset) for i in xrange(nedges)]
+        vars = [" x{0}".format(i + offset) for i in range(nedges)]
         if binary:
             self.binaryvars = vars
         else:
@@ -496,7 +496,7 @@ def tsp(edges, constraint_generation=False):
 
     # Step variables u_i bound between 1 and n, as additional variables
     bounds = []
-    for i in xrange(start_step, nedges + nnodes):
+    for i in range(start_step, nedges + nnodes):
         bounds.append(" 1 <= x{0} <= {1}".format(i, nnodes - 1))
 
     L.add_vars(nedges)

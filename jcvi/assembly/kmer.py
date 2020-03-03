@@ -14,23 +14,29 @@ import numpy as np
 
 from collections import defaultdict
 
-from jcvi.graphics.base import plt, asciiplot, set_human_axis, savefig, \
-            markup, panel_labels, normalize_axes, set_ticklabels_helvetica, \
-            write_messages
+from jcvi.graphics.base import (
+    plt,
+    asciiplot,
+    set_human_axis,
+    savefig,
+    markup,
+    panel_labels,
+    normalize_axes,
+    set_ticklabels_helvetica,
+    write_messages,
+)
 from jcvi.formats.fasta import Fasta
 from jcvi.formats.base import BaseFile, must_open, get_number
 from jcvi.utils.cbook import thousands, percentage
 from jcvi.assembly.automaton import iter_project
 from jcvi.apps.grid import MakeManager
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
-            need_update, Popen, PIPE
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, Popen, PIPE
 
 
 KMERYL, KSOAP, KALLPATHS = range(3)
 
 
-class KmerSpectrum (BaseFile):
-
+class KmerSpectrum(BaseFile):
     def __init__(self, histfile):
         self.load_data(histfile)
 
@@ -44,7 +50,7 @@ class KmerSpectrum (BaseFile):
 
         fp = open(histfile)
         for rowno, row in enumerate(fp):
-            if row[0] == '#':
+            if row[0] == "#":
                 continue
             if kformat == KSOAP:
                 K = rowno + 1
@@ -69,8 +75,7 @@ class KmerSpectrum (BaseFile):
         return KMERYL
 
     def get_xy(self, vmin=1, vmax=100):
-        self.counts = sorted((a, b) for a, b in self.hist.items() \
-                        if vmin <= a <= vmax)
+        self.counts = sorted((a, b) for a, b in self.hist.items() if vmin <= a <= vmax)
         return zip(*self.counts)
 
     def analyze(self, ploidy=2, K=23, covmax=1000000):
@@ -84,8 +89,10 @@ class KmerSpectrum (BaseFile):
         kf_ceil = max(K for (K, c) in data)
         if kf_ceil > covmax:
             exceeds = sum(1 for (K, c) in data if K > covmax)
-            logging.debug("A total of {0} distinct K-mers appear > "
-                          "{1} times. Ignored ...".format(exceeds, covmax))
+            logging.debug(
+                "A total of {0} distinct K-mers appear > "
+                "{1} times. Ignored ...".format(exceeds, covmax)
+            )
             kf_ceil = covmax
 
         nkf = kf_ceil + 1
@@ -99,9 +106,9 @@ class KmerSpectrum (BaseFile):
         nk = [k * c for k, c in enumerate(a)]  # number of kmers
         cndk = [0] * nkf  # cumulative number of distinct kmers
         cnk = [0] * nkf  # cumulative number of kmers
-        for kf in xrange(1, nkf):
-            cndk[kf] = cndk[kf - 1] + .5 * (ndk[kf - 1] + ndk[kf])
-            cnk [kf] = cnk [kf - 1] + .5 * (nk [kf - 1] + nk [kf])
+        for kf in range(1, nkf):
+            cndk[kf] = cndk[kf - 1] + 0.5 * (ndk[kf - 1] + ndk[kf])
+            cnk[kf] = cnk[kf - 1] + 0.5 * (nk[kf - 1] + nk[kf])
 
         # Separate kmer spectrum in 5 regions based on the kf
         # 1        ... kf_min1    : bad kmers with low frequency
@@ -112,14 +119,14 @@ class KmerSpectrum (BaseFile):
 
         # min1: find first minimum
         _kf_min1 = 10
-        while (_kf_min1 - 1 >= 2 and nk[_kf_min1 - 1] < nk[_kf_min1]):
+        while _kf_min1 - 1 >= 2 and nk[_kf_min1 - 1] < nk[_kf_min1]:
             _kf_min1 -= 1
-        while (_kf_min1 <= kf_ceil and nk [_kf_min1 + 1] < nk[_kf_min1]):
+        while _kf_min1 <= kf_ceil and nk[_kf_min1 + 1] < nk[_kf_min1]:
             _kf_min1 += 1
 
         # max2: find absolute maximum mx2 above first minimum min1
         _kf_max2 = _kf_min1
-        for kf in xrange(_kf_min1 + 1, int(0.8 * kf_ceil)):
+        for kf in range(_kf_min1 + 1, int(0.8 * kf_ceil)):
             if nk[kf] > nk[_kf_max2]:
                 _kf_max2 = kf
 
@@ -134,19 +141,21 @@ class KmerSpectrum (BaseFile):
         _kf_max1 = _kf_max2 / 2
 
         # min2: SNPs local minimum min2 between max1 and max2
-        _kf_min2 = _kf_max1 * (2 * ndk[_kf_max1] + ndk[_kf_max2]) / \
-                    (ndk[_kf_max1] + ndk[_kf_max2])
+        _kf_min2 = (
+            _kf_max1
+            * (2 * ndk[_kf_max1] + ndk[_kf_max2])
+            / (ndk[_kf_max1] + ndk[_kf_max2])
+        )
 
         # min1: refine between min1 and max2/2
-        for kf in xrange(_kf_min1 + 1, _kf_max1):
-            if (nk[kf] < nk[_kf_min1]):
+        for kf in range(_kf_min1 + 1, _kf_max1):
+            if nk[kf] < nk[_kf_min1]:
                 _kf_min1 = kf
 
         # min3: not a minimum, really. upper edge of main peak
         _kf_min3 = _kf_max2 * 3 / 2
 
-        print("kfs:", _kf_min1, _kf_max1, \
-                        _kf_min2, _kf_max2, _kf_min3, file=sys.stderr)
+        print("kfs:", _kf_min1, _kf_max1, _kf_min2, _kf_max2, _kf_min3, file=sys.stderr)
         self.min1 = _kf_min1
         self.max1 = _kf_max1
         self.min2 = _kf_min2
@@ -154,9 +163,11 @@ class KmerSpectrum (BaseFile):
         self.min3 = _kf_min3
 
         # Define maximum kf above which we neglect data
-        _kf_hi = _kf_max2 * sqrt(4 * ndk[2 * _kf_max2] * _kf_max2) \
-                    if 2 * _kf_max2 < len(ndk) else \
-                 _kf_max2 * sqrt(4 * ndk[len(ndk) - 1] * _kf_max2)
+        _kf_hi = (
+            _kf_max2 * sqrt(4 * ndk[2 * _kf_max2] * _kf_max2)
+            if 2 * _kf_max2 < len(ndk)
+            else _kf_max2 * sqrt(4 * ndk[len(ndk) - 1] * _kf_max2)
+        )
         _kf_hi = int(_kf_hi)
 
         if _kf_hi > kf_ceil:
@@ -170,9 +181,8 @@ class KmerSpectrum (BaseFile):
         _ndk_good_uniq = cndk[_kf_min3] - cndk[_kf_min2]
 
         # kmer coverage C_k
-        _kf_ave_uniq = _nk_good_uniq * 1. / _ndk_good_uniq
-        _genome_size = (_nk_total - _nk_bad_low_kf - _nk_bad_high_kf) / \
-                        _kf_ave_uniq
+        _kf_ave_uniq = _nk_good_uniq * 1.0 / _ndk_good_uniq
+        _genome_size = (_nk_total - _nk_bad_low_kf - _nk_bad_high_kf) / _kf_ave_uniq
         _genome_size_unique = _ndk_good_uniq + _ndk_good_snp / 2
         _genome_size_repetitive = _genome_size - _genome_size_unique
         _coverage = _nk_total / _genome_size if _genome_size else 0
@@ -181,8 +191,11 @@ class KmerSpectrum (BaseFile):
         # genome and accounts for the reduction in SNP kmer counts when
         # polymorphism is very high
         if ploidy == 2:
-            _d_SNP = 1. / (1. - (1. - .5 * _ndk_good_snp / _genome_size) ** (1. / K)) \
-                     if _ndk_good_snp > 0 else 1000000
+            _d_SNP = (
+                1.0 / (1.0 - (1.0 - 0.5 * _ndk_good_snp / _genome_size) ** (1.0 / K))
+                if _ndk_good_snp > 0
+                else 1000000
+            )
 
         G = int(_genome_size)
         G1 = int(_genome_size_unique)
@@ -191,10 +204,12 @@ class KmerSpectrum (BaseFile):
 
         m = "Kmer (K={0}) Spectrum Analysis\n".format(K)
         m += "Genome size estimate = {0}\n".format(thousands(G))
-        m += "Genome size estimate CN = 1 = {0} ({1})\n".format(thousands(G1),
-                percentage(G1, G))
-        m += "Genome size estimate CN > 1 = {0} ({1})\n".format(thousands(GR),
-                percentage(GR, G))
+        m += "Genome size estimate CN = 1 = {0} ({1})\n".format(
+            thousands(G1), percentage(G1, G)
+        )
+        m += "Genome size estimate CN > 1 = {0} ({1})\n".format(
+            thousands(GR), percentage(GR, G)
+        )
         m += "Coverage estimate: {0} x\n".format(coverage)
         self.repetitive = "Repeats: {0} percent".format(GR * 100 / G)
 
@@ -203,15 +218,14 @@ class KmerSpectrum (BaseFile):
             self.snprate = "SNP rate ~= 1/{0}".format(d_SNP)
         else:
             self.snprate = "SNP rate not computed (Ploidy = {0})".format(ploidy)
-        m += self.snprate + '\n'
+        m += self.snprate + "\n"
 
-        self.genomesize = int(round(self.totalKmers * 1. / self.max2))
+        self.genomesize = int(round(self.totalKmers * 1.0 / self.max2))
 
         print(m, file=sys.stderr)
 
 
 class KMCComplex(object):
-
     def __init__(self, indices):
         self.indices = indices
 
@@ -235,23 +249,23 @@ def main():
 
     actions = (
         # K-mer counting
-        ('jellyfish', 'count kmers using `jellyfish`'),
-        ('meryl', 'count kmers using `meryl`'),
-        ('kmc', 'count kmers using `kmc`'),
-        ('kmcop', 'intersect or union kmc indices'),
-        ('entropy', 'calculate entropy for kmers from kmc dump'),
-        ('bed', 'map kmers on FASTA'),
+        ("jellyfish", "count kmers using `jellyfish`"),
+        ("meryl", "count kmers using `meryl`"),
+        ("kmc", "count kmers using `kmc`"),
+        ("kmcop", "intersect or union kmc indices"),
+        ("entropy", "calculate entropy for kmers from kmc dump"),
+        ("bed", "map kmers on FASTA"),
         # K-mer histogram
-        ('histogram', 'plot the histogram based on meryl K-mer distribution'),
-        ('multihistogram', 'plot histogram across a set of K-mer sizes'),
+        ("histogram", "plot the histogram based on meryl K-mer distribution"),
+        ("multihistogram", "plot histogram across a set of K-mer sizes"),
         # These forms a pipeline to count K-mers for given FASTA seq
-        ('dump', 'convert FASTA sequences to list of K-mers'),
-        ('bin', 'serialize counts to bitarrays'),
-        ('bincount', 'count K-mers in the bin'),
-        ('count', 'run dump - jellyfish - bin - bincount in serial'),
-        ('logodds', 'compute log likelihood between two db'),
-        ('model', 'model kmer distribution given error rate'),
-            )
+        ("dump", "convert FASTA sequences to list of K-mers"),
+        ("bin", "serialize counts to bitarrays"),
+        ("bincount", "count K-mers in the bin"),
+        ("count", "run dump - jellyfish - bin - bincount in serial"),
+        ("logodds", "compute log likelihood between two db"),
+        ("model", "model kmer distribution given error rate"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -265,13 +279,13 @@ def entropy_score(kmer):
     k = l if l < 64 else 64
     counts = defaultdict(int)
     for i in range(l):
-        trinuc = kmer[i: i + 3]
+        trinuc = kmer[i : i + 3]
         counts[trinuc] += 1
 
     logk = math.log(k)
     res = 0
     for k, v in counts.items():
-        f = v * 1. / l
+        f = v * 1.0 / l
         res += f * math.log(f) / logk
     return res * -100
 
@@ -284,14 +298,15 @@ def entropy(args):
     AAAAAAAAAAAGAAGAAAGAAA  34
     """
     p = OptionParser(entropy.__doc__)
-    p.add_option("--threshold", default=0, type="int",
-                help="Complexity needs to be above")
+    p.add_option(
+        "--threshold", default=0, type="int", help="Complexity needs to be above"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    kmc_out, = args
+    (kmc_out,) = args
     fp = open(kmc_out)
     for row in fp:
         kmer, count = row.split()
@@ -331,7 +346,7 @@ def bed(args):
         for i in range(len(seq) - K):
             if i % 5000000 == 0:
                 print("{}:{}".format(name, i), file=sys.stderr)
-            kmer = seq[i: i + K]
+            kmer = seq[i : i + K]
             if kmer in KMERS:
                 print("\t".join(str(x) for x in (name, i, i + K, kmer)))
 
@@ -343,8 +358,9 @@ def kmcop(args):
     Intersect or union kmc indices.
     """
     p = OptionParser(kmcop.__doc__)
-    p.add_option("--action", choices=("union", "intersect"),
-                default="union", help="Action")
+    p.add_option(
+        "--action", choices=("union", "intersect"), default="union", help="Action"
+    )
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)
 
@@ -364,31 +380,42 @@ def kmc(args):
     """
     p = OptionParser(kmc.__doc__)
     p.add_option("-k", default=21, type="int", help="Kmer size")
-    p.add_option("--ci", default=2, type="int",
-                 help="Exclude kmers with less than ci counts")
-    p.add_option("--cs", default=2, type="int",
-                 help="Maximal value of a counter")
-    p.add_option("--cx", default=None, type="int",
-                 help="Exclude kmers with more than cx counts")
-    p.add_option("--single", default=False, action="store_true",
-                 help="Input is single-end data, only one FASTQ/FASTA")
-    p.add_option("--fasta", default=False, action="store_true",
-                 help="Input is FASTA instead of FASTQ")
+    p.add_option(
+        "--ci", default=2, type="int", help="Exclude kmers with less than ci counts"
+    )
+    p.add_option("--cs", default=2, type="int", help="Maximal value of a counter")
+    p.add_option(
+        "--cx", default=None, type="int", help="Exclude kmers with more than cx counts"
+    )
+    p.add_option(
+        "--single",
+        default=False,
+        action="store_true",
+        help="Input is single-end data, only one FASTQ/FASTA",
+    )
+    p.add_option(
+        "--fasta",
+        default=False,
+        action="store_true",
+        help="Input is FASTA instead of FASTQ",
+    )
     p.set_cpus()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    folder, = args
+    (folder,) = args
     K = opts.k
     n = 1 if opts.single else 2
-    pattern = "*.fa,*.fa.gz,*.fasta,*.fasta.gz" if opts.fasta else \
-              "*.fq,*.fq.gz,*.fastq,*.fastq.gz"
+    pattern = (
+        "*.fa,*.fa.gz,*.fasta,*.fasta.gz"
+        if opts.fasta
+        else "*.fq,*.fq.gz,*.fastq,*.fastq.gz"
+    )
 
     mm = MakeManager()
-    for p, pf in iter_project(folder, pattern=pattern,
-                              n=n, commonprefix=False):
+    for p, pf in iter_project(folder, pattern=pattern, n=n, commonprefix=False):
         pf = pf.split("_")[0] + ".ms{}".format(K)
         infiles = pf + ".infiles"
         fw = open(infiles, "w")
@@ -422,7 +449,7 @@ def meryl(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    folder, = args
+    (folder,) = args
     K = opts.k
     cpus = opts.cpus
     mm = MakeManager()
@@ -439,8 +466,7 @@ def meryl(args):
         pms = "{}.ms{}".format(pf, K)
         cmd = "meryl -M add -s {} -s {} -o {}".format(ams, bms, pms)
         cmds.append(cmd)
-        cmd = "rm -f {}.mcdat {}.mcidx {}.mcdat {}.mcidx".\
-                    format(ams, ams, bms, bms)
+        cmd = "rm -f {}.mcdat {}.mcidx {}.mcdat {}.mcidx".format(ams, ams, bms, bms)
         cmds.append(cmd)
         mm.add(p, pms + ".mcdat", cmds)
 
@@ -464,16 +490,16 @@ def model(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    erate, = args
+    (erate,) = args
     erate = float(erate)
     cov = opts.cov
     k = opts.k
 
     xy = []
     # Range include c although it is unclear what it means to have c=0
-    for c in xrange(0,  cov * 2 + 1):
+    for c in range(0, cov * 2 + 1):
         Prob_Yk = 0
-        for i in xrange(k + 1):
+        for i in range(k + 1):
             # Probability of having exactly i errors
             pi_i = binom.pmf(i, k, erate)
             # Expected coverage of kmer with exactly i errors
@@ -520,8 +546,8 @@ def get_K(jfdb):
     """
     Infer K from jellyfish db.
     """
-    j = jfdb.rsplit('_', 1)[0].rsplit('-', 1)[-1]
-    assert j[0] == 'K'
+    j = jfdb.rsplit("_", 1)[0].rsplit("-", 1)[-1]
+    assert j[0] == "K"
     return int(j[1:])
 
 
@@ -566,8 +592,11 @@ def count(args):
     fw.close()
     sh("rm {0}".format(t.name))
 
-    logging.debug("Shared K-mers (K={0}) between `{1}` and `{2}` written to `{3}`.".\
-                    format(K, fastafile, jfdb, binfile))
+    logging.debug(
+        "Shared K-mers (K={0}) between `{1}` and `{2}` written to `{3}`.".format(
+            K, fastafile, jfdb, binfile
+        )
+    )
     cntfile = ".".join((fastafile, jfdb, "cnt"))
     bincount([fastafile, binfile, "-o", cntfile, "-K {0}".format(K)])
     logging.debug("Shared K-mer counts written to `{0}`.".format(cntfile))
@@ -583,8 +612,7 @@ def bincount(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(bincount.__doc__)
-    p.add_option("-K", default=23, type="int",
-                 help="K-mer size [default: %default]")
+    p.add_option("-K", default=23, type="int", help="K-mer size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -602,7 +630,7 @@ def bincount(args):
     fw = must_open(opts.outfile, "w")
     for name, seqlen in f.iter_sizes():
         ksize = seqlen - K + 1
-        b = a[tsize: tsize + ksize]
+        b = a[tsize : tsize + ksize]
         bcount = b.count()
         print("\t".join(str(x) for x in (name, bcount)), file=fw)
         tsize += ksize
@@ -615,6 +643,7 @@ def bin(args):
     Serialize counts to bitarrays.
     """
     from bitarray import bitarray
+
     p = OptionParser(bin.__doc__)
     opts, args = p.parse_args(args)
 
@@ -635,8 +664,8 @@ def bin(args):
 def make_kmers(seq, K):
     seq = str(seq).upper().replace("N", "A")
     seqlen = len(seq)
-    for i in xrange(seqlen - K + 1):
-        yield seq[i: i + K]
+    for i in range(seqlen - K + 1):
+        yield seq[i : i + K]
 
 
 def dump(args):
@@ -646,15 +675,14 @@ def dump(args):
     Convert FASTA sequences to list of K-mers.
     """
     p = OptionParser(dump.__doc__)
-    p.add_option("-K", default=23, type="int",
-                 help="K-mer size [default: %default]")
+    p.add_option("-K", default=23, type="int", help="K-mer size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     K = opts.K
     fw = must_open(opts.outfile, "w")
     f = Fasta(fastafile, lazy=True)
@@ -672,15 +700,16 @@ def jellyfish(args):
     """
     from jcvi.apps.base import getfilesize
     from jcvi.utils.cbook import human_size
+
     p = OptionParser(jellyfish.__doc__)
-    p.add_option("-K", default=23, type="int",
-                 help="K-mer size [default: %default]")
-    p.add_option("--coverage", default=40, type="int",
-                 help="Expected sequence coverage [default: %default]")
-    p.add_option("--prefix", default="jf",
-                 help="Database prefix [default: %default]")
-    p.add_option("--nohist", default=False, action="store_true",
-                 help="Do not print histogram [default: %default]")
+    p.add_option("-K", default=23, type="int", help="K-mer size")
+    p.add_option(
+        "--coverage", default=40, type="int", help="Expected sequence coverage",
+    )
+    p.add_option("--prefix", default="jf", help="Database prefix")
+    p.add_option(
+        "--nohist", default=False, action="store_true", help="Do not print histogram",
+    )
     p.set_home("jellyfish")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -698,9 +727,11 @@ def jellyfish(args):
     gzip = fq.endswith(".gz")
 
     hashsize = totalfilesize / coverage
-    logging.debug("Total file size: {0}, hashsize (-s): {1}".\
-                    format(human_size(totalfilesize,
-                           a_kilobyte_is_1024_bytes=True), hashsize))
+    logging.debug(
+        "Total file size: {0}, hashsize (-s): {1}".format(
+            human_size(totalfilesize, a_kilobyte_is_1024_bytes=True), hashsize
+        )
+    )
 
     jfpf = "{0}-K{1}".format(pf, K)
     jfdb = jfpf
@@ -750,14 +781,10 @@ def multihistogram(args):
     on Star et al.'s method (Atlantic Cod genome paper).
     """
     p = OptionParser(multihistogram.__doc__)
-    p.add_option("--kmin", default=15, type="int",
-            help="Minimum K-mer size, inclusive")
-    p.add_option("--kmax", default=30, type="int",
-            help="Maximum K-mer size, inclusive")
-    p.add_option("--vmin", default=2, type="int",
-            help="Minimum value, inclusive")
-    p.add_option("--vmax", default=100, type="int",
-            help="Maximum value, inclusive")
+    p.add_option("--kmin", default=15, type="int", help="Minimum K-mer size, inclusive")
+    p.add_option("--kmax", default=30, type="int", help="Maximum K-mer size, inclusive")
+    p.add_option("--vmin", default=2, type="int", help="Minimum value, inclusive")
+    p.add_option("--vmax", default=100, type="int", help="Maximum value, inclusive")
     opts, args, iopts = p.set_image_options(args, figsize="10x5", dpi=300)
 
     if len(args) < 1:
@@ -767,8 +794,8 @@ def multihistogram(args):
     species = args[-1]
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    A = fig.add_axes([.08, .12, .38, .76])
-    B = fig.add_axes([.58, .12, .38, .76])
+    A = fig.add_axes([0.08, 0.12, 0.38, 0.76])
+    B = fig.add_axes([0.58, 0.12, 0.38, 0.76])
 
     lines = []
     legends = []
@@ -780,14 +807,14 @@ def multihistogram(args):
         if not opts.kmin <= K <= opts.kmax:
             continue
 
-        line, = A.plot(x, y, '-', lw=1)
+        (line,) = A.plot(x, y, "-", lw=1)
         lines.append(line)
         legends.append("K = {0}".format(K))
         ks.analyze(K=K)
         genomesizes.append((K, ks.genomesize / 1e6))
 
     leg = A.legend(lines, legends, shadow=True, fancybox=True)
-    leg.get_frame().set_alpha(.5)
+    leg.get_frame().set_alpha(0.5)
 
     title = "{0} genome K-mer histogram".format(species)
     A.set_title(markup(title))
@@ -799,8 +826,8 @@ def multihistogram(args):
     title = "{0} genome size estimate".format(species)
     B.set_title(markup(title))
     x, y = zip(*genomesizes)
-    B.plot(x, y, "ko", mfc='w')
-    t = np.linspace(opts.kmin - .5, opts.kmax + .5, 100)
+    B.plot(x, y, "ko", mfc="w")
+    t = np.linspace(opts.kmin - 0.5, opts.kmax + 0.5, 100)
     p = np.poly1d(np.polyfit(x, y, 2))
     B.plot(t, p(t), "r:")
 
@@ -809,7 +836,7 @@ def multihistogram(args):
     B.set_ylabel(ylabel)
     set_ticklabels_helvetica(B)
 
-    labels = ((.04, .96, 'A'), (.54, .96, 'B'))
+    labels = ((0.04, 0.96, "A"), (0.54, 0.96, "B"))
     panel_labels(root, labels)
 
     normalize_axes(root)
@@ -825,16 +852,27 @@ def histogram(args):
     only used to annotate the graphic.
     """
     p = OptionParser(histogram.__doc__)
-    p.add_option("--vmin", dest="vmin", default=1, type="int",
-            help="minimum value, inclusive [default: %default]")
-    p.add_option("--vmax", dest="vmax", default=100, type="int",
-            help="maximum value, inclusive [default: %default]")
-    p.add_option("--pdf", default=False, action="store_true",
-            help="Print PDF instead of ASCII plot [default: %default]")
-    p.add_option("--coverage", default=0, type="int",
-            help="Kmer coverage [default: auto]")
-    p.add_option("--nopeaks", default=False, action="store_true",
-            help="Do not annotate K-mer peaks")
+    p.add_option(
+        "--vmin", dest="vmin", default=1, type="int", help="minimum value, inclusive",
+    )
+    p.add_option(
+        "--vmax", dest="vmax", default=100, type="int", help="maximum value, inclusive",
+    )
+    p.add_option(
+        "--pdf",
+        default=False,
+        action="store_true",
+        help="Print PDF instead of ASCII plot",
+    )
+    p.add_option(
+        "--coverage", default=0, type="int", help="Kmer coverage [default: auto]"
+    )
+    p.add_option(
+        "--nopeaks",
+        default=False,
+        action="store_true",
+        help="Do not annotate K-mer peaks",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -855,12 +893,11 @@ def histogram(args):
     Total_Kmers = int(ks.totalKmers)
     coverage = opts.coverage
     Kmer_coverage = ks.max2 if not coverage else coverage
-    Genome_size = int(round(Total_Kmers * 1. / Kmer_coverage))
+    Genome_size = int(round(Total_Kmers * 1.0 / Kmer_coverage))
 
     Total_Kmers_msg = "Total {0}-mers: {1}".format(N, thousands(Total_Kmers))
     Kmer_coverage_msg = "{0}-mer coverage: {1}".format(N, Kmer_coverage)
-    Genome_size_msg = "Estimated genome size: {0:.1f}Mb".\
-                        format(Genome_size / 1e6)
+    Genome_size_msg = "Estimated genome size: {0:.1f}Mb".format(Genome_size / 1e6)
     Repetitive_msg = ks.repetitive
     SNPrate_msg = ks.snprate
 
@@ -875,7 +912,7 @@ def histogram(args):
         return Genome_size
 
     plt.figure(1, (6, 6))
-    plt.plot(x, y, 'g-', lw=2, alpha=.5)
+    plt.plot(x, y, "g-", lw=2, alpha=0.5)
     ax = plt.gca()
 
     if peaks:
@@ -884,12 +921,17 @@ def histogram(args):
         if tcounts:
             x, y = zip(*tcounts)
             tcounts = dict(tcounts)
-            plt.plot(x, y, 'ko', lw=2, mec='k', mfc='w')
+            plt.plot(x, y, "ko", lw=2, mec="k", mfc="w")
             ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
             ax.text(ks.max2, tcounts[ks.max2], "Main peak")
 
-    messages = [Total_Kmers_msg, Kmer_coverage_msg, Genome_size_msg,
-                Repetitive_msg, SNPrate_msg]
+    messages = [
+        Total_Kmers_msg,
+        Kmer_coverage_msg,
+        Genome_size_msg,
+        Repetitive_msg,
+        SNPrate_msg,
+    ]
     write_messages(ax, messages)
 
     ymin, ymax = ax.get_ylim()
@@ -908,5 +950,5 @@ def histogram(args):
     return Genome_size
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

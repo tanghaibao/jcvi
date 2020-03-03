@@ -31,9 +31,9 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 def main():
 
     actions = (
-        ('cluster', 'cluster the segments'),
-        ('pad', 'test and reconstruct candidate PADs'),
-            )
+        ("cluster", "cluster the segments"),
+        ("pad", "test and reconstruct candidate PADs"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -80,19 +80,20 @@ def make_arrays(blastfile, qpadbed, spadbed, qpadnames, spadnames):
         qsum += alen
         for j, b in enumerate(spadnames):
             blen = spadlen[b]
-            expected[i, j] = all_dots * alen * blen * 1. / S
+            expected[i, j] = all_dots * alen * blen * 1.0 / S
 
     assert int(round(expected.sum())) == all_dots
 
     # Calculate the statistical significance for each cell
     from scipy.stats.distributions import poisson
+
     M = m * n  # multiple testing
     logmp = np.zeros((m, n))
-    for i in xrange(m):
-        for j in xrange(n):
+    for i in range(m):
+        for j in range(n):
             obs, exp = observed[i, j], expected[i, j]
             pois = max(poisson.pmf(obs, exp), 1e-250)  # Underflow
-            logmp[i, j] = max(- log(pois), 0)
+            logmp[i, j] = max(-log(pois), 0)
 
     return logmp
 
@@ -107,8 +108,12 @@ def pad(args):
 
     p = OptionParser(pad.__doc__)
     p.set_beds()
-    p.add_option("--cutoff", default=.3, type="float",
-                 help="The clustering cutoff to call similar [default: %default]")
+    p.add_option(
+        "--cutoff",
+        default=0.3,
+        type="float",
+        help="The clustering cutoff to call similar",
+    )
 
     opts, args = p.parse_args(args)
 
@@ -141,11 +146,11 @@ def pad(args):
     logmp = make_arrays(blastfile, qbed, sbed, qnames, snames)
     m, n = logmp.shape
     pvalue_cutoff = 1e-30
-    cutoff = - log(pvalue_cutoff)
+    cutoff = -log(pvalue_cutoff)
 
     significant = []
-    for i in xrange(m):
-        for j in xrange(n):
+    for i in range(m):
+        for j in range(n):
             score = logmp[i, j]
             if score < cutoff:
                 continue
@@ -154,8 +159,11 @@ def pad(args):
     for a, b, score in significant:
         print("|".join(a), "|".join(b), score)
 
-    logging.debug("Collected {0} PAR comparisons significant at (P < {1}).".\
-                    format(len(significant), pvalue_cutoff))
+    logging.debug(
+        "Collected {0} PAR comparisons significant at (P < {1}).".format(
+            len(significant), pvalue_cutoff
+        )
+    )
 
     return significant
 
@@ -232,10 +240,12 @@ def cluster(args):
 
     p = OptionParser(cluster.__doc__)
     p.set_beds()
-    p.add_option("--minsize", default=10, type="int",
-                 help="Only segment using blocks >= size [default: %default]")
-    p.add_option("--path", default="~/scratch/bin",
-                 help="Path to the CLUSTER 3.0 binary [default: %default]")
+    p.add_option(
+        "--minsize", default=10, type="int", help="Only segment using blocks >= size"
+    )
+    p.add_option(
+        "--path", default="~/scratch/bin", help="Path to the CLUSTER 3.0 binary"
+    )
 
     opts, args = p.parse_args(args)
 
@@ -285,7 +295,7 @@ def cluster(args):
     fw = open(matrixfile, "w")
     header = ["o"] + spadnames
     print("\t".join(header), file=fw)
-    for i in xrange(m):
+    for i in range(m):
         row = [qpadnames[i]] + ["{0:.1f}".format(x) for x in logmp[i, :]]
         print("\t".join(row), file=fw)
 
@@ -300,5 +310,5 @@ def cluster(args):
         sh(cmd)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

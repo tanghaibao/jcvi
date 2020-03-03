@@ -44,7 +44,6 @@ URL = "http://itol.embl.de/other_trees.shtml"
 
 
 class TaxIDTree(object):
-
     def __init__(self, list_of_taxids):
         # If only one taxid provided, get full tree with nameExp
         # else, get default tree
@@ -88,6 +87,7 @@ class TaxIDTree(object):
 
     def print_tree(self):
         from ete2 import Tree
+
         t = Tree(self.newick, format=8)
         print(t)
 
@@ -99,6 +99,7 @@ def get_names(list_of_taxids):
     ['Arabidopsis thaliana', 'Carica papaya', 'Populus trichocarpa', 'Medicago truncatula']
     """
     from jcvi.apps.fetch import batch_taxonomy
+
     list_of_taxids = [str(x) for x in list_of_taxids]
     return list(batch_taxonomy(list_of_taxids))
 
@@ -110,6 +111,7 @@ def get_taxids(list_of_names):
     [1, 2]
     """
     from jcvi.apps.fetch import batch_taxids
+
     return [int(x) for x in batch_taxids(list_of_names)]
 
 
@@ -154,8 +156,8 @@ def isPlantOrigin(taxid):
 def main():
 
     actions = (
-        ('newick', 'query a list of IDs to newick'),
-        ('test', 'test taxonomy module'),
+        ("newick", "query a list of IDs to newick"),
+        ("test", "test taxonomy module"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -163,11 +165,11 @@ def main():
 
 def test(args):
     print("Testing isPlantOrigin():")
-    print(3702, isPlantOrigin(3702))    # Arabidopsis thaliana
+    print(3702, isPlantOrigin(3702))  # Arabidopsis thaliana
     print(10090, isPlantOrigin(10090))  # Mus musculus
 
     print("\nTest cache by 10K calls:")
-    for i in xrange(10000):
+    for i in range(10000):
         isPlantOrigin(3702)
         isPlantOrigin(10090)
     print("done")
@@ -188,7 +190,7 @@ def newick(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    idsfile, = args
+    (idsfile,) = args
     mylist = [x.strip() for x in open(idsfile) if x.strip()]
     print(get_taxids(mylist))
 
@@ -196,5 +198,5 @@ def newick(args):
     print(t)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

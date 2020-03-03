@@ -25,32 +25,39 @@ from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
 from jcvi.utils.counter import Counter
 from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, \
-            glob, get_abs_path, popen
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    sh,
+    need_update,
+    glob,
+    get_abs_path,
+    popen,
+)
 
 
 def main():
 
     actions = (
-        ('tracedb', 'convert trace archive files to frg file'),
-        ('clr', 'prepare vector clear range file based on BLAST to vectors'),
-        ('fasta', 'convert fasta to frg file'),
-        ('sff', 'convert 454 reads to frg file'),
-        ('fastq', 'convert Illumina reads to frg file'),
-        ('shred', 'shred contigs into pseudo-reads'),
-        ('astat', 'generate the coverage-rho scatter plot'),
-        ('unitigs', 'output uniquely extended unitigs based on best.edges'),
-        ('merger', 'merge reads into unitigs offline'),
-        ('removecontains', 'remove contained reads from gkpStore'),
-        ('graph', 'visualize best.edges'),
-        ('prune', 'prune overlap graph'),
-        ('overlap', 'visualize overlaps for a given fragment'),
-            )
+        ("tracedb", "convert trace archive files to frg file"),
+        ("clr", "prepare vector clear range file based on BLAST to vectors"),
+        ("fasta", "convert fasta to frg file"),
+        ("sff", "convert 454 reads to frg file"),
+        ("fastq", "convert Illumina reads to frg file"),
+        ("shred", "shred contigs into pseudo-reads"),
+        ("astat", "generate the coverage-rho scatter plot"),
+        ("unitigs", "output uniquely extended unitigs based on best.edges"),
+        ("merger", "merge reads into unitigs offline"),
+        ("removecontains", "remove contained reads from gkpStore"),
+        ("graph", "visualize best.edges"),
+        ("prune", "prune overlap graph"),
+        ("overlap", "visualize overlaps for a given fragment"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-frgTemplate = '''{{FRG
+frgTemplate = """{{FRG
 act:A
 acc:{fragID}
 rnd:1
@@ -69,9 +76,9 @@ qlt:
 hps:
 .
 clr:{clr_beg},{clr_end}
-}}'''
+}}"""
 
-headerTemplate = '''{{VER
+headerTemplate = """{{VER
 ver:2
 }}
 {{LIB
@@ -102,10 +109,10 @@ doConsensusCorrection=0
 forceShortReadFormat=0
 constantInsertSize=0
 .
-}}'''
+}}"""
 
 
-class OverlapLine (object):
+class OverlapLine(object):
 
     # See doc: http://wgs-assembler.sourceforge.net/wiki/index.php/OverlapStore
     def __init__(self, line):
@@ -121,8 +128,11 @@ class OverlapLine (object):
 
 def add_graph_options(p):
     p.add_option("--maxerr", default=100, type="int", help="Maximum error rate")
-    p.add_option("--frgctg", default="../9-terminator/asm.posmap.frgctg",
-                help="Annotate graph with contig membership")
+    p.add_option(
+        "--frgctg",
+        default="../9-terminator/asm.posmap.frgctg",
+        help="Annotate graph with contig membership",
+    )
 
 
 def prune(args):
@@ -140,7 +150,7 @@ def prune(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bestedges, = args
+    (bestedges,) = args
     G = read_graph(bestedges, maxerr=opts.maxerr)
     reads_to_ctgs = parse_ctgs(bestedges, opts.frgctg)
     edges = defaultdict(int)
@@ -189,24 +199,28 @@ def prune(args):
     # more contigs can be found
     associative = {}
     for ua, ubs in neighbors.items():
-        if len(ubs) == 1:   # Only one neighbor
+        if len(ubs) == 1:  # Only one neighbor
             ub, count = ubs[0]
             if count >= 2:  # Bubble
                 associative[ua] = (ub, count)
-    print("A total of {0} associative contigs found"\
-                        .format(len(associative)), file=sys.stderr)
+    print(
+        "A total of {0} associative contigs found".format(len(associative)),
+        file=sys.stderr,
+    )
 
     # Keep only one for mutual associative
     for ua, ub in associative.items():
         if ub in associative and ua < ub:
             print(ua, "mutually associative with", ub, file=sys.stderr)
             del associative[ub]
-    print("A total of {0} associative contigs retained"\
-                        .format(len(associative)), file=sys.stderr)
+    print(
+        "A total of {0} associative contigs retained".format(len(associative)),
+        file=sys.stderr,
+    )
 
     assids = "associative.ids"
     fw = open(assids, "w")
-    for ua, (ub, count) in sorted(associative.items(), key=lambda x:(x[1], x[0])):
+    for ua, (ub, count) in sorted(associative.items(), key=lambda x: (x[1], x[0])):
         print("\t".join((ua, ub, str(count))), file=fw)
     fw.close()
     logging.debug("Associative contigs written to `{0}`".format(assids))
@@ -230,7 +244,7 @@ def removecontains(args):
     s = set()
     fp = open(contains)
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         iid = int(row.split()[0])
         s.add(iid)
@@ -242,15 +256,14 @@ def removecontains(args):
     ndeleted = 0
     editfile = "delete.edit"
     fw = open(editfile, "w")
-    for iid in xrange(1, last_iid + 1):
+    for iid in range(1, last_iid + 1):
         if iid in s:
             print("frg iid {0} isdeleted 1".format(iid), file=fw)
             ndeleted += 1
 
     fw.close()
     assert len(s) == ndeleted
-    logging.debug("A total of {0} contained reads flagged as deleted."\
-                  .format(ndeleted))
+    logging.debug("A total of {0} contained reads flagged as deleted.".format(ndeleted))
     print("Now you can run:", file=sys.stderr)
     print("$ gatekeeper --edit {0} {1}".format(editfile, gkpStore), file=sys.stderr)
 
@@ -281,7 +294,7 @@ def overlap(args):
         fw = open(bestcontainscache, "w")
         exclude = set()
         for row in fp:
-            if row[0] == '#':
+            if row[0] == "#":
                 continue
             j = int(row.split()[0])
             exclude.add(j)
@@ -322,17 +335,17 @@ def overlap(args):
         fsize = -f.ahang + size + f.bhang
         a = (f.ahang - xmin) / ratio
         b = fsize / ratio
-        t = '-' * b
-        if f.orientation == 'N':
-            t = t[:-1] + '>'
+        t = "-" * b
+        if f.orientation == "N":
+            t = t[:-1] + ">"
         else:
-            t = '<' + t[1:]
+            t = "<" + t[1:]
         if f.ahang == 0 and f.bhang == 0:
             t = green(t)
         c = canvas - a - b
-        fw.write(' ' * a)
+        fw.write(" " * a)
         fw.write(t)
-        fw.write(' ' * c)
+        fw.write(" " * c)
         print("{0} ({1})".format(str(f.bid).rjust(10), f.erate_adj), file=fw)
 
 
@@ -377,7 +390,7 @@ def read_graph(bestedges, maxerr=100, directed=False):
         fp = open(bestedges)
         best_store = {}
         for row in fp:
-            if row[0] == '#':
+            if row[0] == "#":
                 continue
             id1, lib_id, best5, o5, best3, o3, j1, j2 = row.split()
             id1, best5, best3 = int(id1), int(best5), int(best3)
@@ -428,8 +441,7 @@ def read_graph(bestedges, maxerr=100, directed=False):
         for degree, count in sorted(degree_counter.items()):
             print("{0}\t{1}".format(degree, count), file=fw)
         fw.close()
-        logging.debug("Node degree distribution saved to `{0}`".\
-                        format(degreesfile))
+        logging.debug("Node degree distribution saved to `{0}`".format(degreesfile))
 
         # Save high degree (top 1%) nodes in save in (node, degree) tab file
         percentile = sorted(degrees.values(), reverse=True)[len(degrees) / 1000]
@@ -479,8 +491,15 @@ def merger(args):
 
         fastafile = "{0}.fasta".format(pf)
         newfastafile = "{0}.new.fasta".format(pf)
-        format([fastafile, newfastafile, "--sequential=replace", \
-                "--sequentialoffset=1", "--nodesc"])
+        format(
+            [
+                fastafile,
+                newfastafile,
+                "--sequential=replace",
+                "--sequentialoffset=1",
+                "--nodesc",
+            ]
+        )
         fasta([newfastafile])
 
         sh("rm -rf {0}".format(pf))
@@ -489,8 +508,9 @@ def merger(args):
         sh(cmd)
         outdir = "{0}/9-terminator".format(pf)
 
-        cmd = "cat {0}/{1}.ctg.fasta {0}/{1}.deg.fasta {0}/{1}.singleton.fasta"\
-                .format(outdir, pf)
+        cmd = "cat {0}/{1}.ctg.fasta {0}/{1}.deg.fasta {0}/{1}.singleton.fasta".format(
+            outdir, pf
+        )
         sh(cmd, outfile=contigs, append=True)
 
 
@@ -507,7 +527,7 @@ def unitigs(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bestedges, = args
+    (bestedges,) = args
     G = read_graph(bestedges, maxerr=opts.maxerr, directed=True)
     H = nx.Graph()
     intconv = lambda x: int(x.split("-")[0])
@@ -523,12 +543,13 @@ def unitigs(args):
         src, target = st
         path = list(nx.all_simple_paths(h, src, target))
         assert len(path) == 1
-        path, = path
+        (path,) = path
         print("|".join(str(x) for x in path))
         nunitigs += 1
         nreads += len(path)
-    logging.debug("A total of {0} unitigs built from {1} reads."\
-                    .format(nunitigs, nreads))
+    logging.debug(
+        "A total of {0} unitigs built from {1} reads.".format(nunitigs, nreads)
+    )
 
 
 def graph(args):
@@ -543,20 +564,30 @@ def graph(args):
     https://github.com/PacificBiosciences/Bioinformatics-Training/blob/master/scripts/CeleraToGephi.py
     """
     p = OptionParser(graph.__doc__)
-    p.add_option("--query", default=-1, type="int",
-                 help="Search from node, -1 to select random node, 0 to disable")
+    p.add_option(
+        "--query",
+        default=-1,
+        type="int",
+        help="Search from node, -1 to select random node, 0 to disable",
+    )
     p.add_option("--contig", help="Search from contigs, use comma to separate")
-    p.add_option("--largest", default=0, type="int", help="Only show largest components")
+    p.add_option(
+        "--largest", default=0, type="int", help="Only show largest components"
+    )
     p.add_option("--maxsize", default=500, type="int", help="Max graph size")
-    p.add_option("--nomutualbest", default=False, action="store_true",
-                help="Do not plot mutual best edges as heavy")
+    p.add_option(
+        "--nomutualbest",
+        default=False,
+        action="store_true",
+        help="Do not plot mutual best edges as heavy",
+    )
     add_graph_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bestedges, = args
+    (bestedges,) = args
     query = opts.query
     contig = opts.contig
     largest = opts.largest
@@ -582,8 +613,9 @@ def graph(args):
         else:
             ctg = reads_to_ctgs.get(query)
             core = [k for k, v in reads_to_ctgs.items() if v == ctg]
-            logging.debug("Reads ({0}) extended from the same contig {1}".\
-                          format(len(core), ctg))
+            logging.debug(
+                "Reads ({0}) extended from the same contig {1}".format(len(core), ctg)
+            )
 
         # Extract a local neighborhood
         SG = nx.Graph()
@@ -594,7 +626,7 @@ def graph(args):
         seen = []
         for n, attrib in G.nodes_iter(data=True):
             contig = reads_to_ctgs.get(n, "na")
-            attrib['label'] = contig
+            attrib["label"] = contig
             seen.append(contig)
         c = Counter(seen)
         cc = ["{0}({1})".format(k, v) for k, v in c.most_common()]
@@ -605,8 +637,9 @@ def graph(args):
         gexf += ".{0}".format(query)
     gexf += ".gexf"
     nx.write_gexf(G, gexf)
-    logging.debug("Graph written to `{0}` (|V|={1}, |E|={2})".\
-                    format(gexf, len(G), G.size()))
+    logging.debug(
+        "Graph written to `{0}` (|V|={1}, |E|={2})".format(gexf, len(G), G.size())
+    )
 
 
 def astat(args):
@@ -616,18 +649,17 @@ def astat(args):
     Create coverage-rho scatter plot.
     """
     p = OptionParser(astat.__doc__)
-    p.add_option("--cutoff", default=1000, type="int",
-                 help="Length cutoff [default: %default]")
-    p.add_option("--genome", default="",
-                 help="Genome name [default: %default]")
-    p.add_option("--arrDist", default=False, action="store_true",
-                 help="Use arrDist instead [default: %default]")
+    p.add_option("--cutoff", default=1000, type="int", help="Length cutoff")
+    p.add_option("--genome", default="", help="Genome name")
+    p.add_option(
+        "--arrDist", default=False, action="store_true", help="Use arrDist instead",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    covfile, = args
+    (covfile,) = args
     cutoff = opts.cutoff
     genome = opts.genome
     plot_arrDist = opts.arrDist
@@ -673,7 +705,7 @@ def astat(args):
     ytag = "arrDist" if plot_arrDist else "covStat"
 
     fig = plt.figure(1, (7, 7))
-    ax = fig.add_axes([.12, .1, .8, .8])
+    ax = fig.add_axes([0.12, 0.1, 0.8, 0.8])
     ax.plot(rho, y, ".", color="lightslategrey")
 
     xtag = "rho"
@@ -684,13 +716,13 @@ def astat(args):
     ax.set_ylabel(ytag)
 
     if plot_arrDist:
-        ax.set_yscale('log')
+        ax.set_yscale("log")
 
     imagename = "{0}.png".format(".".join(info))
     savefig(imagename, dpi=150)
 
 
-def emitFragment(fw, fragID, libID, shredded_seq, clr=None, qvchar='l', fasta=False):
+def emitFragment(fw, fragID, libID, shredded_seq, clr=None, qvchar="l", fasta=False):
     """
     Print out the shredded sequence.
     """
@@ -708,8 +740,17 @@ def emitFragment(fw, fragID, libID, shredded_seq, clr=None, qvchar='l', fasta=Fa
     else:
         clr_beg, clr_end = clr
 
-    print(frgTemplate.format(fragID=fragID, libID=libID,
-        seq=seq, qvs=qvs, clr_beg=clr_beg, clr_end=clr_end), file=fw)
+    print(
+        frgTemplate.format(
+            fragID=fragID,
+            libID=libID,
+            seq=seq,
+            qvs=qvs,
+            clr_beg=clr_beg,
+            clr_end=clr_end,
+        ),
+        file=fw,
+    )
 
 
 def shred(args):
@@ -721,20 +762,30 @@ def shred(args):
     """
     p = OptionParser(shred.__doc__)
     p.set_depth(depth=2)
-    p.add_option("--readlen", default=1000, type="int",
-            help="Desired length of the reads [default: %default]")
-    p.add_option("--minctglen", default=0, type="int",
-            help="Ignore contig sequence less than [default: %default]")
-    p.add_option("--shift", default=50, type="int",
-            help="Overlap between reads must be at least [default: %default]")
-    p.add_option("--fasta", default=False, action="store_true",
-            help="Output shredded reads as FASTA sequences [default: %default]")
+    p.add_option(
+        "--readlen", default=1000, type="int", help="Desired length of the reads",
+    )
+    p.add_option(
+        "--minctglen", default=0, type="int", help="Ignore contig sequence less than",
+    )
+    p.add_option(
+        "--shift",
+        default=50,
+        type="int",
+        help="Overlap between reads must be at least",
+    )
+    p.add_option(
+        "--fasta",
+        default=False,
+        action="store_true",
+        help="Output shredded reads as FASTA sequences",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     libID = fastafile.split(".")[0]
     depth = opts.depth
     readlen = opts.readlen
@@ -749,7 +800,7 @@ def shred(args):
 
     fw = must_open(outfile, "w", checkexists=True)
     if not opts.fasta:
-       print(headerTemplate.format(libID=libID), file=fw)
+        print(headerTemplate.format(libID=libID), file=fw)
 
     """
     Taken from runCA:
@@ -778,7 +829,7 @@ def shred(args):
             if seqlen < readlen:
                 ranges.append((0, seqlen))
             else:
-                for begin in xrange(0, seqlen, readlen - shift):
+                for begin in range(0, seqlen, readlen - shift):
                     end = min(seqlen, begin + readlen)
                     ranges.append((begin, end))
         else:
@@ -786,8 +837,8 @@ def shred(args):
                 ranges.append((0, shredlen))
             else:
                 prev_begin = -1
-                center_increments = center_range_width * 1. / (numreads - 1)
-                for i in xrange(numreads):
+                center_increments = center_range_width * 1.0 / (numreads - 1)
+                for i in range(numreads):
                     begin = center_increments * i
                     end = begin + shredlen
                     begin, end = int(begin), int(end)
@@ -821,7 +872,7 @@ def tracedb(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    action, = args
+    (action,) = args
     assert action in ("xml", "lib", "frg")
 
     CMD = "tracedb-to-frg.pl"
@@ -875,9 +926,15 @@ def split_fastafile(fastafile, maxreadlen=32000):
     if need_update(fastafile, (smallfastafile, shredfastafile)):
         filter([fastafile, str(maxreadlen), "--less", "-o", smallfastafile])
         filter([fastafile, str(maxreadlen), "-o", bigfastafile])
-        shred(["--depth=1", "--shift={0}".format(maxreadlen / 100), \
-                "--readlen={0}".format(maxreadlen), \
-                "--fasta", bigfastafile])
+        shred(
+            [
+                "--depth=1",
+                "--shift={0}".format(maxreadlen / 100),
+                "--readlen={0}".format(maxreadlen),
+                "--fasta",
+                bigfastafile,
+            ]
+        )
 
     return smallfastafile, shredfastafile
 
@@ -894,22 +951,32 @@ def fasta(args):
     from jcvi.formats.fasta import clean, make_qual
 
     p = OptionParser(fasta.__doc__)
-    p.add_option("--clean", default=False, action="store_true",
-                 help="Clean up irregular chars in seq")
+    p.add_option(
+        "--clean",
+        default=False,
+        action="store_true",
+        help="Clean up irregular chars in seq",
+    )
     p.add_option("--matefile", help="Matepairs file")
-    p.add_option("--maxreadlen", default=262143, type="int",
-                 help="Maximum read length allowed")
-    p.add_option("--minreadlen", default=1000, type="int",
-                 help="Minimum read length allowed")
-    p.add_option("--sequential", default=False, action="store_true",
-                 help="Overwrite read name (e.g. long Pacbio name)")
+    p.add_option(
+        "--maxreadlen", default=262143, type="int", help="Maximum read length allowed"
+    )
+    p.add_option(
+        "--minreadlen", default=1000, type="int", help="Minimum read length allowed"
+    )
+    p.add_option(
+        "--sequential",
+        default=False,
+        action="store_true",
+        help="Overwrite read name (e.g. long Pacbio name)",
+    )
     p.set_size()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     maxreadlen = opts.maxreadlen
     minreadlen = opts.minreadlen
     if maxreadlen > 0:
@@ -917,8 +984,11 @@ def fasta(args):
         f = Fasta(fastafile, lazy=True)
         for id, size in f.itersizes_ordered():
             if size > maxreadlen:
-                logging.debug("Sequence {0} (size={1}) longer than max read len {2}".\
-                                format(id, size, maxreadlen))
+                logging.debug(
+                    "Sequence {0} (size={1}) longer than max read len {2}".format(
+                        id, size, maxreadlen
+                    )
+                )
                 split = True
                 break
 
@@ -929,7 +999,7 @@ def fasta(args):
 
     plate = op.basename(fastafile).split(".")[0]
 
-    mated = (opts.size != 0)
+    mated = opts.size != 0
     mean, sv = get_mean_sv(opts.size)
 
     if mated:
@@ -976,8 +1046,11 @@ def fasta(args):
         emitFragment(fw, fragID, libname, seq)
     fw.close()
 
-    logging.debug("A total of {0} fragments written to `{1}` ({2} discarded).".\
-                    format(i, frgfile, j))
+    logging.debug(
+        "A total of {0} fragments written to `{1}` ({2} discarded).".format(
+            i, frgfile, j
+        )
+    )
 
 
 def sff(args):
@@ -989,10 +1062,15 @@ def sff(args):
     CD-HIT-454). See assembly.sff.deduplicate().
     """
     p = OptionParser(sff.__doc__)
-    p.add_option("--prefix", dest="prefix", default=None,
-            help="Output frg filename prefix")
-    p.add_option("--nodedup", default=False, action="store_true",
-            help="Do not remove duplicates [default: %default]")
+    p.add_option(
+        "--prefix", dest="prefix", default=None, help="Output frg filename prefix"
+    )
+    p.add_option(
+        "--nodedup",
+        default=False,
+        action="store_true",
+        help="Do not remove duplicates",
+    )
     p.set_size()
     opts, args = p.parse_args(args)
 
@@ -1002,11 +1080,11 @@ def sff(args):
     sffiles = args
     plates = [x.split(".")[0].split("_")[-1] for x in sffiles]
 
-    mated = (opts.size != 0)
+    mated = opts.size != 0
     mean, sv = get_mean_sv(opts.size)
 
     if len(plates) > 1:
-        plate = plates[0][:-1] + 'X'
+        plate = plates[0][:-1] + "X"
     else:
         plate = "_".join(plates)
 
@@ -1040,8 +1118,13 @@ def fastq(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(fastq.__doc__)
-    p.add_option("--outtie", dest="outtie", default=False, action="store_true",
-            help="Are these outie reads? [default: %default]")
+    p.add_option(
+        "--outtie",
+        dest="outtie",
+        default=False,
+        action="store_true",
+        help="Are these outie reads?",
+    )
     p.set_phred()
     p.set_size()
 
@@ -1056,7 +1139,7 @@ def fastq(args):
     if size > 1000 and (not outtie):
         logging.debug("[warn] long insert size {0} but not outtie".format(size))
 
-    mated = (size != 0)
+    mated = size != 0
     libname = op.basename(args[0]).split(".")[0]
     libname = libname.replace("_1_sequence", "")
 
@@ -1073,7 +1156,7 @@ def fastq(args):
     cmd += fastqs
 
     offset = int(opts.phred) if opts.phred else guessoffset([fastqfiles[0]])
-    illumina = (offset == 64)
+    illumina = offset == 64
     if illumina:
         cmd += " -type illumina"
     if outtie:
@@ -1124,5 +1207,5 @@ def clr(args):
         print("\t".join(str(x) for x in (q, 0, size)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

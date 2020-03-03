@@ -19,7 +19,7 @@ from jcvi.formats.base import BaseFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, glob, mkdir
 
 
-class RiceSample (BaseFile):
+class RiceSample(BaseFile):
     """
     Examples:
     1. LCS48-3_GTCCGC_L006_R_tophat_accepted_hits.count
@@ -31,6 +31,7 @@ class RiceSample (BaseFile):
     Each family has a sequential id, in the second example, family ID is 18. Two
     parents for that family is F (CS48) and 18, hybrid progeny is F18.
     """
+
     def __init__(self, filename):
         super(RiceSample, self).__init__(filename)
         self.shortname = name = op.basename(filename).split("_")[0]
@@ -57,10 +58,11 @@ class RiceSample (BaseFile):
         self.data = np.array(self.data, dtype=np.int32)
         self.working = True
 
-
     def __str__(self):
-        return "\t".join(str(x) for x in (self.filename, self.tissue,
-                          self.label, self.family, self.rep))
+        return "\t".join(
+            str(x)
+            for x in (self.filename, self.tissue, self.label, self.family, self.rep)
+        )
 
     def merge(self, rs):
         logging.debug("Merge '{0}' and '{1}'".format(self.filename, rs.filename))
@@ -79,9 +81,9 @@ class RiceSample (BaseFile):
 def main():
 
     actions = (
-        ('prepare', 'parse list of count files and group per family'),
-        ('mergeclean', 'clean redundant merged bam files')
-            )
+        ("prepare", "parse list of count files and group per family"),
+        ("mergeclean", "clean redundant merged bam files"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -152,11 +154,11 @@ def prepare(args):
     for (tissue, ind), rs in sorted(countsdb.items()):
         rs.sort(key=key)
         nrs = len(rs)
-        for i in xrange(nrs):
+        for i in range(nrs):
             ri = rs[i]
             if not ri.working:
                 continue
-            for j in xrange(i + 1, nrs):
+            for j in range(i + 1, nrs):
                 rj = rs[j]
                 if key(ri) != key(rj):
                     continue
@@ -184,5 +186,5 @@ def prepare(args):
         fw.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

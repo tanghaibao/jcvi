@@ -586,7 +586,7 @@ def tiling(args):
             counts[0] = 1
             traceback = [-1] * entries
             for i, a in enumerate(gbed):
-                for j in xrange(i + 1, entries):
+                for j in range(i + 1, entries):
                     b = gbed[j]
                     if b.start >= a.end - ov:
                         break

@@ -433,7 +433,7 @@ def simulate(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    idsfile, = args
+    (idsfile,) = args
     fp = open(idsfile)
     fw = must_open(opts.outfile, "w")
     for row in fp:
@@ -456,7 +456,7 @@ def gc(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     binsize = opts.binsize
     allbins = []
     for name, seq in parse_fasta(fastafile):
@@ -500,7 +500,7 @@ def trimsplit(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     minlength = opts.minlength
 
     fw = must_open(fastafile.rsplit(".", 1)[0] + ".split.fasta", "w")
@@ -556,7 +556,7 @@ def qual(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     sizes = Sizes(fastafile)
     qvchar = str(opts.qv)
     fw = must_open(opts.outfile, "w")
@@ -648,7 +648,7 @@ def longestorf(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     pf = fastafile.rsplit(".", 1)[0]
     orffile = pf + ".orf.fasta"
     idsfile = None
@@ -707,7 +707,7 @@ def ispcr(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     ispcrfile = fastafile + ".isPcr"
     fw = open(ispcrfile, "w")
 
@@ -806,7 +806,7 @@ def clean(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     fw = must_open(opts.outfile, "w")
     if opts.fancy:
         for header, seq in iter_clean_fasta(fastafile):
@@ -874,7 +874,7 @@ def translate(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    cdsfasta, = args
+    (cdsfasta,) = args
     if opts.longest:
         cdsfasta = longestorf([cdsfasta])
 
@@ -1112,7 +1112,7 @@ def sort(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     sortedfastafile = fastafile.rsplit(".", 1)[0] + ".sorted.fasta"
 
     f = Fasta(fastafile, index=False)
@@ -1174,7 +1174,7 @@ def join(args):
         phases = DictFile(phasefile)
         phases = dict((a, Phases[int(b)]) for a, b in phases.items())
     else:
-        fastafile, = args
+        (fastafile,) = args
         phases = {}
 
     sizes = Sizes(fastafile)
@@ -1707,7 +1707,7 @@ def identical(args):
         "--output_uniq",
         default=False,
         action="store_true",
-        help="output uniq sequences in FASTA format" + "",
+        help="output uniq sequences in FASTA format",
     )
     p.add_option(
         "--checksum",
@@ -1890,7 +1890,7 @@ def fastq(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     fastqfile = fastafile.rsplit(".", 1)[0] + ".fastq"
     fastqhandle = open(fastqfile, "w")
     num_records = 0
@@ -1943,7 +1943,7 @@ def pair(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     qualfile = get_qual(fastafile)
 
     prefix = fastafile.rsplit(".", 1)[0]
@@ -2029,7 +2029,7 @@ def pairinplace(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     base = op.basename(fastafile).split(".")[0]
 
     frags = base + ".frags.fasta"
@@ -2103,7 +2103,7 @@ def extract(args):
     if len(args) == 2:
         fastafile, query = args
     elif len(args) == 1 and opts.bed:
-        fastafile, = args
+        (fastafile,) = args
         bedaccns = Bed(opts.bed).accns
     else:
         sys.exit(p.print_help())
@@ -2424,7 +2424,7 @@ def sequin(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    inputfasta, = args
+    (inputfasta,) = args
     unk = opts.unk
 
     outputfasta = inputfasta.rsplit(".", 1)[0] + ".split"
@@ -2523,7 +2523,7 @@ def tidy(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     gapsize = opts.gapsize
     minlen = opts.minlen
 
@@ -2622,7 +2622,7 @@ def gaps(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    inputfasta, = args
+    (inputfasta,) = args
     mingap = opts.mingap
     split = opts.split
     prefix = inputfasta.rsplit(".", 1)[0]

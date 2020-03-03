@@ -23,8 +23,8 @@ def make_data(POINTS, SCF):
     seq = range(POINTS)
     scaffolds = []
     batch = POINTS / SCF
-    for i in xrange(SCF):
-        p = seq[i * batch: (i + 1) * batch]
+    for i in range(SCF):
+        p = seq[i * batch : (i + 1) * batch]
         scaffolds.append(p)
     return scaffolds
 
@@ -34,7 +34,7 @@ def colinear_evaluate(tour, scaffolds):
     for t in tour:
         series.extend(scaffolds[t])
     score, diff = longest_monotonic_subseq_length(series)
-    return score,
+    return (score,)
 
 
 def genome_mutation(candidate):
@@ -47,44 +47,43 @@ def genome_mutation(candidate):
     """
     size = len(candidate)
     prob = random.random()
-    if prob > .5:    # Inversion
-        p = random.randint(0, size-1)
-        q = random.randint(0, size-1)
-        if p > q:
-            p, q = q, p
-        q += 1
-        s = candidate[p:q]
-        x = candidate[:p] + s[::-1] + candidate[q:]
-        return creator.Individual(x),
-    else:            # Insertion
-        p = random.randint(0, size-1)
-        q = random.randint(0, size-1)
-        cq = candidate.pop(q)
-        candidate.insert(p, cq)
-        return candidate,
-
-
-def genome_mutation_orientation(candidate):
-    size = len(candidate)
-    prob = random.random()
-    if prob > .5:             # Range flip
+    if prob > 0.5:  # Inversion
         p = random.randint(0, size - 1)
         q = random.randint(0, size - 1)
         if p > q:
             p, q = q, p
         q += 1
-        for x in xrange(p, q):
+        s = candidate[p:q]
+        x = candidate[:p] + s[::-1] + candidate[q:]
+        return (creator.Individual(x),)
+    else:  # Insertion
+        p = random.randint(0, size - 1)
+        q = random.randint(0, size - 1)
+        cq = candidate.pop(q)
+        candidate.insert(p, cq)
+        return (candidate,)
+
+
+def genome_mutation_orientation(candidate):
+    size = len(candidate)
+    prob = random.random()
+    if prob > 0.5:  # Range flip
+        p = random.randint(0, size - 1)
+        q = random.randint(0, size - 1)
+        if p > q:
+            p, q = q, p
+        q += 1
+        for x in range(p, q):
             candidate[x] = -candidate[x]
-    else:                     # Single flip
+    else:  # Single flip
         p = random.randint(0, size - 1)
         candidate[p] = -candidate[p]
-    return candidate,
+    return (candidate,)
 
 
 def GA_setup(guess, weights=(1.0,)):
     creator.create("FitnessMax", base.Fitness, weights=weights)
-    creator.create("Individual", array.array, typecode='i',
-                   fitness=creator.FitnessMax)
+    creator.create("Individual", array.array, typecode="i", fitness=creator.FitnessMax)
 
     toolbox = base.Toolbox()
 
@@ -96,8 +95,17 @@ def GA_setup(guess, weights=(1.0,)):
     return toolbox
 
 
-def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
-                     halloffame=None, callback=None, verbose=True):
+def eaSimpleConverge(
+    population,
+    toolbox,
+    cxpb,
+    mutpb,
+    ngen,
+    stats=None,
+    halloffame=None,
+    callback=None,
+    verbose=True,
+):
     """This algorithm reproduce the simplest evolutionary algorithm as
     presented in chapter 7 of [Back2000]_.
 
@@ -145,10 +153,12 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
 
         # Append the current generation statistics to the logbook
         record = stats.compile(population) if stats else {}
-        current_best = record['max']
+        current_best = record["max"]
         if gen % 20 == 0 and verbose:
-            print("Current iteration {0}: max_score={1}".
-                  format(gen, current_best), file=sys.stderr)
+            print(
+                "Current iteration {0}: max_score={1}".format(gen, current_best),
+                file=sys.stderr,
+            )
 
         if current_best > best:
             best = current_best
@@ -162,8 +172,9 @@ def eaSimpleConverge(population, toolbox, cxpb, mutpb, ngen, stats=None,
 
 
 def GA_run(toolbox, ngen=500, npop=100, seed=666, cpus=1, callback=None):
-    logging.debug("GA setup: ngen={0} npop={1} cpus={2} seed={3}".
-                  format(ngen, npop, cpus, seed))
+    logging.debug(
+        "GA setup: ngen={0} npop={1} cpus={2} seed={3}".format(ngen, npop, cpus, seed)
+    )
     if cpus > 1:
         pool = multiprocessing.Pool(cpus)
         toolbox.register("map", pool.map)
@@ -175,8 +186,9 @@ def GA_run(toolbox, ngen=500, npop=100, seed=666, cpus=1, callback=None):
     stats.register("max", max)
     stats.register("min", min)
 
-    eaSimpleConverge(pop, toolbox, .7, .2, ngen, stats=stats,
-                     halloffame=hof, callback=callback)
+    eaSimpleConverge(
+        pop, toolbox, 0.7, 0.2, ngen, stats=stats, halloffame=hof, callback=callback
+    )
     tour = hof[0]
     if cpus > 1:
         pool.terminate()

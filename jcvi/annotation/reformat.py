@@ -20,23 +20,32 @@ from itertools import groupby, product
 from jcvi.utils.cbook import AutoVivification
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.base import SetFile, must_open, get_number, flexible_cast
-from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, \
-            need_update, popen, sh
+from jcvi.apps.base import (
+    OptionParser,
+    OptionGroup,
+    ActionDispatcher,
+    need_update,
+    popen,
+    sh,
+)
 
 
 FRAME, RETAIN, OVERLAP, NEW = "FRAME", "RETAIN", "OVERLAP", "NEW"
 PRIORITY = (FRAME, RETAIN, OVERLAP, NEW)
 
 new_id_pat = re.compile(r"^\d+\.[cemtx]+\S+")
-atg_name_pat = re.compile(r"""
+atg_name_pat = re.compile(
+    r"""
         ^(?P<locus>
             (?:(?P<prefix>\w+[\D\d\D])\.?)(?P<chr>[\d|C|M]+)(?P<sep>[A-z]+)(?P<rank>\d+)
         )
         \.?(?P<iso>\d+)?
-        """, re.VERBOSE)
+        """,
+    re.VERBOSE,
+)
 
 
-class Stride (object):
+class Stride(object):
     """
     Allows four basic strides and three extended strides:
                     __.
@@ -51,6 +60,7 @@ class Stride (object):
     We have main parameters, # we need, # available go through all possible
     numbers excluding everything in black.
     """
+
     def __init__(self, needed, available, extended=False):
         configurations = ("0", "05", "037", "0258")
         if extended:
@@ -66,8 +76,7 @@ class Stride (object):
                 break
 
 
-class NameRegister (object):
-
+class NameRegister(object):
     def __init__(self, prefix="Medtr", pad0="6", uc=False):
         self.black = set()
         self.gaps = []
@@ -91,20 +100,23 @@ class NameRegister (object):
 
         current_chr = chr_number(chr)
         needed = info
-        assert end_id > start_id, \
-            "end ({0}) > start ({1})".format(end_id, start_id)
+        assert end_id > start_id, "end ({0}) > start ({1})".format(end_id, start_id)
 
         spots = end_id - start_id - 1
-        available = [x for x in xrange(start_id + 1, end_id) if
-                            (current_chr, x) not in self.black]
+        available = [
+            x for x in range(start_id + 1, end_id) if (current_chr, x) not in self.black
+        ]
 
-        message = "{0} need {1} ids, has {2} spots ({3} available)".\
-                format(chr, len(needed), spots, len(available))
+        message = "{0} need {1} ids, has {2} spots ({3} available)".format(
+            chr, len(needed), spots, len(available)
+        )
 
-        start_gene = gene_name(current_chr, start_id, prefix=self.prefix, \
-                pad0=self.pad0, uc=self.uc)
-        end_gene = gene_name(current_chr, end_id, prefix=self.prefix,
-                pad0=self.pad0, uc=self.uc)
+        start_gene = gene_name(
+            current_chr, start_id, prefix=self.prefix, pad0=self.pad0, uc=self.uc
+        )
+        end_gene = gene_name(
+            current_chr, end_id, prefix=self.prefix, pad0=self.pad0, uc=self.uc
+        )
         message += " between {0} - {1}\n".format(start_gene, end_gene)
 
         assert end_bp > start_bp
@@ -116,7 +128,7 @@ class NameRegister (object):
         ngaps = len(gaps)
 
         gapsexpanded = []
-        GeneDensity = 10000.  # assume 10Kb per gene
+        GeneDensity = 10000.0  # assume 10Kb per gene
         for gap in gaps:
             gap_bp = int(gap.score)
             gap_ids = int(round(gap_bp / GeneDensity))
@@ -124,8 +136,9 @@ class NameRegister (object):
 
         lines = sorted(info + gapsexpanded, key=lambda x: x.start)
 
-        message += "between bp: {0} - {1}, there are {2} gaps (total {3} ids)".\
-                format(start_bp, end_bp, ngaps, len(lines))
+        message += "between bp: {0} - {1}, there are {2} gaps (total {3} ids)".format(
+            start_bp, end_bp, ngaps, len(lines)
+        )
 
         needed = lines
         stride = Stride(needed, available, extended=extended_stride)
@@ -134,7 +147,7 @@ class NameRegister (object):
         print(message, file=sys.stderr)
 
         nneeded = len(needed)
-        if conf is None: # prefix rule - prepend version number for spills
+        if conf is None:  # prefix rule - prepend version number for spills
             magic = 400000  # version 4
             firstdigit = 100000
             step = 10  # stride for the prefixed ids
@@ -148,18 +161,19 @@ class NameRegister (object):
                     continue
                 available.append(rank)
 
-        else: # follow the best stride
+        else:  # follow the best stride
             available = stride.available
             if start_id == 0:  # follow right flank at start of chr
-                available = available[- nneeded:]
+                available = available[-nneeded:]
             else:  # follow left flank otherwise
                 available = available[:nneeded]
 
         # Finally assign the ids
         assert len(needed) == len(available)
         for b, rank in zip(needed, available):
-            name = gene_name(current_chr, rank, prefix=self.prefix, \
-                    pad0=self.pad0, uc=self.uc)
+            name = gene_name(
+                current_chr, rank, prefix=self.prefix, pad0=self.pad0, uc=self.uc
+            )
             print("\t".join((str(b), name)), file=sys.stderr)
             id_table[b.accn] = name
             self.black.add((current_chr, rank))
@@ -169,19 +183,19 @@ class NameRegister (object):
 def main():
 
     actions = (
-        ('rename', 'rename genes for annotation release'),
+        ("rename", "rename genes for annotation release"),
         # perform following actions on list files
-        ('reindex', 'reindex isoforms per gene locus'),
-        ('publocus', 'create pub_locus identifiers according to GenBank specs'),
+        ("reindex", "reindex isoforms per gene locus"),
+        ("publocus", "create pub_locus identifiers according to GenBank specs"),
         # Medicago gene renumbering
-        ('annotate', 'annotation new bed file with features from old'),
-        ('renumber', 'renumber genes for annotation updates'),
-        ('instantiate', 'instantiate NEW genes tagged by renumber'),
-        ('plot', 'plot gene identifiers along certain chromosome'),
+        ("annotate", "annotation new bed file with features from old"),
+        ("renumber", "renumber genes for annotation updates"),
+        ("instantiate", "instantiate NEW genes tagged by renumber"),
+        ("plot", "plot gene identifiers along certain chromosome"),
         # External gene prediction programs
-        ('augustus', 'convert augustus output into gff3'),
-        ('tRNAscan', 'convert tRNAscan-SE output into gff3'),
-            )
+        ("augustus", "convert augustus output into gff3"),
+        ("tRNAscan", "convert tRNAscan-SE output into gff3"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -199,8 +213,7 @@ def plot(args):
     p = OptionParser(plot.__doc__)
     p.add_option("--firstn", type="int", help="Only plot the first N genes")
     p.add_option("--ymax", type="int", help="Y-axis max value")
-    p.add_option("--log", action="store_true",
-                help="Write plotting data [default: %default]")
+    p.add_option("--log", action="store_true", help="Write plotting data")
     opts, args, iopts = p.set_image_options(args, figsize="6x4")
 
     if len(args) != 2:
@@ -234,9 +247,9 @@ def plot(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    xstart, xend = .2, .8
-    ystart, yend = .2, .8
-    pad = .02
+    xstart, xend = 0.2, 0.8
+    ystart, yend = 0.2, 0.8
+    pad = 0.02
 
     ngenes = opts.firstn or ngenes
     ymax = opts.ymax or 500000
@@ -247,13 +260,15 @@ def plot(args):
     else:
         subtitle = "{0}, {1} genes ({2} new)".format(chr, ngenes, len(new))
 
-    chr_map = ChromosomeMap(fig, root, xstart, xend, ystart, yend, pad, 0,
-                        ymax, 5, title, subtitle)
+    chr_map = ChromosomeMap(
+        fig, root, xstart, xend, ystart, yend, pad, 0, ymax, 5, title, subtitle
+    )
 
     ax = chr_map.axes
 
     if opts.log:
         from jcvi.utils.table import write_csv
+
         header = ["x", "y"]
         write_csv(header, new, filename=chr + ".new")
         write_csv(header, old, filename=chr + ".old")
@@ -266,11 +281,11 @@ def plot(args):
     # Legends
     ymid = (ystart + yend) / 2
     y = ymid + pad
-    root.plot([.2], [y], "r.", lw=2)
-    root.text(.2 + pad, y, "Existing Medtr ids", va="center", size=10)
+    root.plot([0.2], [y], "r.", lw=2)
+    root.text(0.2 + pad, y, "Existing Medtr ids", va="center", size=10)
     y = ymid - pad
-    root.plot([.2], [y], "b.", lw=2)
-    root.text(.2 + pad, y, "Newly instantiated ids", va="center", size=10)
+    root.plot([0.2], [y], "b.", lw=2)
+    root.text(0.2 + pad, y, "Newly instantiated ids", va="center", size=10)
 
     ax.set_xlim(0, ngenes)
     ax.set_ylim(0, ymax)
@@ -292,8 +307,12 @@ def instantiate(args):
     """
     p = OptionParser(instantiate.__doc__)
     p.set_annot_reformat_opts()
-    p.add_option("--extended_stride", default=False, action="store_true",
-                 help="Toggle extended strides for gene numbering")
+    p.add_option(
+        "--extended_stride",
+        default=False,
+        action="store_true",
+        help="Toggle extended strides for gene numbering",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -333,7 +352,10 @@ def instantiate(args):
                 blocks.append((tag, [sbed[x[0]] for x in names]))
             else:
                 start, end = names[0][-1], names[-1][-1]
-                start, end = atg_name(start, retval="rank"), atg_name(end, retval="rank")
+                start, end = (
+                    atg_name(start, retval="rank"),
+                    atg_name(end, retval="rank"),
+                )
                 blocks.append((tag, [start, end]))
 
         id_table = {}  # old to new name conversion
@@ -342,10 +364,16 @@ def instantiate(args):
                 continue
 
             start_id = 0 if i == 0 else blocks[i - 1][1][-1]
-            end_id = start_id + 10000 if i == len(blocks) -1 \
-                        else blocks[i + 1][1][0]
+            end_id = start_id + 10000 if i == len(blocks) - 1 else blocks[i + 1][1][0]
 
-            r.allocate(info, chr, start_id, end_id, id_table, extended_stride=opts.extended_stride)
+            r.allocate(
+                info,
+                chr,
+                start_id,
+                end_id,
+                id_table,
+                extended_stride=opts.extended_stride,
+            )
 
         # Output new names
         for i, s in enumerate(sbed):
@@ -353,7 +381,7 @@ def instantiate(args):
             name, tag = nametag.split("|")
 
             if tag == NEW:
-                assert name == '.'
+                assert name == "."
                 name = id_table[s.accn]
             elif tag == OVERLAP:
                 if name in id_table:
@@ -371,36 +399,40 @@ def atg_name(name, retval="chr,rank", trimpad0=True):
 
     if name is not None:
         m = re.match(atg_name_pat, name)
-        if m is not None and m.group('sep').lower() in seps:
+        if m is not None and m.group("sep").lower() in seps:
             retvals = []
             for grp in retval.split(","):
-                if grp == 'chr':
+                if grp == "chr":
                     val = chr_number(m.group(grp))
                 else:
-                    val = get_number(m.group(grp)) \
-                            if trimpad0 and grp in pad0s \
-                            else m.group(grp)
+                    val = (
+                        get_number(m.group(grp))
+                        if trimpad0 and grp in pad0s
+                        else m.group(grp)
+                    )
                 retvals.append(val)
 
-            return (x for x in retvals) if len(retvals) > 1 \
-                    else retvals[0]
+            return (x for x in retvals) if len(retvals) > 1 else retvals[0]
 
     return (None for x in retval.split(","))
 
 
 def gene_name(current_chr, x, prefix="Medtr", sep="g", pad0=6, uc=False):
     identifier = "{0}{1}{2}{3:0{4}}".format(prefix, current_chr, sep, x, pad0)
-    if uc: identifier = identifier.upper()
+    if uc:
+        identifier = identifier.upper()
     return identifier
 
 
 def chr_number(chr):
-    chr_pat = re.compile(r"(?P<prefix>\D*)(?P<chr>[\d|C|M]+)$", re.VERBOSE | re.IGNORECASE)
+    chr_pat = re.compile(
+        r"(?P<prefix>\D*)(?P<chr>[\d|C|M]+)$", re.VERBOSE | re.IGNORECASE
+    )
 
     if chr is not None:
         m = re.match(chr_pat, chr)
         if m is not None:
-            return flexible_cast(m.group('chr'))
+            return flexible_cast(m.group("chr"))
 
     return None
 
@@ -457,7 +489,7 @@ def renumber(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
 
     pf = bedfile.rsplit(".", 1)[0]
     abedfile = pf + ".a.bed"
@@ -488,13 +520,25 @@ def renumber(args):
             gg.add(accn)
 
         lranks = longest_increasing_subsequence(ranks)
-        print(current_chr, len(sbed), "==>", len(ranks), \
-                    "==>", len(lranks), file=sys.stderr)
+        print(
+            current_chr,
+            len(sbed),
+            "==>",
+            len(ranks),
+            "==>",
+            len(lranks),
+            file=sys.stderr,
+        )
 
-        granks = set(gene_name(current_chr, x, prefix=opts.prefix, \
-                     pad0=opts.pad0, uc=opts.uc) for x in lranks) | \
-                 set(gene_name(current_chr, x, prefix=opts.prefix, \
-                     pad0=opts.pad0, sep="te", uc=opts.uc) for x in lranks)
+        granks = set(
+            gene_name(current_chr, x, prefix=opts.prefix, pad0=opts.pad0, uc=opts.uc)
+            for x in lranks
+        ) | set(
+            gene_name(
+                current_chr, x, prefix=opts.prefix, pad0=opts.pad0, sep="te", uc=opts.uc
+            )
+            for x in lranks
+        )
 
         tagstore = {}
         for s in sbed:
@@ -552,30 +596,63 @@ def annotate(args):
     valid_resolve_choices = ["alignment", "overlap"]
 
     p = OptionParser(annotate.__doc__)
-    p.add_option("--resolve", default="alignment", choices=valid_resolve_choices,
-                 help="Resolve ID assignment based on a certain metric" \
-                        + " [default: %default]")
-    p.add_option("--atg_name", default=False, action="store_true",
-                help="Specify is locus IDs in `new.bed` file follow ATG nomenclature" \
-                        + " [default: %default]")
+    p.add_option(
+        "--resolve",
+        default="alignment",
+        choices=valid_resolve_choices,
+        help="Resolve ID assignment based on a certain metric",
+    )
+    p.add_option(
+        "--atg_name",
+        default=False,
+        action="store_true",
+        help="Specify is locus IDs in `new.bed` file follow ATG nomenclature",
+    )
 
-    g1 = OptionGroup(p, "Optional parameters (alignment):\n" \
-            + "Use if resolving ambiguities based on sequence `alignment`")
-    g1.add_option("--pid", dest="pid", default=35., type="float",
-            help="Percent identity cutoff [default: %default]")
-    g1.add_option("--score", dest="score", default=250., type="float",
-            help="Alignment score cutoff [default: %default]")
+    g1 = OptionGroup(
+        p,
+        "Optional parameters (alignment):\n"
+        + "Use if resolving ambiguities based on sequence `alignment`",
+    )
+    g1.add_option(
+        "--pid", dest="pid", default=35.0, type="float", help="Percent identity cutoff",
+    )
+    g1.add_option(
+        "--score",
+        dest="score",
+        default=250.0,
+        type="float",
+        help="Alignment score cutoff",
+    )
     p.add_option_group(g1)
 
-    g2 = OptionGroup(p, "Optional parameters (overlap):\n" \
-            + "Use if resolving ambiguities based on `overlap` length\n" \
-            + "Parameters equivalent to `intersectBed`")
-    g2.add_option("-f", dest="f", default=0.5, type="float",
-            help="Minimum overlap fraction (0.0 - 1.0) [default: %default]")
-    g2.add_option("-r", dest="r", default=False, action="store_true",
-            help="Require fraction overlap to be reciprocal [default: %default]")
-    g2.add_option("-s", dest="s", default=True, action="store_true",
-            help="Require same strandedness [default: %default]")
+    g2 = OptionGroup(
+        p,
+        "Optional parameters (overlap):\n"
+        + "Use if resolving ambiguities based on `overlap` length\n"
+        + "Parameters equivalent to `intersectBed`",
+    )
+    g2.add_option(
+        "-f",
+        dest="f",
+        default=0.5,
+        type="float",
+        help="Minimum overlap fraction (0.0 - 1.0)",
+    )
+    g2.add_option(
+        "-r",
+        dest="r",
+        default=False,
+        action="store_true",
+        help="Require fraction overlap to be reciprocal",
+    )
+    g2.add_option(
+        "-s",
+        dest="s",
+        default=True,
+        action="store_true",
+        help="Require same strandedness",
+    )
     p.add_option_group(g2)
 
     opts, args = p.parse_args(args)
@@ -593,8 +670,9 @@ def annotate(args):
     else:
         logging.warning("`{0}` already exists. Skipping step".format(cbedfile))
 
-    logging.warning("Resolving ID assignment ambiguity based on `{0}`".\
-            format(opts.resolve))
+    logging.warning(
+        "Resolving ID assignment ambiguity based on `{0}`".format(opts.resolve)
+    )
 
     if opts.resolve == "alignment":
         # Get pairs and prompt to run needle
@@ -603,21 +681,24 @@ def annotate(args):
         if not os.path.isfile(pairsfile):
             get_pairs(cbedfile, pairsfile)
         else:
-            logging.warning("`{0}` already exists. Checking for needle output".\
-                    format(pairsfile))
+            logging.warning(
+                "`{0}` already exists. Checking for needle output".format(pairsfile)
+            )
 
         # If needle scores do not exist, prompt user to run needle
         if not os.path.isfile(scoresfile):
-            logging.error("`{0}` does not exist. Please process {1} using `needle`".\
-                    format(scoresfile, pairsfile))
+            logging.error(
+                "`{0}` does not exist. Please process {1} using `needle`".format(
+                    scoresfile, pairsfile
+                )
+            )
             sys.exit()
     else:
         scoresfile = "ovl.scores"
         # Calculate overlap length using intersectBed
         calculate_ovl(nbedfile, obedfile, opts, scoresfile)
 
-    logging.warning("`{0}' exists. Storing scores in memory".\
-            format(scoresfile))
+    logging.warning("`{0}' exists. Storing scores in memory".format(scoresfile))
     scores = read_scores(scoresfile, opts)
 
     # Iterate through consolidated bed and
@@ -632,11 +713,14 @@ def annotate(args):
 
     nbedline = {}
     nbed = Bed(nbedfile)
-    for line in nbed: nbedline[line.accn] = line
+    for line in nbed:
+        nbedline[line.accn] = line
 
     splits = set()
     for chr, chrbed in nbed.sub_beds():
-        abedline, splits = annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits)
+        abedline, splits = annotate_chr(
+            chr, chrbed, g, scores, nbedline, abedline, opts, splits
+        )
 
     if splits is not None:
         abedline = process_splits(splits, scores, nbedline, abedline)
@@ -652,6 +736,7 @@ def annotate(args):
 
 def calculate_ovl(nbedfile, obedfile, opts, scoresfile):
     from pybedtools import BedTool
+
     nbedtool = BedTool(nbedfile)
     obedtool = BedTool(obedfile)
 
@@ -662,15 +747,18 @@ def calculate_ovl(nbedfile, obedfile, opts, scoresfile):
 
 def read_scores(scoresfile, opts=None, sort=False, trimsuffix=True):
     scores = {}
-    _pid, _score, resolve = (0.0, 0.0, 'alignment') if opts == None \
-            else (opts.pid, opts.score, opts.resolve)
+    _pid, _score, resolve = (
+        (0.0, 0.0, "alignment")
+        if opts == None
+        else (opts.pid, opts.score, opts.resolve)
+    )
 
     fp = must_open(scoresfile)
     logging.debug("Load scores file `{0}`".format(scoresfile))
     for row in fp:
         (new, old, identity, score) = row.strip().split("\t")
         if trimsuffix:
-            old = re.sub('\.\d+$', '', old)
+            old = re.sub("\.\d+$", "", old)
         if resolve == "alignment":
             match = re.search("\d+\/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
             pid = match.group(1)
@@ -711,8 +799,7 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits):
             accns = []
             print(accn, file=sys.stderr)
             for elem in scores[accn]:
-                print("\t" + ", ".join([str(x)\
-                        for x in elem[1:]]), file=sys.stderr)
+                print("\t" + ", ".join([str(x) for x in elem[1:]]), file=sys.stderr)
                 if opts.atg_name:
                     achr, arank = atg_name(elem[1])
                     if not achr or achr != current_chr:
@@ -720,12 +807,14 @@ def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits):
 
                 accns.append(elem[1])
                 if len(new) > 1:
-                    if newgrp not in scores: scores[newgrp] = []
+                    if newgrp not in scores:
+                        scores[newgrp] = []
                     scores[newgrp].append(elem)
                 else:
                     accns[0:0] = [accn]
                     line.accn = ";".join([str(x) for x in accns])
-                if len(scores[accn]) > 1: break
+                if len(scores[accn]) > 1:
+                    break
 
         if len(new) > 1:
             splits.add(newgrp)
@@ -742,7 +831,9 @@ def process_splits(splits, scores, nbedline, abedline):
         if newgrp in scores:
             best = {}
             scores[newgrp] = sorted(scores[newgrp], key=lambda x: (x[0], x[1]))
-            scores[newgrp] = sorted(scores[newgrp], key=lambda x: float(x[3]), reverse=True)
+            scores[newgrp] = sorted(
+                scores[newgrp], key=lambda x: float(x[3]), reverse=True
+            )
 
             for elem in scores[newgrp]:
                 if elem[1] not in best:
@@ -753,14 +844,18 @@ def process_splits(splits, scores, nbedline, abedline):
                 if n in scores:
                     accns = set()
                     scores[n] = sorted(scores[n], key=lambda x: x[1])
-                    scores[n] = sorted(scores[n], key=lambda x: float(x[3]), reverse=True)
+                    scores[n] = sorted(
+                        scores[n], key=lambda x: float(x[3]), reverse=True
+                    )
                     accns.add(n)
                     print("\t" + n, file=sys.stderr)
                     for elem in scores[n]:
                         if not elem[0] == n:
                             continue
-                        print("\t\t" + ", ".join([str(x)\
-                                for x in elem[1:]]), file=sys.stderr)
+                        print(
+                            "\t\t" + ", ".join([str(x) for x in elem[1:]]),
+                            file=sys.stderr,
+                        )
                         if elem[1] in best and n == best[elem[1]]:
                             accns.add(elem[1])
                             accns = sorted(accns)
@@ -790,6 +885,7 @@ def get_pairs(cbedfile, pairsfile):
 
 def consolidate(nbedfile, obedfile, cbedfile):
     from pybedtools import BedTool
+
     nbedtool = BedTool(nbedfile)
     obedtool = BedTool(obedfile)
 
@@ -852,19 +948,32 @@ def rename(args):
     import string
 
     p = OptionParser(rename.__doc__)
-    p.add_option("-a", dest="gene_increment", default=10, type="int",
-                 help="Increment for continuous genes [default: %default]")
-    p.add_option("-b", dest="gap_increment", default=1000, type="int",
-                 help="Increment for gaps [default: %default]")
-    p.add_option("--pad0", default=6, type="int",
-                 help="Pad gene identifiers with 0 [default: %default]")
-    p.add_option("--spad0", default=4, type="int",
-                 help="Pad gene identifiers on small scaffolds [default: %default]")
-    p.add_option("--prefix", default="Bo",
-                 help="Genome prefix [default: %default]")
-    p.add_option("--jgi", default=False, action="store_true",
-                 help="Create JGI style identifier PREFIX.NN[G|TE]NNNNN.1" + \
-                      " [default: %default]")
+    p.add_option(
+        "-a",
+        dest="gene_increment",
+        default=10,
+        type="int",
+        help="Increment for continuous genes",
+    )
+    p.add_option(
+        "-b", dest="gap_increment", default=1000, type="int", help="Increment for gaps",
+    )
+    p.add_option(
+        "--pad0", default=6, type="int", help="Pad gene identifiers with 0",
+    )
+    p.add_option(
+        "--spad0",
+        default=4,
+        type="int",
+        help="Pad gene identifiers on small scaffolds",
+    )
+    p.add_option("--prefix", default="Bo", help="Genome prefix")
+    p.add_option(
+        "--jgi",
+        default=False,
+        action="store_true",
+        help="Create JGI style identifier PREFIX.NN[G|TE]NNNNN.1",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) not in (1, 2):
@@ -894,7 +1003,7 @@ def rename(args):
     for chr, lines in groupby(genes, key=lambda x: x.seqid):
         lines = list(lines)
         pad0 = opts.pad0 if len(lines) > 1000 else opts.spad0
-        isChr = chr[0].upper() == 'C'
+        isChr = chr[0].upper() == "C"
         digits = "".join(x for x in chr if x in string.digits)
         gs = "g" if isChr else "s"
         pp = prefix + digits + gs
@@ -926,7 +1035,7 @@ def parse_prefix(identifier):
     """
     pf, id = (), identifier
     if "|" in identifier:
-        pf, id = tuple(identifier.split('|')[:-1]), identifier.split('|')[-1]
+        pf, id = tuple(identifier.split("|")[:-1]), identifier.split("|")[-1]
 
     return pf, id
 
@@ -961,8 +1070,9 @@ def reindex(args):
     from tempfile import mkstemp
 
     p = OptionParser(reindex.__doc__)
-    p.add_option("--scores", type="str", \
-        help="read from existing EMBOSS `needle` scores file")
+    p.add_option(
+        "--scores", type="str", help="read from existing EMBOSS `needle` scores file"
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -974,45 +1084,47 @@ def reindex(args):
     reffasta = Fasta(refpep)
 
     if not opts.scores:
-        fh, pairsfile = mkstemp(prefix='pairs', suffix=".txt", dir=".")
+        fh, pairsfile = mkstemp(prefix="pairs", suffix=".txt", dir=".")
         fw = must_open(pairsfile, "w")
 
     conflict, novel = AutoVivification(), {}
-    for gene in gffdb.features_of_type('gene', order_by=('seqid', 'start')):
-        geneid = atg_name(gene.id, retval='locus')
+    for gene in gffdb.features_of_type("gene", order_by=("seqid", "start")):
+        geneid = atg_name(gene.id, retval="locus")
         novel[geneid] = []
         updated_mrna, hybrid_mrna = [], []
-        for mrna in gffdb.children(gene, featuretype='mRNA', order_by=('seqid', 'start')):
+        for mrna in gffdb.children(
+            gene, featuretype="mRNA", order_by=("seqid", "start")
+        ):
             if re.match(atg_name_pat, mrna.id) is not None and "_" not in mrna.id:
                 pf, mrnaid = parse_prefix(mrna.id)
-                mlen = gffdb.children_bp(mrna, child_featuretype='exon')
+                mlen = gffdb.children_bp(mrna, child_featuretype="exon")
                 if "-" in mrna.id:
                     hybrid_mrna.append((mrna.id, mrna.start, mlen, len(pf)))
                 else:
                     updated_mrna.append((mrna.id, mrna.start, mlen, len(pf)))
 
-        for mrna in sorted(updated_mrna, key=lambda k:(k[1], -k[2], -k[3])):
+        for mrna in sorted(updated_mrna, key=lambda k: (k[1], -k[2], -k[3])):
             pf, mrnaid = parse_prefix(mrna[0])
             mstart, mlen = mrna[1], mrna[2]
 
-            iso = atg_name(mrnaid, retval='iso')
+            iso = atg_name(mrnaid, retval="iso")
             newiso = "{0}{1}".format(iso, re.sub(atg_name_pat, "", mrnaid))
             if iso == newiso:
                 if iso not in conflict[geneid]:
                     conflict[geneid][iso] = []
-                conflict[geneid][iso].append((mrna[0], iso, newiso, \
-                    mstart, mlen, len(pf)))
+                conflict[geneid][iso].append(
+                    (mrna[0], iso, newiso, mstart, mlen, len(pf))
+                )
             else:
-                novel[geneid].append((mrna[0], None, newiso, \
-                    mstart, mlen, len(pf)))
+                novel[geneid].append((mrna[0], None, newiso, mstart, mlen, len(pf)))
 
-        for mrna in sorted(hybrid_mrna, key=lambda k:(k[1], -k[2], -k[3])):
+        for mrna in sorted(hybrid_mrna, key=lambda k: (k[1], -k[2], -k[3])):
             pf, mrnaid = parse_prefix(mrna[0])
             mstart, mlen = mrna[1], mrna[2]
 
             _iso, _newiso = [], []
             for id in sorted(mrnaid.split("-")):
-                a = atg_name(id, retval='iso')
+                a = atg_name(id, retval="iso")
                 b = "{0}{1}".format(a, re.sub(atg_name_pat, "", id))
                 _iso.append(a)
                 _newiso.append(b)
@@ -1022,16 +1134,16 @@ def reindex(args):
             for iso, niso in zip(_iso, _newiso):
                 if iso == niso:
                     if iso not in conflict[geneid]:
-                        conflict[geneid][iso] = \
-                            [(mrna[0], iso, newiso, mstart, mlen, len(pf))]
+                        conflict[geneid][iso] = [
+                            (mrna[0], iso, newiso, mstart, mlen, len(pf))
+                        ]
                         _novel = None
                         break
 
                 _novel = True
 
             if _novel is not None:
-                novel[geneid].append((mrna[0], None, newiso, \
-                    mstart, mlen, len(pf)))
+                novel[geneid].append((mrna[0], None, newiso, mstart, mlen, len(pf)))
 
         if not opts.scores:
             for isoform in sorted(conflict[geneid]):
@@ -1055,23 +1167,26 @@ def reindex(args):
     for geneid in conflict:
         primary[geneid] = []
         for iso in sorted(conflict[geneid]):
-            conflict[geneid][iso].sort(key=lambda k:(k[3], -k[4], -k[5]))
+            conflict[geneid][iso].sort(key=lambda k: (k[3], -k[4], -k[5]))
             _iso = "{0}.{1}".format(geneid, iso)
             if _iso not in scores:
                 novel[geneid].extend(conflict[geneid][iso])
                 continue
             top_score = scores[_iso][0][1]
-            result = next((i for i, v in enumerate(conflict[geneid][iso]) if v[0] == top_score), None)
+            result = next(
+                (i for i, v in enumerate(conflict[geneid][iso]) if v[0] == top_score),
+                None,
+            )
             if result is not None:
                 primary[geneid].append(conflict[geneid][iso][result])
                 del conflict[geneid][iso][result]
                 if geneid not in novel:
                     novel[geneid] = []
                 novel[geneid].extend(conflict[geneid][iso])
-        novel[geneid].sort(key=lambda k:(k[3], -k[4], -k[5]))
+        novel[geneid].sort(key=lambda k: (k[3], -k[4], -k[5]))
 
-    fw = must_open(opts.outfile, 'w')
-    for gene in gffdb.features_of_type('gene', order_by=('seqid', 'start')):
+    fw = must_open(opts.outfile, "w")
+    for gene in gffdb.features_of_type("gene", order_by=("seqid", "start")):
         geneid = gene.id
         print(gene, file=fw)
         seen = []
@@ -1088,14 +1203,14 @@ def reindex(args):
                     _iso = (mseen + iso + 1) - len(seen)
 
                 _mrnaid = "{0}.{1}".format(geneid, _iso)
-                _mrna['ID'], _mrna['_old_ID'] = [_mrnaid], [_mrna.id]
+                _mrna["ID"], _mrna["_old_ID"] = [_mrnaid], [_mrna.id]
 
                 print(_mrna, file=fw)
-                for c in gffdb.children(_mrna, order_by=('start')):
-                    c['Parent'] = [_mrnaid]
+                for c in gffdb.children(_mrna, order_by=("start")):
+                    c["Parent"] = [_mrnaid]
                     print(c, file=fw)
         else:
-            for feat in gffdb.children(gene, order_by=('seqid', 'start')):
+            for feat in gffdb.children(gene, order_by=("seqid", "start")):
                 print(feat, file=fw)
 
     fw.close()
@@ -1115,8 +1230,7 @@ def publocus(args):
     Medtr1g007060.2		MTR_1g007060B
     """
     p = OptionParser(publocus.__doc__)
-    p.add_option("--locus_tag", default="MTR_",
-                 help="GenBank locus tag [default: %default]")
+    p.add_option("--locus_tag", default="MTR_", help="GenBank locus tag")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1125,7 +1239,7 @@ def publocus(args):
     locus_tag = opts.locus_tag
 
     index = AutoVivification()
-    idsfile, = args
+    (idsfile,) = args
     fp = must_open(idsfile)
     for row in fp:
         locus, chrom, sep, rank, iso = atg_name(row, retval="locus,chr,sep,rank,iso")
@@ -1134,22 +1248,36 @@ def publocus(args):
             continue
         if locus not in index.keys():
             pub_locus = gene_name(chrom, rank, prefix=locus_tag, sep=sep)
-            index[locus]['pub_locus'] = pub_locus
-            index[locus]['isos'] = set()
+            index[locus]["pub_locus"] = pub_locus
+            index[locus]["isos"] = set()
 
-        index[locus]['isos'].add(int(iso))
+        index[locus]["isos"].add(int(iso))
 
     for locus in index:
-        pub_locus = index[locus]['pub_locus']
-        index[locus]['isos'] = sorted(index[locus]['isos'])
-        if len(index[locus]['isos']) > 1:
-            new = [chr(n+64) for n in index[locus]['isos'] if n < 27]
-            for i, ni in zip(index[locus]['isos'], new):
-                print("\t".join(x for x in ("{0}.{1}".format(locus, i), \
-                                            "{0}{1}".format(pub_locus, ni))))
+        pub_locus = index[locus]["pub_locus"]
+        index[locus]["isos"] = sorted(index[locus]["isos"])
+        if len(index[locus]["isos"]) > 1:
+            new = [chr(n + 64) for n in index[locus]["isos"] if n < 27]
+            for i, ni in zip(index[locus]["isos"], new):
+                print(
+                    "\t".join(
+                        x
+                        for x in (
+                            "{0}.{1}".format(locus, i),
+                            "{0}{1}".format(pub_locus, ni),
+                        )
+                    )
+                )
         else:
-            print("\t".join(x for x in ("{0}.{1}".format(locus, index[locus]['isos'][0]), \
-                                        pub_locus)))
+            print(
+                "\t".join(
+                    x
+                    for x in (
+                        "{0}.{1}".format(locus, index[locus]["isos"][0]),
+                        pub_locus,
+                    )
+                )
+            )
 
 
 def augustus(args):
@@ -1167,7 +1295,7 @@ def augustus(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    ingff3, = args
+    (ingff3,) = args
     gff = Gff(ingff3)
     fw = must_open(opts.outfile, "w")
     seen = defaultdict(int)
@@ -1212,7 +1340,7 @@ def tRNAscan(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    trnaout, = args
+    (trnaout,) = args
     gffout = trnaout + ".gff3"
     fp = open(trnaout)
     fw = open(gffout, "w")
@@ -1224,29 +1352,44 @@ def tRNAscan(args):
 
     for row in fp:
         atoms = [x.strip() for x in row.split("\t")]
-        contig, trnanum, start, end, aa, codon, \
-                intron_start, intron_end, score = atoms
+        contig, trnanum, start, end, aa, codon, intron_start, intron_end, score = atoms
 
         start, end = int(start), int(end)
-        orientation = '+'
+        orientation = "+"
         if start > end:
             start, end = end, start
-            orientation = '-'
+            orientation = "-"
 
         source = "tRNAscan"
         type = "tRNA"
         if codon == "???":
             codon = "XXX"
 
-        comment = "ID={0}.tRNA.{1};Name=tRNA-{2} (anticodon: {3})".\
-                format(contig, trnanum, aa, codon)
+        comment = "ID={0}.tRNA.{1};Name=tRNA-{2} (anticodon: {3})".format(
+            contig, trnanum, aa, codon
+        )
 
-        print("\t".join(str(x) for x in (contig, source, type, start,\
-                            end, score, orientation, ".", comment)), file=fw)
+        print(
+            "\t".join(
+                str(x)
+                for x in (
+                    contig,
+                    source,
+                    type,
+                    start,
+                    end,
+                    score,
+                    orientation,
+                    ".",
+                    comment,
+                )
+            ),
+            file=fw,
+        )
 
     fw.close()
     sort([gffout, "-i"])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

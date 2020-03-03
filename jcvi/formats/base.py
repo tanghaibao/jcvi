@@ -381,7 +381,7 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=Fa
     elif filename == "tmp" and mode == "w":
         from tempfile import NamedTemporaryFile
 
-        fp = NamedTemporaryFile(delete=False)
+        fp = NamedTemporaryFile(mode=mode, delete=False)
 
     elif filename.endswith(".gz"):
         import gzip
@@ -789,10 +789,10 @@ def group(args):
     p = OptionParser(group.__doc__)
     p.set_sep()
     p.add_option(
-        "--groupby", default=None, type="int", help="Default column to groupby",
+        "--groupby", default=None, type="int", help="Default column to groupby"
     )
     p.add_option(
-        "--groupsep", default=",", help="Separator to join the grouped elements",
+        "--groupsep", default=",", help="Separator to join the grouped elements"
     )
     p.add_option(
         "--nouniq",
@@ -901,9 +901,7 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     mode_choices = ("batch", "cycle", "optimal")
-    p.add_option(
-        "--all", default=False, action="store_true", help="split all records",
-    )
+    p.add_option("--all", default=False, action="store_true", help="split all records")
     p.add_option(
         "--mode",
         default="optimal",
@@ -911,9 +909,7 @@ def split(args):
         help="Mode when splitting records",
     )
     p.add_option(
-        "--format",
-        choices=("fasta", "fastq", "txt", "clust"),
-        help="input file format",
+        "--format", choices=("fasta", "fastq", "txt", "clust"), help="input file format"
     )
 
     opts, args = p.parse_args(args)
@@ -951,11 +947,11 @@ def join(args):
     """
     p = OptionParser(join.__doc__)
     p.add_option(
-        "--column", default="0", help="0-based column id, multiple values allowed",
+        "--column", default="0", help="0-based column id, multiple values allowed"
     )
     p.set_sep(multiple=True)
     p.add_option(
-        "--noheader", default=False, action="store_true", help="Do not print header",
+        "--noheader", default=False, action="store_true", help="Do not print header"
     )
     p.add_option("--na", default="na", help="Value for unjoined data")
     p.add_option(
@@ -1056,7 +1052,7 @@ def subset(args):
 
     p = OptionParser(subset.__doc__)
     p.add_option(
-        "--column", default="0", help="0-based column id, multiple values allowed",
+        "--column", default="0", help="0-based column id, multiple values allowed"
     )
     p.set_sep(multiple=True)
     p.add_option(

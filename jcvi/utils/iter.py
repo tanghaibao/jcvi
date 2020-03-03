@@ -16,7 +16,6 @@ from itertools import (
     tee,
     cycle,
     combinations,
-    filterfalse,
     groupby,
 )
 from operator import mul, itemgetter
@@ -129,6 +128,10 @@ def unique_everseen(iterable, key=None):
     "List unique elements, preserving order. Remember all elements ever seen."
     # unique_everseen('AAAABBBCCDAABBB') --> A B C D
     # unique_everseen('ABBCcAD', str.lower) --> A B C D
+    try:
+        from itertools import filterfalse  # Python 3
+    except ImportError:
+        from itertools import ifilterfalse as filterfalse  # Python 2
     seen = set()
     seen_add = seen.add
     if key is None:

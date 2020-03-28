@@ -661,7 +661,7 @@ class Weights(DictFile):
         logging.debug("Map weights: {0}".format(self.items()))
 
     def update_maps(self, mapnames, default=1):
-        keys = self.keys()
+        keys = list(self.keys())
         for m in keys:
             if m not in mapnames:
                 del self[m]
@@ -673,8 +673,14 @@ class Weights(DictFile):
 
     def get_pivot(self, mapnames):
         # Break ties by occurence in file
+        common_mapnames = set(self.maps) & set(mapnames)
+        if not common_mapnames:
+            logging.error(
+                "No common names found between {} and {}", self.maps, mapnames
+            )
+            sys.exit(1)
         return max(
-            (w, -self.maps.index(m), m) for m, w in self.items() if m in mapnames
+            (w, -self.maps.index(m), m) for m, w in self.items() if m in common_mapnames
         )
 
 

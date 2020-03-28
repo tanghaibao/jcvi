@@ -70,7 +70,8 @@ class DictFile(BaseFile, OrderedDict):
         cast=None,
     ):
 
-        super(DictFile, self).__init__(filename)
+        BaseFile.__init__(self, filename)
+        OrderedDict.__init__(self)
         self.keypos = keypos
 
         fp = must_open(filename)

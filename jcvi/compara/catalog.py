@@ -627,11 +627,19 @@ def ortholog(args):
         "--full",
         default=False,
         action="store_true",
-        help="Run in full mode, including blocks and RBH",
+        help="Run in full 1x1 mode, including blocks and RBH",
     )
     p.add_option("--cscore", default=0.7, type="float", help="C-score cutoff")
     p.add_option(
         "--dist", default=20, type="int", help="Extent of flanking regions to search"
+    )
+    p.add_option(
+        "-n",
+        "--min_size",
+        dest="n",
+        type="int",
+        default=4,
+        help="minimum number of anchors in a cluster",
     )
     p.add_option("--quota", help="Quota align parameter")
     p.add_option(
@@ -656,6 +664,7 @@ def ortholog(args):
     ccscore = opts.cscore
     quota = opts.quota
     dist = "--dist={0}".format(opts.dist)
+    minsize_flag = "--min_size={}".format(opts.n)
     cpus_flag = "--cpus={}".format(opts.cpus)
 
     aprefix = afasta.split(".")[0]
@@ -684,18 +693,19 @@ def ortholog(args):
     pdf = pprefix + ".pdf"
     if not opts.full:
         if need_update(filtered_last, lifted_anchors):
+            dargs = [
+                filtered_last,
+                anchors,
+                minsize_flag,
+                dist,
+                "--liftover={0}".format(last),
+                "--no_strip_names",
+            ]
             if opts.no_strip_names:
-                scan(
-                    [
-                        filtered_last,
-                        anchors,
-                        dist,
-                        "--liftover={0}".format(last),
-                        "--no_strip_names",
-                    ]
-                )
-            else:
-                scan([filtered_last, anchors, dist, "--liftover={0}".format(last)])
+                dargs += [
+                    "--no_strip_names",
+                ]
+            scan(dargs)
         if quota:
             quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])
         if need_update(anchors, pdf):

@@ -699,7 +699,6 @@ def ortholog(args):
                 minsize_flag,
                 dist,
                 "--liftover={0}".format(last),
-                "--no_strip_names",
             ]
             if opts.no_strip_names:
                 dargs += [

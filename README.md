@@ -17,6 +17,20 @@ computation related to assembly, annotation, and comparative genomics.
 | Email   | <tanghaibao@gmail.com>                                           |
 | License | [BSD](http://creativecommons.org/licenses/BSD/)                  |
 
+## Citations
+
+- If you use the MCscan pipeline for synteny inference, please cite:
+
+  Tang et al. (2008) Synteny and Collinearity in Plant Genomes. [Science](https://science.sciencemag.org/content/320/5875/486)
+
+- If you use the ALLMAPS pipeline for genome scaffolding, please cite:
+
+  Haibao Tang et al. (2015) ALLMAPS: robust scaffold ordering based on multiple maps. [Genome Biology](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-014-0573-1)
+
+- For other uses, please cite the package directly:
+
+  Tang et al. (2015). jcvi: JCVI utility libraries. Zenodo. [10.5281/zenodo.31631](http://dx.doi.org/10.5281/zenodo.31631)
+
 ## Contents
 
 Following modules are available as generic Bioinformatics handling
@@ -182,8 +196,3 @@ This will tell you the options and arguments it expects.
 
 **Feel free to check out other scripts in the package, it is not just
 for FASTA.**
-
-## Reference
-
-Haibao Tang et al. (2015). jcvi: JCVI utility libraries. Zenodo.
-[10.5281/zenodo.31631](http://dx.doi.org/10.5281/zenodo.31631).

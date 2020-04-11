@@ -21,15 +21,15 @@ computation related to assembly, annotation, and comparative genomics.
 
 - If you use the MCscan pipeline for synteny inference, please cite:
 
-  Tang et al. (2008) Synteny and Collinearity in Plant Genomes. [Science](https://science.sciencemag.org/content/320/5875/486)
+  _Tang et al. (2008) Synteny and Collinearity in Plant Genomes. [Science](https://science.sciencemag.org/content/320/5875/486)_
 
 - If you use the ALLMAPS pipeline for genome scaffolding, please cite:
 
-  Haibao Tang et al. (2015) ALLMAPS: robust scaffold ordering based on multiple maps. [Genome Biology](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-014-0573-1)
+  _Tang et al. (2015) ALLMAPS: robust scaffold ordering based on multiple maps. [Genome Biology](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-014-0573-1)_
 
 - For other uses, please cite the package directly:
 
-  Tang et al. (2015). jcvi: JCVI utility libraries. Zenodo. [10.5281/zenodo.31631](http://dx.doi.org/10.5281/zenodo.31631)
+  _Tang et al. (2015). jcvi: JCVI utility libraries. Zenodo. [10.5281/zenodo.31631](http://dx.doi.org/10.5281/zenodo.31631)_
 
 ## Contents
 

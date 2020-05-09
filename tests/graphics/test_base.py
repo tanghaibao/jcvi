@@ -10,8 +10,9 @@ import pytest
         ("a short name", "a short name"),
         (
             "a really really long name for you a really really long name for you",
-            "a really... for you",
+            "a really...e for you",
         ),
+        ("These colors look lovely together", "These co... together"),
     ],
 )
 def test_shorten(s, expected):

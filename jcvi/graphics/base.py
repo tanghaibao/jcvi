@@ -145,11 +145,12 @@ def latex(s):
     return "".join([CHARS.get(char, char) for char in s])
 
 
-def shorten(s, maxchar=20):
-    if len(s) <= maxchar:
+def shorten(s, maxchar=20, mid="..."):
+    if len(s) <= maxchar or len(mid) >= maxchar:
         return s
-    pad = (maxchar - 3) // 2
-    return s[:pad] + "..." + s[-pad:]
+    pad = (maxchar - len(mid)) // 2
+    right_pad = maxchar - len(mid) - pad
+    return s[:pad] + mid + s[-right_pad:]
 
 
 def set1_n(number=9):

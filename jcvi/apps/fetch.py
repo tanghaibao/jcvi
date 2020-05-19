@@ -145,7 +145,7 @@ def ensembl(args):
     $ %prog ensembl danio_rerio,gasterosteus_aculeatus
     """
     p = OptionParser(ensembl.__doc__)
-    p.add_option("--version", default="75", help="Ensembl version [default: %default]")
+    p.add_option("--version", default="75", help="Ensembl version")
     opts, args = p.parse_args(args)
 
     version = opts.version
@@ -159,7 +159,7 @@ def ensembl(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    species, = args
+    (species,) = args
     species = species.split(",")
     for s in species:
         download_species_ensembl(s, valid_species, url)
@@ -215,14 +215,11 @@ def phytozome(args):
     p.add_option(
         "--version",
         default="12",
-        choices=("9", "10", "11", "12", "12_unrestricted"),
+        choices=("9", "10", "11", "12", "12_unrestricted", "13"),
         help="Phytozome version",
     )
     p.add_option(
-        "--assembly",
-        default=False,
-        action="store_true",
-        help="Download assembly [default: %default]",
+        "--assembly", default=False, action="store_true", help="Download assembly",
     )
     p.add_option(
         "--format",
@@ -255,7 +252,7 @@ def phytozome(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    species, = args
+    (species,) = args
     if species == "all":
         species = ",".join(valid_species)
 
@@ -317,10 +314,7 @@ def phytozome9(args):
     """
     p = OptionParser(phytozome9.__doc__)
     p.add_option(
-        "--assembly",
-        default=False,
-        action="store_true",
-        help="Download assembly [default: %default]",
+        "--assembly", default=False, action="store_true", help="Download assembly",
     )
     p.add_option(
         "--format",
@@ -340,7 +334,7 @@ def phytozome9(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    species, = args
+    (species,) = args
     if species == "all":
         species = ",".join(valid_species)
 
@@ -508,46 +502,38 @@ def entrez(args):
         help="Remove trailing accession versions",
     )
     p.add_option(
-        "--format",
-        default="fasta",
-        choices=valid_formats,
-        help="download format [default: %default]",
+        "--format", default="fasta", choices=valid_formats, help="download format",
     )
     p.add_option(
         "--database",
         default="nuccore",
         choices=valid_databases,
-        help="search database [default: %default]",
+        help="search database",
     )
     p.add_option(
-        "--retmax",
-        default=1000000,
-        type="int",
-        help="how many results to return [default: %default]",
+        "--retmax", default=1000000, type="int", help="how many results to return",
     )
     p.add_option(
         "--skipcheck",
         default=False,
         action="store_true",
-        help="turn off prompt to check file existence [default: %default]",
+        help="turn off prompt to check file existence",
     )
     p.add_option(
         "--batchsize",
         default=500,
         type="int",
-        help="download the results in batch for speed-up [default: %default]",
+        help="download the results in batch for speed-up",
     )
     p.set_outdir(outdir=None)
-    p.add_option(
-        "--outprefix", default="out", help="output file name prefix [default: %default]"
-    )
+    p.add_option("--outprefix", default="out", help="output file name prefix")
     p.set_email()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    filename, = args
+    (filename,) = args
     if op.exists(filename):
         pf = filename.rsplit(".", 1)[0]
         list_of_terms = [row.strip() for row in open(filename)]
@@ -644,7 +630,7 @@ def sra(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    term, = args
+    (term,) = args
     if op.isfile(term):
         terms = [x.strip() for x in open(term)]
     else:

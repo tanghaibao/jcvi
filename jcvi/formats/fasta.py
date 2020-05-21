@@ -187,7 +187,7 @@ class ORFFinder(object):
     """
 
     def __init__(self, seq, start=[], stop=["TAG", "TAA", "TGA"]):
-        self.seq = seq.tostring().upper()
+        self.seq = str(seq).upper()
         self.start = start
         self.stop = stop
         # strand, frame, start, end, length; coordinates are 1-based

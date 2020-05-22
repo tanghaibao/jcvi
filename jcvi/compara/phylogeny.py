@@ -18,10 +18,8 @@ def lcn(args):
     %prog lcn Orthogroups/Orthogroups.tsv
     """
     p = OptionParser(lcn.__doc__)
-    p.add_option(
-        "--min-single-ratio", default=0.9, help="Single copy ratio must be >= "
-    )
-    p.add_option("--min-zero-ratio", default=0.1, help="Single copy ratio must be >= ")
+    p.add_option("--min-single-ratio", default=0.9, help="Single copy ratio must be > ")
+    p.add_option("--max-zero-ratio", default=0.1, help="Zero copy ratio must be < ")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -36,9 +34,9 @@ def lcn(args):
             counts = [len(x.split(", ")) if x.strip() != "" else 0 for x in row[1:]]
             single_ratio = sum([x == 1 for x in counts]) / len(counts)
             zero_ratio = sum([x == 0 for x in counts]) / len(counts)
-            if single_ratio < opts.min_single_ratio:
+            if single_ratio <= opts.min_single_ratio:
                 continue
-            if zero_ratio > opts.min_zero_ratio:
+            if zero_ratio >= opts.max_zero_ratio:
                 continue
             print(row[0], single_ratio, zero_ratio, counts)
             total += 1

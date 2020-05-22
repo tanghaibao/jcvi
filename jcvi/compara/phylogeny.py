@@ -2,7 +2,7 @@
 # -*- coding:utf-8 -*-
 #
 # phylogeny.py
-# graphics
+# compara
 #
 # Created by Haibao Tang on 05/21/20
 # Copyright © 2020 Haibao Tang. All rights reserved.
@@ -26,7 +26,8 @@ def lcn(args):
         sys.exit(not p.print_help())
 
     (groups_tsv,) = args
-    total = 0
+    selected = []
+    # Read in the orthogroup definition and selected based on counts
     with open(groups_tsv) as fp:
         reader = csv.reader(fp, delimiter="\t")
         header = next(reader, None)
@@ -38,9 +39,11 @@ def lcn(args):
                 continue
             if zero_ratio >= opts.max_zero_ratio:
                 continue
-            print(row[0], single_ratio, zero_ratio, counts)
-            total += 1
-    print(total)
+            print(row[0], single_ratio, zero_ratio, counts, file=sys.stderr)
+            selected.append(row)
+
+    # Collect the FASTA sequences now
+    print(selected)
 
 
 def main():

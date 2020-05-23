@@ -66,6 +66,7 @@ def lcn(args):
             # Set gene name to species name so we can later combine them in supermatrix
             selected_seq.id = species_name
             selected_seq.name = species_name
+            selected_seq.description = ""
             selected_seqs.append(selected_seq)
 
         output_fasta = op.join(lcn_dir, orthogroup_fasta)

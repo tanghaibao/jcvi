@@ -391,7 +391,7 @@ def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0):
         ("Jurassic", 145.5, 201.3),
         ("Triassic", 201.3, 252.17),
         ("Permian", 252.17, 298.9),
-        # ("Carboniferous", 298.9, 358.9),
+        ("Carboniferous", 298.9, 358.9),
     )
     h = 0.05
     for (era, start, end), color in zip(Geo, set3_n(len(Geo))):

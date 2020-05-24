@@ -7,6 +7,7 @@ Functions in this script produce figures in various manuscripts.
 
 import os.path as op
 import sys
+import logging
 
 import numpy as np
 
@@ -51,11 +52,51 @@ def waterlilyGOM(args):
 
     Customized figure to plot phylogeny and related infographics.
     """
+    from jcvi.graphics.tree import LeafInfoFile, WGDInfoFile, draw_tree, parse_tree
+
     p = OptionParser(waterlilyGOM.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="10x9")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
+
+    (datafile,) = args
+    outgroup = ["ginkgo"]
+
+    logging.debug("Load tree file `{0}`".format(datafile))
+    t, hpd = parse_tree(datafile)
+
+    pf = datafile.rsplit(".", 1)[0]
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    margin, rmargin = 0.1, 0.21  # Left and right margin
+    leafinfo = LeafInfoFile("leafinfo.csv").cache
+    wgdinfo = WGDInfoFile("wgdinfo.csv").cache
+    groups = "Monocots,Eudicots,ANA-grade,Gymnosperms"
+
+    draw_tree(
+        root,
+        t,
+        hpd=hpd,
+        margin=margin,
+        rmargin=rmargin,
+        supportcolor=None,
+        internal=False,
+        outgroup=outgroup,
+        leafinfo=leafinfo,
+        wgdinfo=wgdinfo,
+        geoscale=True,
+        groups=groups.split(","),
+    )
+
+    root.set_xlim(0, 1)
+    root.set_ylim(0, 1)
+    root.set_axis_off()
+
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def pomegranate(args):

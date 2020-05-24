@@ -14,7 +14,16 @@ from itertools import groupby
 from jcvi.apps.base import OptionParser, glob
 from jcvi.formats.base import DictFile, LineFile
 from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import Rectangle, markup, normalize_axes, plt, savefig, set3_n
+from jcvi.graphics.base import (
+    FancyBboxPatch,
+    Rectangle,
+    linear_shade,
+    markup,
+    normalize_axes,
+    plt,
+    savefig,
+    set3_n,
+)
 from jcvi.graphics.glyph import ExonGlyph, TextCircle, get_setups
 
 
@@ -206,7 +215,7 @@ def draw_tree(
 
     coords = {}
     i = 0
-    color_groups = []
+    color_groups = []  # Used to plot groups to the right of the tree
     for n in t.traverse("postorder"):
         dist = n.get_distance(t)
         xx = rescale(dist)
@@ -242,7 +251,7 @@ def draw_tree(
                 size=leaffont,
                 color=lc,
             )
-            color_groups.append((lc, yy))
+            color_groups.append((lc, yy, xx))
 
             gname = n.name.split("_")[0]
             if gname in structures:
@@ -334,13 +343,23 @@ def draw_tree(
         group_extents = []
         for color, group in groupby(color_groups, key=lambda x: x[0]):
             group = list(group)
-            _, min_yy = min(group)
-            _, max_yy = max(group)
-            group_extents.append((min_yy, max_yy, color))
+            _, min_yy, xx = min(group)
+            _, max_yy, xx = max(group)
+            group_extents.append((min_yy, max_yy, xx, color))
         group_extents.sort(reverse=True)
 
-        for group_name, (min_yy, max_yy, color) in zip(groups, group_extents):
-            print(group_name, min_yy, max_yy, color)
+        for group_name, (min_yy, max_yy, xx, color) in zip(groups, group_extents):
+            group_color = linear_shade(color, fraction=0.8)
+            ax.add_patch(
+                FancyBboxPatch(
+                    (xx, min_yy - yinterval / 2),
+                    0.2,
+                    max_yy - min_yy + yinterval,
+                    boxstyle="round,pad=-0.002,rounding_size=0.01",
+                    fc=group_color,
+                    ec=group_color,
+                )
+            )
 
     if SH is not None:
         xs = x1

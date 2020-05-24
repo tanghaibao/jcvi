@@ -202,6 +202,7 @@ def draw_tree(
 
     num_leaves = len(t.get_leaf_names())
     yinterval = (1 - ystart) / num_leaves
+    ytop = ystart + (num_leaves - 0.5) * yinterval
 
     # get exons structures, if any
     structures = {}
@@ -317,7 +318,9 @@ def draw_tree(
 
     # scale bar
     if geoscale:
-        draw_geoscale(ax, margin=margin, rmargin=rmargin, yy=margin, max_dist=max_dist)
+        draw_geoscale(
+            ax, ytop, margin=margin, rmargin=rmargin, yy=margin, max_dist=max_dist
+        )
     else:
         br = 0.1
         x1 = xstart + 0.1
@@ -349,13 +352,13 @@ def draw_tree(
         group_extents.sort(reverse=True)
 
         for group_name, (min_yy, max_yy, xx, color) in zip(groups, group_extents):
-            group_color = linear_shade(color, fraction=0.8)
+            group_color = linear_shade(color, fraction=0.85)
             ax.add_patch(
                 FancyBboxPatch(
                     (xx, min_yy - yinterval / 2),
                     0.2,
                     max_yy - min_yy + yinterval,
-                    boxstyle="round,pad=-0.002,rounding_size=0.01",
+                    boxstyle="round,pad=-0.002,rounding_size=0.008",
                     fc=group_color,
                     ec=group_color,
                 )
@@ -393,7 +396,9 @@ def read_trees(tree):
     return trees
 
 
-def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0):
+def draw_geoscale(
+    ax, ytop, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0, contrast_epochs=True
+):
     """
     Draw geological epoch on million year ago (mya) scale.
     max_dist = 3.0 => max is 300 mya
@@ -449,6 +454,25 @@ def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0):
             size=8,
         )
         ax.add_patch(p)
+
+    # We highlight recent epochs for better visualization, we just highlight
+    # Neogene and Cretaceous as these are more relevant for most phylogeny
+    if contrast_epochs:
+        for era, start, end in Geo:
+            if not era in ("Neogene", "Cretaceous"):
+                continue
+
+            # Make a beige patch
+            start, end = cv(start), cv(end)
+            ax.add_patch(
+                Rectangle(
+                    (end, yy + tick + h),
+                    abs(start - end),
+                    ytop - yy - tick - h,
+                    fc="beige",
+                    ec="beige",
+                )
+            )
 
 
 def parse_tree(infile):

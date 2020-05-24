@@ -52,7 +52,13 @@ def waterlilyGOM(args):
 
     Customized figure to plot phylogeny and related infographics.
     """
-    from jcvi.graphics.tree import LeafInfoFile, WGDInfoFile, draw_tree, parse_tree
+    from jcvi.graphics.tree import (
+        LeafInfoFile,
+        WGDInfoFile,
+        draw_tree,
+        parse_tree,
+        draw_wgd_xy,
+    )
 
     p = OptionParser(waterlilyGOM.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="10x9")
@@ -71,7 +77,7 @@ def waterlilyGOM(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    margin, rmargin = 0.1, 0.21  # Left and right margin
+    margin, rmargin = 0.1, 0.22  # Left and right margin
     leafinfo = LeafInfoFile("leafinfo.csv").cache
     wgdinfo = WGDInfoFile("wgdinfo.csv").cache
     groups = "Monocots,Eudicots,ANA-grade,Gymnosperms"
@@ -89,6 +95,28 @@ def waterlilyGOM(args):
         wgdinfo=wgdinfo,
         geoscale=True,
         groups=groups.split(","),
+    )
+
+    # Bottom right show legends for the WGD circles
+    pad = 0.025
+    ypad = 0.04
+    xstart = 1 - rmargin + pad
+    ystart = 2 * margin
+    waterlily_wgdline = wgdinfo["waterlily"][0]
+    ypos = ystart - 2 * ypad
+    draw_wgd_xy(root, xstart, ypos, waterlily_wgdline)
+    root.text(
+        xstart + pad,
+        ypos,
+        "Nymphaealean WGD",
+        color=waterlily_wgdline.color,
+        va="center",
+    )
+    other_wgdline = wgdinfo["banana"][0]
+    ypos = ystart - 3 * ypad
+    draw_wgd_xy(root, xstart, ypos, other_wgdline)
+    root.text(
+        xstart + pad, ypos, "Other known WGDs", color=other_wgdline.color, va="center",
     )
 
     root.set_xlim(0, 1)

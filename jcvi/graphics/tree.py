@@ -112,8 +112,8 @@ def truncate_name(name, rule=None):
     return tname
 
 
-def draw_wgd(ax, y, rescale, name, wgdcache):
-    """Draw WGD at (xx yy) position
+def draw_wgd_xy(ax, xx, yy, wgdline):
+    """Draw WGD at (xx, yy) position
 
     Args:
         ax (axis): Matplotlib axes
@@ -121,19 +121,32 @@ def draw_wgd(ax, y, rescale, name, wgdcache):
         yy (float): y position
         wgdline (WGDInfo): WGDInfoLines that contains the styling information
     """
+    TextCircle(
+        ax,
+        xx,
+        yy,
+        wgdline.name,
+        fc=wgdline.color,
+        radius=0.0225,
+        color="k",
+        fontweight="bold",
+    )
+
+
+def draw_wgd(ax, y, rescale, name, wgdcache):
+    """ Draw WGD given a name and the WGDInfo cache.
+
+    Args:
+        ax (matplotlib.axes): matplotlib axes
+        y (float): y position
+        rescale (function): Rescale function to generate x position
+        name (str): Name of the line (usually the taxon/internal name)
+        wgdcache (Dict): Dictionary containing WGDInfoLines
+    """
     if not wgdcache or name not in wgdcache:
         return
     for line in wgdcache[name]:
-        TextCircle(
-            ax,
-            rescale(line.divergence),
-            y,
-            line.name,
-            fc=line.color,
-            radius=0.0225,
-            color="k",
-            fontweight="bold",
-        )
+        draw_wgd_xy(ax, rescale(line.divergence), y, line)
 
 
 def draw_tree(

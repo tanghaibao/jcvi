@@ -369,13 +369,19 @@ def draw_tree(
             label_rightend = 0.98
             if horizontal:
                 ax.text(
-                    label_rightend, mid_yy, markup(group_name), ha="right", va="center",
+                    label_rightend,
+                    mid_yy,
+                    markup(group_name),
+                    color="darkslategray",
+                    ha="right",
+                    va="center",
                 )
             else:
                 ax.text(
                     label_rightend,
                     mid_yy,
                     markup(group_name),
+                    color="darkslategray",
                     ha="right",
                     va="center",
                     rotation=-90,

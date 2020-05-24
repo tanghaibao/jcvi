@@ -356,13 +356,30 @@ def draw_tree(
             ax.add_patch(
                 FancyBboxPatch(
                     (xx, min_yy - yinterval / 2),
-                    0.2,
+                    rmargin - 0.01,
                     max_yy - min_yy + yinterval,
-                    boxstyle="round,pad=-0.002,rounding_size=0.008",
+                    boxstyle="round,pad=-0.002,rounding_size=0.005",
                     fc=group_color,
                     ec=group_color,
                 )
             )
+            # Add the group label
+            horizontal = (max_yy - min_yy) < 0.2
+            mid_yy = (min_yy + max_yy) / 2
+            label_rightend = 0.98
+            if horizontal:
+                ax.text(
+                    label_rightend, mid_yy, markup(group_name), ha="right", va="center",
+                )
+            else:
+                ax.text(
+                    label_rightend,
+                    mid_yy,
+                    markup(group_name),
+                    ha="right",
+                    va="center",
+                    rotation=-90,
+                )
 
     if SH is not None:
         xs = x1

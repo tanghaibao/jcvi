@@ -9,6 +9,7 @@ import sys
 
 from collections import defaultdict
 from ete3 import Tree
+from itertools import groupby
 
 from jcvi.apps.base import OptionParser, glob
 from jcvi.formats.base import DictFile, LineFile
@@ -149,6 +150,7 @@ def draw_tree(
     leafinfo=None,
     wgdinfo=None,
     geoscale=False,
+    groups=[],
 ):
     """
     main function for drawing phylogenetic tree
@@ -204,6 +206,7 @@ def draw_tree(
 
     coords = {}
     i = 0
+    color_groups = []
     for n in t.traverse("postorder"):
         dist = n.get_distance(t)
         xx = rescale(dist)
@@ -239,6 +242,7 @@ def draw_tree(
                 size=leaffont,
                 color=lc,
             )
+            color_groups.append((lc, yy))
 
             gname = n.name.split("_")[0]
             if gname in structures:
@@ -322,6 +326,21 @@ def draw_tree(
             size=leaffont,
             color=treecolor,
         )
+
+    # Groupings on the right, often to used to show groups such as phylogenetic
+    # clades
+    if groups:
+        color_groups.sort()
+        group_extents = []
+        for color, group in groupby(color_groups, key=lambda x: x[0]):
+            group = list(group)
+            _, min_yy = min(group)
+            _, max_yy = max(group)
+            group_extents.append((min_yy, max_yy, color))
+        group_extents.sort(reverse=True)
+
+        for group_name, (min_yy, max_yy, color) in zip(groups, group_extents):
+            print(group_name, min_yy, max_yy, color)
 
     if SH is not None:
         xs = x1
@@ -513,6 +532,13 @@ def main(args):
     group.add_option(
         "--wgdinfo", help="CSV specifying the position and style of WGD events"
     )
+    group.add_option(
+        "--groups",
+        help="Group names from top to bottom, to the right of the tree. "
+        "Each distinct color in --leafinfo is considered part of the same group. "
+        "Separate the names with comma, such as 'eudicots,,monocots,'. "
+        "Empty names will be ignored for that specific group. ",
+    )
 
     opts, args, iopts = p.set_image_options(args, figsize="10x7")
 
@@ -567,6 +593,7 @@ def main(args):
         leafinfo=leafinfo,
         wgdinfo=wgdinfo,
         geoscale=opts.geoscale,
+        groups=opts.groups.split(",") if opts.groups else [],
     )
 
     root.set_xlim(0, 1)

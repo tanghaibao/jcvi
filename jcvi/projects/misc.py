@@ -123,7 +123,11 @@ def waterlilyGOM(args):
     # Top left draw the comparison table
     csv_table = CsvTable(csvfile)
     draw_table(
-        root, csv_table, extent=(0.02, 0.44, 0.55, 0.985), stripe_color="lavender",
+        root,
+        csv_table,
+        extent=(0.02, 0.44, 0.55, 0.985),
+        stripe_color="lavender",
+        yinflation=iopts.w / iopts.h,
     )
 
     normalize_axes(root)

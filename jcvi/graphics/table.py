@@ -66,7 +66,7 @@ class CsvTable(list):
         return len(self.header)
 
 
-def draw_multiple_images_in_rectangle(ax, images, rect, box_width):
+def draw_multiple_images_in_rectangle(ax, images, rect, box_width, yinflation=1):
     """ Draw multiple images in given rectangle. Used by draw_table().
 
     Args:
@@ -79,21 +79,24 @@ def draw_multiple_images_in_rectangle(ax, images, rect, box_width):
     left, bottom, width, height = rect
     box_start = (width - n_images * box_width) / 2
     left += box_start
-    bottom += (height - box_width) / 2
+    bottom += (height - box_width * yinflation) / 2
     for image in images:
-        extent = (left, left + box_width, bottom, bottom + box_width)
+        extent = (left, left + box_width, bottom, bottom + box_width * yinflation)
         ax.imshow(image, extent=extent, aspect="auto")
         left += box_width
 
 
-def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige"):
+def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige", yinflation=1):
     """ Draw table on canvas.
 
     Args:
         ax (matplotlib axes): matplotlib axes
         csv_table (CsvTable): Parsed CSV table
         extent (tuple, optional): (left, right, bottom, top). Defaults to (0, 1, 0, 1).
-        stripe_color (str, optional): Stripe color of the table. Defaults to "beige".
+        stripe_color (str, optional): Stripe color of the table. Defaults to
+        "beige".
+        yinflation (float, optional): Inflate on y since imshow aspect ratio
+        sometimes create warped images. Defaults to 1.
     """
     left, right, bottom, top = extent
     width = right - left
@@ -113,7 +116,6 @@ def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige"):
             box_width = min(
                 min(column_widths[j] / len(x) for j, x in enumerate(row)), yinterval
             )
-            print("yinterval={} box_width={}".format(yinterval, box_width))
         for j, cell in enumerate(row):
             xinterval = column_widths[j]
             xmid = xstart + xinterval / 2
@@ -121,7 +123,9 @@ def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige"):
             if contain_images:
                 # There may be multiple images, center them
                 rect = (xstart, top - (i + 1) * yinterval, xinterval, yinterval)
-                draw_multiple_images_in_rectangle(ax, cell, rect, box_width)
+                draw_multiple_images_in_rectangle(
+                    ax, cell, rect, box_width, yinflation=yinflation
+                )
                 should_stripe = False
             else:
                 ax.text(

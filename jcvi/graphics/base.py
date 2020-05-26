@@ -27,6 +27,7 @@ from matplotlib.patches import (
     PathPatch,
     FancyArrow,
     FancyArrowPatch,
+    FancyBboxPatch,
 )
 from matplotlib.path import Path
 
@@ -139,6 +140,57 @@ CHARS = {
     "{": r"\{",
     "}": r"\}",
 }
+
+
+def linear_blend(from_color, to_color, fraction=0.5):
+    """ Interpolate a new color between two colors.
+
+    https://github.com/PimpTrizkit/PJs/wiki/12.-Shade,-Blend-and-Convert-a-Web-Color-(pSBC.js)
+
+    Args:
+        from_color (matplotlib color): starting color
+        to_color (matplotlib color): ending color
+        fraction (float, optional): Range is 0 (closer to starting color) to 1
+        (closer to ending color). Defaults to 0.5.
+    """
+    from matplotlib.colors import to_rgb
+
+    def lerp(v0, v1, t):
+        # Precise method, which guarantees v = v1 when t = 1
+        return (1 - t) * v0 + t * v1
+
+    r1, g1, b1 = to_rgb(from_color)
+    r2, g2, b2 = to_rgb(to_color)
+    return (lerp(r1, r2, fraction), lerp(g1, g2, fraction), lerp(b1, b2, fraction))
+
+
+def linear_shade(from_color, fraction=0.5):
+    """ Interpolate a lighter or darker color.
+
+    https://github.com/PimpTrizkit/PJs/wiki/12.-Shade,-Blend-and-Convert-a-Web-Color-(pSBC.js)
+
+    Args:
+        from_color (matplotlib color): starting color
+        fraction (float, optional): Range is -1 (darker) to 1 (lighter). Defaults to 0.5.
+    """
+    assert -1 <= fraction <= 1, "Fraction must be between -1 and 1"
+    if fraction < 0:
+        return linear_blend("k", from_color, 1 + fraction)
+    return linear_blend(from_color, "w", fraction)
+
+
+def load_image(filename):
+    img = plt.imread(filename)
+    if len(img.shape) == 2:  # Gray-scale image, convert to RGB
+        # http://www.socouldanyone.com/2013/03/converting-grayscale-to-rgb-with-numpy.html
+        h, w = img.shape
+        ret = np.empty((h, w, 3), dtype=np.uint8)
+        ret[:, :, 2] = ret[:, :, 1] = ret[:, :, 0] = img
+        img = ret
+    else:
+        h, w, c = img.shape
+    logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(filename, w, h))
+    return img
 
 
 def latex(s):

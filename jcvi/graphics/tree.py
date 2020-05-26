@@ -9,11 +9,21 @@ import sys
 
 from collections import defaultdict
 from ete3 import Tree
+from itertools import groupby
 
 from jcvi.apps.base import OptionParser, glob
 from jcvi.formats.base import DictFile, LineFile
 from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import Rectangle, markup, normalize_axes, plt, savefig, set3_n
+from jcvi.graphics.base import (
+    FancyBboxPatch,
+    Rectangle,
+    linear_shade,
+    markup,
+    normalize_axes,
+    plt,
+    savefig,
+    set3_n,
+)
 from jcvi.graphics.glyph import ExonGlyph, TextCircle, get_setups
 
 
@@ -102,8 +112,8 @@ def truncate_name(name, rule=None):
     return tname
 
 
-def draw_wgd(ax, y, rescale, name, wgdcache):
-    """Draw WGD at (xx yy) position
+def draw_wgd_xy(ax, xx, yy, wgdline):
+    """Draw WGD at (xx, yy) position
 
     Args:
         ax (axis): Matplotlib axes
@@ -111,19 +121,32 @@ def draw_wgd(ax, y, rescale, name, wgdcache):
         yy (float): y position
         wgdline (WGDInfo): WGDInfoLines that contains the styling information
     """
+    TextCircle(
+        ax,
+        xx,
+        yy,
+        wgdline.name,
+        fc=wgdline.color,
+        radius=0.0225,
+        color="k",
+        fontweight="bold",
+    )
+
+
+def draw_wgd(ax, y, rescale, name, wgdcache):
+    """ Draw WGD given a name and the WGDInfo cache.
+
+    Args:
+        ax (matplotlib.axes): matplotlib axes
+        y (float): y position
+        rescale (function): Rescale function to generate x position
+        name (str): Name of the line (usually the taxon/internal name)
+        wgdcache (Dict): Dictionary containing WGDInfoLines
+    """
     if not wgdcache or name not in wgdcache:
         return
     for line in wgdcache[name]:
-        TextCircle(
-            ax,
-            rescale(line.divergence),
-            y,
-            line.name,
-            fc=line.color,
-            radius=0.0225,
-            color="k",
-            fontweight="bold",
-        )
+        draw_wgd_xy(ax, rescale(line.divergence), y, line)
 
 
 def draw_tree(
@@ -132,6 +155,7 @@ def draw_tree(
     hpd=None,
     margin=0.1,
     rmargin=0.2,
+    ymargin=0.1,
     tip=0.01,
     treecolor="k",
     supportcolor="k",
@@ -149,6 +173,7 @@ def draw_tree(
     leafinfo=None,
     wgdinfo=None,
     geoscale=False,
+    groups=[],
 ):
     """
     main function for drawing phylogenetic tree
@@ -179,7 +204,7 @@ def draw_tree(
     print("max_dist = {}".format(max_dist), file=sys.stderr)
 
     xstart = margin
-    ystart = 2 * margin
+    ystart = 2 * ymargin
     # scale the tree
     scale = (1 - margin - rmargin) / max_dist
 
@@ -191,6 +216,7 @@ def draw_tree(
 
     num_leaves = len(t.get_leaf_names())
     yinterval = (1 - ystart) / num_leaves
+    ytop = ystart + (num_leaves - 0.5) * yinterval
 
     # get exons structures, if any
     structures = {}
@@ -204,6 +230,7 @@ def draw_tree(
 
     coords = {}
     i = 0
+    color_groups = []  # Used to plot groups to the right of the tree
     for n in t.traverse("postorder"):
         dist = n.get_distance(t)
         xx = rescale(dist)
@@ -239,6 +266,7 @@ def draw_tree(
                 size=leaffont,
                 color=lc,
             )
+            color_groups.append((lc, yy, xx))
 
             gname = n.name.split("_")[0]
             if gname in structures:
@@ -295,6 +323,8 @@ def draw_tree(
                     )
             if internal and n.name:
                 TextCircle(ax, xx, yy, n.name, size=9)
+            else:  # Just a dot
+                TextCircle(ax, xx, yy, None, radius=0.005)
 
         coords[n] = (xx, yy)
         # WGD info
@@ -302,12 +332,14 @@ def draw_tree(
 
     # scale bar
     if geoscale:
-        draw_geoscale(ax, margin=margin, rmargin=rmargin, yy=margin, max_dist=max_dist)
+        draw_geoscale(
+            ax, ytop, margin=margin, rmargin=rmargin, yy=ymargin, max_dist=max_dist
+        )
     else:
         br = 0.1
         x1 = xstart + 0.1
         x2 = x1 + br * scale
-        yy = margin
+        yy = ymargin
         ax.plot([x1, x1], [yy - tip, yy + tip], "-", color=treecolor)
         ax.plot([x2, x2], [yy - tip, yy + tip], "-", color=treecolor)
         ax.plot([x1, x2], [yy, yy], "-", color=treecolor)
@@ -321,9 +353,57 @@ def draw_tree(
             color=treecolor,
         )
 
+    # Groupings on the right, often to used to show groups such as phylogenetic
+    # clades
+    if groups:
+        color_groups.sort()
+        group_extents = []
+        for color, group in groupby(color_groups, key=lambda x: x[0]):
+            group = list(group)
+            _, min_yy, xx = min(group)
+            _, max_yy, xx = max(group)
+            group_extents.append((min_yy, max_yy, xx, color))
+        group_extents.sort(reverse=True)
+
+        for group_name, (min_yy, max_yy, xx, color) in zip(groups, group_extents):
+            group_color = linear_shade(color, fraction=0.85)
+            ax.add_patch(
+                FancyBboxPatch(
+                    (xx, min_yy - yinterval / 2),
+                    rmargin - 0.01,
+                    max_yy - min_yy + yinterval,
+                    boxstyle="round,pad=-0.002,rounding_size=0.005",
+                    fc=group_color,
+                    ec=group_color,
+                )
+            )
+            # Add the group label
+            horizontal = (max_yy - min_yy) < 0.2
+            mid_yy = (min_yy + max_yy) / 2
+            label_rightend = 0.98
+            if horizontal:
+                ax.text(
+                    label_rightend,
+                    mid_yy,
+                    markup(group_name),
+                    color="darkslategray",
+                    ha="right",
+                    va="center",
+                )
+            else:
+                ax.text(
+                    label_rightend,
+                    mid_yy,
+                    markup(group_name),
+                    color="darkslategray",
+                    ha="right",
+                    va="center",
+                    rotation=-90,
+                )
+
     if SH is not None:
         xs = x1
-        ys = (margin + yy) / 2.0
+        ys = (ymargin + yy) / 2.0
         ax.text(
             xs,
             ys,
@@ -332,8 +412,6 @@ def draw_tree(
             size=leaffont,
             color="g",
         )
-
-    normalize_axes(ax)
 
 
 def read_trees(tree):
@@ -353,7 +431,9 @@ def read_trees(tree):
     return trees
 
 
-def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0):
+def draw_geoscale(
+    ax, ytop, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0, contrast_epochs=True
+):
     """
     Draw geological epoch on million year ago (mya) scale.
     max_dist = 3.0 => max is 300 mya
@@ -391,7 +471,7 @@ def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0):
         ("Jurassic", 145.5, 201.3),
         ("Triassic", 201.3, 252.17),
         ("Permian", 252.17, 298.9),
-        # ("Carboniferous", 298.9, 358.9),
+        ("Carboniferous", 298.9, 358.9),
     )
     h = 0.05
     for (era, start, end), color in zip(Geo, set3_n(len(Geo))):
@@ -409,6 +489,25 @@ def draw_geoscale(ax, margin=0.1, rmargin=0.2, yy=0.1, max_dist=3.0):
             size=8,
         )
         ax.add_patch(p)
+
+    # We highlight recent epochs for better visualization, we just highlight
+    # Neogene and Cretaceous as these are more relevant for most phylogeny
+    if contrast_epochs:
+        for era, start, end in Geo:
+            if not era in ("Neogene", "Cretaceous"):
+                continue
+
+            # Make a beige patch
+            start, end = cv(start), cv(end)
+            ax.add_patch(
+                Rectangle(
+                    (end, yy + tick + h),
+                    abs(start - end),
+                    ytop - yy - tick - h,
+                    fc="beige",
+                    ec="beige",
+                )
+            )
 
 
 def parse_tree(infile):
@@ -511,6 +610,13 @@ def main(args):
     group.add_option(
         "--wgdinfo", help="CSV specifying the position and style of WGD events"
     )
+    group.add_option(
+        "--groups",
+        help="Group names from top to bottom, to the right of the tree. "
+        "Each distinct color in --leafinfo is considered part of the same group. "
+        "Separate the names with comma, such as 'eudicots,,monocots,'. "
+        "Empty names will be ignored for that specific group. ",
+    )
 
     opts, args, iopts = p.set_image_options(args, figsize="10x7")
 
@@ -551,6 +657,7 @@ def main(args):
         hpd=hpd,
         margin=margin,
         rmargin=rmargin,
+        ymargin=margin,
         supportcolor=supportcolor,
         internal=opts.internal,
         outgroup=outgroup,
@@ -565,11 +672,10 @@ def main(args):
         leafinfo=leafinfo,
         wgdinfo=wgdinfo,
         geoscale=opts.geoscale,
+        groups=opts.groups.split(",") if opts.groups else [],
     )
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

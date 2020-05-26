@@ -11,8 +11,6 @@ import csv
 import sys
 import os.path as op
 
-from wand.image import Image
-
 from jcvi.apps.base import OptionParser
 from jcvi.graphics.base import (
     FancyBboxPatch,
@@ -22,6 +20,7 @@ from jcvi.graphics.base import (
     normalize_axes,
     plt,
     savefig,
+    load_image,
 )
 
 
@@ -36,12 +35,17 @@ class CsvTable(list):
                 if is_image_file:
                     images = []
                     for filenames in row:
-                        images.append([Image(filename=f) for f in filenames.split("|")])
+                        images.append(
+                            [
+                                load_image(filename=f.replace("file://", ""))
+                                for f in filenames.split("|")
+                            ]
+                        )
                     self.append(images)
                 else:
                     self.append(row)
         print(self.header)
-        print(self)
+        # print(self)
 
     @property
     def rows(self):
@@ -52,25 +56,40 @@ class CsvTable(list):
         return len(self.header)
 
 
+def draw_multiple_images_in_rectangle(ax, images, rect):
+    n_images = len(images)
+    left, bottom, width, height = rect
+    box_width = min(width / n_images, height)
+    box_start = (width - n_images * box_width) / 2
+    left += box_start
+    bottom += (height - box_width) / 2
+    for image in images:
+        extent = (left, left + box_width, bottom, bottom + box_width)
+        ax.imshow(image, extent=extent)
+        left += box_width
+        print(extent)
+
+
 def draw_table(ax, csv_table, stripe_color="beige"):
     rows = csv_table.rows
     columns = csv_table.columns
     xinterval = 1.0 / columns
     yinterval = 1.0 / rows
-    should_stripe = False
     for i, row in enumerate(csv_table):
-        is_header = i == 0
+        should_stripe = i % 2 == 0
         for j, cell in enumerate(row):
             xmid = (j + 0.5) * xinterval
             ymid = 1 - (i + 0.5) * yinterval
             if isinstance(cell, list):
                 # There may be multiple images, center them
-                pass
+                rect = (j * xinterval, 1 - (i + 1) * yinterval, xinterval, yinterval)
+                print(rect)
+                draw_multiple_images_in_rectangle(ax, cell, rect)
+                should_stripe = False
             else:
                 ax.text(
                     xmid, ymid, cell, ha="center", va="center",
                 )
-                should_stripe = not should_stripe
 
         if not should_stripe:
             continue

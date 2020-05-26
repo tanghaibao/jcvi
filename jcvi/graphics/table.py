@@ -48,6 +48,18 @@ class CsvTable(list):
         # print(self)
 
     @property
+    def column_widths(self):
+        # Get the maximum width for each column
+        max_widths = [0] * self.columns
+        for row in self:
+            for j, cell in enumerate(row):
+                if isinstance(cell, list):
+                    continue
+                max_widths[j] = max(max_widths[j], len(cell))
+        total_width = sum(max_widths)
+        return [x / total_width for x in max_widths]
+
+    @property
     def rows(self):
         return len(self)
 
@@ -56,16 +68,24 @@ class CsvTable(list):
         return len(self.header)
 
 
-def draw_multiple_images_in_rectangle(ax, images, rect):
+def draw_multiple_images_in_rectangle(ax, images, rect, box_width):
+    plt.rcParams["image.composite_image"] = False
     n_images = len(images)
     left, bottom, width, height = rect
-    box_width = min(width / n_images, height)
     box_start = (width - n_images * box_width) / 2
     left += box_start
     bottom += (height - box_width) / 2
     for image in images:
         extent = (left, left + box_width, bottom, bottom + box_width)
-        ax.imshow(image, extent=extent)
+        im = ax.imshow(image, extent=extent)
+        patch = FancyBboxPatch(
+            (left, bottom),
+            box_width,
+            box_width,
+            boxstyle="round,pad=-0.002,rounding_size=0.005",
+            fill=False,
+        )
+        # im.set_clip_path(patch)
         left += box_width
         print(extent)
 
@@ -73,23 +93,34 @@ def draw_multiple_images_in_rectangle(ax, images, rect):
 def draw_table(ax, csv_table, stripe_color="beige"):
     rows = csv_table.rows
     columns = csv_table.columns
+    column_widths = csv_table.column_widths
+    print(column_widths)
+
     xinterval = 1.0 / columns
     yinterval = 1.0 / rows
     for i, row in enumerate(csv_table):
         should_stripe = i % 2 == 0
+        contain_images = isinstance(row[0], list)
+        xstart = 0
+        if contain_images:
+            box_width = min(
+                min(column_widths[j] / len(x) for j, x in enumerate(row)), yinterval
+            )
         for j, cell in enumerate(row):
-            xmid = (j + 0.5) * xinterval
+            xinterval = column_widths[j]
+            xmid = xstart + xinterval / 2
             ymid = 1 - (i + 0.5) * yinterval
-            if isinstance(cell, list):
+            if contain_images:
                 # There may be multiple images, center them
-                rect = (j * xinterval, 1 - (i + 1) * yinterval, xinterval, yinterval)
-                print(rect)
-                draw_multiple_images_in_rectangle(ax, cell, rect)
+                rect = (xstart, 1 - (i + 1) * yinterval, xinterval, yinterval)
+                draw_multiple_images_in_rectangle(ax, cell, rect, box_width)
                 should_stripe = False
             else:
                 ax.text(
                     xmid, ymid, cell, ha="center", va="center",
                 )
+
+            xstart += column_widths[j]
 
         if not should_stripe:
             continue

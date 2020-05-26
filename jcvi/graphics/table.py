@@ -52,23 +52,39 @@ class CsvTable(list):
         return len(self.header)
 
 
-def draw_table(ax, csv_table):
+def draw_table(ax, csv_table, stripe_color="beige"):
     rows = csv_table.rows
     columns = csv_table.columns
     xinterval = 1.0 / columns
     yinterval = 1.0 / rows
+    should_stripe = False
     for i, row in enumerate(csv_table):
+        is_header = i == 0
         for j, cell in enumerate(row):
+            xmid = (j + 0.5) * xinterval
+            ymid = 1 - (i + 0.5) * yinterval
             if isinstance(cell, list):
-                continue
+                # There may be multiple images, center them
+                pass
             else:
                 ax.text(
-                    (j + 0.5) * xinterval,
-                    1 - (i + 0.5) * yinterval,
-                    cell,
-                    ha="center",
-                    va="center",
+                    xmid, ymid, cell, ha="center", va="center",
                 )
+                should_stripe = not should_stripe
+
+        if not should_stripe:
+            continue
+
+        # Draw the stripes
+        ax.add_patch(
+            Rectangle(
+                (0, 1 - (i + 1) * yinterval),
+                1,
+                yinterval,
+                fc=stripe_color,
+                ec=stripe_color,
+            )
+        )
 
 
 def main(args):

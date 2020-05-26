@@ -155,6 +155,7 @@ def draw_tree(
     hpd=None,
     margin=0.1,
     rmargin=0.2,
+    ymargin=0.1,
     tip=0.01,
     treecolor="k",
     supportcolor="k",
@@ -203,7 +204,7 @@ def draw_tree(
     print("max_dist = {}".format(max_dist), file=sys.stderr)
 
     xstart = margin
-    ystart = 2 * margin
+    ystart = 2 * ymargin
     # scale the tree
     scale = (1 - margin - rmargin) / max_dist
 
@@ -332,13 +333,13 @@ def draw_tree(
     # scale bar
     if geoscale:
         draw_geoscale(
-            ax, ytop, margin=margin, rmargin=rmargin, yy=margin, max_dist=max_dist
+            ax, ytop, margin=margin, rmargin=rmargin, yy=ymargin, max_dist=max_dist
         )
     else:
         br = 0.1
         x1 = xstart + 0.1
         x2 = x1 + br * scale
-        yy = margin
+        yy = ymargin
         ax.plot([x1, x1], [yy - tip, yy + tip], "-", color=treecolor)
         ax.plot([x2, x2], [yy - tip, yy + tip], "-", color=treecolor)
         ax.plot([x1, x2], [yy, yy], "-", color=treecolor)
@@ -402,7 +403,7 @@ def draw_tree(
 
     if SH is not None:
         xs = x1
-        ys = (margin + yy) / 2.0
+        ys = (ymargin + yy) / 2.0
         ax.text(
             xs,
             ys,
@@ -411,8 +412,6 @@ def draw_tree(
             size=leaffont,
             color="g",
         )
-
-    normalize_axes(ax)
 
 
 def read_trees(tree):
@@ -658,6 +657,7 @@ def main(args):
         hpd=hpd,
         margin=margin,
         rmargin=rmargin,
+        ymargin=margin,
         supportcolor=supportcolor,
         internal=opts.internal,
         outgroup=outgroup,
@@ -675,9 +675,7 @@ def main(args):
         groups=opts.groups.split(",") if opts.groups else [],
     )
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

@@ -11,7 +11,7 @@ import logging
 
 import numpy as np
 
-from jcvi.graphics.base import plt, Polygon, panel_labels, savefig
+from jcvi.graphics.base import Polygon, normalize_axes, panel_labels, plt, savefig
 from jcvi.graphics.glyph import GeneGlyph, RoundRect, TextCircle, DoubleSquare, plot_cap
 from jcvi.graphics.karyotype import Karyotype
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
@@ -62,9 +62,9 @@ def waterlilyGOM(args):
     from jcvi.graphics.table import CsvTable, draw_table
 
     p = OptionParser(waterlilyGOM.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="10x9")
+    opts, args, iopts = p.set_image_options(args, figsize="12x9")
 
-    if len(args) != 1:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
     (datafile, csvfile) = args
@@ -78,7 +78,7 @@ def waterlilyGOM(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    margin, rmargin = 0.1, 0.22  # Left and right margin
+    margin, rmargin = 0.15, 0.19  # Left and right margin
     leafinfo = LeafInfoFile("leafinfo.csv").cache
     wgdinfo = WGDInfoFile("wgdinfo.csv").cache
     groups = "Monocots,Eudicots,ANA-grade,Gymnosperms"
@@ -99,10 +99,10 @@ def waterlilyGOM(args):
     )
 
     # Bottom right show legends for the WGD circles
-    pad = 0.025
+    pad = 0.02
     ypad = 0.04
     xstart = 1 - rmargin + pad
-    ystart = 2 * margin
+    ystart = 0.2
     waterlily_wgdline = wgdinfo["waterlily"][0]
     ypos = ystart - 2 * ypad
     draw_wgd_xy(root, xstart, ypos, waterlily_wgdline)
@@ -122,11 +122,9 @@ def waterlilyGOM(args):
 
     # Top left draw the comparison table
     csv_table = CsvTable(csvfile)
-    draw_table(root, csv_table)
+    # draw_table(root, csv_table, extent=(0, 0.45, 0.65, 1))
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

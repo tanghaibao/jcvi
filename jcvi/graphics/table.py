@@ -47,8 +47,7 @@ class CsvTable(list):
         print(self.header)
         # print(self)
 
-    @property
-    def column_widths(self):
+    def column_widths(self, total=1):
         # Get the maximum width for each column
         max_widths = [0] * self.columns
         for row in self:
@@ -57,7 +56,7 @@ class CsvTable(list):
                     continue
                 max_widths[j] = max(max_widths[j], len(cell))
         total_width = sum(max_widths)
-        return [x / total_width for x in max_widths]
+        return [x * total / total_width for x in max_widths]
 
     @property
     def rows(self):
@@ -104,7 +103,7 @@ def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige"):
     height = top - bottom
     rows = csv_table.rows
     columns = csv_table.columns
-    column_widths = csv_table.column_widths
+    column_widths = csv_table.column_widths(width)
     print(column_widths)
 
     xinterval = width / columns
@@ -139,8 +138,8 @@ def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige"):
         # Draw the stripes
         ax.add_patch(
             Rectangle(
-                (0, 1 - (i + 1) * yinterval),
-                1,
+                (0, top - (i + 1) * yinterval),
+                width,
                 yinterval,
                 fc=stripe_color,
                 ec=stripe_color,
@@ -170,9 +169,7 @@ def main(args):
 
     draw_table(root, csv_table)
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

@@ -48,7 +48,7 @@ def main():
 
 def waterlilyGOM(args):
     """
-    %prog mcmctree.tre
+    %prog mcmctree.tre table.csv
 
     Customized figure to plot phylogeny and related infographics.
     """
@@ -59,6 +59,7 @@ def waterlilyGOM(args):
         parse_tree,
         draw_wgd_xy,
     )
+    from jcvi.graphics.table import CsvTable, draw_table
 
     p = OptionParser(waterlilyGOM.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="10x9")
@@ -66,7 +67,7 @@ def waterlilyGOM(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    (datafile,) = args
+    (datafile, csvfile) = args
     outgroup = ["ginkgo"]
 
     logging.debug("Load tree file `{0}`".format(datafile))
@@ -118,6 +119,10 @@ def waterlilyGOM(args):
     root.text(
         xstart + pad, ypos, "Other known WGDs", color=other_wgdline.color, va="center",
     )
+
+    # Top left draw the comparison table
+    csv_table = CsvTable(csvfile)
+    draw_table(root, csv_table)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

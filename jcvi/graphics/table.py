@@ -69,6 +69,14 @@ class CsvTable(list):
 
 
 def draw_multiple_images_in_rectangle(ax, images, rect, box_width):
+    """ Draw multiple images in given rectangle. Used by draw_table().
+
+    Args:
+        ax (matplotlib axes): matplotlib axes
+        images (List[image]): List of images
+        rect (Tuple[float]): (left, bottom, width, height)
+        box_width (float): Width of the image square
+    """
     plt.rcParams["image.composite_image"] = False
     n_images = len(images)
     left, bottom, width, height = rect
@@ -78,30 +86,33 @@ def draw_multiple_images_in_rectangle(ax, images, rect, box_width):
     for image in images:
         extent = (left, left + box_width, bottom, bottom + box_width)
         im = ax.imshow(image, extent=extent)
-        patch = FancyBboxPatch(
-            (left, bottom),
-            box_width,
-            box_width,
-            boxstyle="round,pad=-0.002,rounding_size=0.005",
-            fill=False,
-        )
-        # im.set_clip_path(patch)
         left += box_width
         print(extent)
 
 
-def draw_table(ax, csv_table, stripe_color="beige"):
+def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige"):
+    """ Draw table on canvas.
+
+    Args:
+        ax (matplotlib axes): matplotlib axes
+        csv_table (CsvTable): Parsed CSV table
+        extent (tuple, optional): (left, right, bottom, top). Defaults to (0, 1, 0, 1).
+        stripe_color (str, optional): Stripe color of the table. Defaults to "beige".
+    """
+    left, right, bottom, top = extent
+    width = right - left
+    height = top - bottom
     rows = csv_table.rows
     columns = csv_table.columns
     column_widths = csv_table.column_widths
     print(column_widths)
 
-    xinterval = 1.0 / columns
-    yinterval = 1.0 / rows
+    xinterval = width / columns
+    yinterval = height / rows
     for i, row in enumerate(csv_table):
         should_stripe = i % 2 == 0
         contain_images = isinstance(row[0], list)
-        xstart = 0
+        xstart = left
         if contain_images:
             box_width = min(
                 min(column_widths[j] / len(x) for j, x in enumerate(row)), yinterval
@@ -109,7 +120,7 @@ def draw_table(ax, csv_table, stripe_color="beige"):
         for j, cell in enumerate(row):
             xinterval = column_widths[j]
             xmid = xstart + xinterval / 2
-            ymid = 1 - (i + 0.5) * yinterval
+            ymid = top - (i + 0.5) * yinterval
             if contain_images:
                 # There may be multiple images, center them
                 rect = (xstart, 1 - (i + 1) * yinterval, xinterval, yinterval)

@@ -45,7 +45,6 @@ class CsvTable(list):
                 else:
                     self.append(row)
         print(self.header)
-        # print(self)
 
     def column_widths(self, total=1):
         # Get the maximum width for each column
@@ -76,7 +75,6 @@ def draw_multiple_images_in_rectangle(ax, images, rect, box_width):
         rect (Tuple[float]): (left, bottom, width, height)
         box_width (float): Width of the image square
     """
-    plt.rcParams["image.composite_image"] = False
     n_images = len(images)
     left, bottom, width, height = rect
     box_start = (width - n_images * box_width) / 2
@@ -84,9 +82,8 @@ def draw_multiple_images_in_rectangle(ax, images, rect, box_width):
     bottom += (height - box_width) / 2
     for image in images:
         extent = (left, left + box_width, bottom, bottom + box_width)
-        im = ax.imshow(image, extent=extent)
+        ax.imshow(image, extent=extent, aspect="auto")
         left += box_width
-        print(extent)
 
 
 def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige"):
@@ -116,13 +113,14 @@ def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige"):
             box_width = min(
                 min(column_widths[j] / len(x) for j, x in enumerate(row)), yinterval
             )
+            print("yinterval={} box_width={}".format(yinterval, box_width))
         for j, cell in enumerate(row):
             xinterval = column_widths[j]
             xmid = xstart + xinterval / 2
             ymid = top - (i + 0.5) * yinterval
             if contain_images:
                 # There may be multiple images, center them
-                rect = (xstart, 1 - (i + 1) * yinterval, xinterval, yinterval)
+                rect = (xstart, top - (i + 1) * yinterval, xinterval, yinterval)
                 draw_multiple_images_in_rectangle(ax, cell, rect, box_width)
                 should_stripe = False
             else:
@@ -135,11 +133,12 @@ def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige"):
         if not should_stripe:
             continue
 
-        # Draw the stripes
+        # Draw the stripes, extend a little longer horizontally
+        xpad = 0.01
         ax.add_patch(
             Rectangle(
-                (0, top - (i + 1) * yinterval),
-                width,
+                (left - xpad, top - (i + 1) * yinterval),
+                width + 2 * xpad,
                 yinterval,
                 fc=stripe_color,
                 ec=stripe_color,

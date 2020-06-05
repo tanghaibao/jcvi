@@ -20,22 +20,27 @@ def test_sample_N():
     assert set(a) == set(range(5))
 
 
+def remove_if_exists(filename):
+    if os.path.exists(filename):
+        os.remove(filename)
+
+
 def test_download():
     from jcvi.apps.base import download
     from jcvi.apps.vecscreen import ECOLI_URL, UNIVEC_URL
 
     ret = download("http://www.google.com")
     assert ret == "index.html"
-    os.remove(ret)
+    remove_if_exists(ret)
 
     ret = download(ECOLI_URL, filename="ecoli.fa.gz")
     assert ret == "ecoli.fa.gz"
-    os.remove(ret)
+    remove_if_exists(ret)
 
     ret = download(UNIVEC_URL, filename="univec.fa.gz")
     assert ret == "univec.fa.gz"
-    os.remove(ret)
+    remove_if_exists(ret)
 
     ret = download(UNIVEC_URL)
     assert ret == "UniVec_Core"
-    os.remove(ret)
+    remove_if_exists(ret)

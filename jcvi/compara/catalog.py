@@ -793,8 +793,8 @@ def tandem_main(
             if b.hitlen < min(query_len, subject_len) * P / 100.0:
                 continue
 
-            query = gene_name(b.query, strip_name)
-            subject = gene_name(b.subject, strip_name)
+            query = gene_name(b.query, sep=strip_name)
+            subject = gene_name(b.subject, sep=strip_name)
             qi, q = order[query]
             si, s = order[subject]
 
@@ -816,8 +816,8 @@ def tandem_main(
             if b.evalue > evalue:
                 continue
 
-            query = gene_name(b.query, strip_name)
-            subject = gene_name(b.subject, strip_name)
+            query = gene_name(b.query, sep=strip_name)
+            subject = gene_name(b.subject, sep=strip_name)
             homologs.join(query, subject)
 
         if genefam:

@@ -207,6 +207,7 @@ class BaseGlyph(list):
 class Glyph(BaseGlyph):
 
     Styles = ("box", "arrow")
+    ArrowStyle = "Simple,head_length=1.5,head_width=7,tail_width=7"
 
     def __init__(
         self,
@@ -217,6 +218,8 @@ class Glyph(BaseGlyph):
         height=0.04,
         gradient=True,
         fc="gray",
+        ec="gainsboro",
+        lw=0,
         style="box",
         **kwargs
     ):
@@ -238,9 +241,19 @@ class Glyph(BaseGlyph):
         # Frame around the gradient rectangle
         p1 = (x1, y - 0.5 * height)
         if style == "arrow":
-            patch = FancyArrowPatch((x1, y), (x2, y), fc=fc, lw=0, **kwargs)
+            patch = FancyArrowPatch(
+                (x1, y),
+                (x2, y),
+                shrinkA=0,
+                shrinkB=0,
+                arrowstyle=self.ArrowStyle,
+                fc=fc,
+                ec=ec,
+                lw=lw,
+                **kwargs
+            )
         else:
-            patch = Rectangle(p1, width, height, fc=fc, lw=0, **kwargs)
+            patch = Rectangle(p1, width, height, fc=fc, ec=ec, lw=lw, **kwargs)
         self.append(patch)
 
         # Several overlaying patches

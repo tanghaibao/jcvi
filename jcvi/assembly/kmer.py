@@ -132,19 +132,19 @@ class KmerSpectrum(BaseFile):
 
         # max2: resetting max2 for cases of very high polymorphism
         if ploidy == 2:
-            ndk_half = ndk[_kf_max2 / 2]
+            ndk_half = ndk[_kf_max2 // 2]
             ndk_double = ndk[_kf_max2 * 2]
             if ndk_double > ndk_half:
                 _kf_max2 *= 2
 
         # max1: SNPs local maximum max1 as half global maximum max2
-        _kf_max1 = _kf_max2 / 2
+        _kf_max1 = _kf_max2 // 2
 
         # min2: SNPs local minimum min2 between max1 and max2
         _kf_min2 = (
             _kf_max1
             * (2 * ndk[_kf_max1] + ndk[_kf_max2])
-            / (ndk[_kf_max1] + ndk[_kf_max2])
+            // (ndk[_kf_max1] + ndk[_kf_max2])
         )
 
         # min1: refine between min1 and max2/2
@@ -153,7 +153,7 @@ class KmerSpectrum(BaseFile):
                 _kf_min1 = kf
 
         # min3: not a minimum, really. upper edge of main peak
-        _kf_min3 = _kf_max2 * 3 / 2
+        _kf_min3 = _kf_max2 * 3 // 2
 
         print("kfs:", _kf_min1, _kf_max1, _kf_min2, _kf_max2, _kf_min3, file=sys.stderr)
         self.min1 = _kf_min1
@@ -211,7 +211,7 @@ class KmerSpectrum(BaseFile):
             thousands(GR), percentage(GR, G)
         )
         m += "Coverage estimate: {0} x\n".format(coverage)
-        self.repetitive = "Repeats: {0} percent".format(GR * 100 / G)
+        self.repetitive = "Repeats: {0} percent".format(GR * 100 // G)
 
         if ploidy == 2:
             d_SNP = int(_d_SNP)
@@ -911,7 +911,7 @@ def histogram(args):
         asciiplot(x, y, title=title)
         return Genome_size
 
-    plt.figure(1, (6, 6))
+    plt.figure(1, (7, 7))
     plt.plot(x, y, "g-", lw=2, alpha=0.5)
     ax = plt.gca()
 

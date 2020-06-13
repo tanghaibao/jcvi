@@ -399,6 +399,8 @@ def asciiaxis(x, digit=1):
         x = str(x)
     elif isinstance(x, float):
         x = "{0:.{1}f}".format(x, digit)
+    elif isinstance(x, np.int64):
+        x = str(x)
     elif isinstance(x, np.ndarray):
         assert len(x) == 2
         x = str(x).replace("]", ")")  # upper bound not inclusive

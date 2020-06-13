@@ -17,6 +17,7 @@ from jcvi.graphics.base import (
     Rectangle,
     CirclePolygon,
     Ellipse,
+    FancyArrowPatch,
     Polygon,
     savefig,
     get_map,
@@ -204,16 +205,56 @@ class BaseGlyph(list):
 
 
 class Glyph(BaseGlyph):
-    """Draws gradient rectangle
-    """
 
-    def __init__(self, ax, x1, x2, y, height=0.04, gradient=True, fc="gray", **kwargs):
+    Styles = ("box", "arrow")
+    ArrowStyle = "Simple,head_length=1.5,head_width=7,tail_width=7"
+
+    def __init__(
+        self,
+        ax,
+        x1,
+        x2,
+        y,
+        height=0.04,
+        gradient=True,
+        fc="gray",
+        ec="gainsboro",
+        lw=0,
+        style="box",
+        **kwargs
+    ):
+        """ Draw a region that represent an interval feature, e.g. gene or repeat
+
+        Args:
+            ax (matplotlib.axis): matplot axis object
+            x1 (float): start coordinate
+            x2 (float): end coordinate
+            y (float): y coordinate. Note that the feature is horizontally drawn.
+            height (float, optional): Height of the feature. Defaults to 0.04.
+            gradient (bool, optional): Shall we draw color gradient on the box? Defaults to True.
+            fc (str, optional): Face color of the feature. Defaults to "gray".
+            style (str, optional): Style, either box|arrow. Defaults to "box".
+        """
 
         super(Glyph, self).__init__(ax)
         width = x2 - x1
         # Frame around the gradient rectangle
         p1 = (x1, y - 0.5 * height)
-        self.append(Rectangle(p1, width, height, fc=fc, lw=0, **kwargs))
+        if style == "arrow":
+            patch = FancyArrowPatch(
+                (x1, y),
+                (x2, y),
+                shrinkA=0,
+                shrinkB=0,
+                arrowstyle=self.ArrowStyle,
+                fc=fc,
+                ec=ec,
+                lw=lw,
+                **kwargs
+            )
+        else:
+            patch = Rectangle(p1, width, height, fc=fc, ec=ec, lw=lw, **kwargs)
+        self.append(patch)
 
         # Several overlaying patches
         if gradient:

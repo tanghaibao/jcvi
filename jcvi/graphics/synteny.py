@@ -172,6 +172,7 @@ class Region(object):
         pad=0.05,
         vpad=0.015,
         extra_features=None,
+        glyphstyle="box",
     ):
         x, y = layout.x, layout.y
         ratio = layout.ratio
@@ -226,7 +227,17 @@ class Region(object):
 
             color = forward if strand == "+" else backward
             if not hidden:
-                gp = Glyph(ax, x1, x2, y, height, gradient=False, fc=color, zorder=3)
+                gp = Glyph(
+                    ax,
+                    x1,
+                    x2,
+                    y,
+                    height,
+                    gradient=False,
+                    fc=color,
+                    style=glyphstyle,
+                    zorder=3,
+                )
                 gp.set_transform(tr)
 
         # Extra features (like repeats)
@@ -242,6 +253,7 @@ class Region(object):
                     height * 3 / 4,
                     gradient=False,
                     fc="#ff7f00",
+                    style=glyphstyle,
                     zorder=2,
                 )
                 gp.set_transform(tr)
@@ -327,6 +339,7 @@ class Synteny(object):
         vpad=0.015,
         scalebar=False,
         shadestyle="curve",
+        glyphstyle="arrow",
     ):
 
         w, h = fig.get_figwidth(), fig.get_figheight()
@@ -378,6 +391,7 @@ class Synteny(object):
                 loc_label=loc_label,
                 vpad=vpad,
                 extra_features=ef,
+                glyphstyle=glyphstyle,
             )
             self.rr.append(r)
             # Use tid and accn to store gene positions
@@ -467,7 +481,9 @@ class Synteny(object):
                 RoundLabel(ax, 0.5, 0.3, label, fill=True, fc="lavender", color=color)
 
 
-def draw_gene_legend(ax, x1, x2, ytop, d=0.04, text=False, repeat=False):
+def draw_gene_legend(
+    ax, x1, x2, ytop, d=0.04, text=False, repeat=False, glyphstyle="box",
+):
     ax.plot([x1, x1 + d], [ytop, ytop], ":", color=forward, lw=2)
     ax.plot([x1 + d], [ytop], ">", color=forward, mec=forward)
     ax.plot([x2, x2 + d], [ytop, ytop], ":", color=backward, lw=2)
@@ -485,6 +501,7 @@ def draw_gene_legend(ax, x1, x2, ytop, d=0.04, text=False, repeat=False):
             0.012 * 3 / 4,
             gradient=False,
             fc="#ff7f00",
+            style=glyphstyle,
             zorder=2,
         )
         ax.text(xr, ytop + d / 2, "repeat", ha="center")
@@ -492,18 +509,20 @@ def draw_gene_legend(ax, x1, x2, ytop, d=0.04, text=False, repeat=False):
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option(
-        "--switch", help="Rename the seqid with two-column file [default: %default]"
-    )
-    p.add_option(
-        "--tree", help="Display trees on the bottom of the figure [default: %default]"
-    )
+    p.add_option("--switch", help="Rename the seqid with two-column file")
+    p.add_option("--tree", help="Display trees on the bottom of the figure")
     p.add_option("--extra", help="Extra features in BED format")
     p.add_option(
         "--scalebar",
         default=False,
         action="store_true",
         help="Add scale bar to the plot",
+    )
+    p.add_option(
+        "--glyphstyle",
+        default="box",
+        choices=Glyph.Styles,
+        help="Style of feature glyphs",
     )
     p.add_option(
         "--shadestyle",
@@ -535,6 +554,7 @@ def main():
         extra_features=opts.extra,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
+        glyphstyle=opts.glyphstyle,
     )
 
     root.set_xlim(0, 1)

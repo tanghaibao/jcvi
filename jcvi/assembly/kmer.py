@@ -84,12 +84,19 @@ class KmerSpectrum(BaseFile):
 
         Args:
             K (int, optional): K-mer size. Defaults to 23.
-            method (str, optional): Method to use, either 'nbinom' or 'allpaths'. Defaults to "nbinom".
+            method (str, optional): Method to use, either 'nbinom' or
+            'allpaths'. Defaults to "nbinom".
+
+        Returns:
+            A dictionary containing info for annotating the plot. analyze() also
+            sets the following properties:
+            - lambda_: Main peak
+            - repetitive: Repeats message
+            - snprate: SNP rate message
         """
         if method == "nbinom":
-            self.analyze_nbinom(K=K)
-        else:
-            self.analyze_allpaths(K=K)
+            return self.analyze_nbinom(K=K)
+        return self.analyze_allpaths(K=K)
 
     def analyze_nbinom(self, K=23):
         """ Analyze the K-mer histogram using negative binomial distribution.
@@ -97,7 +104,10 @@ class KmerSpectrum(BaseFile):
         Args:
             K (int, optional): K-mer size used when generating the histogram. Defaults to 23.
         """
-        return
+        self.lambda_ = 1
+        self.repetitive = "repetitive"
+        self.snprate = "snprate"
+        return {}
 
     def analyze_allpaths(self, ploidy=2, K=23, covmax=1000000):
         """
@@ -245,6 +255,7 @@ class KmerSpectrum(BaseFile):
         self.genomesize = int(round(self.totalKmers * 1.0 / self.max2))
 
         print(m, file=sys.stderr)
+        return {}
 
 
 class KMCComplex(object):

@@ -1207,7 +1207,7 @@ def histogram(args):
         if tcounts:
             x, y = zip(*tcounts)
             tcounts = dict(tcounts)
-            plt.plot(x, y, "ko", lw=2, mec="k", mfc="w")
+            plt.plot(x, y, "ko", lw=3, mec="k", mfc="w")
             ax.text(ks.max1, tcounts[ks.max1], "SNP peak")
             ax.text(ks.max2, tcounts[ks.max2], "Main peak")
 
@@ -1215,9 +1215,19 @@ def histogram(args):
     ymax = ymax * 7 / 6
     if method == "nbinom":
         # Plot multiple CN locations, CN1, CN2, ... up to ploidy
+        cn_color = "#a6cee3"
         for i in range(1, ks.ploidy + 1):
             x = i * ks.lambda_
-            plt.plot((x, x), (0, ymax), ":", color="#a6cee3")
+            plt.plot((x, x), (0, ymax), "-.", color=cn_color)
+            plt.text(
+                x,
+                ymax * 0.95,
+                "CN{}".format(i),
+                ha="right",
+                va="center",
+                color=cn_color,
+                rotation=90,
+            )
 
     messages = [
         Total_Kmers_msg,

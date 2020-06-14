@@ -78,7 +78,20 @@ class KmerSpectrum(BaseFile):
         self.counts = sorted((a, b) for a, b in self.hist.items() if vmin <= a <= vmax)
         return zip(*self.counts)
 
-    def analyze(self, ploidy=2, K=23, covmax=1000000):
+    def analyze(self, K=23, method="nbinom"):
+        if method == "nbinom":
+            return self.analyze_nbinom(K=K)
+        return self.analyze_allpaths(K=K)
+
+    def analyze_nbinom(self, K=23):
+        """ Analyze the K-mer histogram using negative binomial distribution.
+
+        Args:
+            K (int, optional): K-mer size used when generating the histogram. Defaults to 23.
+        """
+        return
+
+    def analyze_allpaths(self, ploidy=2, K=23, covmax=1000000):
         """
         Analyze Kmer spectrum, calculations derived from
         allpathslg/src/kmers/KmerSpectra.cc
@@ -810,7 +823,7 @@ def multihistogram(args):
         (line,) = A.plot(x, y, "-", lw=1)
         lines.append(line)
         legends.append("K = {0}".format(K))
-        ks.analyze(K=K)
+        ks.analyze(K=K, method="allpaths")
         genomesizes.append((K, ks.genomesize / 1e6))
 
     leg = A.legend(lines, legends, shadow=True, fancybox=True)
@@ -865,6 +878,12 @@ def histogram(args):
         help="Print PDF instead of ASCII plot",
     )
     p.add_option(
+        "--method",
+        choices=("nbinom", "allpaths"),
+        default="nbinom",
+        help="'nbinom' - slow but more accurate for het or polyploid genome; 'allpaths' - fast and works for homozygous enomes",
+    )
+    p.add_option(
         "--coverage", default=0, type="int", help="Kmer coverage [default: auto]"
     )
     p.add_option(
@@ -873,7 +892,7 @@ def histogram(args):
         action="store_true",
         help="Do not annotate K-mer peaks",
     )
-    opts, args = p.parse_args(args)
+    opts, args, iopts = p.set_image_options(args, figsize="7x7")
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -888,7 +907,7 @@ def histogram(args):
         histfile = merylhistogram(histfile)
 
     ks = KmerSpectrum(histfile)
-    ks.analyze(K=N)
+    ks.analyze(K=N, method=opts.method)
 
     Total_Kmers = int(ks.totalKmers)
     coverage = opts.coverage
@@ -911,7 +930,7 @@ def histogram(args):
         asciiplot(x, y, title=title)
         return Genome_size
 
-    plt.figure(1, (7, 7))
+    plt.figure(1, (iopts.w, iopts.h))
     plt.plot(x, y, "g-", lw=2, alpha=0.5)
     ax = plt.gca()
 
@@ -944,7 +963,7 @@ def histogram(args):
     ax.set_ylabel(ylabel)
     set_human_axis(ax)
 
-    imagename = histfile.split(".")[0] + ".pdf"
+    imagename = histfile.split(".")[0] + "." + iopts.format
     savefig(imagename, dpi=100)
 
     return Genome_size

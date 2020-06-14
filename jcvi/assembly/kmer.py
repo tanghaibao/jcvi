@@ -16,6 +16,7 @@ from collections import defaultdict
 
 from jcvi.graphics.base import (
     plt,
+    adjust_spines,
     asciiplot,
     set_human_axis,
     savefig,
@@ -79,9 +80,16 @@ class KmerSpectrum(BaseFile):
         return zip(*self.counts)
 
     def analyze(self, K=23, method="nbinom"):
+        """ Analyze K-mer histogram.
+
+        Args:
+            K (int, optional): K-mer size. Defaults to 23.
+            method (str, optional): Method to use, either 'nbinom' or 'allpaths'. Defaults to "nbinom".
+        """
         if method == "nbinom":
-            return self.analyze_nbinom(K=K)
-        return self.analyze_allpaths(K=K)
+            self.analyze_nbinom(K=K)
+        else:
+            self.analyze_allpaths(K=K)
 
     def analyze_nbinom(self, K=23):
         """ Analyze the K-mer histogram using negative binomial distribution.
@@ -174,6 +182,7 @@ class KmerSpectrum(BaseFile):
         self.min2 = _kf_min2
         self.max2 = _kf_max2
         self.min3 = _kf_min3
+        self.lambda_ = self.max2  # Main peak
 
         # Define maximum kf above which we neglect data
         _kf_hi = (
@@ -898,8 +907,10 @@ def histogram(args):
         sys.exit(not p.print_help())
 
     histfile, species, N = args
+    method = opts.method
+    vmin, vmax = opts.vmin, opts.vmax
     ascii = not opts.pdf
-    peaks = not opts.nopeaks
+    peaks = not opts.nopeaks and method == "allpaths"
     N = int(N)
 
     if histfile.rsplit(".", 1)[-1] in ("mcdat", "mcidx"):
@@ -907,11 +918,11 @@ def histogram(args):
         histfile = merylhistogram(histfile)
 
     ks = KmerSpectrum(histfile)
-    ks.analyze(K=N, method=opts.method)
+    ks.analyze(K=N, method=method)
 
     Total_Kmers = int(ks.totalKmers)
     coverage = opts.coverage
-    Kmer_coverage = ks.max2 if not coverage else coverage
+    Kmer_coverage = ks.lambda_ if not coverage else coverage
     Genome_size = int(round(Total_Kmers * 1.0 / Kmer_coverage))
 
     Total_Kmers_msg = "Total {0}-mers: {1}".format(N, thousands(Total_Kmers))
@@ -923,7 +934,7 @@ def histogram(args):
     for msg in (Total_Kmers_msg, Kmer_coverage_msg, Genome_size_msg):
         print(msg, file=sys.stderr)
 
-    x, y = ks.get_xy(opts.vmin, opts.vmax)
+    x, y = ks.get_xy(vmin, vmax)
     title = "{0} {1}-mer histogram".format(species, N)
 
     if ascii:
@@ -931,17 +942,17 @@ def histogram(args):
         return Genome_size
 
     plt.figure(1, (iopts.w, iopts.h))
-    plt.plot(x, y, "g-", lw=2, alpha=0.5)
+    plt.bar(x, y, fc="#b2df8a", lw=0)
     ax = plt.gca()
 
-    if peaks:
+    if peaks:  # Only works for method 'allpaths'
         t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
         tcounts = [(x, y) for x, y in ks.counts if x in t]
         if tcounts:
             x, y = zip(*tcounts)
             tcounts = dict(tcounts)
             plt.plot(x, y, "ko", lw=2, mec="k", mfc="w")
-            ax.text(ks.max1, tcounts[ks.max1], "SNP peak", va="top")
+            ax.text(ks.max1, tcounts[ks.max1], "SNP peak")
             ax.text(ks.max2, tcounts[ks.max2], "Main peak")
 
     messages = [
@@ -957,7 +968,9 @@ def histogram(args):
     ymax = ymax * 7 / 6
 
     ax.set_title(markup(title))
-    ax.set_ylim((ymin, ymax))
+    ax.set_xlim((0, vmax))
+    ax.set_ylim((0, ymax))
+    adjust_spines(ax, ["left", "bottom"], outward=True)
     xlabel, ylabel = "Coverage (X)", "Counts"
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)

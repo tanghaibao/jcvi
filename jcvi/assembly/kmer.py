@@ -104,9 +104,225 @@ class KmerSpectrum(BaseFile):
         Args:
             K (int, optional): K-mer size used when generating the histogram. Defaults to 23.
         """
-        self.lambda_ = 1
-        self.repetitive = "repetitive"
-        self.snprate = "snprate"
+        from scipy.stats import nbinom
+        from scipy.optimize import minimize_scalar
+        from functools import lru_cache
+
+        method, xopt = "bounded", "xatol"
+        MAX_1CN_SIZE = 1e10
+        MAX_OPTIMIZED_SIZE = 9.9e9
+
+        # Generate bins for the decomposed negative binomial distributions
+        bins = [
+            (i, i) for i in range(1, 9)
+        ]  # The first 8 CN are critical often determins ploidy
+        for i in (8, 16, 32, 64, 128, 256, 512):  # 14 geometricly sized bins
+            a, b = i + 1, int(round(i * 2 ** 0.5))
+            bins.append((a, b))
+            a, b = b + 1, i * 2
+            bins.append((a, b))
+
+        # Convert histogram to np array so we can index by CN
+        kf_ceil = max([cov for cov, _ in self.data])
+        N = kf_ceil + 1
+        hist = np.zeros(N, dtype=np.int)
+        for cov, count in self.data:
+            hist[cov] = count
+
+        # min1: find first minimum
+        _kf_min1 = 10
+        while _kf_min1 - 1 >= 2 and hist[_kf_min1 - 1] < hist[_kf_min1]:
+            _kf_min1 -= 1
+        while _kf_min1 <= kf_ceil and hist[_kf_min1 + 1] < hist[_kf_min1]:
+            _kf_min1 += 1
+
+        # max2: find absolute maximum mx2 above first minimum min1
+        _kf_max2 = _kf_min1
+        for kf in range(_kf_min1 + 1, int(0.8 * kf_ceil)):
+            if hist[kf] > hist[_kf_max2]:
+                _kf_max2 = kf
+
+        # Discard the last entry as that is usually an inflated number
+        hist = hist[:-1]
+        kf_range = np.arange(_kf_min1, len(hist), dtype=np.int)
+        P = hist[kf_range] * kf_range  # Target distribution
+        print("==> Start nbinom method on range ({}, {})".format(_kf_min1, len(hist)))
+
+        # Below is the optimization schemes, we optimize one variable at a time
+        @lru_cache(maxsize=None)
+        def nbinom_pmf_range(lambda_: int, rho: int, bin_id: int):
+            stacked = np.zeros(len(kf_range), dtype=np.float64)
+            lambda_ /= 100  # 2-digit precision
+            rho /= 100  # 2-digit precision
+            n = lambda_ / (rho - 1)
+            p = 1 / rho
+            start, end = bins[bin_id]
+            for i in range(start, end + 1):
+                stacked += nbinom.pmf(kf_range, n * i, p)
+            return stacked
+
+        def generative_model(G, lambda_, rho):
+            stacked = np.zeros(len(kf_range), dtype=np.float64)
+            lambda_ = int(round(lambda_ * 100))
+            rho = int(round(rho * 100))
+            for bin_id, g in enumerate(G):
+                stacked += g * nbinom_pmf_range(lambda_, rho, bin_id)
+            stacked *= kf_range
+            return stacked
+
+        def func(lambda_, rho, G):
+            stacked = generative_model(G, lambda_, rho)
+            return np.sum((P - stacked) ** 2)  # L2 norm
+
+        def optimize_func(lambda_, rho, G):
+            # Iterate over all G
+            for i, g in enumerate(G):
+                G_i = optimize_func_Gi(lambda_, rho, G, i)
+                if (
+                    not 1 < G_i < MAX_OPTIMIZED_SIZE
+                ):  # Optimizer did not optimize this G_i
+                    break
+            # Also remove the last bin since it is subject to marginal effect
+            G[i - 1] = 0
+            lambda_ = optimize_func_lambda_(lambda_, rho, G)
+            rho = optimize_func_rho(lambda_, rho, G)
+            score = func(lambda_, rho, G)
+            return lambda_, rho, G, score
+
+        def optimize_func_lambda_(lambda_, rho, G):
+            def f(arg):
+                return func(arg, rho, G)
+
+            res = minimize_scalar(
+                f, bounds=(_kf_min1, 100), method=method, options={xopt: 0.01}
+            )
+            return res.x
+
+        def optimize_func_rho(lambda_, rho, G):
+            def f(arg):
+                return func(lambda_, arg, G)
+
+            res = minimize_scalar(
+                f, bounds=(1.001, 5), method=method, options={xopt: 0.01}
+            )
+            return res.x
+
+        def optimize_func_Gi(lambda_, rho, G, i):
+            # Iterate a single G_i
+            def f(arg):
+                G[i] = arg
+                return func(lambda_, rho, G)
+
+            res = minimize_scalar(
+                f, bounds=(0, MAX_1CN_SIZE), method=method, options={xopt: 100}
+            )
+            return res.x
+
+        def run_optimization(termination=0.9999, maxiter=10000):
+            ll, rr, GG = l0, r0, G0
+            prev_score = np.inf
+            for i in range(maxiter):
+                print("Iteration", i + 1, file=sys.stderr)
+                ll, rr, GG, score = optimize_func(ll, rr, GG)
+                if score / prev_score > termination:
+                    break
+                prev_score = score
+                if i % 10 == 0:
+                    print(ll, rr, GG, score, file=sys.stderr)
+            print("Success!", file=sys.stderr)
+            # Remove bogus values that are close to the bounds
+            final_GG = [g for g in GG if 1 < g < MAX_OPTIMIZED_SIZE]
+            return ll, rr, final_GG
+
+        # Optimization - very slow
+        G0 = np.zeros(len(bins))
+        l0 = _kf_max2
+        r0 = 1.5
+        print(l0, r0, G0, file=sys.stderr)
+        ll, rr, GG = run_optimization(maxiter=3)
+        print(ll, rr, GG, file=sys.stderr)
+
+        # Ready for genome summary
+        m = "\n==> Kmer (K={0}) Spectrum Analysis\n".format(K)
+
+        genome_size = int(round(self.totalKmers / ll))
+        inferred_genome_size = 0
+        for i, g in enumerate(GG):
+            start, end = bins[i]
+            mid = (start + end) / 2
+            inferred_genome_size += g * mid * (end - start + 1)
+        inferred_genome_size = int(round(inferred_genome_size))
+        genome_size = max(genome_size, inferred_genome_size)
+        m += "Genome size estimate = {0}\n".format(thousands(genome_size))
+        copy_series = []
+        for i, g in enumerate(GG):
+            start, end = bins[i]
+            mid = (start + end) / 2
+            copy_num = start if start == end else "{}-{}".format(start, end)
+            g_copies = int(round(g * mid * (end - start + 1)))
+            copy_series.append((mid, copy_num, g_copies, g))
+            m += "CN {}: {} ({:.1f}%)\n".format(
+                copy_num, g_copies, g_copies * 100 / genome_size
+            )
+
+        if genome_size > inferred_genome_size:
+            g_copies = genome_size - inferred_genome_size
+            copy_num = "{}+".format(end + 1)
+            copy_series.append((end + 1, copy_num, g_copies, g_copies / (end + 1)))
+            m += "CN {}: {} ({:.1f}%)\n".format(
+                copy_num, g_copies, g_copies * 100 / genome_size
+            )
+
+        # Determine ploidy
+        def determine_ploidy(copy_series, threshold=0.15):
+            counts_so_far = 1
+            ploidy_so_far = 0
+            for mid, copy_num, g_copies, g in copy_series:
+                if g_copies / counts_so_far < threshold:
+                    break
+                counts_so_far += g_copies
+                ploidy_so_far = mid
+            return int(ploidy_so_far)
+
+        ploidy = determine_ploidy(copy_series)
+        self.ploidy = "Ploidy: {}".format(ploidy)
+        m += self.ploidy + "\n"
+
+        # Repeat content
+        def calc_repeats(copy_series, ploidy, genome_size):
+            unique = 0
+            for mid, copy_num, g_copies, g in copy_series:
+                if mid <= ploidy:
+                    unique += g_copies
+                else:
+                    break
+            return 1 - unique / genome_size
+
+        repeats = calc_repeats(copy_series, ploidy, genome_size)
+        self.repetitive = "Repeats: {:.1f} percent".format(repeats * 100)
+        m += self.repetitive + "\n"
+
+        # SNP rate
+        def calc_snp_rate(copy_series, ploidy, genome_size, K):
+            # We can calculate the SNP rate s, assuming K-mer of length K:
+            # s = 1-(1-L/G)^(1/K)
+            # L: # of unique K-mers under 'het' peak
+            # G: genome size
+            # K: K-mer length
+            L = 0
+            for mid, copy_num, g_copies, g in copy_series:
+                if mid < ploidy:
+                    L += g
+                else:
+                    break
+            return 1 - (1 - L / genome_size) ** (1 / K)
+
+        snp_rate = calc_snp_rate(copy_series, ploidy, genome_size, K)
+        self.snprate = "SNP rate: {:.2f} percent".format(snp_rate * 100)
+        m += self.snprate + "\n"
+        print(m, file=sys.stderr)
+
+        self.lambda_ = ll
         return {}
 
     def analyze_allpaths(self, ploidy=2, K=23, covmax=1000000):
@@ -937,7 +1153,7 @@ def histogram(args):
     Genome_size = int(round(Total_Kmers * 1.0 / Kmer_coverage))
 
     Total_Kmers_msg = "Total {0}-mers: {1}".format(N, thousands(Total_Kmers))
-    Kmer_coverage_msg = "{0}-mer coverage: {1}".format(N, Kmer_coverage)
+    Kmer_coverage_msg = "{0}-mer coverage: {1:.1f}x".format(N, Kmer_coverage)
     Genome_size_msg = "Estimated genome size: {0:.1f}Mb".format(Genome_size / 1e6)
     Repetitive_msg = ks.repetitive
     SNPrate_msg = ks.snprate

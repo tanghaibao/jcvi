@@ -79,7 +79,7 @@ class KmerSpectrum(BaseFile):
         self.counts = sorted((a, b) for a, b in self.hist.items() if vmin <= a <= vmax)
         return zip(*self.counts)
 
-    def analyze(self, K=23, method="nbinom"):
+    def analyze(self, K=23, maxiter=100, method="nbinom"):
         """ Analyze K-mer histogram.
 
         Args:
@@ -95,10 +95,10 @@ class KmerSpectrum(BaseFile):
             - snprate: SNP rate message
         """
         if method == "nbinom":
-            return self.analyze_nbinom(K=K)
+            return self.analyze_nbinom(K=K, maxiter=maxiter)
         return self.analyze_allpaths(K=K)
 
-    def analyze_nbinom(self, K=23):
+    def analyze_nbinom(self, K=23, maxiter=100):
         """ Analyze the K-mer histogram using negative binomial distribution.
 
         Args:
@@ -218,7 +218,7 @@ class KmerSpectrum(BaseFile):
             )
             return res.x
 
-        def run_optimization(termination=0.9999, maxiter=10000):
+        def run_optimization(termination=0.999, maxiter=100):
             ll, rr, GG = l0, r0, G0
             prev_score = np.inf
             for i in range(maxiter):
@@ -239,7 +239,7 @@ class KmerSpectrum(BaseFile):
         l0 = _kf_max2
         r0 = 1.5
         print(l0, r0, G0, file=sys.stderr)
-        ll, rr, GG = run_optimization(maxiter=3)
+        ll, rr, GG = run_optimization(maxiter=maxiter)
         print(ll, rr, GG, file=sys.stderr)
 
         # Ready for genome summary
@@ -255,22 +255,25 @@ class KmerSpectrum(BaseFile):
         genome_size = max(genome_size, inferred_genome_size)
         m += "Genome size estimate = {0}\n".format(thousands(genome_size))
         copy_series = []
+        copy_messages = []
         for i, g in enumerate(GG):
             start, end = bins[i]
             mid = (start + end) / 2
             copy_num = start if start == end else "{}-{}".format(start, end)
             g_copies = int(round(g * mid * (end - start + 1)))
             copy_series.append((mid, copy_num, g_copies, g))
-            m += "CN {}: {} ({:.1f}%)\n".format(
-                copy_num, g_copies, g_copies * 100 / genome_size
+            copy_message = "CN {}: {:.1f} Mb ({:.1f} percent)".format(
+                copy_num, g_copies / 1e6, g_copies * 100 / genome_size
             )
+            copy_messages.append(copy_message)
+            m += copy_message + "\n"
 
         if genome_size > inferred_genome_size:
             g_copies = genome_size - inferred_genome_size
             copy_num = "{}+".format(end + 1)
             copy_series.append((end + 1, copy_num, g_copies, g_copies / (end + 1)))
-            m += "CN {}: {} ({:.1f}%)\n".format(
-                copy_num, g_copies, g_copies * 100 / genome_size
+            m += "CN {}: {:.1f} Mb ({:.1f} percent)\n".format(
+                copy_num, g_copies / 1e6, g_copies * 100 / genome_size
             )
 
         # Determine ploidy
@@ -285,8 +288,10 @@ class KmerSpectrum(BaseFile):
             return int(ploidy_so_far)
 
         ploidy = determine_ploidy(copy_series)
-        self.ploidy = "Ploidy: {}".format(ploidy)
-        m += self.ploidy + "\n"
+        self.ploidy = ploidy
+        self.ploidy_message = "Ploidy: {}".format(ploidy)
+        m += self.ploidy_message + "\n"
+        self.copy_messages = copy_messages[:ploidy]
 
         # Repeat content
         def calc_repeats(copy_series, ploidy, genome_size):
@@ -323,7 +328,13 @@ class KmerSpectrum(BaseFile):
         print(m, file=sys.stderr)
 
         self.lambda_ = ll
-        return {}
+        return {
+            "generative_model": generative_model,
+            "Gbins": GG,
+            "lambda": ll,
+            "rho": rr,
+            "kf_range": kf_range,
+        }
 
     def analyze_allpaths(self, ploidy=2, K=23, covmax=1000000):
         """
@@ -1120,6 +1131,12 @@ def histogram(args):
         help="'nbinom' - slow but more accurate for het or polyploid genome; 'allpaths' - fast and works for homozygous enomes",
     )
     p.add_option(
+        "--maxiter",
+        default=100,
+        type="int",
+        help="Max iterations for optimization. Only used with --method nbinom",
+    )
+    p.add_option(
         "--coverage", default=0, type="int", help="Kmer coverage [default: auto]"
     )
     p.add_option(
@@ -1145,7 +1162,7 @@ def histogram(args):
         histfile = merylhistogram(histfile)
 
     ks = KmerSpectrum(histfile)
-    ks.analyze(K=N, method=method)
+    method_info = ks.analyze(K=N, maxiter=opts.maxiter, method=method)
 
     Total_Kmers = int(ks.totalKmers)
     coverage = opts.coverage
@@ -1154,7 +1171,7 @@ def histogram(args):
 
     Total_Kmers_msg = "Total {0}-mers: {1}".format(N, thousands(Total_Kmers))
     Kmer_coverage_msg = "{0}-mer coverage: {1:.1f}x".format(N, Kmer_coverage)
-    Genome_size_msg = "Estimated genome size: {0:.1f}Mb".format(Genome_size / 1e6)
+    Genome_size_msg = "Estimated genome size: {0:.1f} Mb".format(Genome_size / 1e6)
     Repetitive_msg = ks.repetitive
     SNPrate_msg = ks.snprate
 
@@ -1170,6 +1187,18 @@ def histogram(args):
 
     plt.figure(1, (iopts.w, iopts.h))
     plt.bar(x, y, fc="#b2df8a", lw=0)
+    # Plot the negative binomial fit
+    if method == "nbinom":
+        generative_model = method_info["generative_model"]
+        GG = method_info["Gbins"]
+        ll = method_info["lambda"]
+        rr = method_info["rho"]
+        kf_range = method_info["kf_range"]
+        stacked = generative_model(GG, ll, rr)
+        plt.plot(
+            kf_range, stacked, ":", color="#6a3d9a", lw=2,
+        )
+
     ax = plt.gca()
 
     if peaks:  # Only works for method 'allpaths'
@@ -1182,6 +1211,14 @@ def histogram(args):
             ax.text(ks.max1, tcounts[ks.max1], "SNP peak")
             ax.text(ks.max2, tcounts[ks.max2], "Main peak")
 
+    ymin, ymax = ax.get_ylim()
+    ymax = ymax * 7 / 6
+    if method == "nbinom":
+        # Plot multiple CN locations, CN1, CN2, ... up to ploidy
+        for i in range(1, ks.ploidy + 1):
+            x = i * ks.lambda_
+            plt.plot((x, x), (0, ymax), ":", color="#a6cee3")
+
     messages = [
         Total_Kmers_msg,
         Kmer_coverage_msg,
@@ -1189,10 +1226,9 @@ def histogram(args):
         Repetitive_msg,
         SNPrate_msg,
     ]
+    if method == "nbinom":
+        messages += [ks.ploidy_message] + ks.copy_messages
     write_messages(ax, messages)
-
-    ymin, ymax = ax.get_ylim()
-    ymax = ymax * 7 / 6
 
     ax.set_title(markup(title))
     ax.set_xlim((0, vmax))

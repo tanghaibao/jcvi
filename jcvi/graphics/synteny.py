@@ -169,6 +169,7 @@ class Region(object):
         switch=None,
         chr_label=True,
         loc_label=True,
+        genelabelsize=0,
         pad=0.05,
         vpad=0.015,
         extra_features=None,
@@ -226,19 +227,31 @@ class Region(object):
             self.gg[g.accn] = (a, b)
 
             color = forward if strand == "+" else backward
-            if not hidden:
-                gp = Glyph(
-                    ax,
-                    x1,
-                    x2,
-                    y,
-                    height,
-                    gradient=False,
-                    fc=color,
-                    style=glyphstyle,
-                    zorder=3,
+            if hidden:
+                continue
+            gp = Glyph(
+                ax,
+                x1,
+                x2,
+                y,
+                height,
+                gradient=False,
+                fc=color,
+                style=glyphstyle,
+                zorder=3,
+            )
+            gp.set_transform(tr)
+            if genelabelsize:
+                ax.text(
+                    (x1 + x2) / 2,
+                    y + height / 2 + genelabelsize * vpad / 3,
+                    markup(g.accn),
+                    size=genelabelsize,
+                    rotation=25,
+                    ha="left",
+                    va="center",
+                    color="lightslategray",
                 )
-                gp.set_transform(tr)
 
         # Extra features (like repeats)
         if extra_features:
@@ -335,13 +348,13 @@ class Synteny(object):
         extra_features=None,
         chr_label=True,
         loc_label=True,
+        genelabelsize=0,
         pad=0.05,
         vpad=0.015,
         scalebar=False,
         shadestyle="curve",
         glyphstyle="arrow",
     ):
-
         w, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
         order = bed.order
@@ -387,6 +400,7 @@ class Synteny(object):
                 bed,
                 scale,
                 switch,
+                genelabelsize=genelabelsize,
                 chr_label=chr_label,
                 loc_label=loc_label,
                 vpad=vpad,
@@ -513,6 +527,14 @@ def main():
     p.add_option("--tree", help="Display trees on the bottom of the figure")
     p.add_option("--extra", help="Extra features in BED format")
     p.add_option(
+        "--genelabelsize",
+        default=0,
+        type="int",
+        help="Show gene labels at this font size, useful for debugging. "
+        + "However, plot may appear visually crowded. "
+        + "Reasonably good values are 2 to 6 [Default: disabled]",
+    )
+    p.add_option(
         "--scalebar",
         default=False,
         action="store_true",
@@ -552,6 +574,7 @@ def main():
         switch=switch,
         tree=tree,
         extra_features=opts.extra,
+        genelabelsize=opts.genelabelsize,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
         glyphstyle=opts.glyphstyle,

@@ -167,9 +167,9 @@ class Region(object):
         bed,
         scale,
         switch=None,
-        gene_label=False,
         chr_label=True,
         loc_label=True,
+        genelabelsize=0,
         pad=0.05,
         vpad=0.015,
         extra_features=None,
@@ -241,12 +241,12 @@ class Region(object):
                 zorder=3,
             )
             gp.set_transform(tr)
-            if gene_label:
+            if genelabelsize:
                 ax.text(
                     (x1 + x2) / 2,
-                    y + vpad,
+                    y + height / 2 + genelabelsize * vpad / 3,
                     markup(g.accn),
-                    size=2,
+                    size=genelabelsize,
                     rotation=25,
                     ha="left",
                     va="center",
@@ -346,9 +346,9 @@ class Synteny(object):
         switch=None,
         tree=None,
         extra_features=None,
-        gene_label=False,
         chr_label=True,
         loc_label=True,
+        genelabelsize=0,
         pad=0.05,
         vpad=0.015,
         scalebar=False,
@@ -400,7 +400,7 @@ class Synteny(object):
                 bed,
                 scale,
                 switch,
-                gene_label=gene_label,
+                genelabelsize=genelabelsize,
                 chr_label=chr_label,
                 loc_label=loc_label,
                 vpad=vpad,
@@ -527,10 +527,12 @@ def main():
     p.add_option("--tree", help="Display trees on the bottom of the figure")
     p.add_option("--extra", help="Extra features in BED format")
     p.add_option(
-        "--genelabel",
-        default=False,
-        action="store_true",
-        help="Show gene labels, useful for debugging, but plot may seem visually crowded",
+        "--genelabelsize",
+        default=0,
+        type="int",
+        help="Show gene labels at this font size, useful for debugging. "
+        + "However, plot may appear visually crowded. "
+        + "Reasonably good values are 2 to 6 [Default: disabled]",
     )
     p.add_option(
         "--scalebar",
@@ -572,7 +574,7 @@ def main():
         switch=switch,
         tree=tree,
         extra_features=opts.extra,
-        gene_label=opts.genelabel,
+        genelabelsize=opts.genelabelsize,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
         glyphstyle=opts.glyphstyle,

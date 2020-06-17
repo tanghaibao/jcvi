@@ -26,10 +26,10 @@ NEG_INF = -INF
 Work_dir = "tsp_work"
 
 
-class Concorde (object):
-
-    def __init__(self, edges, work_dir=Work_dir, clean=True, verbose=False,
-                       precision=0, seed=666):
+class Concorde(object):
+    def __init__(
+        self, edges, work_dir=Work_dir, clean=True, verbose=False, precision=0, seed=666
+    ):
 
         self.work_dir = work_dir
         self.clean = clean
@@ -45,7 +45,6 @@ class Concorde (object):
             shutil.rmtree(work_dir)
             residual_output = ["data.sol", "data.res", "Odata.res"]
             FileShredder(residual_output, verbose=False)
-
 
     def print_to_tsplib(self, edges, tspfile, precision=0):
         """
@@ -73,8 +72,11 @@ class Concorde (object):
         max_x, min_x = max(weights), min(weights)
         inf = 2 * max(abs(max_x), abs(min_x))
         factor = 10 ** precision
-        logging.debug("TSP rescale: max_x={0}, min_x={1}, inf={2}, factor={3}".\
-                        format(max_x, min_x, inf, factor))
+        logging.debug(
+            "TSP rescale: max_x={0}, min_x={1}, inf={2}, factor={3}".format(
+                max_x, min_x, inf, factor
+            )
+        )
 
         print("NAME: data", file=fw)
         print("TYPE: TSP", file=fw)
@@ -103,8 +105,10 @@ class Concorde (object):
             os.remove(outfile)
 
         cc = "concorde"
-        assert which(cc), "You must install `concorde` on your PATH" + \
-                          " [http://www.math.uwaterloo.ca/tsp/concorde.html]"
+        assert which(cc), (
+            "You must install `concorde` on your PATH"
+            + " [http://www.math.uwaterloo.ca/tsp/concorde.html]"
+        )
         cmd = "{0} -s {1} -x -o {2} {3}".format(cc, seed, outfile, tspfile)
 
         outf = None if self.verbose else "/dev/null"
@@ -113,7 +117,7 @@ class Concorde (object):
 
     def parse_output(self, outfile):
         fp = open(outfile)
-        dimension = int(fp.next().strip())  # header
+        dimension = int(next(fp).strip())  # header
         assert dimension == self.nnodes
         tour = []
         for row in fp:
@@ -135,7 +139,7 @@ def node_to_edge(edges, directed=True):
         incoming[b].add(i)
         nodes.add(a)
         nodes.add(b)
-    nodes = sorted(nodes)
+    nodes = list(nodes)
     if directed:
         return outgoing, incoming, nodes
     return outgoing, nodes
@@ -181,7 +185,7 @@ def hamiltonian(edges, directed=False, precision=0):
     dummy_index = tour.index(DUMMY)
     tour = tour[dummy_index:] + tour[:dummy_index]
     if directed:
-        dummy_star_index = tour.index((DUMMY, '*'))
+        dummy_star_index = tour.index((DUMMY, "*"))
         assert dummy_star_index in (1, len(tour) - 1), tour
         if dummy_star_index == len(tour) - 1:  # need to flip
             tour = tour[1:] + tour[:1]
@@ -214,9 +218,9 @@ def reformulate_atsp_as_tsp(edges):
     incident, nodes = node_to_edge(edges, directed=False)
     new_edges = []
     for a, b, w in edges:
-        new_edges.append(((a, '*'), b, w))
+        new_edges.append(((a, "*"), b, w))
     for n in nodes:
-        new_edges.append((n, (n, '*'), NEG_INF))  # A negative weight
+        new_edges.append((n, (n, "*"), NEG_INF))  # A negative weight
     return new_edges
 
 
@@ -228,7 +232,7 @@ def make_data(N, directed=False):
     for ia, ib in combinations(range(N), 2):
         ax, ay = xy[ia]
         bx, by = xy[ib]
-        d = ((ax - bx) ** 2 + (ay - by) ** 2) ** .5
+        d = ((ax - bx) ** 2 + (ay - by) ** 2) ** 0.5
         M[ia, ib] = M[ib, ia] = d
 
     edges = []
@@ -249,6 +253,7 @@ def evaluate(tour, M):
 
 def plot_data(x, y, tour, M):
     from jcvi.graphics.base import plt, savefig
+
     plt.plot(x, y, "ro")
     for ia, ib in pairwise(tour):
         plt.plot((x[ia], x[ib]), (y[ia], y[ib]), "r-")
@@ -276,6 +281,7 @@ def compare_lpsolve_to_concorde(POINTS=80, directed=False):
     print(ctour, evaluate(ctour, M))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

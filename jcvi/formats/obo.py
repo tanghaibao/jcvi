@@ -8,14 +8,17 @@ Parses obo_file and plot GO lineage
 """
 from __future__ import print_function
 
+import os.path as op
 import sys
 import logging
 
 from collections import deque
+from jcvi.apps.base import download
 from jcvi.formats.base import read_until
 
 
 typedef_tag, term_tag = "[Typedef]", "[Term]"
+Sample_GO_URL = "http://current.geneontology.org/ontology/go.obo"
 
 
 def after_colon(line):
@@ -33,17 +36,14 @@ class OBOReader(object):
             print rec
     """
 
-    def __init__(self, obo_file="gene_ontology.1_2.obo"):
-
-        try:
-            self._handle = open(obo_file)
-        except IOError as e:
-            logging.error(e)
-            logging.error(
-                "download obo first: "
-                + "http://geneontology.org/ontology/obo_format_1_2/"
+    def __init__(self, obo_file="go.obo"):
+        if not op.exists(obo_file):
+            logging.debug(
+                "`{}` not found. Downloading from: {}".format(obo_file, Sample_GO_URL)
             )
-            sys.exit(1)
+            download(Sample_GO_URL)
+
+        self._handle = open(obo_file)
 
     def __iter__(self):
 
@@ -53,12 +53,12 @@ class OBOReader(object):
         while 1:
             yield next(self)
 
-    def next(self):
+    def __next__(self):
 
         lines = []
         line = self._handle.readline()
         if not line or line.startswith(typedef_tag):
-            raise StopIteration
+            return
 
         # read until the next tag and save everything in between
         while 1:
@@ -103,15 +103,14 @@ class GOTerm(object):
         self.is_obsolete = False  # is_obsolete
         self.alt_ids = []  # alternative identifiers
 
+    header = "\t".join(("#id", "level", "name", "alt_ids"))
+
     def __str__(self):
-        obsolete = "obsolete" if self.is_obsolete else ""
-        return "%s\tlevel-%02d\t%s [%s] %s" % (
-            self.id,
-            self.level,
-            self.name,
-            self.namespace,
-            obsolete,
-        )
+        level = "level-{:02d}".format(self.level)
+        description = "{} [{}]".format(self.name, self.namespace)
+        if self.is_obsolete:
+            description += " obsolete"
+        return "\t".join((self.id, level, description, self.alt_ids))
 
     def __repr__(self):
         return "GOTerm('%s')" % (self.id)
@@ -197,7 +196,7 @@ class GODag(dict):
                 depth(rec)
 
     def write_dag(self, out=sys.stdout):
-
+        print(GOTerm.header, file=out)
         for rec_id, rec in sorted(self.items()):
             print(rec, file=out)
 

@@ -2116,8 +2116,7 @@ def get_config(path):
         config.read(path)
     except ParsingError:
         e = sys.exc_info()[1]
-        log_error_and_exit(
-            logger,
+        logging.error(
             "There was a problem reading or parsing "
             "your credentials file: %s" % (e.args[0],),
         )

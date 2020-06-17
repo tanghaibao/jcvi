@@ -50,15 +50,14 @@ class OBOReader(object):
         line = self._handle.readline()
         if not line.startswith(term_tag):
             read_until(self._handle, term_tag)
-        while 1:
-            yield next(self)
+        return self
 
     def __next__(self):
 
         lines = []
         line = self._handle.readline()
         if not line or line.startswith(typedef_tag):
-            return
+            raise StopIteration
 
         # read until the next tag and save everything in between
         while 1:
@@ -110,7 +109,8 @@ class GOTerm(object):
         description = "{} [{}]".format(self.name, self.namespace)
         if self.is_obsolete:
             description += " obsolete"
-        return "\t".join((self.id, level, description, self.alt_ids))
+        alt_ids = ",".join(self.alt_ids)
+        return "\t".join((self.id, level, description, alt_ids))
 
     def __repr__(self):
         return "GOTerm('%s')" % (self.id)
@@ -184,11 +184,11 @@ class GODag(dict):
             return rec.level
 
         # make the parents references to the GO terms
-        for rec in self.itervalues():
+        for rec in self.values():
             rec.parents = [self[x] for x in rec._parents]
 
         # populate children and levels
-        for rec in self.itervalues():
+        for rec in self.values():
             for p in rec.parents:
                 p.children.append(rec)
 

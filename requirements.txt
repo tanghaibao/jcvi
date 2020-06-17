@@ -5,6 +5,7 @@ cython
 deap
 ete3
 gffutils
+goatools
 jinja2
 matplotlib
 networkx

@@ -2280,13 +2280,13 @@ def uniq(args):
     bestids = set()
     for group in g:
         if mode == "span":
-            scores_group = [(-x.span, x) for x in group]
+            sort_key = lambda x: -x.span
         else:
-            scores_group = [(-float(x.score), x) for x in group]
+            sort_key = lambda x: -float(x.score)
 
-        scores_group.sort()
+        group.sort(key=sort_key)
         seen = set()
-        for score, x in scores_group:
+        for x in group:
             if len(seen) >= bestn:
                 break
 
@@ -2309,9 +2309,7 @@ def populate_children(outfile, ids, gffile, iter="2", types=None):
     children = set()
     for g in gff:
         if types and g.type in types:
-            _id = g.accn
-            if _id not in ids:
-                ids.add(_id)
+            ids.add(g.accn)
         if "Parent" not in g.attributes:
             continue
         for parent in g.attributes["Parent"]:

@@ -2310,9 +2310,7 @@ def populate_children(outfile, ids, gffile, iter="2", types=None):
     children = set()
     for g in gff:
         if types and g.type in types:
-            _id = g.accn
-            if _id not in ids:
-                ids.add(_id)
+            ids.add(g.accn)
         if "Parent" not in g.attributes:
             continue
         for parent in g.attributes["Parent"]:

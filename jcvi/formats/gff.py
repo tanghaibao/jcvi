@@ -2287,7 +2287,6 @@ def uniq(args):
         group.sort(key=sort_key)
         seen = set()
         for x in group:
-            score = sort_key(x)
             if len(seen) >= bestn:
                 break
 

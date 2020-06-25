@@ -23,13 +23,19 @@ computation related to assembly, annotation, and comparative genomics.
 
   _Tang et al. (2008) Synteny and Collinearity in Plant Genomes. [Science](https://science.sciencemag.org/content/320/5875/486)_
 
+![MCSCAN example](https://www.dropbox.com/s/9vl3ys3ndvimg4c/grape-peach-cacao.png?raw=1)
+
 - If you use the ALLMAPS pipeline for genome scaffolding, please cite:
 
   _Tang et al. (2015) ALLMAPS: robust scaffold ordering based on multiple maps. [Genome Biology](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-014-0573-1)_
 
+![ALLMAPS animation](https://www.dropbox.com/s/jfs8xavcxix37se/ALLMAPS.gif?raw=1)
+
 - For other uses, please cite the package directly:
 
   _Tang et al. (2015). jcvi: JCVI utility libraries. Zenodo. [10.5281/zenodo.31631](http://dx.doi.org/10.5281/zenodo.31631)_
+
+![GRABSEEDS example](https://www.dropbox.com/s/yu9ehsi6sqifuaa/bluredges.png?raw=1)
 
 ## Contents
 

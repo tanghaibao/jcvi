@@ -553,7 +553,9 @@ def main():
         ("spa", "convert chr ordering from SPA to simple lists"),
         ("layout", "compute layout based on .simple file"),
         ("rebuild", "rebuild anchors file from prebuilt blocks file"),
+        # Formatting
         ("fromaligns", "convert aligns file to anchors file"),
+        ("toaligns", "convert anchors file to aligns file"),
     )
 
     p = ActionDispatcher(actions)
@@ -873,6 +875,33 @@ def fromaligns(args):
         atoms = row.split(":")[-1].split()
         print("\t".join(atoms[:2]), file=fw)
     fw.close()
+
+
+def toaligns(args):
+    """
+    %prog fromaligns input.anchors
+
+    Convert anchors file to tab-separated aligns file, adding the first column
+    with the Block ID.
+    """
+    p = OptionParser(toaligns.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    (anchorfile,) = args
+    ac = AnchorFile(anchorfile)
+    logging.debug("A total of {} blocks imported".format(len(ac.blocks)))
+    max_block_id_len = len(str(len(ac.blocks) - 1))
+    header = "\t".join(("#Block ID", "Gene 1", "Gene 2"))
+
+    with must_open(opts.outfile, "w") as fw:
+        print(header, file=fw)
+        for a, b, block_id in ac.iter_pairs():
+            block_id = "b{:0{}d}".format(block_id, max_block_id_len)
+            print("\t".join((block_id, a, b)), file=fw)
 
 
 def mcscanq(args):

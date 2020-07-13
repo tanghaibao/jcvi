@@ -16,7 +16,7 @@ import numpy as np
 from collections import defaultdict, OrderedDict
 
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile, DictFile, LineFile
+from jcvi.formats.base import BaseFile, DictFile, LineFile, must_open
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import (
@@ -139,23 +139,23 @@ def main():
 def parse_distfile(filename):
     """ Parse mosdepth dist.txt file. The file has contents like:
 
-    #chr    depth   coverage  (header added here for clarity)
-    chr01A  2594    0.00
-    chr01A  2593    0.01
-    chr01A  2592    0.01
-    chr01A  2591    0.02
+    #chr    start   end     depth   (header added here for clarity)
+    chr01A  0       50000   31.00
+    chr01A  50000   100000  36.00
+    chr01A  100000  150000  280.00
+    chr01A  150000  200000  190.00
 
     Args:
         filename (str): Path to the file.
     """
-    from collections import defaultdict
+    from collections import defaultdict, Counter
 
-    dists = defaultdict(list)
-    with open(filename) as fp:
+    dists = defaultdict(Counter)
+    with must_open(filename) as fp:
         for row in fp:
-            chromosome, depth, coverage = row.split()
-            depth, coverage = float(depth), 1 - float(coverage)
-            dists[chromosome].append((depth, coverage))
+            chromosome, start, end, depth = row.split()
+            depth = int(float(depth))
+            dists[chromosome][depth] += 1
     logging.debug("Loaded {} seqids".format(len(dists)))
     return dists
 
@@ -227,12 +227,11 @@ def mosdepth(args):
         yy -= yinterval
         ax = fig.add_axes([0.15, yy, 0.7, yinterval * 0.85])
         for c, color in zip(chrs, colors):
-            cdata = dists[c]
+            cdata = dists[c].items()
             logging.debug("Importing {} records for {}".format(len(cdata), c))
             cx, cy = zip(*sorted(cdata))
             ax.plot(cx, cy, "-", color=color)
         ax.set_xlim(0, 100)
-        ax.set_ylim(0, 1)
         ax.get_yaxis().set_visible(False)
         if group_idx != rows - 1:
             ax.get_xaxis().set_visible(False)
@@ -295,6 +294,8 @@ def draw_depth(
     label_positions = []
     start = 0
     for seqid in seqids:
+        if seqid not in sizes:
+            continue
         starts[seqid] = start
         end = start + sizes[seqid]
         ends[seqid] = end
@@ -428,6 +429,7 @@ def depth(args):
     p.add_option(
         "--titleinfo", help="Comma-separated titles mappings between filename, title",
     )
+    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to show")
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
     if len(args) < 1:
@@ -459,7 +461,13 @@ def depth(args):
             title = title.title
 
         draw_depth(
-            panel_root, panel_ax, bed, chrinfo=chrinfo, title=title, subtitle=subtitle
+            panel_root,
+            panel_ax,
+            bed,
+            chrinfo=chrinfo,
+            ylim=opts.maxdepth,
+            title=title,
+            subtitle=subtitle,
         )
         ypos -= yinterval
 

@@ -217,6 +217,7 @@ def mosdepth(args):
     distfile, groupsfile = args
     dists = parse_distfile(distfile)
     groups = parse_groupsfile(groupsfile)
+    logscale = opts.logscale
 
     # Construct a composite figure with N tracks indicated in the groups
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -235,9 +236,9 @@ def mosdepth(args):
             logging.debug("Importing {} records for {}".format(len(cdata), c))
             cx, cy = zip(*sorted(cdata))
             ax.plot(cx, cy, "-", color=color)
-        if opts.logscale:
+        if logscale:
             ax.set_xscale("log", basex=2)
-        ax.set_xlim(0, opts.maxdepth)
+        ax.set_xlim(1 if logscale else 0, opts.maxdepth)
         ax.get_yaxis().set_visible(False)
         if group_idx != rows - 1:
             ax.get_xaxis().set_visible(False)
@@ -275,6 +276,7 @@ def draw_depth(
     defaultcolor="k",
     sepcolor="w",
     ylim=100,
+    logscale=False,
     title=None,
     subtitle=None,
 ):
@@ -396,7 +398,9 @@ def draw_depth(
 
     ax.set_xticks([])
     ax.set_xlim(0, xsize)
-    ax.set_ylim(0, ylim)
+    if logscale:
+        ax.set_yscale("log", basey=2)
+    ax.set_ylim(1 if logscale else 0, ylim)
     ax.set_ylabel("Depth")
 
     set_human_axis(ax)
@@ -436,6 +440,9 @@ def depth(args):
         "--titleinfo", help="Comma-separated titles mappings between filename, title",
     )
     p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to show")
+    p.add_option(
+        "--logscale", default=False, action="store_true", help="Use log-scale on depth"
+    )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
     if len(args) < 1:
@@ -472,6 +479,7 @@ def depth(args):
             bed,
             chrinfo=chrinfo,
             ylim=opts.maxdepth,
+            logscale=opts.logscale,
             title=title,
             subtitle=subtitle,
         )

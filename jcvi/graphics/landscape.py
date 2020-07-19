@@ -204,6 +204,10 @@ def mosdepth(args):
     sns.set_style("darkgrid")
 
     p = OptionParser(mosdepth.__doc__)
+    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to plot")
+    p.add_option(
+        "--logscale", default=False, action="store_true", help="Use log-scale on depth"
+    )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="6x8")
 
     if len(args) != 2:
@@ -231,7 +235,9 @@ def mosdepth(args):
             logging.debug("Importing {} records for {}".format(len(cdata), c))
             cx, cy = zip(*sorted(cdata))
             ax.plot(cx, cy, "-", color=color)
-        ax.set_xlim(0, 100)
+        if opts.logscale:
+            ax.set_xscale("log", basex=2)
+        ax.set_xlim(0, opts.maxdepth)
         ax.get_yaxis().set_visible(False)
         if group_idx != rows - 1:
             ax.get_xaxis().set_visible(False)

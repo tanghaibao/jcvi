@@ -16,7 +16,7 @@ import numpy as np
 from collections import defaultdict, OrderedDict
 
 from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile, DictFile, LineFile
+from jcvi.formats.base import BaseFile, DictFile, LineFile, must_open
 from jcvi.formats.bed import Bed, bins
 from jcvi.algorithms.matrix import moving_sum
 from jcvi.graphics.base import (
@@ -30,6 +30,7 @@ from jcvi.graphics.base import (
     markup,
     set_human_axis,
     normalize_axes,
+    adjust_spines,
 )
 from jcvi.utils.cbook import human_size, autoscale
 from jcvi.apps.base import OptionParser, ActionDispatcher
@@ -127,10 +128,144 @@ def main():
         ("heatmap", "similar to stack but adding heatmap"),
         ("composite", "combine line plots, feature bars and alt-bars"),
         ("multilineplot", "combine multiple line plots in one vertical stack"),
+        # Related to chromosomal depth
         ("depth", "show per chromosome depth plot across genome"),
+        ("mosdepth", "plot depth vs. coverage per chromosome"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def parse_distfile(filename):
+    """ Parse mosdepth dist.txt file. The file has contents like:
+
+    #chr    start   end     depth   (header added here for clarity)
+    chr01A  0       50000   31.00
+    chr01A  50000   100000  36.00
+    chr01A  100000  150000  280.00
+    chr01A  150000  200000  190.00
+
+    Args:
+        filename (str): Path to the file.
+    """
+    from collections import defaultdict, Counter
+
+    dists = defaultdict(Counter)
+    with must_open(filename) as fp:
+        for row in fp:
+            chromosome, start, end, depth = row.split()
+            depth = int(float(depth))
+            dists[chromosome][depth] += 1
+    logging.debug("Loaded {} seqids".format(len(dists)))
+    return dists
+
+
+def parse_groupsfile(filename):
+    """ Parse groupsfile, which contains the tracks to be plotted
+    in the vertically stacked mosdepth plot.
+
+    chr01A,chr01B g,m
+    chr02A,chr02B g,m
+    chr03A,chr03B g,m
+
+    Args:
+        filename (str): Path to the groups file.
+    """
+    groups = []
+    with open(filename) as fp:
+        for row in fp:
+            chrs, colors = row.split()
+            groups.append((chrs.split(","), colors.split(",")))
+    logging.debug("Loaded {} groups".format(len(groups)))
+    return groups
+
+
+def cumarray_to_array(ar):
+    """ Convert cumulative array to normal array.
+
+    Args:
+        ar (List): List of numbers
+    """
+    ans = []
+    for i, x in enumerate(ar):
+        ans.append(x if i == 0 else (ar[i] - ar[i - 1]))
+    return ans
+
+
+def mosdepth(args):
+    """
+    %prog mosdepth mosdepth.global.dist.txt groups
+
+    Plot depth vs. coverage per chromosome. Inspired by mosdepth plot. See also:
+    https://github.com/brentp/mosdepth
+    """
+    import seaborn as sns
+
+    sns.set_style("darkgrid")
+
+    p = OptionParser(mosdepth.__doc__)
+    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to plot")
+    p.add_option(
+        "--logscale", default=False, action="store_true", help="Use log-scale on depth"
+    )
+    opts, args, iopts = p.set_image_options(args, style="dark", figsize="6x8")
+
+    if len(args) != 2:
+        sys.exit(p.print_help())
+
+    # Read in datasets
+    distfile, groupsfile = args
+    dists = parse_distfile(distfile)
+    groups = parse_groupsfile(groupsfile)
+    logscale = opts.logscale
+
+    # Construct a composite figure with N tracks indicated in the groups
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+
+    rows = len(groups)
+    ypad = 0.05
+    yinterval = (1 - 2 * ypad) / (rows + 1)
+    yy = 1 - ypad
+
+    for group_idx, (chrs, colors) in enumerate(groups):
+        yy -= yinterval
+        ax = fig.add_axes([0.15, yy, 0.7, yinterval * 0.85])
+        for c, color in zip(chrs, colors):
+            cdata = dists[c].items()
+            logging.debug("Importing {} records for {}".format(len(cdata), c))
+            cx, cy = zip(*sorted(cdata))
+            ax.plot(cx, cy, "-", color=color)
+        if logscale:
+            ax.set_xscale("log", basex=2)
+        ax.set_xlim(1 if logscale else 0, opts.maxdepth)
+        ax.get_yaxis().set_visible(False)
+        if group_idx != rows - 1:
+            ax.get_xaxis().set_visible(False)
+
+        # Add legend to the right of the canvas
+        label_pad = 0.02
+        label_yy = yy + yinterval
+        for c, color in zip(chrs, colors):
+            label_yy -= label_pad
+            root.text(0.92, label_yy, c, color=color, ha="center", va="center")
+
+    root.text(
+        0.1,
+        0.5,
+        "Proportion of bases at coverage",
+        rotation=90,
+        color="darkslategray",
+        ha="center",
+        va="center",
+    )
+    root.text(0.5, 0.05, "Coverage", color="darkslategray", ha="center", va="center")
+    normalize_axes(root)
+    adjust_spines(ax, ["bottom"], outward=True)
+
+    pf = "mosdepth"
+    image_name = pf + "." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def draw_depth(
@@ -141,6 +276,7 @@ def draw_depth(
     defaultcolor="k",
     sepcolor="w",
     ylim=100,
+    logscale=False,
     title=None,
     subtitle=None,
 ):
@@ -166,6 +302,8 @@ def draw_depth(
     label_positions = []
     start = 0
     for seqid in seqids:
+        if seqid not in sizes:
+            continue
         starts[seqid] = start
         end = start + sizes[seqid]
         ends[seqid] = end
@@ -260,7 +398,9 @@ def draw_depth(
 
     ax.set_xticks([])
     ax.set_xlim(0, xsize)
-    ax.set_ylim(0, ylim)
+    if logscale:
+        ax.set_yscale("log", basey=2)
+    ax.set_ylim(1 if logscale else 0, ylim)
     ax.set_ylabel("Depth")
 
     set_human_axis(ax)
@@ -299,6 +439,10 @@ def depth(args):
     p.add_option(
         "--titleinfo", help="Comma-separated titles mappings between filename, title",
     )
+    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to show")
+    p.add_option(
+        "--logscale", default=False, action="store_true", help="Use log-scale on depth"
+    )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
     if len(args) < 1:
@@ -330,7 +474,14 @@ def depth(args):
             title = title.title
 
         draw_depth(
-            panel_root, panel_ax, bed, chrinfo=chrinfo, title=title, subtitle=subtitle
+            panel_root,
+            panel_ax,
+            bed,
+            chrinfo=chrinfo,
+            ylim=opts.maxdepth,
+            logscale=opts.logscale,
+            title=title,
+            subtitle=subtitle,
         )
         ypos -= yinterval
 

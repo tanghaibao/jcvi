@@ -649,6 +649,11 @@ def ortholog(args):
         action="store_true",
         help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
+    p.add_option(
+        "--liftover_dist",
+        type="int",
+        help="Distance to extend from liftover. Defaults to half of --dist",
+    )
     p.set_cpus()
     p.set_dotplot_opts()
 
@@ -707,6 +712,8 @@ def ortholog(args):
             ]
             if opts.no_strip_names:
                 dargs += ["--no_strip_names"]
+            if opts.liftover_dist:
+                dargs += ["--liftover_dist={}".format(opts.liftover_dist)]
             scan(dargs)
         if quota:
             quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])

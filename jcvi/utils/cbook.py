@@ -91,27 +91,25 @@ def depends(func):
     outfile = "outfile"
 
     def wrapper(*args, **kwargs):
-        assert outfile in kwargs, \
-            "You need to specify `outfile=` on function call"
+        assert outfile in kwargs, "You need to specify `outfile=` on function call"
         if infile in kwargs:
             infilename = listify(kwargs[infile])
             for x in infilename:
-                assert op.exists(x), \
-                    "The specified infile `{0}` does not exist".format(x)
+                assert op.exists(x), "The specified infile `{0}` does not exist".format(
+                    x
+                )
 
         outfilename = kwargs[outfile]
         if need_update(infilename, outfilename):
             return func(*args, **kwargs)
         else:
-            msg = "File `{0}` exists. Computation skipped." \
-                .format(outfilename)
+            msg = "File `{0}` exists. Computation skipped.".format(outfilename)
             logging.debug(msg)
 
         outfilename = listify(outfilename)
 
         for x in outfilename:
-            assert op.exists(x), \
-                "Something went wrong, `{0}` not found".format(x)
+            assert op.exists(x), "Something went wrong, `{0}` not found".format(x)
 
         return outfilename
 
@@ -123,8 +121,7 @@ Functions that make text formatting easier.
 """
 
 
-class Registry (defaultdict):
-
+class Registry(defaultdict):
     def __init__(self, *args, **kwargs):
         super(Registry, self).__init__(list, *args, **kwargs)
 
@@ -141,13 +138,13 @@ class Registry (defaultdict):
 
     def update_from(self, filename):
         from jcvi.formats.base import DictFile
+
         d = DictFile(filename)
         for k, v in d.items():
             self[k].append(v)
 
 
-class SummaryStats (object):
-
+class SummaryStats(object):
     def __init__(self, a, dtype=None, title=None):
         import numpy as np
 
@@ -164,8 +161,8 @@ class SummaryStats (object):
         a.sort()
         self.firstq = a[self.size // 4]
         self.thirdq = a[self.size * 3 // 4]
-        self.p1 = a[int(self.size * .025)]
-        self.p2 = a[int(self.size * .975)]
+        self.p1 = a[int(self.size * 0.025)]
+        self.p2 = a[int(self.size * 0.975)]
 
         if dtype == "int":
             self.mean = int(self.mean)
@@ -174,21 +171,15 @@ class SummaryStats (object):
 
     def __str__(self):
         s = self.title + ": " if self.title else ""
-        s += "Min={0} Max={1} N={2} Mean={3} SD={4} Median={5} Sum={6}".\
-            format(self.min, self.max, self.size,
-                   self.mean, self.sd, self.median,
-                   self.sum)
+        s += "Min={} Max={} N={} Mean={:.2f} SD={:.2f} Median={} Sum={}".format(
+            self.min, self.max, self.size, self.mean, self.sd, self.median, self.sum
+        )
         return s
 
     def todict(self, quartile=False):
-        d = {
-            "Min": self.min, "Max": self.max,
-            "Mean": self.mean, "Median": self.median
-        }
+        d = {"Min": self.min, "Max": self.max, "Mean": self.mean, "Median": self.median}
         if quartile:
-            d.update({
-                "1st Quartile": self.firstq, "3rd Quartile": self.thirdq
-            })
+            d.update({"1st Quartile": self.firstq, "3rd Quartile": self.thirdq})
 
         return d
 
@@ -197,8 +188,9 @@ class SummaryStats (object):
         for x in self.data:
             print(x, file=fw)
         fw.close()
-        logging.debug("Array of size {0} written to file `{1}`.".
-                      format(self.size, filename))
+        logging.debug(
+            "Array of size {0} written to file `{1}`.".format(self.size, filename)
+        )
 
 
 class AutoVivification(dict):
@@ -233,14 +225,14 @@ def percentage(a, b, precision=1, mode=0):
     '100 of 200 (50.0%)'
     """
     _a, _b = a, b
-    pct = "{0:.{1}f}%".format(a * 100. / b, precision)
+    pct = "{0:.{1}f}%".format(a * 100.0 / b, precision)
     a, b = thousands(a), thousands(b)
     if mode == 0:
         return "{0} of {1} ({2})".format(a, b, pct)
     elif mode == 1:
         return "{0} ({1})".format(a, pct)
     elif mode == 2:
-        return _a * 100. / _b
+        return _a * 100.0 / _b
     return pct
 
 
@@ -250,26 +242,29 @@ def thousands(x):
     '12,345'
     """
     import locale
+
     try:
         locale.setlocale(locale.LC_ALL, "en_US.utf8")
     except Exception:
         locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
     finally:
-        s = '%d' % x
+        s = "%d" % x
         groups = []
         while s and s[-1].isdigit():
             groups.append(s[-3:])
             s = s[:-3]
-        return s + ','.join(reversed(groups))
-    return locale.format('%d', x, True)
+        return s + ",".join(reversed(groups))
+    return locale.format("%d", x, True)
 
 
-SUFFIXES = {1000: ['', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb'],
-            1024: ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB']}
+SUFFIXES = {
+    1000: ["", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb"],
+    1024: ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB"],
+}
 
 
 def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
-    '''Convert a file size to human-readable form.
+    """Convert a file size to human-readable form.
 
     Keyword arguments:
     size -- file size in bytes
@@ -285,9 +280,9 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
     1.0Tb
     >>> print(human_size(300))
     300.0
-    '''
+    """
     if size < 0:
-        raise ValueError('number must be non-negative')
+        raise ValueError("number must be non-negative")
 
     multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
     for suffix in SUFFIXES[multiple]:
@@ -302,7 +297,7 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
             else:
                 break
 
-    return '{0:.{1}f}{2}'.format(size, precision, suffix)
+    return "{0:.{1}f}{2}".format(size, precision, suffix)
 
 
 def autoscale(bp, optimal=6):
@@ -335,7 +330,7 @@ def gene_name(st, exclude=("ev",), sep="."):
     """
     if any(st.startswith(x) for x in exclude):
         sep = None
-    st = st.split('|')[0]
+    st = st.split("|")[0]
 
     if sep and sep in st:
         name, suffix = st.rsplit(sep, 1)
@@ -368,11 +363,11 @@ def seqid_parse(seqid, sep=["-"], stdpf=True):
     >>> seqid_parse("AC235758.1", stdpf=False)
     ('AC', '235758.1', '')
     """
-    seqid = seqid.split(';')[0]
+    seqid = seqid.split(";")[0]
     if "mito" in seqid or "chloro" in seqid:
         return (seqid, "", "")
 
-    numbers = re.findall(r'\d+\.*\d*', seqid)
+    numbers = re.findall(r"\d+\.*\d*", seqid)
 
     if not numbers:
         return (seqid, "", "")
@@ -387,7 +382,7 @@ def seqid_parse(seqid, sep=["-"], stdpf=True):
     elif type(sep) == str:
         sep = [sep]
 
-    prefix = seqid[: lastnumi]
+    prefix = seqid[:lastnumi]
     if not stdpf:
         sep = "|".join(sep)
         atoms = re.split(sep, prefix)
@@ -435,12 +430,12 @@ def fixChromName(name, orgn="medicago"):
             `chromosome:AGPv2:chloroplast:1:140384:1` to `Pt`
     """
     import re
+
     mtr_pat1 = re.compile(r"Mt[0-9]+\.[0-9]+[\.[0-9]+]{0,}_([a-z]+[0-9]+)")
     mtr_pat2 = re.compile(r"([A-z0-9]+)_[A-z]+_[A-z]+")
 
-    zmays_pat = re.compile(
-        r"[a-z]+:[A-z0-9]+:([A-z0-9]+):[0-9]+:[0-9]+:[0-9]+")
-    zmays_sub = {'mitochondrion': 'Mt', 'chloroplast': 'Pt'}
+    zmays_pat = re.compile(r"[a-z]+:[A-z0-9]+:([A-z0-9]+):[0-9]+:[0-9]+:[0-9]+")
+    zmays_sub = {"mitochondrion": "Mt", "chloroplast": "Pt"}
     if orgn == "medicago":
         for mtr_pat in (mtr_pat1, mtr_pat2):
             match = re.search(mtr_pat, name)
@@ -465,7 +460,7 @@ def fill(text, delimiter="", width=70):
     """
     texts = []
     for i in range(0, len(text), width):
-        t = delimiter.join(text[i:i + width])
+        t = delimiter.join(text[i : i + width])
         texts.append(t)
     return "\n".join(texts)
 
@@ -499,6 +494,7 @@ def uniqify(L):
     return nL
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

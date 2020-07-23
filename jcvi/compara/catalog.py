@@ -642,11 +642,17 @@ def ortholog(args):
         help="minimum number of anchors in a cluster",
     )
     p.add_option("--quota", help="Quota align parameter")
+    p.add_option("--exclude", help="Remove anchors from a previous run")
     p.add_option(
         "--no_strip_names",
         default=False,
         action="store_true",
         help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
+    )
+    p.add_option(
+        "--liftover_dist",
+        type="int",
+        help="Distance to extend from liftover. Defaults to half of --dist",
     )
     p.set_cpus()
     p.set_dotplot_opts()
@@ -663,6 +669,7 @@ def ortholog(args):
     bbed, bfasta = b + ".bed", b + suffix
     ccscore = opts.cscore
     quota = opts.quota
+    exclude = opts.exclude
     dist = "--dist={0}".format(opts.dist)
     minsize_flag = "--min_size={}".format(opts.n)
     cpus_flag = "--cpus={}".format(opts.cpus)
@@ -683,10 +690,13 @@ def ortholog(args):
 
     filtered_last = last + ".filtered"
     if need_update(last, filtered_last):
+        # If we are doing filtering based on another file then we don't run cscore anymore
+        dargs = [last, "--cscore={}".format(ccscore)]
+        if exclude:
+            dargs += ["--exclude={}".format(exclude)]
         if opts.no_strip_names:
-            blastfilter_main([last, "--cscore={0}".format(ccscore), "--no_strip_names"])
-        else:
-            blastfilter_main([last, "--cscore={0}".format(ccscore)])
+            dargs += ["--no_strip_names"]
+        blastfilter_main(dargs)
 
     anchors = pprefix + ".anchors"
     lifted_anchors = pprefix + ".lifted.anchors"
@@ -701,9 +711,9 @@ def ortholog(args):
                 "--liftover={0}".format(last),
             ]
             if opts.no_strip_names:
-                dargs += [
-                    "--no_strip_names",
-                ]
+                dargs += ["--no_strip_names"]
+            if opts.liftover_dist:
+                dargs += ["--liftover_dist={}".format(opts.liftover_dist)]
             scan(dargs)
         if quota:
             quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])

@@ -1900,6 +1900,11 @@ def scan(args):
         help="Lower bound of intra-chromosomal blocks (only for self comparison)",
     )
     p.add_option("--liftover", help="Scan BLAST file to find extra anchors")
+    p.add_option(
+        "--liftover_dist",
+        type="int",
+        help="Distance to extend from liftover. Defaults to half of --dist",
+    )
     p.set_stripnames()
 
     blast_file, anchor_file, dist, opts = add_options(p, args, dist=20)
@@ -1934,9 +1939,12 @@ def scan(args):
     if not lo:
         return anchor_file
 
-    bedopts = ["--qbed=" + opts.qbed, "--sbed=" + opts.sbed]
-    ostrip = [] if opts.strip_names else ["--no_strip_names"]
-    newanchorfile = liftover([lo, anchor_file] + bedopts + ostrip)
+    dargs = ["--qbed=" + opts.qbed, "--sbed=" + opts.sbed]
+    if not opts.strip_names:
+        dargs += ["--no_strip_names"]
+    liftover_dist = opts.liftover_dist or dist // 2
+    dargs += ["--dist={}".format(liftover_dist)]
+    newanchorfile = liftover([lo, anchor_file] + dargs)
     return newanchorfile
 
 
@@ -1986,7 +1994,7 @@ def liftover(args):
             ac.blocks[block_id].append((query, subject, str(score) + "L"))
             lifted += 1
 
-    logging.debug("{0} new pairs found.".format(lifted))
+    logging.debug("{} new pairs found (dist={}).".format(lifted, dist))
     newanchorfile = anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
     ac.print_to_file(filename=newanchorfile, accepted=accepted)
     summary([newanchorfile])

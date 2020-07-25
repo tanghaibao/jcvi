@@ -33,7 +33,7 @@ import string
 
 from random import sample
 
-from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds
+from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds, get_orientation
 from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser, need_update
 from jcvi.graphics.base import (
@@ -51,7 +51,17 @@ from jcvi.graphics.base import (
 
 
 class Palette(dict):
-    def __init__(self, palettefile):
+    def __init__(self, palettedict=None, palettefile=None):
+        """ Instantiate a palette to map from block_id to color
+
+        Args:
+            palettedict (Dict, optional): Get the mapping from a dict. Defaults to None.
+            palettefile (str, optional): Get the mapping from a two-column file. Defaults to None.
+        """
+        if palettedict is not None:
+            self.update(palettedict)
+        if palettefile is None:
+            return
 
         pal = "rbcygmk"
 
@@ -74,6 +84,38 @@ class Palette(dict):
 
         for k, v in self.items():  # Update from categories to colors
             self[k] = self.colors[v]
+
+    @classmethod
+    def from_block_orientation(
+        cls, anchorfile, qbed, sbed, forward_color="#e7298a", reverse_color="#3690c0"
+    ):
+        """ Generate a palette which contains mapping from block_id (1-based) to colors.
+
+        Args:
+            anchorfile (str): Path to the .anchors file
+            qbed (BedFile): Query BED
+            sbed (BedFile): Subject BED
+            forward_color (str, optional): Color of forward block. Defaults to "#e7298a".
+            reverse_color (str, optional): Color of reverse block. Defaults to "#3690c0".
+        """
+        ac = AnchorFile(anchorfile)
+        blocks = ac.blocks
+        palette = {}
+        qorder = qbed.order
+        sorder = sbed.order
+
+        for i, block in enumerate(blocks):
+            block_id = i + 1
+
+            a, b, _ = zip(*block)
+            a = [qorder[x] for x in a]
+            b = [sorder[x] for x in b]
+            ia, _ = zip(*a)
+            ib, _ = zip(*b)
+
+            orientation = get_orientation(ia, ib)
+            palette[block_id] = reverse_color if orientation == "-" else forward_color
+        return cls(palettedict=palette)
 
 
 def draw_box(clusters, ax, color="b"):
@@ -316,7 +358,9 @@ def dotplot(
     if is_self:
         ax.plot(xlim, (0, ysize), "m-", alpha=0.5, lw=2)
 
-    if palette:  # bottom-left has the palette, if available
+    if palette and hasattr(
+        palette, "colors"
+    ):  # bottom-left has the palette, if available
         colors = palette.colors
         xstart, ystart = 0.1, 0.05
         for category, c in sorted(colors.items()):
@@ -387,6 +431,12 @@ def dotplot_main(args):
     )
     p.add_option("--colormap", help="Two column file, block id to color mapping")
     p.add_option(
+        "--colororientation",
+        action="store_true",
+        default=False,
+        help="Color the blocks based on orientation, similar to mummerplot",
+    )
+    p.add_option(
         "--nosort",
         default=False,
         action="store_true",
@@ -405,11 +455,17 @@ def dotplot_main(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
+    (anchorfile,) = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(
+        anchorfile, p, opts, sorted=(not opts.nosort)
+    )
+
     palette = opts.colormap
     if palette:
-        palette = Palette(palette)
+        palette = Palette(palettefile=palette)
+    elif opts.colororientation:
+        palette = Palette.from_block_orientation(anchorfile, qbed, sbed)
 
-    (anchorfile,) = args
     cmaptext = opts.cmaptext
     if anchorfile.endswith(".ks"):
         from jcvi.apps.ks import KsFile
@@ -421,10 +477,6 @@ def dotplot_main(args):
             ksfile = KsFile(anchorfile)
             ksfile.print_to_anchors(anchorksfile)
         anchorfile = anchorksfile
-
-    qbed, sbed, qorder, sorder, is_self = check_beds(
-        anchorfile, p, opts, sorted=(not opts.nosort)
-    )
 
     if opts.skipempty:
         ac = AnchorFile(anchorfile)

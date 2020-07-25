@@ -885,6 +885,7 @@ def toaligns(args):
     with the Block ID.
     """
     p = OptionParser(toaligns.__doc__)
+    p.add_option("--prefix", default="b", help="Prefix to the block id")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -900,7 +901,7 @@ def toaligns(args):
     with must_open(opts.outfile, "w") as fw:
         print(header, file=fw)
         for a, b, block_id in ac.iter_pairs():
-            block_id = "b{:0{}d}".format(block_id, max_block_id_len)
+            block_id = "{}{:0{}d}".format(opts.prefix, block_id, max_block_id_len)
             print("\t".join((block_id, a, b)), file=fw)
 
 

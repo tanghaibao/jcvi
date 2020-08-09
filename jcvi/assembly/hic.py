@@ -312,11 +312,11 @@ class CLMFile:
             score = 0
         else:
             old_signs = self.signs[: self.N]
-            score, = self.evaluate_tour_Q(tour)
+            (score,) = self.evaluate_tour_Q(tour)
 
         # Remember we cannot have ambiguous orientation code (0 or '?') here
         self.signs = get_signs(self.O, validate=False, ambiguous=False)
-        score_flipped, = self.evaluate_tour_Q(tour)
+        (score_flipped,) = self.evaluate_tour_Q(tour)
         if score_flipped >= score:
             tag = ACCEPT
         else:
@@ -328,9 +328,9 @@ class CLMFile:
     def flip_whole(self, tour):
         """ Test flipping all contigs at the same time to see if score improves.
         """
-        score, = self.evaluate_tour_Q(tour)
+        (score,) = self.evaluate_tour_Q(tour)
         self.signs = -self.signs
-        score_flipped, = self.evaluate_tour_Q(tour)
+        (score_flipped,) = self.evaluate_tour_Q(tour)
         if score_flipped > score:
             tag = ACCEPT
         else:
@@ -347,9 +347,9 @@ class CLMFile:
         any_tag_ACCEPT = False
         for i, t in enumerate(tour):
             if i == 0:
-                score, = self.evaluate_tour_Q(tour)
+                (score,) = self.evaluate_tour_Q(tour)
             self.signs[t] = -self.signs[t]
-            score_flipped, = self.evaluate_tour_Q(tour)
+            (score_flipped,) = self.evaluate_tour_Q(tour)
             if score_flipped > score:
                 n_accepts += 1
                 tag = ACCEPT
@@ -374,7 +374,7 @@ class CLMFile:
         be an array of ints.
         """
         while True:
-            tour_score, = self.evaluate_tour_M(tour)
+            (tour_score,) = self.evaluate_tour_M(tour)
             logging.debug("Starting score: {}".format(tour_score))
             active_sizes = self.active_sizes
             M = self.M
@@ -549,7 +549,7 @@ def prune_tour_worker(arg):
     from .chic import score_evaluate_M
 
     t, stour, tour_score, active_sizes, M = arg
-    stour_score, = score_evaluate_M(stour, active_sizes, M)
+    (stour_score,) = score_evaluate_M(stour, active_sizes, M)
     delta_score = tour_score - stour_score
     log10d = np.log10(delta_score) if delta_score > 1e-9 else -9
     return t, log10d
@@ -643,7 +643,7 @@ def dist(args):
     a = np.load(npyfile)
 
     xmin, xmax = opts.xmin, opts.xmax
-    size, = min(distbin_sizes.shape, distbin_starts.shape, a.shape)
+    (size,) = min(distbin_sizes.shape, distbin_starts.shape, a.shape)
     df = pd.DataFrame()
     xstart, xend = (
         np.searchsorted(distbin_starts, xmin),
@@ -908,7 +908,7 @@ def bam2mat(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bamfilename, = args
+    (bamfilename,) = args
     pf = bamfilename.rsplit(".", 1)[0]
     N = opts.resolution
     pf += f".resolution_{N}"
@@ -1029,7 +1029,7 @@ def simulate(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    pf, = args
+    (pf,) = args
     GenomeSize = opts.genomesize
     Genes = opts.genes
     Contigs = opts.contigs
@@ -1040,7 +1040,7 @@ def simulate(args):
     # Simulate the contig sizes that sum to GenomeSize
     # See also:
     # <https://en.wikipedia.org/wiki/User:Skinnerd/Simplex_Point_Picking>
-    ContigSizes, = np.random.dirichlet([1] * Contigs, 1) * GenomeSize
+    (ContigSizes,) = np.random.dirichlet([1] * Contigs, 1) * GenomeSize
     ContigSizes = np.array(np.round_(ContigSizes, decimals=0), dtype=int)
     ContigStarts = np.zeros(Contigs, dtype=int)
     ContigStarts[1:] = np.cumsum(ContigSizes)[:-1]
@@ -1060,7 +1060,7 @@ def simulate(args):
     # Simulate links, uniform start, with link distances following 1/x, where x
     # is the distance between the links. As an approximation, we have links
     # between [1e3, 1e7], so we map from uniform [1e-7, 1e-3]
-    LinkStarts = np.sort(np.random.randint(0, GenomeSize, size=Links))
+    LinkStarts = np.sort(np.random.randint(1, GenomeSize, size=Links))
     a, b = 1e-7, 1e-3
     LinkSizes = np.array(
         np.round_(1 / ((b - a) * np.random.rand(Links) + a), decimals=0), dtype="int"
@@ -1189,7 +1189,7 @@ def density(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clmfile, = args
+    (clmfile,) = args
     clm = CLMFile(clmfile)
     pf = clmfile.rsplit(".", 1)[0]
 
@@ -1237,7 +1237,7 @@ def optimize(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clmfile, = args
+    (clmfile,) = args
     startover = opts.startover
     runGA = not opts.skipGA
     cpus = opts.cpus

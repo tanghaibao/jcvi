@@ -198,6 +198,8 @@ def calibrate(args):
 
     xs = [t.x for t in objects]
     ys = [t.y for t in objects]
+    xs = [float(itemx) for itemx in xs]
+    ys = [float(itemy) for itemy in ys]
     idx_xs = get_kmeans(xs, 6)
     idx_ys = get_kmeans(ys, 4)
     for xi, yi, s in zip(idx_xs, idx_ys, objects):

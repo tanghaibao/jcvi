@@ -263,7 +263,7 @@ def cluster(args):
 
     id = 0
     for block in ac.iter_blocks(minsize=minsize):
-        q, s = zip(*block)[:2]
+        q, s = list(zip(*block))[:2]
         q = [qorder[x][0] for x in q]
         s = [sorder[x][0] for x in s]
         minq, maxq = min(q), max(q)

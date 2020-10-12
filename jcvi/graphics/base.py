@@ -2,6 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 from __future__ import print_function
+import copy
 import os.path as op
 import sys
 import logging
@@ -225,11 +226,11 @@ set1, set2, set3 = set1_n(), set2_n(), set3_n()
 
 
 def prettyplot():
-    reds = mpl.cm.Reds
+    reds = copy.copy(mpl.cm.Reds)
     reds.set_bad("white")
     reds.set_under("white")
 
-    blues_r = mpl.cm.Blues_r
+    blues_r = copy.copy(mpl.cm.Blues_r)
     blues_r.set_bad("white")
     blues_r.set_under("white")
 

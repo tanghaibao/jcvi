@@ -171,6 +171,8 @@ def genestats(args):
         fid = feat.id
         transcripts = [c.id for c in g.children(fid, 1) \
                          if c.featuretype == "mRNA"]
+        if len(transcripts) == 0:
+            continue
         transcript_sizes = [tsizes[x] for x in transcripts]
         exons = set((c.chrom, c.start, c.stop) for c in g.children(fid, 2) \
                          if c.featuretype == "exon")

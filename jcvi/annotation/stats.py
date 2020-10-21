@@ -208,7 +208,7 @@ def genestats(args):
         mean_num_transcripts = num_transcripts * 1. / num_genes
         mean_locus_size = cum_locus_size * 1. / num_genes
         mean_transcript_size = cum_transcript_size * 1. / num_transcripts
-        mean_exon_size = cum_exon_size * 1. / num_exons
+        mean_exon_size = cum_exon_size * 1. / num_exons if num_exons != 0 else 0
 
         r[("Number of genes", g)] = num_genes
         r[("Number of single-exon genes", g)] = \

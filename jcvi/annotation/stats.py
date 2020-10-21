@@ -151,7 +151,7 @@ def genestats(args):
     gb = opts.groupby
     g = make_index(gff_file)
 
-    tf = "transcript.sizes"
+    tf = gff_file + ".transcript.sizes"
     if need_update(gff_file, tf):
         fw = open(tf, "w")
         for feat in g.features_of_type("mRNA"):
@@ -171,6 +171,8 @@ def genestats(args):
         fid = feat.id
         transcripts = [c.id for c in g.children(fid, 1) \
                          if c.featuretype == "mRNA"]
+        if len(transcripts) == 0:
+            continue
         transcript_sizes = [tsizes[x] for x in transcripts]
         exons = set((c.chrom, c.start, c.stop) for c in g.children(fid, 2) \
                          if c.featuretype == "exon")
@@ -206,7 +208,7 @@ def genestats(args):
         mean_num_transcripts = num_transcripts * 1. / num_genes
         mean_locus_size = cum_locus_size * 1. / num_genes
         mean_transcript_size = cum_transcript_size * 1. / num_transcripts
-        mean_exon_size = cum_exon_size * 1. / num_exons
+        mean_exon_size = cum_exon_size * 1. / num_exons if num_exons != 0 else 0
 
         r[("Number of genes", g)] = num_genes
         r[("Number of single-exon genes", g)] = \

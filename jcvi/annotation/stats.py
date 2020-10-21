@@ -151,7 +151,7 @@ def genestats(args):
     gb = opts.groupby
     g = make_index(gff_file)
 
-    tf = "transcript.sizes"
+    tf = gff_file + ".transcript.sizes"
     if need_update(gff_file, tf):
         fw = open(tf, "w")
         for feat in g.features_of_type("mRNA"):

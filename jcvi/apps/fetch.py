@@ -29,11 +29,13 @@ from jcvi.apps.base import (
     download,
     sh,
     last_updated,
+    which,
 )
 
 
 myEmail = get_email_address()
 Entrez.email = myEmail
+PHYTOZOME_COOKIES = ".phytozome_cookies"
 
 
 def batch_taxonomy(list_of_taxids):
@@ -179,7 +181,7 @@ def download_species_ensembl(species, valid_species, url):
             download(f)
 
 
-def get_cookies(cookies=".phytozome_cookies"):
+def get_cookies(cookies=PHYTOZOME_COOKIES):
     from getpass import getpass
 
     # Check if cookies is still good
@@ -188,9 +190,18 @@ def get_cookies(cookies=".phytozome_cookies"):
 
     username = input("Phytozome Login: ")
     pw = getpass("Phytozome Password: ")
-    cmd = "curl https://signon.jgi.doe.gov/signon/create --data-ascii"
+    curlcmd = which("curl")
+    if curlcmd is None:
+        print("curl command not installed. Aborting.", file=sys.stderr)
+        return None
+    cmd = "{} https://signon.jgi.doe.gov/signon/create --data-ascii".format(curlcmd)
     cmd += " login={0}\&password={1} -b {2} -c {2}".format(username, pw, cookies)
     sh(cmd, outfile="/dev/null", errfile="/dev/null", log=False)
+    if not op.exists(cookies):
+        print(
+            "Cookies file `{}` not created. Aborting.".format(cookies), file=sys.stderr
+        )
+        return None
 
     return cookies
 

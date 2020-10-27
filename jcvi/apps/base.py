@@ -1428,6 +1428,16 @@ def download(url, filename=None, debug=True, cookies=None, handle_gzip=False):
     return final_filename
 
 
+def remove_if_exists(filename):
+    """ Check if a file exists and if so remove it
+
+    Args:
+        filename (str): Path to the local file.
+    """
+    if op.exists(filename):
+        os.remove(filename)
+
+
 def getfilesize(filename, ratio=None):
     rawsize = op.getsize(filename)
     if not filename.endswith(".gz"):

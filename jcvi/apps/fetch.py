@@ -240,13 +240,21 @@ def phytozome(args):
     )
     opts, args = p.parse_args(args)
 
-    cookies = get_cookies()
     directory_listing = ".phytozome_directory_V{}.xml".format(opts.version)
     # Get directory listing
     base_url = "http://genome.jgi.doe.gov"
     dlist = "{}/ext-api/downloads/get-directory?organism=PhytozomeV{}".format(
         base_url, opts.version
     )
+
+    # Make sure we have a valid cookies
+    cookies = get_cookies()
+    if cookies is None:
+        logging.error("Error fetching cookies ... cleaning up")
+        FileShredder([directory_listing])
+        sys.exit(1)
+
+    # Proceed to use the cookies and download the species list
     try:
         d = download(dlist, filename=directory_listing, cookies=cookies)
         g = GlobusXMLParser(directory_listing)

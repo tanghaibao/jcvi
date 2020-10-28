@@ -194,8 +194,10 @@ def get_cookies(cookies=PHYTOZOME_COOKIES):
     if curlcmd is None:
         print("curl command not installed. Aborting.", file=sys.stderr)
         return None
-    cmd = "{} https://signon.jgi.doe.gov/signon/create --data-ascii".format(curlcmd)
-    cmd += " login={0}\&password={1} -b {2} -c {2}".format(username, pw, cookies)
+    cmd = "{} https://signon.jgi.doe.gov/signon/create".format(curlcmd)
+    cmd += " --data-urlencode 'login={0}' --data-urlencode 'password={1}' -b {2} -c {2}".format(
+        username, pw, cookies
+    )
     sh(cmd, outfile="/dev/null", errfile="/dev/null", log=False)
     if not op.exists(cookies):
         print(
@@ -240,13 +242,21 @@ def phytozome(args):
     )
     opts, args = p.parse_args(args)
 
-    cookies = get_cookies()
     directory_listing = ".phytozome_directory_V{}.xml".format(opts.version)
     # Get directory listing
     base_url = "http://genome.jgi.doe.gov"
     dlist = "{}/ext-api/downloads/get-directory?organism=PhytozomeV{}".format(
         base_url, opts.version
     )
+
+    # Make sure we have a valid cookies
+    cookies = get_cookies()
+    if cookies is None:
+        logging.error("Error fetching cookies ... cleaning up")
+        FileShredder([directory_listing])
+        sys.exit(1)
+
+    # Proceed to use the cookies and download the species list
     try:
         d = download(dlist, filename=directory_listing, cookies=cookies)
         g = GlobusXMLParser(directory_listing)

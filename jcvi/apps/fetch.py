@@ -194,8 +194,10 @@ def get_cookies(cookies=PHYTOZOME_COOKIES):
     if curlcmd is None:
         print("curl command not installed. Aborting.", file=sys.stderr)
         return None
-    cmd = "{} https://signon.jgi.doe.gov/signon/create --data-ascii".format(curlcmd)
-    cmd += " login={0}\&password={1} -b {2} -c {2}".format(username, pw, cookies)
+    cmd = "{} https://signon.jgi.doe.gov/signon/create".format(curlcmd)
+    cmd += " --data-urlencode 'login={0}' --data-urlencode 'password={1}' -b {2} -c {2}".format(
+        username, pw, cookies
+    )
     sh(cmd, outfile="/dev/null", errfile="/dev/null", log=False)
     if not op.exists(cookies):
         print(

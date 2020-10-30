@@ -80,7 +80,7 @@ class PhytozomePath(dict):
         """
         return "assembly" in self and "annotation" in self
 
-    def download(self, name, base_url, cookies):
+    def download(self, name, base_url, cookies, downloader=None):
         """Download the file if it has an URL. Otherwise, this will recursively search the children.
 
         See also:
@@ -88,14 +88,20 @@ class PhytozomePath(dict):
 
         Args:
             name (str, optional): Name of the file. Defaults to None.
+            base_url (str): Link to the file on the internet.
+            cookies (str, optional): cookies file. Defaults to None.
+            downloader (str, optional): Use a given downloader. One of wget|curl|powershell|insecure.
+            Defaults to None.
         """
         if self.name == name and base_url and self.url:
             url = urljoin(base_url, self.url)
-            download(url, filename=name, debug=True, cookies=cookies)
+            download(
+                url, filename=name, debug=True, cookies=cookies, downloader=downloader
+            )
         else:
             for child_name, child in self.items():
                 if child_name == name:
-                    child.download(name, base_url, cookies)
+                    child.download(name, base_url, cookies, downloader=downloader)
         return name
 
     def __repr__(self):
@@ -399,7 +405,7 @@ def bed(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    idsfile, = args
+    (idsfile,) = args
     ids = set(x.strip() for x in open(idsfile))
     data = get_bed_from_phytozome(list(ids))
 

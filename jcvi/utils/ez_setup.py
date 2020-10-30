@@ -285,16 +285,32 @@ def download_file_insecure(url, target, cookies=None):
 
 download_file_insecure.viable = lambda: True
 
+ALL_DOWNLOADERS = [
+    ("wget", download_file_wget),
+    ("curl", download_file_curl),
+    ("powershell", download_file_powershell),
+    ("insecure", download_file_insecure),
+]
 
-def get_best_downloader():
-    downloaders = [
-        download_file_wget,
-        download_file_curl,
-        download_file_powershell,
-        download_file_insecure,
-    ]
 
-    for dl in downloaders:
+def get_best_downloader(downloader=None):
+    """ Choose among a set of 4 popular downloaders, in the following order:
+    - wget
+    - curl
+    - powershell
+    - insecure (Python)
+
+    Args:
+        downloader (str, optional): Use a given downloader. One of wget|curl|powershell|insecure.
+        Defaults to None.
+
+    Returns:
+        Download function: The downloader function that accepts as parameters url, target
+        and cookies.
+    """
+    for dl_name, dl in ALL_DOWNLOADERS:
+        if downloader and dl_name != downloader:
+            continue
         if dl.viable():
             return dl
 

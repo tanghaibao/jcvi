@@ -240,8 +240,10 @@ def phytozome(args):
         action="store_true",
         help="Format to CDS and BED for synteny inference",
     )
+    p.set_downloader()
     opts, args = p.parse_args(args)
 
+    downloader = opts.downloader
     directory_listing = ".phytozome_directory_V{}.xml".format(opts.version)
     # Get directory listing
     base_url = "http://genome.jgi.doe.gov"
@@ -258,7 +260,9 @@ def phytozome(args):
 
     # Proceed to use the cookies and download the species list
     try:
-        d = download(dlist, filename=directory_listing, cookies=cookies)
+        d = download(
+            dlist, filename=directory_listing, cookies=cookies, downloader=downloader,
+        )
         g = GlobusXMLParser(directory_listing)
     except:
         logging.error("Error downloading directory listing ... cleaning up")
@@ -280,7 +284,13 @@ def phytozome(args):
     species = species.split(",")
     for s in species:
         res = download_species_phytozome(
-            genomes, s, valid_species, base_url, cookies, assembly=opts.assembly
+            genomes,
+            s,
+            valid_species,
+            base_url,
+            cookies,
+            assembly=opts.assembly,
+            downloader=downloader,
         )
         if not res:
             logging.error("No files downloaded")
@@ -290,7 +300,7 @@ def phytozome(args):
 
 
 def download_species_phytozome(
-    genomes, species, valid_species, base_url, cookies, assembly=False
+    genomes, species, valid_species, base_url, cookies, assembly=False, downloader=None
 ):
     """Download assembly FASTA and annotation GFF.
 
@@ -298,7 +308,10 @@ def download_species_phytozome(
         genomes (dict): Dictionary parsed from Globus XML.
         species (str): Target species to download.
         valid_species (List[str]): Allowed set of species
-        assembly (bool, optional): Do we download assembly FASTA (can be big). Defaults to False.
+        assembly (bool, optional): Do we download assembly FASTA (can be big).
+        Defaults to False.
+        downloader (str, optional): Use a given downloader. One of wget|curl|powershell|insecure.
+        Defaults to None.
     """
     assert species in valid_species, "{} is not in the species list".format(species)
     res = {}
@@ -310,16 +323,22 @@ def download_species_phytozome(
     if assembly and genome_assembly:
         asm_name = next(x for x in genome_assembly if x.endswith(".fa.gz"))
         if asm_name:
-            res["asm"] = genome_assembly.download(asm_name, base_url, cookies)
+            res["asm"] = genome_assembly.download(
+                asm_name, base_url, cookies, downloader=downloader
+            )
 
     genome_annotation = genome.get("annotation")
     if genome_annotation:
         gff_name = next(x for x in genome_annotation if x.endswith(".gene.gff3.gz"))
         if gff_name:
-            res["gff"] = genome_annotation.download(gff_name, base_url, cookies)
+            res["gff"] = genome_annotation.download(
+                gff_name, base_url, cookies, downloader=downloader
+            )
         cds_name = next(x for x in genome_annotation if x.endswith(".cds.fa.gz"))
         if cds_name:
-            res["cds"] = genome_annotation.download(cds_name, base_url, cookies)
+            res["cds"] = genome_annotation.download(
+                cds_name, base_url, cookies, downloader=downloader
+            )
 
     return res
 

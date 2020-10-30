@@ -235,6 +235,20 @@ class OptionParser(OptionP):
             )
         self.add_option_group(group)
 
+    def set_downloader(self, downloader=None):
+        """
+        Add --downloader options for given command line program.
+        """
+        from jcvi.utils.ez_setup import ALL_DOWNLOADERS
+
+        downloader_choices = [x[0] for x in ALL_DOWNLOADERS]
+        self.add_option(
+            "--downloader",
+            default=downloader,
+            choices=downloader_choices,
+            help="Use the specified downloader to retrieve resources",
+        )
+
     def set_params(self, prog=None, params=""):
         """
         Add --params options for given command line programs
@@ -1365,7 +1379,9 @@ def ls_ftp(dir):
     return files
 
 
-def download(url, filename=None, debug=True, cookies=None, handle_gzip=False):
+def download(
+    url, filename=None, debug=True, cookies=None, handle_gzip=False, downloader=None
+):
     """ Download URL to local
 
     Args:
@@ -1375,6 +1391,8 @@ def download(url, filename=None, debug=True, cookies=None, handle_gzip=False):
         cookies (str, optional): cookies file. Defaults to None.
         handle_gzip (bool, optional): Postprocess .gz files, either compress or
         uncompress. Defaults to False.
+        downloader (str, optional): Use a given downloader. One of wget|curl|powershell|insecure.
+        Defaults to None.
 
     Returns:
         str: Local file name.
@@ -1409,13 +1427,15 @@ def download(url, filename=None, debug=True, cookies=None, handle_gzip=False):
     else:
         from jcvi.utils.ez_setup import get_best_downloader
 
-        downloader = get_best_downloader()
-        try:
-            downloader(url, target, cookies=cookies)
-            success = True
-        except (CalledProcessError, KeyboardInterrupt) as e:
-            print(e, file=sys.stderr)
-            FileShredder([target])
+        downloader = get_best_downloader(downloader=downloader)
+        if downloader:
+            try:
+                downloader(url, target, cookies=cookies)
+                success = True
+            except (CalledProcessError, KeyboardInterrupt) as e:
+                print(e, file=sys.stderr)
+        else:
+            print("Cannot find a suitable downloader", outfile=sys.stderr)
 
         if success and handle_gzip:
             if need_gunzip:
@@ -1424,6 +1444,9 @@ def download(url, filename=None, debug=True, cookies=None, handle_gzip=False):
             elif need_gzip:
                 sh("gzip -c {}".format(target), outfile=filename)
                 FileShredder([target])
+
+    if not success:
+        FileShredder([target])
 
     return final_filename
 

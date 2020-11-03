@@ -1424,7 +1424,7 @@ def download(
         if debug:
             msg = "File `{}` exists. Download skipped.".format(final_filename)
             logging.error(msg)
-            success = True
+        success = True
     else:
         from jcvi.utils.ez_setup import get_best_downloader
 
@@ -2227,7 +2227,7 @@ def inspect(object):
         print("{}: {}".format(k, details), file=sys.stderr)
 
 
-def sample_N(a, N):
+def sample_N(a, N, seed=None):
     """ When size of N is > size of a, random.sample() will emit an error:
     ValueError: sample larger than population
 
@@ -2235,11 +2235,16 @@ def sample_N(a, N):
     happens. Guaranteed to cover all items if N is > size of a.
 
     Examples:
-    >>> sample_N([1, 2, 3], 2)
-    >>> sample_N([1, 2, 3], 3)
-    >>> sample_N([1, 2, 3], 4)
+    >>> sample_N([1, 2, 3], 2, seed=666)
+    [2, 3]
+    >>> sample_N([1, 2, 3], 3, seed=666)
+    [2, 3, 1]
+    >>> sample_N([1, 2, 3], 4, seed=666)
+    [2, 3, 1, 2]
     """
     import random
+
+    random.seed(seed)
 
     ret = []
     while N > len(a):

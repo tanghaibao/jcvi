@@ -8,6 +8,7 @@ import os.path as op
 def test_sample_N():
     from jcvi.apps.base import sample_N
 
+    # No random seed, we test the length of the output
     a = sample_N(list(range(10)), 2)
     assert len(a) == 2
     assert set(a) < set(range(10))
@@ -19,6 +20,16 @@ def test_sample_N():
     a = sample_N(list(range(5)), 5)
     assert len(a) == 5
     assert set(a) == set(range(5))
+
+    # With random seed, we test for exact matches
+    a = sample_N([1, 2, 3], 2, seed=666)
+    assert a == [2, 3]
+
+    a = sample_N([1, 2, 3], 3, seed=666)
+    assert a == [2, 3, 1]
+
+    a = sample_N([1, 2, 3], 4, seed=666)
+    assert a == [2, 3, 1, 2]
 
 
 def test_remove_if_exists():

@@ -533,7 +533,7 @@ def draw_chromosomes(
         mappings = DictFile(mappingfile, delimiter="\t")
         classes = sorted(set(mappings.values()))
         preset_colors = (
-            DictFile(mappingfile, valuepos=2, delimiter="\t")
+            DictFile(mappingfile, keypos=1, valuepos=2, delimiter="\t")
             if DictFile.num_columns(mappingfile) >= 3
             else {}
         )
@@ -546,17 +546,14 @@ def draw_chromosomes(
         "A total of {} classes found: {}".format(len(classes), ",".join(classes))
     )
 
-    def assign_colors(classes, mappings, preset_colors={}):
-        # Assign colors to classes
-        ncolors = max(3, min(len(classes), 12))
-        palette = set1_n if ncolors <= 8 else set3_n
-        colorset = palette(number=ncolors)
-        colorset = sample_N(colorset, len(classes))
-        class_colors = dict(zip(classes, colorset))
-        class_colors.update(preset_colors)
-        logging.debug("Assigned colors: {}".format(class_colors))
-
-    assign_colors(classes, mappings, preset_colors=preset_colors)
+    # Assign colors to classes
+    ncolors = max(3, min(len(classes), 12))
+    palette = set1_n if ncolors <= 8 else set3_n
+    colorset = palette(number=ncolors)
+    colorset = sample_N(colorset, len(classes))
+    class_colors = dict(zip(classes, colorset))
+    class_colors.update(preset_colors)
+    logging.debug("Assigned colors: {}".format(class_colors))
 
     chr_lens = {}
     centromeres = {}

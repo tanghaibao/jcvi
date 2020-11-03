@@ -105,6 +105,20 @@ class DictFile(BaseFile, OrderedDict):
         self.ncols = thiscols
         logging.debug("Imported {0} records from `{1}`.".format(len(self), filename))
 
+    @classmethod
+    def num_columns(cls, filename, delimiter=None):
+        """ Return the column number of the csv file.
+
+        Args:
+            filename (str): Path to the file.
+            delimiter (str, optional): Separator of the csv file. Defaults to None.
+
+        Returns:
+            int: Column number.
+        """
+        fp = must_open(filename)
+        return max(len(row.split(delimiter)) for row in fp)
+
 
 class SetFile(BaseFile, set):
     def __init__(self, filename, column=-1, delimiter=None):

@@ -51,14 +51,29 @@ class BinMap(BaseFile, dict):
                 pos = int(float(pos) * 1000)
                 self[lg].append((marker, pos))
 
-    def print_to_bed(self, filename="stdout", switch=False):
+    def print_to_bed(self, filename="stdout", switch=False, sep="."):
+        """ Print the genetic map in the BED format.
+
+        Args:
+            filename (str, optional): Output filename. Defaults to "stdout".
+            switch (bool, optional): Use linkage group as seqid. Defaults to False.
+            sep (str, optional): Separator that delimits scaffold name and position. Defaults to ".".
+        """
         fw = must_open(filename, "w")
         for lg, markers in sorted(self.items()):
             for marker, pos in markers:
                 if not switch:
                     line = (lg, pos, pos + 1, marker)
                 else:
-                    seqid, spos = marker.split(".")
+                    seqid_spos = marker.rsplit(sep, 1)
+                    if len(seqid_spos) != 2:
+                        logging.error(
+                            "Error: `{}` must be in the form e.g. `name{}position`".format(
+                                marker, sep
+                            )
+                        )
+                        continue
+                    seqid, spos = seqid_spos
                     spos = int(spos)
                     marker = "{0}:{1}".format(lg, pos / 1000.0)
                     line = (seqid, spos - 1, spos, marker)
@@ -570,6 +585,11 @@ def bed(args):
         action="store_true",
         help="Switch reference and aligned map elements",
     )
+    p.add_option(
+        "--sep",
+        default=".",
+        help="Separator that is used to delimit scaffold and position in the marker name",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -579,7 +599,7 @@ def bed(args):
     pf = mapout.split(".")[0]
     mapbed = pf + ".bed"
     bm = BinMap(mapout)
-    bm.print_to_bed(mapbed, switch=opts.switch)
+    bm.print_to_bed(mapbed, switch=opts.switch, sep=opts.sep)
 
     return mapbed
 

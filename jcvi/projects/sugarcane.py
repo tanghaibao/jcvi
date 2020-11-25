@@ -20,6 +20,9 @@ import matplotlib.pyplot as plt
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 from jcvi.graphics.base import normalize_axes, adjust_spines, savefig
 
+SO_COLOR = "#94d454"  # Green
+SS_COLOR = "#7941a3"  # Purple
+
 
 # Simulate genome composition
 class Genome:
@@ -136,6 +139,27 @@ class Genome:
             print(f"{group}: count={group_count}, unique={group_unique}")
 
 
+class GenomeSummary:
+    def __init__(self, SO_data, SS_data):
+        self.SO_data = SO_data
+        self.SS_data = SS_data
+
+    def _summary(self, a, tag):
+        mean, min, max = round(np.mean(a)), round(np.min(a)), round(np.max(a))
+        s = "{} avg:{:.0f}".format(tag, mean)
+        if min == mean and max == mean:
+            return s
+        return s + " ({:.0f}-{:.0f})".format(min, max)
+
+    @property
+    def SO_summary(self):
+        return self._summary(self.SO_data, "So")
+
+    @property
+    def SS_summary(self):
+        return self._summary(self.SS_data, "Ss")
+
+
 def simulate_F1(SO, SS, verbose=False):
     SO_SS_F1_2xnplusn = SO.mate_2xnplusn("SOxSS F1", SS, verbose=verbose)
     if verbose:
@@ -198,7 +222,7 @@ def simulate_BCn(n, SO, SS, verbose=False):
     ][n]
 
 
-def plot_summary(ax, samples, title):
+def plot_summary(ax, samples):
     SO_data = []
     SS_data = []
     for sample in samples:
@@ -217,24 +241,12 @@ def plot_summary(ax, samples, title):
             group_unique = 0
         SS_data.append(group_unique)
     x, y = zip(*sorted(Counter(SS_data).items()))
-    so_color = "#94d454"  # Green
-    ss_color = "#7941a3"  # Purple
-    ss = ax.bar(x, y, color=ss_color, alpha=0.8, ec=ss_color)
+    ss = ax.bar(x, y, color=SS_COLOR, alpha=0.8, ec=SS_COLOR)
     x, y = zip(*sorted(Counter(SO_data).items()))
-    so = ax.bar(x, y, color=so_color, alpha=0.8, ec=so_color)
+    so = ax.bar(x, y, color=SO_COLOR, alpha=0.8, ec=SO_COLOR)
     ax.set_xlim(0, 80)
     ax.set_yticks([])
-    ax.set_ylabel(title, rotation=0, labelpad=36, color="darkslategray")
-    SO_mean, SO_std = np.mean(SO_data), np.std(SO_data)
-    SS_mean, SS_std = np.mean(SS_data), np.std(SS_data)
-    ax.legend(
-        [so, ss],
-        [
-            f"So chrs ({SO_mean:.1f}±{SO_std:.1f})",
-            f"Ss chrs ({SS_mean:.1f}±{SS_std:.1f})",
-        ],
-        loc="upper right",
-    )
+    return GenomeSummary(SO_data, SS_data)
 
 
 def write_chromosomes(genomes, filename):
@@ -278,12 +290,16 @@ def simulate(args):
     ypad = 0.05
     yinterval = (1 - 2 * ypad) / (rows + 1)
     yy = 1 - ypad
+    xpad = 0.18
+    xwidth = 0.6
 
     # Axes are vertically stacked, and share x-axis
     axes = []
+    yy_positions = []  # Save yy positions so we can show details to the right laterr
     for idx in range(rows):
+        yy_positions.append(yy)
         yy -= yinterval
-        ax = fig.add_axes([0.15, yy, 0.7, yinterval * 0.85])
+        ax = fig.add_axes([xpad, yy, xwidth, yinterval * 0.85])
         if idx != rows - 1:
             plt.setp(ax.get_xticklabels(), visible=False)
         axes.append(ax)
@@ -304,13 +320,63 @@ def simulate(args):
     all_BC4s = [simulate_BCn(4, SO, SS, verbose=verbose) for _ in range(1000)]
 
     # Plotting
-    plot_summary(ax1, all_F1s, "F1")
-    plot_summary(ax2, all_F2s, "F2\nby selfing")
-    plot_summary(ax3, all_F1intercrosses, "F2\nby intercross")
-    plot_summary(ax4, all_BC1s, "BC1")
-    plot_summary(ax5, all_BC2s, "BC2")
-    plot_summary(ax6, all_BC3s, "BC3")
-    plot_summary(ax7, all_BC4s, "BC4")
+    f1s = plot_summary(ax1, all_F1s)
+    f2s = plot_summary(ax2, all_F2s)
+    f1is = plot_summary(ax3, all_F1intercrosses)
+    bc1s = plot_summary(ax4, all_BC1s)
+    bc2s = plot_summary(ax5, all_BC2s)
+    bc3s = plot_summary(ax6, all_BC3s)
+    bc4s = plot_summary(ax7, all_BC4s)
+
+    # Show title to the left
+    xx = xpad / 2
+    for (title, subtitle), yy in zip(
+        (
+            ("F1", None),
+            ("F2", "via selfing"),
+            ("F2", "via intercross"),
+            ("BC1", None),
+            ("BC2", None),
+            ("BC3", None),
+            ("BC4", None),
+        ),
+        yy_positions,
+    ):
+        if subtitle:
+            yy -= 0.06
+        else:
+            yy -= 0.07
+        root.text(xx, yy, title, color="darkslategray", ha="center", va="center")
+        if subtitle:
+            yy -= 0.02
+            root.text(
+                xx, yy, subtitle, color="lightslategray", ha="center", va="center"
+            )
+
+    # Show summary stats to the right
+    xx = 1 - (1 - xpad - xwidth) / 2
+    for summary, yy in zip((f1s, f2s, f1is, bc1s, bc2s, bc3s, bc4s), yy_positions):
+        yy -= 0.05
+        root.text(
+            xx,
+            yy,
+            summary.SO_summary,
+            size=10,
+            color=SO_COLOR,
+            ha="center",
+            va="center",
+        )
+        yy -= 0.02
+        root.text(
+            xx,
+            yy,
+            summary.SS_summary,
+            size=10,
+            color=SS_COLOR,
+            ha="center",
+            va="center",
+        )
+
     ax7.set_xlabel("Number of unique chromosomes")
     adjust_spines(ax7, ["bottom"], outward=True)
     normalize_axes(root)

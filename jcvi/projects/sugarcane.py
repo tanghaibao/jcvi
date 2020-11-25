@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 # -*- coding:utf-8 -*-
 #
-# standalone_plotter.py
-# notebooks
+# sugarcane.py
+# projects
 #
 # Created by Haibao Tang on 12/02/19
 # Copyright © 2019 Haibao Tang. All rights reserved.
@@ -136,11 +136,6 @@ class Genome:
             print(f"{group}: count={group_count}, unique={group_unique}")
 
 
-# Simulate two parents
-SS = Genome("SS", "SS", 10, 8)
-SO = Genome("SO", "SO", 8, 10)
-
-
 def simulate_F1(verbose=True):
     SO_SS_F1_2xnplusn = SO.mate_2xnplusn("SOxSS F1", SS, verbose=verbose)
     if verbose:
@@ -269,6 +264,10 @@ def simulate(args):
         plt.setp(ax.get_xticklabels(), visible=False)
 
     # Prepare the simulated data
+    # Simulate two parents
+    SS = Genome("SS", "SS", 10, 8)
+    SO = Genome("SO", "SO", 8, 10)
+
     all_F1s = [simulate_F1(verbose=False) for x in range(1000)]
     all_F2s = [simulate_F2(verbose=False) for x in range(1000)]
     all_BC1s = [simulate_BCn(1, verbose=False) for x in range(1000)]
@@ -276,6 +275,7 @@ def simulate(args):
     all_BC3s = [simulate_BCn(3, verbose=False) for x in range(1000)]
     all_BC4s = [simulate_BCn(4, verbose=False) for x in range(1000)]
 
+    # Plotting
     plot_summary(ax1, all_F1s, "$F_1$")
     plot_summary(ax2, all_F2s, "$F_2$")
     plot_summary(ax3, all_BC1s, "$BC_1$")

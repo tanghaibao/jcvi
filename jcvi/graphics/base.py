@@ -8,6 +8,7 @@ import sys
 import logging
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.INFO)
 
 from functools import partial
 
@@ -317,8 +318,14 @@ set_human_base_axis = partial(set_human_axis, formatter=human_base_formatter)
 
 
 def set_helvetica_axis(ax):
-    ax.set_xticklabels([int(x) for x in ax.get_xticks()], family="Helvetica")
-    ax.set_yticklabels([int(x) for x in ax.get_yticks()], family="Helvetica")
+    xtick_locs = ax.get_xticks().tolist()
+    ytick_locs = ax.get_yticks().tolist()
+    # If we dont do the following, we have
+    # UserWarning: FixedFormatter should only be used together with FixedLocator
+    ax.xaxis.set_major_locator(mpl.ticker.FixedLocator(xtick_locs))
+    ax.yaxis.set_major_locator(mpl.ticker.FixedLocator(ytick_locs))
+    ax.set_xticklabels([int(x) for x in xtick_locs], family="Helvetica")
+    ax.set_yticklabels([int(x) for x in ytick_locs], family="Helvetica")
 
 
 available_fonts = [op.basename(x) for x in glob(datadir + "/*.ttf")]

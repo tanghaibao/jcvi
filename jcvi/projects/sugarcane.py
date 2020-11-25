@@ -241,10 +241,11 @@ def plot_summary(ax, samples):
             group_unique = 0
         SS_data.append(group_unique)
     x, y = zip(*sorted(Counter(SS_data).items()))
-    ss = ax.bar(x, y, color=SS_COLOR, alpha=0.8, ec=SS_COLOR)
+    ax.bar(x, y, color=SS_COLOR, alpha=0.8, ec=SS_COLOR)
     x, y = zip(*sorted(Counter(SO_data).items()))
-    so = ax.bar(x, y, color=SO_COLOR, alpha=0.8, ec=SO_COLOR)
+    ax.bar(x, y, color=SO_COLOR, alpha=0.8, ec=SO_COLOR)
     ax.set_xlim(0, 80)
+    ax.set_ylim(0, 500)
     ax.set_yticks([])
     return GenomeSummary(SO_data, SS_data)
 

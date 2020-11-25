@@ -23,6 +23,28 @@ from jcvi.graphics.base import normalize_axes, adjust_spines, savefig
 SO_COLOR = "#94d454"  # Green
 SS_COLOR = "#7941a3"  # Purple
 
+# Computed using prepare()
+{
+    "SO-chr01": 126202379,
+    "SO-chr02": 101695902,
+    "SO-chr03": 88104719,
+    "SO-chr04": 88710675,
+    "SO-chr05": 79016730,
+    "SO-chr06": 63141078,
+    "SO-chr07": 68984033,
+    "SO-chr08": 60246944,
+    "SO-chr09": 73286684,
+    "SO-chr10": 62717802,
+    "SS-chr01": 113356278,
+    "SS-chr02": 117947068,
+    "SS-chr03": 84145814,
+    "SS-chr04": 78952781,
+    "SS-chr05": 89664497,
+    "SS-chr06": 94874851,
+    "SS-chr07": 82740376,
+    "SS-chr08": 63378549,
+}
+
 
 # Simulate genome composition
 class Genome:
@@ -399,9 +421,57 @@ def simulate(args):
         write_chromosomes(genomes, op.join(outdir, filename))
 
 
+def _get_sizes(filename, prefix_length, tag):
+    """ Returns a dictionary of chromome lengths from a given file.
+
+    Args:
+        filename ([str]): Path to the input file. Input file is 2-column file
+        with rows `seqid length`.
+        prefix_length (int): Extract first N characters.
+        tag (str): Prepend `tag-` to the seqid.
+    """
+    from collections import defaultdict
+
+    sizes_list = defaultdict(list)
+    with open(filename) as fp:
+        for row in fp:
+            if not row.startswith("Chr"):
+                continue
+            name, size = row.split()
+            idx = int(name[3:prefix_length])
+            size = int(size)
+            name = f"{tag}-chr{idx:02d}"
+            sizes_list[name].append(size)
+
+    # Get the average length
+    return dict(
+        (name, int(round(np.mean(size_list)))) for name, size_list in sizes_list.items()
+    )
+
+
+def prepare(args):
+    """
+    %prog SoChrLen.txt SsChrLen.txt
+
+    Calculate lengths from real sugarcane data.
+    """
+    p = OptionParser(prepare.__doc__)
+    opts, args = p.parse_args(args)
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    solist, sslist = args
+    sizes = _get_sizes(solist, 5, "SO")
+    sizes.update(_get_sizes(sslist, 4, "SS"))
+    print(sizes)
+
+
 def main():
 
-    actions = (("simulate", "Run simulation on female restitution"),)
+    actions = (
+        ("prepare", "Calculate lengths from real sugarcane data"),
+        ("simulate", "Run simulation on female restitution"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 

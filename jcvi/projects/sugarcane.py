@@ -136,7 +136,7 @@ class Genome:
             print(f"{group}: count={group_count}, unique={group_unique}")
 
 
-def simulate_F1(verbose=True):
+def simulate_F1(SO, SS, verbose=False):
     SO_SS_F1_2xnplusn = SO.mate_2xnplusn("SOxSS F1", SS, verbose=verbose)
     if verbose:
         SO_SS_F1_2xnplusn.print_summary()
@@ -144,8 +144,8 @@ def simulate_F1(verbose=True):
 
 
 # Start F2 simulation (mode: 2xn + n)
-def simulate_F2(verbose=True):
-    SO_SS_F1_2xnplusn = simulate_F1(verbose=verbose)
+def simulate_F2(SO, SS, verbose=False):
+    SO_SS_F1_2xnplusn = simulate_F1(SO, SS, verbose=verbose)
     SO_SS_F2_nplusn = SO_SS_F1_2xnplusn.mate_nplusn(
         "SOxSS F2", SO_SS_F1_2xnplusn, verbose=verbose
     )
@@ -154,8 +154,8 @@ def simulate_F2(verbose=True):
     return SO_SS_F2_nplusn
 
 
-def simulate_BCn(n, verbose=True):
-    SS_SO_F1_2xnplusn = simulate_F1(verbose=verbose)
+def simulate_BCn(n, SO, SS, verbose=False):
+    SS_SO_F1_2xnplusn = simulate_F1(SO, SS, verbose=verbose)
     SS_SO_BC1_2xnplusn, SS_SO_BC2_nplusn, SS_SO_BC3_nplusn, SS_SO_BC4_nplusn = (
         None,
         None,
@@ -249,6 +249,12 @@ def simulate(args):
     Run simulation on female restitution.
     """
     p = OptionParser(simulate.__doc__)
+    p.add_option(
+        "--verbose",
+        default=False,
+        action="store_true",
+        help="Verbose logging during simulation",
+    )
     opts, args, iopts = p.set_image_options(args, figsize="6x12")
     if len(args) != 0:
         sys.exit(not p.print_help())
@@ -268,12 +274,13 @@ def simulate(args):
     SS = Genome("SS", "SS", 10, 8)
     SO = Genome("SO", "SO", 8, 10)
 
-    all_F1s = [simulate_F1(verbose=False) for x in range(1000)]
-    all_F2s = [simulate_F2(verbose=False) for x in range(1000)]
-    all_BC1s = [simulate_BCn(1, verbose=False) for x in range(1000)]
-    all_BC2s = [simulate_BCn(2, verbose=False) for x in range(1000)]
-    all_BC3s = [simulate_BCn(3, verbose=False) for x in range(1000)]
-    all_BC4s = [simulate_BCn(4, verbose=False) for x in range(1000)]
+    verbose = opts.verbose
+    all_F1s = [simulate_F1(SO, SS, verbose=verbose) for _ in range(1000)]
+    all_F2s = [simulate_F2(SO, SS, verbose=verbose) for _ in range(1000)]
+    all_BC1s = [simulate_BCn(1, SO, SS, verbose=verbose) for _ in range(1000)]
+    all_BC2s = [simulate_BCn(2, SO, SS, verbose=verbose) for _ in range(1000)]
+    all_BC3s = [simulate_BCn(3, SO, SS, verbose=verbose) for _ in range(1000)]
+    all_BC4s = [simulate_BCn(4, SO, SS, verbose=verbose) for _ in range(1000)]
 
     # Plotting
     plot_summary(ax1, all_F1s, "$F_1$")

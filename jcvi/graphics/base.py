@@ -556,8 +556,7 @@ def adjust_spines(ax, spines, outward=False, color="lightslategray"):
 
     # Change tick styles directly
     ax.tick_params(color=color)
-    ax.set_xticklabels(ax.get_xticks(), family="Helvetica")
-    ax.set_yticklabels(ax.get_yticks(), family="Helvetica")
+    set_helvetica_axis(ax)
 
 
 def set_ticklabels_helvetica(ax, xcast=int, ycast=int):

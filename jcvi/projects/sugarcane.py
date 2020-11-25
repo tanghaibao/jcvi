@@ -18,7 +18,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
-from jcvi.graphics.base import savefig
+from jcvi.graphics.base import normalize_axes, adjust_spines, savefig
 
 
 # Simulate genome composition
@@ -248,6 +248,10 @@ def simulate(args):
 
     Run simulation on female restitution.
     """
+    import seaborn as sns
+
+    sns.set_style("darkgrid")
+
     p = OptionParser(simulate.__doc__)
     p.add_option(
         "--verbose",
@@ -255,19 +259,27 @@ def simulate(args):
         action="store_true",
         help="Verbose logging during simulation",
     )
-    opts, args, iopts = p.set_image_options(args, figsize="6x12")
+    opts, args, iopts = p.set_image_options(args, figsize="6x9")
     if len(args) != 0:
         sys.exit(not p.print_help())
 
+    # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
-    ax1 = plt.subplot(611)
-    ax2 = plt.subplot(612, sharex=ax1)
-    ax3 = plt.subplot(613, sharex=ax1)
-    ax4 = plt.subplot(614, sharex=ax1)
-    ax5 = plt.subplot(615, sharex=ax1)
-    ax6 = plt.subplot(616, sharex=ax1)
-    for ax in (ax1, ax2, ax3, ax4, ax5):
-        plt.setp(ax.get_xticklabels(), visible=False)
+    root = fig.add_axes([0, 0, 1, 1])
+    rows = 6
+    ypad = 0.05
+    yinterval = (1 - 2 * ypad) / (rows + 1)
+    yy = 1 - ypad
+
+    # Axes are vertically stacked, and share x-axis
+    axes = []
+    for idx in range(6):
+        yy -= yinterval
+        ax = fig.add_axes([0.15, yy, 0.7, yinterval * 0.85])
+        if idx != rows - 1:
+            plt.setp(ax.get_xticklabels(), visible=False)
+        axes.append(ax)
+    ax1, ax2, ax3, ax4, ax5, ax6 = axes
 
     # Prepare the simulated data
     # Simulate two parents
@@ -283,14 +295,16 @@ def simulate(args):
     all_BC4s = [simulate_BCn(4, SO, SS, verbose=verbose) for _ in range(1000)]
 
     # Plotting
-    plot_summary(ax1, all_F1s, "$F_1$")
-    plot_summary(ax2, all_F2s, "$F_2$")
-    plot_summary(ax3, all_BC1s, "$BC_1$")
-    plot_summary(ax4, all_BC2s, "$BC_2$")
-    plot_summary(ax5, all_BC3s, "$BC_3$")
-    plot_summary(ax6, all_BC4s, "$BC_4$")
+    plot_summary(ax1, all_F1s, "F1")
+    plot_summary(ax2, all_F2s, "F2")
+    plot_summary(ax3, all_BC1s, "BC1")
+    plot_summary(ax4, all_BC2s, "BC2")
+    plot_summary(ax5, all_BC3s, "BC3")
+    plot_summary(ax6, all_BC4s, "BC4")
     ax6.set_xlabel("Number of unique chromosomes")
-    savefig("plotter.png", dpi=120)
+    adjust_spines(ax6, ["bottom"], outward=True)
+    normalize_axes(root)
+
     savefig("plotter.pdf", dpi=120)
 
     outdir = "simulations"

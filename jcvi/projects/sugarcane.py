@@ -143,7 +143,6 @@ def simulate_F1(SO, SS, verbose=False):
     return SO_SS_F1_2xnplusn
 
 
-# Start F2 simulation (mode: 2xn + n)
 def simulate_F2(SO, SS, verbose=False):
     SO_SS_F1_2xnplusn = simulate_F1(SO, SS, verbose=verbose)
     SO_SS_F2_nplusn = SO_SS_F1_2xnplusn.mate_nplusn(
@@ -152,6 +151,15 @@ def simulate_F2(SO, SS, verbose=False):
     if verbose:
         SO_SS_F2_nplusn.print_summary()
     return SO_SS_F2_nplusn
+
+
+def simulate_F1intercross(SO, SS, verbose=False):
+    SO_SS_F1_2xnplusn_1 = simulate_F1(SO, SS, verbose=verbose)
+    SO_SS_F1_2xnplusn_2 = simulate_F1(SO, SS, verbose=verbose)
+    SO_SS_F1intercross_nplusn = SO_SS_F1_2xnplusn_1.mate_nplusn(
+        "SOxSS F1 intercross", SO_SS_F1_2xnplusn_2, verbose=verbose
+    )
+    return SO_SS_F1intercross_nplusn
 
 
 def simulate_BCn(n, SO, SS, verbose=False):
@@ -209,14 +217,14 @@ def plot_summary(ax, samples, title):
             group_unique = 0
         SS_data.append(group_unique)
     x, y = zip(*sorted(Counter(SS_data).items()))
-    ss = ax.bar(x, y, color="purple", alpha=0.5, ec="purple")
+    so_color = "#94d454"  # Green
+    ss_color = "#7941a3"  # Purple
+    ss = ax.bar(x, y, color=ss_color, alpha=0.8, ec=ss_color)
     x, y = zip(*sorted(Counter(SO_data).items()))
-    so = ax.bar(x, y, color="orange", alpha=0.5, ec="orange")
+    so = ax.bar(x, y, color=so_color, alpha=0.8, ec=so_color)
     ax.set_xlim(0, 80)
     ax.set_yticks([])
-    ax.set_ylabel(
-        title, rotation=0, labelpad=20, fontdict=dict(fontweight="bold", color="blue")
-    )
+    ax.set_ylabel(title, rotation=0, labelpad=36, color="darkslategray")
     SO_mean, SO_std = np.mean(SO_data), np.std(SO_data)
     SS_mean, SS_std = np.mean(SS_data), np.std(SS_data)
     ax.legend(
@@ -259,27 +267,27 @@ def simulate(args):
         action="store_true",
         help="Verbose logging during simulation",
     )
-    opts, args, iopts = p.set_image_options(args, figsize="6x9")
+    opts, args, iopts = p.set_image_options(args, figsize="7x10")
     if len(args) != 0:
         sys.exit(not p.print_help())
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    rows = 6
+    rows = 7
     ypad = 0.05
     yinterval = (1 - 2 * ypad) / (rows + 1)
     yy = 1 - ypad
 
     # Axes are vertically stacked, and share x-axis
     axes = []
-    for idx in range(6):
+    for idx in range(rows):
         yy -= yinterval
         ax = fig.add_axes([0.15, yy, 0.7, yinterval * 0.85])
         if idx != rows - 1:
             plt.setp(ax.get_xticklabels(), visible=False)
         axes.append(ax)
-    ax1, ax2, ax3, ax4, ax5, ax6 = axes
+    ax1, ax2, ax3, ax4, ax5, ax6, ax7 = axes
 
     # Prepare the simulated data
     # Simulate two parents
@@ -289,6 +297,7 @@ def simulate(args):
     verbose = opts.verbose
     all_F1s = [simulate_F1(SO, SS, verbose=verbose) for _ in range(1000)]
     all_F2s = [simulate_F2(SO, SS, verbose=verbose) for _ in range(1000)]
+    all_F1intercrosses = [simulate_F1intercross(SO, SS, verbose) for _ in range(1000)]
     all_BC1s = [simulate_BCn(1, SO, SS, verbose=verbose) for _ in range(1000)]
     all_BC2s = [simulate_BCn(2, SO, SS, verbose=verbose) for _ in range(1000)]
     all_BC3s = [simulate_BCn(3, SO, SS, verbose=verbose) for _ in range(1000)]
@@ -296,13 +305,14 @@ def simulate(args):
 
     # Plotting
     plot_summary(ax1, all_F1s, "F1")
-    plot_summary(ax2, all_F2s, "F2")
-    plot_summary(ax3, all_BC1s, "BC1")
-    plot_summary(ax4, all_BC2s, "BC2")
-    plot_summary(ax5, all_BC3s, "BC3")
-    plot_summary(ax6, all_BC4s, "BC4")
-    ax6.set_xlabel("Number of unique chromosomes")
-    adjust_spines(ax6, ["bottom"], outward=True)
+    plot_summary(ax2, all_F2s, "F2\nby selfing")
+    plot_summary(ax3, all_F1intercrosses, "F2\nby intercross")
+    plot_summary(ax4, all_BC1s, "BC1")
+    plot_summary(ax5, all_BC2s, "BC2")
+    plot_summary(ax6, all_BC3s, "BC3")
+    plot_summary(ax7, all_BC4s, "BC4")
+    ax7.set_xlabel("Number of unique chromosomes")
+    adjust_spines(ax7, ["bottom"], outward=True)
     normalize_axes(root)
 
     savefig("plotter.pdf", dpi=120)
@@ -313,6 +323,7 @@ def simulate(args):
     for genomes, filename in (
         (all_F1s, "all_F1s"),
         (all_F2s, "all_F2s"),
+        (all_F1intercrosses, "all_F1intercrosses"),
         (all_BC1s, "all_BC1s"),
         (all_BC2s, "all_BC2s"),
         (all_BC3s, "all_BC3s"),

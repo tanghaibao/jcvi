@@ -20,11 +20,11 @@ import matplotlib.pyplot as plt
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 from jcvi.graphics.base import normalize_axes, adjust_spines, savefig
 
-SO_COLOR = "#94d454"  # Green
-SS_COLOR = "#7941a3"  # Purple
+SoColor = "#94d454"  # Green
+SsColor = "#7941a3"  # Purple
 
 # Computed using prepare()
-{
+ChrSizes = {
     "SO-chr01": 126202379,
     "SO-chr02": 101695902,
     "SO-chr03": 88104719,
@@ -139,20 +139,31 @@ class Genome:
 
     @property
     def summary(self):
-        def prefix(x):
-            return x.split("-", 1)[0]
+        def prefix(x, sep="-"):
+            return x.split(sep, 1)[0]
 
+        def size(chromosomes):
+            return sum(ChrSizes[prefix(x, sep="_")] for x in chromosomes)
+
+        # Chromosome count
         total_count = 0
         total_unique = 0
+        total_size = 0
+        total_so_size = 0
         ans = []
         for group, chromosomes in groupby(self.chromosomes, prefix):
             chromosomes = list(chromosomes)
+            uniq_chromosomes = set(chromosomes)
             group_count = len(chromosomes)
-            group_unique = len(set(chromosomes))
+            group_unique = len(uniq_chromosomes)
+            group_so_size = size({x for x in uniq_chromosomes if x[:2] == "SO"})
+            group_size = size(uniq_chromosomes)
             total_count += group_count
             total_unique += group_unique
-            ans.append((group, group_count, group_unique))
-        ans.append(("Total", total_count, total_unique))
+            total_so_size += group_so_size
+            total_size += group_size
+            ans.append((group, group_count, group_unique, group_so_size, group_size))
+        ans.append(("Total", total_count, total_unique, total_so_size, total_size))
         return ans
 
     def print_summary(self):
@@ -162,16 +173,27 @@ class Genome:
 
 
 class GenomeSummary:
-    def __init__(self, SO_data, SS_data):
+    def __init__(self, SO_data, SS_data, percent_SO_data):
         self.SO_data = SO_data
         self.SS_data = SS_data
+        self.percent_SO_data = percent_SO_data
 
     def _summary(self, a, tag):
         mean, min, max = round(np.mean(a)), round(np.min(a)), round(np.max(a))
-        s = "{} avg:{:.0f}".format(tag, mean)
+        s = f"{tag} chr: {mean:.0f}"
         if min == mean and max == mean:
             return s
-        return s + " ({:.0f}-{:.0f})".format(min, max)
+        return s + f" ({min:.0f}-{max:.0f})"
+
+    @property
+    def percent_SO_summary(self):
+        a = self.percent_SO_data
+        mean, min, max = round(np.mean(a)), round(np.min(a)), round(np.max(a))
+        s = f"So\%: {mean:.0f}\%"
+        print(s)
+        if min == mean and max == mean:
+            return s
+        return s + f" ({min:.0f}-{max:.0f}\%)"
 
     @property
     def SO_summary(self):
@@ -231,6 +253,7 @@ def simulate_BCn(n, SO, SS, verbose=False):
         SS_SO_BC3_nplusn = SO.mate_nplusn(
             "SSxSO BC3", SS_SO_BC2_nplusn, verbose=verbose
         )
+    # BC4
     if n >= 4:
         SS_SO_BC4_nplusn = SO.mate_nplusn(
             "SSxSO BC4", SS_SO_BC3_nplusn, verbose=verbose
@@ -247,29 +270,31 @@ def simulate_BCn(n, SO, SS, verbose=False):
 def plot_summary(ax, samples):
     SO_data = []
     SS_data = []
+    percent_SO_data = []
     for sample in samples:
+        summary = sample.summary
         try:
-            group, group_count, group_unique = [
-                x for x in sample.summary if x[0] == "SO"
-            ][0]
+            _, _, group_unique, _, _ = [x for x in summary if x[0] == "SO"][0]
         except:
             group_unique = 0
         SO_data.append(group_unique)
         try:
-            group, group_count, group_unique = [
-                x for x in sample.summary if x[0] == "SS"
-            ][0]
+            _, _, group_unique, _, _ = [x for x in summary if x[0] == "SS"][0]
         except:
             group_unique = 0
         SS_data.append(group_unique)
+        total_tag, _, _, total_so_size, total_size = summary[-1]
+        assert total_tag == "Total"
+        percent_SO = total_so_size * 100.0 / total_size
+        percent_SO_data.append(percent_SO)
     x, y = zip(*sorted(Counter(SS_data).items()))
-    ax.bar(x, y, color=SS_COLOR, alpha=0.8, ec=SS_COLOR)
+    ax.bar(x, y, color=SsColor, alpha=0.8, ec=SsColor)
     x, y = zip(*sorted(Counter(SO_data).items()))
-    ax.bar(x, y, color=SO_COLOR, alpha=0.8, ec=SO_COLOR)
+    ax.bar(x, y, color=SoColor, alpha=0.8, ec=SoColor)
     ax.set_xlim(0, 80)
     ax.set_ylim(0, 500)
     ax.set_yticks([])
-    return GenomeSummary(SO_data, SS_data)
+    return GenomeSummary(SO_data, SS_data, percent_SO_data)
 
 
 def write_chromosomes(genomes, filename):
@@ -379,25 +404,17 @@ def simulate(args):
     # Show summary stats to the right
     xx = 1 - (1 - xpad - xwidth) / 2
     for summary, yy in zip((f1s, f2s, f1is, bc1s, bc2s, bc3s, bc4s), yy_positions):
-        yy -= 0.05
+        yy -= 0.04
         root.text(
-            xx,
-            yy,
-            summary.SO_summary,
-            size=10,
-            color=SO_COLOR,
-            ha="center",
-            va="center",
+            xx, yy, summary.SO_summary, color=SoColor, ha="center", va="center",
         )
         yy -= 0.02
         root.text(
-            xx,
-            yy,
-            summary.SS_summary,
-            size=10,
-            color=SS_COLOR,
-            ha="center",
-            va="center",
+            xx, yy, summary.SS_summary, color=SsColor, ha="center", va="center",
+        )
+        yy -= 0.02
+        root.text(
+            xx, yy, summary.percent_SO_summary, color=SoColor, ha="center", va="center",
         )
 
     ax7.set_xlabel("Number of unique chromosomes")
@@ -442,7 +459,7 @@ def _get_sizes(filename, prefix_length, tag):
             size = int(size)
             name = f"{tag}-chr{idx:02d}"
             sizes_list[name].append(size)
-
+    print(sizes_list)
     # Get the average length
     return dict(
         (name, int(round(np.mean(size_list)))) for name, size_list in sizes_list.items()

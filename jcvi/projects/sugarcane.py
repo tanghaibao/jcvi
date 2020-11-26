@@ -20,29 +20,29 @@ import matplotlib.pyplot as plt
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 from jcvi.graphics.base import normalize_axes, adjust_spines, savefig
 
-SoColor = "#94d454"  # Green
-SsColor = "#7941a3"  # Purple
+SoColor = "#7436a4"  # Purple
+SsColor = "#5a8340"  # Green
 
 # Computed using prepare()
 ChrSizes = {
-    "SO-chr01": 126202379,
-    "SO-chr02": 101695902,
-    "SO-chr03": 88104719,
-    "SO-chr04": 88710675,
-    "SO-chr05": 79016730,
-    "SO-chr06": 63141078,
-    "SO-chr07": 68984033,
-    "SO-chr08": 60246944,
-    "SO-chr09": 73286684,
-    "SO-chr10": 62717802,
-    "SS-chr01": 113356278,
-    "SS-chr02": 117947068,
-    "SS-chr03": 84145814,
-    "SS-chr04": 78952781,
-    "SS-chr05": 89664497,
-    "SS-chr06": 94874851,
-    "SS-chr07": 82740376,
-    "SS-chr08": 63378549,
+    "SO-chr01": 148750011,
+    "SO-chr02": 119865146,
+    "SO-chr03": 103845728,
+    "SO-chr04": 104559946,
+    "SO-chr05": 93134056,
+    "SO-chr06": 74422021,
+    "SO-chr07": 81308893,
+    "SO-chr08": 71010813,
+    "SO-chr09": 86380266,
+    "SO-chr10": 73923121,
+    "SS-chr01": 114519418,
+    "SS-chr02": 119157314,
+    "SS-chr03": 85009228,
+    "SS-chr04": 79762909,
+    "SS-chr05": 90584537,
+    "SS-chr06": 95848354,
+    "SS-chr07": 83589369,
+    "SS-chr08": 64028871,
 }
 
 
@@ -406,15 +406,33 @@ def simulate(args):
     for summary, yy in zip((f1s, f2s, f1is, bc1s, bc2s, bc3s, bc4s), yy_positions):
         yy -= 0.04
         root.text(
-            xx, yy, summary.SO_summary, color=SoColor, ha="center", va="center",
+            xx,
+            yy,
+            summary.SO_summary,
+            size=11,
+            color=SoColor,
+            ha="center",
+            va="center",
         )
         yy -= 0.02
         root.text(
-            xx, yy, summary.SS_summary, color=SsColor, ha="center", va="center",
+            xx,
+            yy,
+            summary.SS_summary,
+            size=11,
+            color=SsColor,
+            ha="center",
+            va="center",
         )
         yy -= 0.02
         root.text(
-            xx, yy, summary.percent_SO_summary, color=SoColor, ha="center", va="center",
+            xx,
+            yy,
+            summary.percent_SO_summary,
+            size=11,
+            color=SoColor,
+            ha="center",
+            va="center",
         )
 
     ax7.set_xlabel("Number of unique chromosomes")
@@ -438,7 +456,7 @@ def simulate(args):
         write_chromosomes(genomes, op.join(outdir, filename))
 
 
-def _get_sizes(filename, prefix_length, tag):
+def _get_sizes(filename, prefix_length, tag, target_size=None):
     """ Returns a dictionary of chromome lengths from a given file.
 
     Args:
@@ -446,6 +464,7 @@ def _get_sizes(filename, prefix_length, tag):
         with rows `seqid length`.
         prefix_length (int): Extract first N characters.
         tag (str): Prepend `tag-` to the seqid.
+        target_size (int): Expected genome size. Defaults to None.
     """
     from collections import defaultdict
 
@@ -459,10 +478,22 @@ def _get_sizes(filename, prefix_length, tag):
             size = int(size)
             name = f"{tag}-chr{idx:02d}"
             sizes_list[name].append(size)
-    print(sizes_list)
+
     # Get the average length
-    return dict(
+    sizes = dict(
         (name, int(round(np.mean(size_list)))) for name, size_list in sizes_list.items()
+    )
+    print(sizes)
+    if target_size is None:
+        return sizes
+
+    total_size = sum(sizes.values())
+    correction_factor = target_size / total_size
+    print(
+        f"{tag} total:{total_size} target:{target_size} correction:{correction_factor:.2f}x"
+    )
+    return dict(
+        (name, int(round(correction_factor * size))) for name, size in sizes.items()
     )
 
 
@@ -478,8 +509,8 @@ def prepare(args):
         sys.exit(not p.print_help())
 
     solist, sslist = args
-    sizes = _get_sizes(solist, 5, "SO")
-    sizes.update(_get_sizes(sslist, 4, "SS"))
+    sizes = _get_sizes(solist, 5, "SO", target_size=957.2 * 1e6)
+    sizes.update(_get_sizes(sslist, 4, "SS", target_size=732.5 * 1e6))
     print(sizes)
 
 

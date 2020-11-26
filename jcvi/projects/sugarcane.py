@@ -178,6 +178,7 @@ class GenomeSummary:
         self.SO_data = SO_data
         self.SS_data = SS_data
         self.percent_SO_data = percent_SO_data
+        self.percent_SS_data = [100 - x for x in percent_SO_data]
 
     def _summary(self, a, tag):
         mean, min, max = round(np.mean(a)), round(np.min(a)), round(np.max(a))
@@ -186,15 +187,21 @@ class GenomeSummary:
             return s
         return s + f" ({min:.0f}-{max:.0f})"
 
-    @property
-    def percent_SO_summary(self):
-        a = self.percent_SO_data
+    def _percent_summary(self, a, tag):
         mean, min, max = round(np.mean(a)), round(np.min(a)), round(np.max(a))
-        s = f"So\%: {mean:.0f}\%"
+        s = f"{tag}\%: {mean:.0f}\%"
         print(s)
         if min == mean and max == mean:
             return s
         return s + f" ({min:.0f}-{max:.0f}\%)"
+
+    @property
+    def percent_SO_summary(self):
+        return self._percent_summary(self.percent_SO_data, "So")
+
+    @property
+    def percent_SS_summary(self):
+        return self._percent_summary(self.percent_SS_data, "Ss")
 
     @property
     def SO_summary(self):
@@ -305,7 +312,16 @@ def plot_summary(ax, samples):
     ax.set_xlim(0, 80)
     ax.set_ylim(0, 500)
     ax.set_yticks([])
-    return GenomeSummary(SO_data, SS_data, percent_SO_data)
+    summary = GenomeSummary(SO_data, SS_data, percent_SO_data)
+
+    # Write the stats summary within the plot
+    summary_style = dict(size=9, ha="center", va="center", transform=ax.transAxes,)
+    ax.text(0.25, 0.85, summary.SS_summary, color=SsColor, **summary_style)
+    ax.text(0.25, 0.65, summary.percent_SS_summary, color=SsColor, **summary_style)
+    ax.text(0.75, 0.85, summary.SO_summary, color=SoColor, **summary_style)
+    ax.text(0.75, 0.65, summary.percent_SO_summary, color=SoColor, **summary_style)
+
+    return summary
 
 
 def write_chromosomes(genomes, filename):
@@ -338,7 +354,7 @@ def simulate(args):
         action="store_true",
         help="Verbose logging during simulation",
     )
-    opts, args, iopts = p.set_image_options(args, figsize="7x10")
+    opts, args, iopts = p.set_image_options(args, figsize="6x8")
     if len(args) != 0:
         sys.exit(not p.print_help())
 
@@ -349,8 +365,8 @@ def simulate(args):
     ypad = 0.05
     yinterval = (1 - 2 * ypad) / (rows + 1)
     yy = 1 - ypad
-    xpad = 0.18
-    xwidth = 0.6
+    xpad = 0.2
+    xwidth = 0.7
 
     # Axes are vertically stacked, and share x-axis
     axes = []
@@ -411,40 +427,6 @@ def simulate(args):
             root.text(
                 xx, yy, subtitle, color="lightslategray", ha="center", va="center"
             )
-
-    # Show summary stats to the right
-    xx = 1 - (1 - xpad - xwidth) / 2
-    for summary, yy in zip((f1s, f2s, f1is, bc1s, bc2s, bc3s, bc4s), yy_positions):
-        yy -= 0.04
-        root.text(
-            xx,
-            yy,
-            summary.SO_summary,
-            size=11,
-            color=SoColor,
-            ha="center",
-            va="center",
-        )
-        yy -= 0.02
-        root.text(
-            xx,
-            yy,
-            summary.SS_summary,
-            size=11,
-            color=SsColor,
-            ha="center",
-            va="center",
-        )
-        yy -= 0.02
-        root.text(
-            xx,
-            yy,
-            summary.percent_SO_summary,
-            size=11,
-            color=SoColor,
-            ha="center",
-            va="center",
-        )
 
     ax7.set_xlabel("Number of unique chromosomes")
     adjust_spines(ax7, ["bottom"], outward=True)

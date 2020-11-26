@@ -10,8 +10,7 @@
 
 import os.path as op
 import sys
-import seaborn as sns
-from random import choice, random, sample
+from random import random, sample
 from itertools import groupby
 from collections import Counter
 import numpy as np
@@ -23,7 +22,7 @@ from jcvi.graphics.base import normalize_axes, adjust_spines, savefig
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
 
-# Computed using prepare()
+# Computed using prepare(), corrected with real sizes
 ChrSizes = {
     "SO-chr01": 148750011,
     "SO-chr02": 119865146,
@@ -268,6 +267,16 @@ def simulate_BCn(n, SO, SS, verbose=False):
 
 
 def plot_summary(ax, samples):
+    """ Plot the distribution of chromosome numbers given simulated samples.
+
+    Args:
+        ax (Axes): Matplotlib axes.
+        samples ([Genome]): Summarized genomes.
+        declutter (bool, optional): Whether to offset bars that overlap. Defaults to False.
+
+    Returns:
+        GenomeSummary: Summary statistics of simulated genomes.
+    """
     SO_data = []
     SS_data = []
     percent_SO_data = []
@@ -287,10 +296,11 @@ def plot_summary(ax, samples):
         assert total_tag == "Total"
         percent_SO = total_so_size * 100.0 / total_size
         percent_SO_data.append(percent_SO)
+    shift = 0.5  # used to offset bars a bit to avoid cluttering
     x, y = zip(*sorted(Counter(SS_data).items()))
-    ax.bar(x, y, color=SsColor, alpha=0.8, ec=SsColor)
+    ax.bar(np.array(x) - shift, y, color=SsColor, alpha=0.8, ec=SsColor)
     x, y = zip(*sorted(Counter(SO_data).items()))
-    ax.bar(x, y, color=SoColor, alpha=0.8, ec=SoColor)
+    ax.bar(np.array(x) + shift, y, color=SoColor, alpha=0.8, ec=SoColor)
     ax.set_xlim(0, 80)
     ax.set_ylim(0, 500)
     ax.set_yticks([])
@@ -509,6 +519,7 @@ def prepare(args):
         sys.exit(not p.print_help())
 
     solist, sslist = args
+    # The haploid set of LA Purple is 957.2 Mb and haploid set of US56-14-4 is 732.5 Mb
     sizes = _get_sizes(solist, 5, "SO", target_size=957.2 * 1e6)
     sizes.update(_get_sizes(sslist, 4, "SS", target_size=732.5 * 1e6))
     print(sizes)

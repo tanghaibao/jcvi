@@ -272,7 +272,6 @@ def plot_summary(ax, samples):
     Args:
         ax (Axes): Matplotlib axes.
         samples ([Genome]): Summarized genomes.
-        declutter (bool, optional): Whether to offset bars that overlap. Defaults to False.
 
     Returns:
         GenomeSummary: Summary statistics of simulated genomes.

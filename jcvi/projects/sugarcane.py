@@ -78,6 +78,8 @@ class Genome:
         self.chromosomes.sort()
         gamete_chromosomes = []
 
+        # Check for any chromosome that have 2 identical copies, if so, we will assume disomic
+        # inheritance for that chromosome and always keep one and only copy
         duplicate_chromosomes = []
         singleton_chromosomes = []
         for chromosome, chromosomes in groupby(self.chromosomes):
@@ -87,13 +89,13 @@ class Genome:
             if ncopies % 2 == 1:
                 singleton_chromosomes.append(chromosome)
 
-        # 1. Check for any chromosome that have 2 identical copies, if so, we will assume disomic
-        # inheritance for that chromosome and always keep one and only copy
+        # Get one copy of each duplicate chromosome first
         gamete_chromosomes += duplicate_chromosomes
 
         def prefix(x):
             return x.split("_", 1)[0]
 
+        # Randomly assign the rest, singleton chromosomes
         for group, chromosomes in groupby(singleton_chromosomes, key=prefix):
             chromosomes = list(chromosomes)
             halfN = len(chromosomes) // 2

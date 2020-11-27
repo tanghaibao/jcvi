@@ -180,20 +180,28 @@ class GenomeSummary:
         self.percent_SO_data = percent_SO_data
         self.percent_SS_data = [100 - x for x in percent_SO_data]
 
-    def _summary(self, a, tag):
-        mean, min, max = round(np.mean(a)), round(np.min(a)), round(np.max(a))
+    def _summary(self, a, tag, precision=0):
+        mean, min, max = (
+            round(np.mean(a), precision),
+            round(np.min(a), precision),
+            round(np.max(a), precision),
+        )
         s = f"{tag} chr: {mean:.0f}"
         if min == mean and max == mean:
             return s
         return s + f" ({min:.0f}-{max:.0f})"
 
-    def _percent_summary(self, a, tag):
-        mean, min, max = round(np.mean(a)), round(np.min(a)), round(np.max(a))
-        s = f"{tag}\%: {mean:.0f}\%"
+    def _percent_summary(self, a, tag, precision=1):
+        mean, min, max = (
+            round(np.mean(a), precision),
+            round(np.min(a), precision),
+            round(np.max(a), precision),
+        )
+        s = f"{tag}\%: {mean:.1f}\%"
         print(s)
         if min == mean and max == mean:
             return s
-        return s + f" ({min:.0f}-{max:.0f}\%)"
+        return s + f" ({min:.1f}-{max:.1f}\%)"
 
     @property
     def percent_SO_summary(self):
@@ -306,20 +314,20 @@ def plot_summary(ax, samples):
         percent_SO_data.append(percent_SO)
     shift = 0.5  # used to offset bars a bit to avoid cluttering
     x, y = zip(*sorted(Counter(SS_data).items()))
-    ax.bar(np.array(x) - shift, y, color=SsColor, alpha=0.8, ec=SsColor)
+    ax.bar(np.array(x) - shift, y, color=SsColor, ec=SsColor)
     x, y = zip(*sorted(Counter(SO_data).items()))
-    ax.bar(np.array(x) + shift, y, color=SoColor, alpha=0.8, ec=SoColor)
-    ax.set_xlim(0, 80)
+    ax.bar(np.array(x) + shift, y, color=SoColor, ec=SoColor)
+    ax.set_xlim(80, 0)
     ax.set_ylim(0, 500)
     ax.set_yticks([])
     summary = GenomeSummary(SO_data, SS_data, percent_SO_data)
 
     # Write the stats summary within the plot
     summary_style = dict(size=9, ha="center", va="center", transform=ax.transAxes,)
-    ax.text(0.25, 0.85, summary.SS_summary, color=SsColor, **summary_style)
-    ax.text(0.25, 0.65, summary.percent_SS_summary, color=SsColor, **summary_style)
-    ax.text(0.75, 0.85, summary.SO_summary, color=SoColor, **summary_style)
-    ax.text(0.75, 0.65, summary.percent_SO_summary, color=SoColor, **summary_style)
+    ax.text(0.75, 0.85, summary.SS_summary, color=SsColor, **summary_style)
+    ax.text(0.75, 0.65, summary.percent_SS_summary, color=SsColor, **summary_style)
+    ax.text(0.25, 0.85, summary.SO_summary, color=SoColor, **summary_style)
+    ax.text(0.25, 0.65, summary.percent_SO_summary, color=SoColor, **summary_style)
 
     return summary
 

@@ -362,14 +362,14 @@ def simulate(args):
         action="store_true",
         help="Verbose logging during simulation",
     )
-    opts, args, iopts = p.set_image_options(args, figsize="6x8")
+    opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 0:
         sys.exit(not p.print_help())
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    rows = 7
+    rows = 6
     ypad = 0.05
     yinterval = (1 - 2 * ypad) / (rows + 1)
     yy = 1 - ypad
@@ -386,7 +386,7 @@ def simulate(args):
         if idx != rows - 1:
             plt.setp(ax.get_xticklabels(), visible=False)
         axes.append(ax)
-    ax1, ax2, ax3, ax4, ax5, ax6, ax7 = axes
+    ax1, ax2, ax3, ax4, ax5, ax6 = axes
 
     # Prepare the simulated data
     # Simulate two parents
@@ -396,28 +396,25 @@ def simulate(args):
     verbose = opts.verbose
     all_F1s = [simulate_F1(SO, SS, verbose=verbose) for _ in range(1000)]
     all_F2s = [simulate_F2(SO, SS, verbose=verbose) for _ in range(1000)]
-    all_F1intercrosses = [simulate_F1intercross(SO, SS, verbose) for _ in range(1000)]
     all_BC1s = [simulate_BCn(1, SO, SS, verbose=verbose) for _ in range(1000)]
     all_BC2s = [simulate_BCn(2, SO, SS, verbose=verbose) for _ in range(1000)]
     all_BC3s = [simulate_BCn(3, SO, SS, verbose=verbose) for _ in range(1000)]
     all_BC4s = [simulate_BCn(4, SO, SS, verbose=verbose) for _ in range(1000)]
 
     # Plotting
-    f1s = plot_summary(ax1, all_F1s)
-    f2s = plot_summary(ax2, all_F2s)
-    f1is = plot_summary(ax3, all_F1intercrosses)
-    bc1s = plot_summary(ax4, all_BC1s)
-    bc2s = plot_summary(ax5, all_BC2s)
-    bc3s = plot_summary(ax6, all_BC3s)
-    bc4s = plot_summary(ax7, all_BC4s)
+    plot_summary(ax1, all_F1s)
+    plot_summary(ax2, all_F2s)
+    plot_summary(ax3, all_BC1s)
+    plot_summary(ax4, all_BC2s)
+    plot_summary(ax5, all_BC3s)
+    plot_summary(ax6, all_BC4s)
 
     # Show title to the left
     xx = xpad / 2
     for (title, subtitle), yy in zip(
         (
             ("F1", None),
-            ("F2", "via selfing"),
-            ("F2", "via intercross"),
+            ("F2", None),
             ("BC1", None),
             ("BC2", None),
             ("BC3", None),
@@ -429,15 +426,23 @@ def simulate(args):
             yy -= 0.06
         else:
             yy -= 0.07
-        root.text(xx, yy, title, color="darkslategray", ha="center", va="center")
+        root.text(
+            xx,
+            yy,
+            title,
+            color="darkslategray",
+            ha="center",
+            va="center",
+            fontweight="semibold",
+        )
         if subtitle:
             yy -= 0.02
             root.text(
                 xx, yy, subtitle, color="lightslategray", ha="center", va="center"
             )
 
-    ax7.set_xlabel("Number of unique chromosomes")
-    adjust_spines(ax7, ["bottom"], outward=True)
+    axes[-1].set_xlabel("Number of unique chromosomes")
+    adjust_spines(axes[-1], ["bottom"], outward=True)
     normalize_axes(root)
 
     savefig("plotter.pdf", dpi=120)
@@ -448,7 +453,6 @@ def simulate(args):
     for genomes, filename in (
         (all_F1s, "all_F1s"),
         (all_F2s, "all_F2s"),
-        (all_F1intercrosses, "all_F1intercrosses"),
         (all_BC1s, "all_BC1s"),
         (all_BC2s, "all_BC2s"),
         (all_BC3s, "all_BC3s"),

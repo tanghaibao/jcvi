@@ -324,7 +324,7 @@ def draw_tree(
             if internal and n.name:
                 TextCircle(ax, xx, yy, n.name, size=9)
             else:  # Just a dot
-                TextCircle(ax, xx, yy, None, radius=0.005)
+                TextCircle(ax, xx, yy, None, radius=0.002)
 
         coords[n] = (xx, yy)
         # WGD info

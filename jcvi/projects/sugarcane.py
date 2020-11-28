@@ -10,8 +10,7 @@
 
 import os.path as op
 import sys
-import seaborn as sns
-from random import choice, random, sample
+from random import random, sample
 from itertools import groupby
 from collections import Counter
 import numpy as np
@@ -20,29 +19,29 @@ import matplotlib.pyplot as plt
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 from jcvi.graphics.base import normalize_axes, adjust_spines, savefig
 
-SoColor = "#94d454"  # Green
-SsColor = "#7941a3"  # Purple
+SoColor = "#7436a4"  # Purple
+SsColor = "#5a8340"  # Green
 
-# Computed using prepare()
+# Computed using prepare(), corrected with real sizes
 ChrSizes = {
-    "SO-chr01": 126202379,
-    "SO-chr02": 101695902,
-    "SO-chr03": 88104719,
-    "SO-chr04": 88710675,
-    "SO-chr05": 79016730,
-    "SO-chr06": 63141078,
-    "SO-chr07": 68984033,
-    "SO-chr08": 60246944,
-    "SO-chr09": 73286684,
-    "SO-chr10": 62717802,
-    "SS-chr01": 113356278,
-    "SS-chr02": 117947068,
-    "SS-chr03": 84145814,
-    "SS-chr04": 78952781,
-    "SS-chr05": 89664497,
-    "SS-chr06": 94874851,
-    "SS-chr07": 82740376,
-    "SS-chr08": 63378549,
+    "SO-chr01": 148750011,
+    "SO-chr02": 119865146,
+    "SO-chr03": 103845728,
+    "SO-chr04": 104559946,
+    "SO-chr05": 93134056,
+    "SO-chr06": 74422021,
+    "SO-chr07": 81308893,
+    "SO-chr08": 71010813,
+    "SO-chr09": 86380266,
+    "SO-chr10": 73923121,
+    "SS-chr01": 114519418,
+    "SS-chr02": 119157314,
+    "SS-chr03": 85009228,
+    "SS-chr04": 79762909,
+    "SS-chr05": 90584537,
+    "SS-chr06": 95848354,
+    "SS-chr07": 83589369,
+    "SS-chr08": 64028871,
 }
 
 
@@ -79,6 +78,8 @@ class Genome:
         self.chromosomes.sort()
         gamete_chromosomes = []
 
+        # Check for any chromosome that have 2 identical copies, if so, we will assume disomic
+        # inheritance for that chromosome and always keep one and only copy
         duplicate_chromosomes = []
         singleton_chromosomes = []
         for chromosome, chromosomes in groupby(self.chromosomes):
@@ -88,13 +89,13 @@ class Genome:
             if ncopies % 2 == 1:
                 singleton_chromosomes.append(chromosome)
 
-        # 1. Check for any chromosome that have 2 identical copies, if so, we will assume disomic
-        # inheritance for that chromosome and always keep one and only copy
+        # Get one copy of each duplicate chromosome first
         gamete_chromosomes += duplicate_chromosomes
 
         def prefix(x):
             return x.split("_", 1)[0]
 
+        # Randomly assign the rest, singleton chromosomes
         for group, chromosomes in groupby(singleton_chromosomes, key=prefix):
             chromosomes = list(chromosomes)
             halfN = len(chromosomes) // 2
@@ -177,23 +178,38 @@ class GenomeSummary:
         self.SO_data = SO_data
         self.SS_data = SS_data
         self.percent_SO_data = percent_SO_data
+        self.percent_SS_data = [100 - x for x in percent_SO_data]
 
-    def _summary(self, a, tag):
-        mean, min, max = round(np.mean(a)), round(np.min(a)), round(np.max(a))
+    def _summary(self, a, tag, precision=0):
+        mean, min, max = (
+            round(np.mean(a), precision),
+            round(np.min(a), precision),
+            round(np.max(a), precision),
+        )
         s = f"{tag} chr: {mean:.0f}"
         if min == mean and max == mean:
             return s
         return s + f" ({min:.0f}-{max:.0f})"
 
-    @property
-    def percent_SO_summary(self):
-        a = self.percent_SO_data
-        mean, min, max = round(np.mean(a)), round(np.min(a)), round(np.max(a))
-        s = f"So\%: {mean:.0f}\%"
+    def _percent_summary(self, a, tag, precision=1):
+        mean, min, max = (
+            round(np.mean(a), precision),
+            round(np.min(a), precision),
+            round(np.max(a), precision),
+        )
+        s = f"{tag}\%: {mean:.1f}\%"
         print(s)
         if min == mean and max == mean:
             return s
-        return s + f" ({min:.0f}-{max:.0f}\%)"
+        return s + f" ({min:.1f}-{max:.1f}\%)"
+
+    @property
+    def percent_SO_summary(self):
+        return self._percent_summary(self.percent_SO_data, "So")
+
+    @property
+    def percent_SS_summary(self):
+        return self._percent_summary(self.percent_SS_data, "Ss")
 
     @property
     def SO_summary(self):
@@ -268,6 +284,15 @@ def simulate_BCn(n, SO, SS, verbose=False):
 
 
 def plot_summary(ax, samples):
+    """ Plot the distribution of chromosome numbers given simulated samples.
+
+    Args:
+        ax (Axes): Matplotlib axes.
+        samples ([Genome]): Summarized genomes.
+
+    Returns:
+        GenomeSummary: Summary statistics of simulated genomes.
+    """
     SO_data = []
     SS_data = []
     percent_SO_data = []
@@ -287,14 +312,24 @@ def plot_summary(ax, samples):
         assert total_tag == "Total"
         percent_SO = total_so_size * 100.0 / total_size
         percent_SO_data.append(percent_SO)
+    shift = 0.5  # used to offset bars a bit to avoid cluttering
     x, y = zip(*sorted(Counter(SS_data).items()))
-    ax.bar(x, y, color=SsColor, alpha=0.8, ec=SsColor)
+    ax.bar(np.array(x) - shift, y, color=SsColor, ec=SsColor)
     x, y = zip(*sorted(Counter(SO_data).items()))
-    ax.bar(x, y, color=SoColor, alpha=0.8, ec=SoColor)
-    ax.set_xlim(0, 80)
+    ax.bar(np.array(x) + shift, y, color=SoColor, ec=SoColor)
+    ax.set_xlim(80, 0)
     ax.set_ylim(0, 500)
     ax.set_yticks([])
-    return GenomeSummary(SO_data, SS_data, percent_SO_data)
+    summary = GenomeSummary(SO_data, SS_data, percent_SO_data)
+
+    # Write the stats summary within the plot
+    summary_style = dict(size=9, ha="center", va="center", transform=ax.transAxes,)
+    ax.text(0.75, 0.85, summary.SS_summary, color=SsColor, **summary_style)
+    ax.text(0.75, 0.65, summary.percent_SS_summary, color=SsColor, **summary_style)
+    ax.text(0.25, 0.85, summary.SO_summary, color=SoColor, **summary_style)
+    ax.text(0.25, 0.65, summary.percent_SO_summary, color=SoColor, **summary_style)
+
+    return summary
 
 
 def write_chromosomes(genomes, filename):
@@ -327,19 +362,19 @@ def simulate(args):
         action="store_true",
         help="Verbose logging during simulation",
     )
-    opts, args, iopts = p.set_image_options(args, figsize="7x10")
+    opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 0:
         sys.exit(not p.print_help())
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    rows = 7
+    rows = 6
     ypad = 0.05
     yinterval = (1 - 2 * ypad) / (rows + 1)
     yy = 1 - ypad
-    xpad = 0.18
-    xwidth = 0.6
+    xpad = 0.2
+    xwidth = 0.7
 
     # Axes are vertically stacked, and share x-axis
     axes = []
@@ -351,7 +386,7 @@ def simulate(args):
         if idx != rows - 1:
             plt.setp(ax.get_xticklabels(), visible=False)
         axes.append(ax)
-    ax1, ax2, ax3, ax4, ax5, ax6, ax7 = axes
+    ax1, ax2, ax3, ax4, ax5, ax6 = axes
 
     # Prepare the simulated data
     # Simulate two parents
@@ -361,28 +396,25 @@ def simulate(args):
     verbose = opts.verbose
     all_F1s = [simulate_F1(SO, SS, verbose=verbose) for _ in range(1000)]
     all_F2s = [simulate_F2(SO, SS, verbose=verbose) for _ in range(1000)]
-    all_F1intercrosses = [simulate_F1intercross(SO, SS, verbose) for _ in range(1000)]
     all_BC1s = [simulate_BCn(1, SO, SS, verbose=verbose) for _ in range(1000)]
     all_BC2s = [simulate_BCn(2, SO, SS, verbose=verbose) for _ in range(1000)]
     all_BC3s = [simulate_BCn(3, SO, SS, verbose=verbose) for _ in range(1000)]
     all_BC4s = [simulate_BCn(4, SO, SS, verbose=verbose) for _ in range(1000)]
 
     # Plotting
-    f1s = plot_summary(ax1, all_F1s)
-    f2s = plot_summary(ax2, all_F2s)
-    f1is = plot_summary(ax3, all_F1intercrosses)
-    bc1s = plot_summary(ax4, all_BC1s)
-    bc2s = plot_summary(ax5, all_BC2s)
-    bc3s = plot_summary(ax6, all_BC3s)
-    bc4s = plot_summary(ax7, all_BC4s)
+    plot_summary(ax1, all_F1s)
+    plot_summary(ax2, all_F2s)
+    plot_summary(ax3, all_BC1s)
+    plot_summary(ax4, all_BC2s)
+    plot_summary(ax5, all_BC3s)
+    plot_summary(ax6, all_BC4s)
 
     # Show title to the left
     xx = xpad / 2
     for (title, subtitle), yy in zip(
         (
             ("F1", None),
-            ("F2", "via selfing"),
-            ("F2", "via intercross"),
+            ("F2", None),
             ("BC1", None),
             ("BC2", None),
             ("BC3", None),
@@ -394,31 +426,23 @@ def simulate(args):
             yy -= 0.06
         else:
             yy -= 0.07
-        root.text(xx, yy, title, color="darkslategray", ha="center", va="center")
+        root.text(
+            xx,
+            yy,
+            title,
+            color="darkslategray",
+            ha="center",
+            va="center",
+            fontweight="semibold",
+        )
         if subtitle:
             yy -= 0.02
             root.text(
                 xx, yy, subtitle, color="lightslategray", ha="center", va="center"
             )
 
-    # Show summary stats to the right
-    xx = 1 - (1 - xpad - xwidth) / 2
-    for summary, yy in zip((f1s, f2s, f1is, bc1s, bc2s, bc3s, bc4s), yy_positions):
-        yy -= 0.04
-        root.text(
-            xx, yy, summary.SO_summary, color=SoColor, ha="center", va="center",
-        )
-        yy -= 0.02
-        root.text(
-            xx, yy, summary.SS_summary, color=SsColor, ha="center", va="center",
-        )
-        yy -= 0.02
-        root.text(
-            xx, yy, summary.percent_SO_summary, color=SoColor, ha="center", va="center",
-        )
-
-    ax7.set_xlabel("Number of unique chromosomes")
-    adjust_spines(ax7, ["bottom"], outward=True)
+    axes[-1].set_xlabel("Number of unique chromosomes")
+    adjust_spines(axes[-1], ["bottom"], outward=True)
     normalize_axes(root)
 
     savefig("plotter.pdf", dpi=120)
@@ -429,7 +453,6 @@ def simulate(args):
     for genomes, filename in (
         (all_F1s, "all_F1s"),
         (all_F2s, "all_F2s"),
-        (all_F1intercrosses, "all_F1intercrosses"),
         (all_BC1s, "all_BC1s"),
         (all_BC2s, "all_BC2s"),
         (all_BC3s, "all_BC3s"),
@@ -438,7 +461,7 @@ def simulate(args):
         write_chromosomes(genomes, op.join(outdir, filename))
 
 
-def _get_sizes(filename, prefix_length, tag):
+def _get_sizes(filename, prefix_length, tag, target_size=None):
     """ Returns a dictionary of chromome lengths from a given file.
 
     Args:
@@ -446,6 +469,7 @@ def _get_sizes(filename, prefix_length, tag):
         with rows `seqid length`.
         prefix_length (int): Extract first N characters.
         tag (str): Prepend `tag-` to the seqid.
+        target_size (int): Expected genome size. Defaults to None.
     """
     from collections import defaultdict
 
@@ -459,10 +483,22 @@ def _get_sizes(filename, prefix_length, tag):
             size = int(size)
             name = f"{tag}-chr{idx:02d}"
             sizes_list[name].append(size)
-    print(sizes_list)
+
     # Get the average length
-    return dict(
+    sizes = dict(
         (name, int(round(np.mean(size_list)))) for name, size_list in sizes_list.items()
+    )
+    print(sizes)
+    if target_size is None:
+        return sizes
+
+    total_size = sum(sizes.values())
+    correction_factor = target_size / total_size
+    print(
+        f"{tag} total:{total_size} target:{target_size} correction:{correction_factor:.2f}x"
+    )
+    return dict(
+        (name, int(round(correction_factor * size))) for name, size in sizes.items()
     )
 
 
@@ -478,8 +514,9 @@ def prepare(args):
         sys.exit(not p.print_help())
 
     solist, sslist = args
-    sizes = _get_sizes(solist, 5, "SO")
-    sizes.update(_get_sizes(sslist, 4, "SS"))
+    # The haploid set of LA Purple is 957.2 Mb and haploid set of US56-14-4 is 732.5 Mb
+    sizes = _get_sizes(solist, 5, "SO", target_size=957.2 * 1e6)
+    sizes.update(_get_sizes(sslist, 4, "SS", target_size=732.5 * 1e6))
     print(sizes)
 
 

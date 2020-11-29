@@ -122,8 +122,6 @@ def blastplot(
 
     xchr_labels, ychr_labels = [], []
     ignore = True  # tag to mark whether to plot chr name (skip small ones)
-    # ignore_size_x = xsize * .02
-    # ignore_size_y = ysize * .02
     ignore_size_x = ignore_size_y = 0
 
     # plot the chromosome breaks
@@ -322,7 +320,6 @@ if __name__ == "__main__":
         qbed,
         sbed,
         style=opts.dotstyle,
-        proportional=proportional,
         sampleN=opts.nmax,
         baseticks=True,
         stripNames=opts.stripNames,

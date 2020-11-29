@@ -10,6 +10,7 @@ import os.path as op
 import shutil
 import logging
 import string
+import hashlib
 
 from itertools import groupby
 from six.moves import zip_longest
@@ -18,8 +19,6 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils.CheckSum import seguid
-
-from hashlib import md5
 
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
@@ -839,7 +838,7 @@ def translate(args):
         "--ids",
         default=False,
         action="store_true",
-        help="Create .ids file with the complete/partial/gaps " "label",
+        help="Create .ids file with the complete/partial/gaps label",
     )
     p.add_option(
         "--longest",
@@ -1151,7 +1150,7 @@ def join(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(join.__doc__)
-    p.add_option("--newid", default=None, help="New sequence ID [default: `%default`]")
+    p.add_option("--newid", default=None, help="New sequence ID")
     p.add_option(
         "--gapsize",
         default=100,
@@ -1654,7 +1653,7 @@ def hash_fasta(
     elif checksum == "GCG":
         hashed = seguid(seq)
 
-    return hashed
+    return seguid(seq) if checksum == "GCG" else hashlib.sha256(seq)
 
 
 def identical(args):
@@ -1883,7 +1882,7 @@ def fastq(args):
     from jcvi.formats.fastq import FastqLite
 
     p = OptionParser(fastq.__doc__)
-    p.add_option("--qv", type="int", help="Use generic qv value [dafault: %default]")
+    p.add_option("--qv", type="int", help="Use generic qv value")
 
     opts, args = p.parse_args(args)
 

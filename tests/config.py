@@ -13,7 +13,6 @@ This testing functionality was adapted from the implementation developed by http
 """
 
 import sys
-import subprocess as sp
 import os.path as op
 from shutil import rmtree as rmdir_
 import glob
@@ -21,13 +20,10 @@ import re
 import tempfile
 import gzip
 import time
-import hashlib
 
 import yaml
-import pytest
 
 from importlib import import_module
-from io import StringIO
 
 # https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
 
@@ -210,13 +206,3 @@ def _read(filename):
     for line in fp:
         if not line.startswith("#"):
             yield line
-
-
-def _md5sum(filename):
-    """
-    Calculate and return md5checksum of file
-
-    :param filename: Input filename
-    :return: Returns md5 checksum of input file
-    """
-    return hashlib.md5(open(filename, "rb").read()).hexdigest()

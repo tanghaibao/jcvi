@@ -328,7 +328,7 @@ def mendelian2(args):
         tsvfile = "{}.details.tsv".format(tred)
         fw = open(tsvfile, "w")
         td = {}
-        for i, row in tredsdata.iterrows():
+        for _, row in tredsdata.iterrows():
             s = str(row["SampleKey"])
             inferredGender = row["inferredGender"]
             try:
@@ -338,7 +338,8 @@ def mendelian2(args):
                 rdp = int(row[tred + ".RDP"])
                 pedp = int(row[tred + ".PEDP"])
                 td[s] = [str(x) for x in (inferredGender, calls, fdp, pdp, rdp, pedp)]
-            except:
+            except ValueError:
+                logging.error("Invalid row: {}".format(row))
                 continue
 
         h = " ".join((header.format("P1"), header.format("P2"), header.format("Kid")))
@@ -432,8 +433,6 @@ def mendelian_check(tp1, tp2, tpp, is_xlinked=False):
         possible_progenies = set(tuple((x,)) for x in tp1_call)
     if -1 in tp1_call or -1 in tp2_call or -1 in tpp_call:
         tag = "Missing"
-    # elif tp1_evidence < 2 or tp2_evidence < 2 or tpp_evidence < 2:
-    #    tag = "Missing"
     else:
         tag = "Correct" if tpp_call in possible_progenies else "Error"
     return tag

@@ -276,9 +276,7 @@ class OptionParser(OptionP):
         Add --email option to specify an email address
         """
         self.add_option(
-            "--email",
-            default=get_email_address(),
-            help='Specify an email address [default: "%default"]',
+            "--email", default=get_email_address(), help="Specify an email address",
         )
 
     def set_tmpdir(self, tmpdir=None):
@@ -493,14 +491,14 @@ class OptionParser(OptionP):
                 "--intron",
                 default=intron,
                 type="int",
-                help="Maximum intron length used for mapping " + "[default: %default]",
+                help="Maximum intron length used for mapping",
             )
         if bpsplice is not None:
             self.add_option(
                 "--bpsplice",
                 default=bpsplice,
                 type="int",
-                help="Number of bp of perfect splice boundary " + "[default: %default]",
+                help="Number of bp of perfect splice boundary",
             )
 
     def set_image_options(
@@ -736,9 +734,7 @@ class OptionParser(OptionP):
     def set_sep(self, sep="\t", help="Separator in the tabfile", multiple=False):
         if multiple:
             help += ", multiple values allowed"
-        self.add_option(
-            "--sep", default=sep, help="{0} [default: '%default']".format(help)
-        )
+        self.add_option("--sep", default=sep, help=help)
 
     def set_firstN(self, firstN=100000):
         self.add_option(
@@ -891,15 +887,13 @@ class OptionParser(OptionP):
                 "--pctovl",
                 default=50,
                 type="int",
-                help="Minimum pct overlap between gene and FL assembly "
-                + "[default: %default]",
+                help="Minimum pct overlap between gene and FL assembly",
             )
             self.add_option(
                 "--pct_coding",
                 default=50,
                 type="int",
-                help="Minimum pct of cDNA sequence to be protein coding "
-                + "[default: %default]",
+                help="Minimum pct of cDNA sequence to be protein coding",
             )
             self.add_option(
                 "--orf_size",
@@ -928,8 +922,7 @@ class OptionParser(OptionP):
                 "--pctid_prot",
                 default=70,
                 type="int",
-                help="Minimum pctid allowed for protein pairwise comparison"
-                + "[default: %default]",
+                help="Minimum pctid allowed for protein pairwise comparison",
             )
             self.add_option(
                 "--pct_aln",
@@ -949,8 +942,7 @@ class OptionParser(OptionP):
                 "--stompovl",
                 default="",
                 action="store_true",
-                help="Ignore alignment results, only consider genome span of ORF"
-                + "[default: %default]",
+                help="Ignore alignment results, only consider genome span of ORF",
             )
             self.add_option(
                 "--trust_FL",
@@ -2181,8 +2173,6 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
     except NoSectionError:
         config.add_section(PATH)
         changed = True
-    except:
-        pass
 
     try:
         fullpath = config.get(PATH, name)

@@ -65,3 +65,13 @@ def test_download():
     ret = download(UNIVEC_URL)
     assert ret == "UniVec_Core"
     remove_if_exists(ret)
+
+
+def test_ls_ftp():
+    from jcvi.apps.base import ls_ftp
+
+    url = "ftp://ftp.ensembl.org/pub/release-75/fasta/"
+    valid_species = [x for x in ls_ftp(url) if "." not in x]
+    assert "saccharomyces_cerevisiae" in valid_species
+    assert "gorilla_gorilla" in valid_species
+    assert len(valid_species) == 67

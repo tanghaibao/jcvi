@@ -1351,24 +1351,21 @@ def get_today():
 
 
 def ls_ftp(dir):
+    """ List the contents of a remote FTP server path.
+
+    Args:
+        dir (URL): URL of a remote FTP server path.
+
+    Returns:
+        [str]: List of remote paths available, analogous to `ls`.
+    """
     from six.moves.urllib.parse import urlparse
-    from ftplib import FTP, error_perm
+    from ftpretty import ftpretty
 
     o = urlparse(dir)
 
-    ftp = FTP(o.netloc)
-    ftp.login()
-    ftp.cwd(o.path)
-
-    files = []
-    try:
-        files = ftp.nlst()
-    except error_perm as resp:
-        if str(resp) == "550 No files found":
-            print("no files in this directory")
-        else:
-            raise
-    return files
+    ftp = ftpretty(o.netloc, "anonymous", "anonymous@")
+    return [op.basename(x) for x in ftp.list(o.path)]
 
 
 def download(

@@ -400,7 +400,7 @@ def gcdepth(args):
 
     sample_name, tag = args
     # The tag is used to add to title, also provide a random (hashed) color
-    coloridx = int(hashlib.sha1(tag).hexdigest(), 16) % len(set2)
+    coloridx = int(hashlib.sha256(tag).hexdigest(), 16) % len(set2)
     color = set2[coloridx]
 
     # mosdepth outputs a table that we can use to plot relationship

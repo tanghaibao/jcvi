@@ -4,6 +4,7 @@ coveralls
 cython
 deap
 ete3
+ftpretty
 gffutils
 goatools
 jinja2

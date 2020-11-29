@@ -19,6 +19,7 @@ import numpy as np
 
 from random import sample
 
+from jcvi.formats.base import is_number
 from jcvi.formats.blast import BlastLine
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.bed import Bed, BedLine
@@ -31,20 +32,25 @@ DotStyles = ("line", "circle", "dot")
 
 def rename_seqid(seqid):
     seqid = seqid.split("_")[-1]
-    seqid = seqid.replace("contig", "c").replace("scaffold", "s")
     seqid = seqid.replace("supercont", "s")
-    try:
-        seqid = int(seqid)
-        seqid = "c%d" % seqid
-    except:
-        pass
-    return seqid
+    seqid = seqid.replace("contig", "c").replace("scaffold", "s")
+    return "c{}".format(int(seqid)) if is_number(seqid, int) else seqid
 
 
-def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
-        style="dot", proportional=False, sampleN=None,
-        baseticks=False, insetLabels=False, stripNames=False,
-        highlights=None):
+def blastplot(
+    ax,
+    blastfile,
+    qsizes,
+    ssizes,
+    qbed,
+    sbed,
+    style="dot",
+    sampleN=None,
+    baseticks=False,
+    insetLabels=False,
+    stripNames=False,
+    highlights=None,
+):
 
     assert style in DotStyles
     fp = open(blastfile)
@@ -101,13 +107,13 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
 
     if style == "line":
         for a, b in data:
-            ax.plot(a, b, 'ro-', mfc="w", mec="r", ms=3)
+            ax.plot(a, b, "ro-", mfc="w", mec="r", ms=3)
     else:
         data = [(x[0], y[0]) for x, y in data]
         x, y = zip(*data)
 
         if style == "circle":
-            ax.plot(x, y, 'mo', mfc="w", mec="m", ms=3)
+            ax.plot(x, y, "mo", mfc="w", mec="m", ms=3)
         elif style == "dot":
             ax.scatter(x, y, s=3, lw=0)
 
@@ -116,8 +122,6 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
 
     xchr_labels, ychr_labels = [], []
     ignore = True  # tag to mark whether to plot chr name (skip small ones)
-    #ignore_size_x = xsize * .02
-    #ignore_size_y = ysize * .02
     ignore_size_x = ignore_size_y = 0
 
     # plot the chromosome breaks
@@ -144,21 +148,27 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
     for label, pos, ignore in xchr_labels:
         if not ignore:
             if insetLabels:
-                ax.text(pos, 0, label, size=8, \
-                    ha="center", va="top", color="grey")
+                ax.text(pos, 0, label, size=8, ha="center", va="top", color="grey")
             else:
-                pos = .1 + pos * .8 / xsize
-                root.text(pos, .91, label, size=10,
-                    ha="center", va="bottom", rotation=45, color="grey")
+                pos = 0.1 + pos * 0.8 / xsize
+                root.text(
+                    pos,
+                    0.91,
+                    label,
+                    size=10,
+                    ha="center",
+                    va="bottom",
+                    rotation=45,
+                    color="grey",
+                )
 
     # remember y labels are inverted
     for label, pos, ignore in ychr_labels:
         if not ignore:
             if insetLabels:
                 continue
-            pos = .9 - pos * .8 / ysize
-            root.text(.91, pos, label, size=10,
-                    va="center", color="grey")
+            pos = 0.9 - pos * 0.8 / ysize
+            root.text(0.91, pos, label, size=10, va="center", color="grey")
 
     # Highlight regions based on a list of BedLine
     qhighlights = shighlights = None
@@ -171,15 +181,14 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
     if qhighlights:
         for hl in qhighlights:
             hls = qsizes.get_position(hl.seqid, hl.start)
-            ax.add_patch(Rectangle((hls, 0), hl.span, ysize,\
-                         fc="r", alpha=.2, lw=0))
+            ax.add_patch(Rectangle((hls, 0), hl.span, ysize, fc="r", alpha=0.2, lw=0))
     if shighlights:
         for hl in shighlights:
             hls = ssizes.get_position(hl.seqid, hl.start)
-            ax.add_patch(Rectangle((0, hls), xsize, hl.span, \
-                         fc="r", alpha=.2, lw=0))
+            ax.add_patch(Rectangle((0, hls), xsize, hl.span, fc="r", alpha=0.2, lw=0))
 
     if baseticks:
+
         def increaseDensity(a, ratio=4):
             assert len(a) > 1
             stepsize = a[1] - a[0]
@@ -192,20 +201,19 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
         xticks = increaseDensity(xticks, ratio=2)
         yticks = increaseDensity(yticks, ratio=2)
         ax.set_xticks(xticks)
-        #ax.set_yticks(yticks)
 
         # Plot outward ticklines
         for pos in xticks[1:]:
             if pos > xsize:
                 continue
-            pos = .1 + pos * .8 / xsize
-            root.plot((pos, pos), (.08, .1), '-', color="grey", lw=2)
+            pos = 0.1 + pos * 0.8 / xsize
+            root.plot((pos, pos), (0.08, 0.1), "-", color="grey", lw=2)
 
         for pos in yticks[1:]:
             if pos > ysize:
                 continue
-            pos = .9 - pos * .8 / ysize
-            root.plot((.09, .1), (pos, pos), '-', color="grey", lw=2)
+            pos = 0.9 - pos * 0.8 / ysize
+            root.plot((0.09, 0.1), (pos, pos), "-", color="grey", lw=2)
 
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
@@ -216,8 +224,7 @@ def blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
 
     set_human_base_axis(ax)
 
-    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(),
-            color='gray', size=10)
+    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=10)
     plt.setp(ax.get_yticklabels(), rotation=90)
 
 
@@ -230,20 +237,38 @@ if __name__ == "__main__":
     p.add_option("--ssizes", help="Path to two column ssizes file")
     p.add_option("--qbed", help="Path to qbed")
     p.add_option("--sbed", help="Path to sbed")
-    p.add_option("--qselect", default=0, type="int",
-            help="Minimum size of query contigs to select [default: %default]")
-    p.add_option("--sselect", default=0, type="int",
-            help="Minimum size of subject contigs to select [default: %default]")
+    p.add_option(
+        "--qselect",
+        default=0,
+        type="int",
+        help="Minimum size of query contigs to select",
+    )
+    p.add_option(
+        "--sselect",
+        default=0,
+        type="int",
+        help="Minimum size of subject contigs to select",
+    )
     p.add_option("--qh", help="Path to highlight bed for query")
     p.add_option("--sh", help="Path to highlight bed for subject")
-    p.add_option("--dotstyle", default="dot", choices=DotStyles,
-            help="Style of the dots [default: %default]")
-    p.add_option("--proportional", default=False, action="store_true",
-            help="Make image width:height equal to seq ratio [default: %default]")
-    p.add_option("--stripNames", default=False, action="store_true",
-            help="Remove trailing .? from gene names [default: %default]")
-    p.add_option("--nmax", default=None, type="int",
-            help="Only plot maximum of N dots [default: %default]")
+    p.add_option(
+        "--dotstyle", default="dot", choices=DotStyles, help="Style of the dots",
+    )
+    p.add_option(
+        "--proportional",
+        default=False,
+        action="store_true",
+        help="Make image width:height equal to seq ratio",
+    )
+    p.add_option(
+        "--stripNames",
+        default=False,
+        action="store_true",
+        help="Remove trailing .? from gene names",
+    )
+    p.add_option(
+        "--nmax", default=None, type="int", help="Only plot maximum of N dots",
+    )
     opts, args, iopts = p.set_image_options(figsize="8x8", style="dark", dpi=150)
 
     qsizes, ssizes = opts.qsizes, opts.ssizes
@@ -260,13 +285,12 @@ if __name__ == "__main__":
         ssizes = ssizes or sizes([sbed])
         sbed = Bed(sbed)
 
-    assert qsizes and ssizes, \
-        "You must specify at least one of --sizes of --bed"
+    assert qsizes and ssizes, "You must specify at least one of --sizes of --bed"
 
     qsizes = Sizes(qsizes, select=opts.qselect)
     ssizes = Sizes(ssizes, select=opts.sselect)
 
-    blastfile, = args
+    (blastfile,) = args
 
     image_name = op.splitext(blastfile)[0] + "." + opts.format
     plt.rcParams["xtick.major.pad"] = 16
@@ -281,16 +305,26 @@ if __name__ == "__main__":
     sh = Bed(sh) if sh else None
     highlights = (qh, sh) if qh or sh else None
 
-    ratio = ysize * 1. / xsize if proportional else 1
+    ratio = ysize * 1.0 / xsize if proportional else 1
     width = iopts.w
     height = iopts.h * ratio
     fig = plt.figure(1, (width, height))
     root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
-    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])  # the dot plot
 
-    blastplot(ax, blastfile, qsizes, ssizes, qbed, sbed,
-            style=opts.dotstyle, proportional=proportional, sampleN=opts.nmax,
-            baseticks=True, stripNames=opts.stripNames, highlights=highlights)
+    blastplot(
+        ax,
+        blastfile,
+        qsizes,
+        ssizes,
+        qbed,
+        sbed,
+        style=opts.dotstyle,
+        sampleN=opts.nmax,
+        baseticks=True,
+        stripNames=opts.stripNames,
+        highlights=highlights,
+    )
 
     # add genome names
     to_ax_label = lambda fname: op.basename(fname).split(".")[0]

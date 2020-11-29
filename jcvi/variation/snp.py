@@ -10,7 +10,7 @@ import sys
 import logging
 
 from jcvi.formats.fasta import Fasta
-from jcvi.formats.base import write_file
+from jcvi.formats.base import is_number, write_file
 from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
@@ -18,15 +18,15 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 def main():
 
     actions = (
-        ('frommaf', 'convert to four-column tabular format from MAF'),
-        ('freq', 'call snp frequencies and keep AO and RO'),
-        ('rmdup', 'remove PCR duplicates from BAM files'),
-        ('freebayes', 'call snps using freebayes'),
-        ('mpileup', 'call snps using samtools-mpileup'),
-        ('gatk', 'call snps using GATK'),
-        ('somatic', 'generate series of SPEEDSESQ-somatic commands'),
-        ('mappability', 'generate 50mer mappability for reference genome'),
-            )
+        ("frommaf", "convert to four-column tabular format from MAF"),
+        ("freq", "call snp frequencies and keep AO and RO"),
+        ("rmdup", "remove PCR duplicates from BAM files"),
+        ("freebayes", "call snps using freebayes"),
+        ("mpileup", "call snps using samtools-mpileup"),
+        ("gatk", "call snps using GATK"),
+        ("somatic", "generate series of SPEEDSESQ-somatic commands"),
+        ("mappability", "generate 50mer mappability for reference genome"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -47,7 +47,7 @@ def mappability(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    ref, = args
+    (ref,) = args
     K = opts.mer
     pf = ref.rsplit(".", 1)[0]
     mm = MakeManager()
@@ -58,8 +58,7 @@ def mappability(args):
 
     mer = pf + ".{}mer".format(K)
     mapb = mer + ".mappability"
-    cmd = "gem-mappability -I {} -l {} -o {} -T {}".\
-                format(gem, K, mer, opts.cpus)
+    cmd = "gem-mappability -I {} -l {} -o {} -T {}".format(gem, K, mer, opts.cpus)
     mm.add(gem, mapb, cmd)
 
     wig = mer + ".wig"
@@ -88,8 +87,12 @@ def gatk(args):
     Call SNPs based on GATK best practices.
     """
     p = OptionParser(gatk.__doc__)
-    p.add_option("--indelrealign", default=False, action="store_true",
-                 help="Perform indel realignment")
+    p.add_option(
+        "--indelrealign",
+        default=False,
+        action="store_true",
+        help="Perform indel realignment",
+    )
     p.set_home("gatk")
     p.set_home("picard")
     p.set_phred()
@@ -206,8 +209,9 @@ def rmdup(args):
     Remove PCR duplicates from BAM files, generate a list of commands.
     """
     p = OptionParser(rmdup.__doc__)
-    p.add_option("-S", default=False, action="store_true",
-                 help="Treat PE reads as SE in rmdup")
+    p.add_option(
+        "-S", default=False, action="store_true", help="Treat PE reads as SE in rmdup"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -256,10 +260,8 @@ def freebayes(args):
     Call SNPs using freebayes.
     """
     p = OptionParser(freebayes.__doc__)
-    p.add_option("--mindepth", default=3, type="int",
-                 help="Minimum depth [default: %default]")
-    p.add_option("--minqual", default=20, type="int",
-                 help="Minimum quality [default: %default]")
+    p.add_option("--mindepth", default=3, type="int", help="Minimum depth")
+    p.add_option("--minqual", default=20, type="int", help="Minimum quality")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -283,10 +285,8 @@ def freq(args):
     Call SNP frequencies and generate GFF file.
     """
     p = OptionParser(freq.__doc__)
-    p.add_option("--mindepth", default=3, type="int",
-                 help="Minimum depth [default: %default]")
-    p.add_option("--minqual", default=20, type="int",
-                 help="Minimum quality [default: %default]")
+    p.add_option("--mindepth", default=3, type="int", help="Minimum depth")
+    p.add_option("--minqual", default=20, type="int", help="Minimum quality")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -308,14 +308,13 @@ def frommaf(args):
     Convert to four-column tabular format from MAF.
     """
     p = OptionParser(frommaf.__doc__)
-    p.add_option("--validate",
-                 help="Validate coordinates against FASTA [default: %default]")
+    p.add_option("--validate", help="Validate coordinates against FASTA")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    maf, = args
+    (maf,) = args
     snpfile = maf.rsplit(".", 1)[0] + ".vcf"
     fp = open(maf)
     fw = open(snpfile, "w")
@@ -329,14 +328,16 @@ def frommaf(args):
     for row in fp:
         atoms = row.split()
         c, pos, ref, alt = atoms[:4]
-        try:
+        if is_number(c, int):
             c = int(c)
-        except:
+        else:
             continue
         c = "chr{0:02d}".format(c)
         pos = int(pos)
-        print("\t".join(str(x) for x in \
-                (c, pos, id, ref, alt, qual, filter, info)), file=fw)
+        print(
+            "\t".join(str(x) for x in (c, pos, id, ref, alt, qual, filter, info)),
+            file=fw,
+        )
         total += 1
     fw.close()
 
@@ -350,7 +351,7 @@ def frommaf(args):
     fp = open(snpfile)
     nsnps = 0
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             continue
 
         c, pos, id, ref, alt, qual, filter, info = row.split("\t")
@@ -358,14 +359,16 @@ def frommaf(args):
         feat = dict(chr=c, start=pos, stop=pos)
         s = f.sequence(feat)
         s = str(s)
-        assert s == ref, "Validation error: {0} is {1} (expect: {2})".\
-                        format(feat, s, ref)
+        assert s == ref, "Validation error: {0} is {1} (expect: {2})".format(
+            feat, s, ref
+        )
         nsnps += 1
         if nsnps % 50000 == 0:
             logging.debug("SNPs parsed: {0}".format(percentage(nsnps, total)))
-    logging.debug("A total of {0} SNPs validated and written to `{1}`.".\
-                        format(nsnps, snpfile))
+    logging.debug(
+        "A total of {0} SNPs validated and written to `{1}`.".format(nsnps, snpfile)
+    )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -4,9 +4,33 @@ from __future__ import absolute_import
 
 import os.path as op
 import versioneer
+import sys
 
 from setuptools import setup, find_packages, Extension
+from setuptools.command.test import test as testCommand
 from setup_helper import SetupHelper
+
+
+class PyTest(testCommand):
+    coverage = None
+
+    def initialize_options(self):
+        testCommand.initialize_options(self)
+        self.test_args = []
+
+    def finalize_options(self):
+        testCommand.finalize_options(self)
+        if self.coverage:
+            self.test_args.append("--cov")
+            self.test_args.append("jcvi")
+        self.test_args.append("tests")
+
+    def run_tests(self):
+        import pytest
+
+        errno = pytest.main(self.test_args)
+        sys.exit(errno)
+
 
 name = "jcvi"
 classifiers = [
@@ -14,7 +38,6 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python",
-    "Programming Language :: Python :: 2",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
@@ -54,6 +77,8 @@ packages = [name] + [
     ".".join((name, x)) for x in find_packages("jcvi", exclude=["test*.py"])
 ]
 
+cmdclass.update({"test": PyTest})
+
 setup(
     name=name,
     author=h.author,
@@ -70,8 +95,8 @@ setup(
     classifiers=classifiers,
     zip_safe=False,
     url="http://github.com/tanghaibao/jcvi",
-    description="Python utility libraries on genome assembly, "
-    "annotation and comparative genomics",
+    description="Python utility libraries on genome assembly, annotation and comparative genomics",
     setup_requires=["setuptools>=18.0", "cython"],
     install_requires=requirements,
+    tests_require=["pytest", "pytest-cov", "pytest-benchmark"],
 )

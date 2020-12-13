@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+"""Helper functions for package setup.
+"""
+
+import ast
 import sys
 import subprocess
 import pkg_resources
@@ -18,8 +22,7 @@ class SetupHelper(object):
         self.long_description = self.get_long_description(readmefile)
 
     def check_version(self, name, majorv=2, minorv=7):
-        """ Make sure the package runs on the supported Python version
-        """
+        """Make sure the package runs on the supported Python version"""
         if sys.version_info.major == majorv and sys.version_info.minor != minorv:
             sys.stderr.write(
                 "ERROR: %s is only for >= Python %d.%d but you are running %d.%d\n"
@@ -28,10 +31,7 @@ class SetupHelper(object):
             sys.exit(1)
 
     def get_init(self, filename="__init__.py"):
-        """ Get various info from the package without importing them
-        """
-        import ast
-
+        """Get various info from the package without importing them"""
         with open(filename) as init_file:
             module = ast.parse(init_file.read())
 
@@ -47,15 +47,13 @@ class SetupHelper(object):
                 next(itr("__email__")),
                 next(itr("__license__")),
             )
-        except StopIteration:
+        except StopIteration as stop_exception:
             raise ValueError(
-                "One of author, email, license"
-                " cannot be found in {}".format(filename)
-            )
+                "One of author, email, license cannot be found in {}".format(filename)
+            ) from stop_exception
 
     def missing_requirements(self, specifiers):
-        """ Find what's missing
-        """
+        """Find what's missing"""
         for specifier in specifiers:
             try:
                 pkg_resources.require(specifier)
@@ -63,8 +61,7 @@ class SetupHelper(object):
                 yield specifier
 
     def install_requirements(self, requires):
-        """ Install the listed requirements
-        """
+        """Install the listed requirements"""
         # Temporarily install dependencies required by setup.py before trying to import them.
         sys.path[0:0] = ["setup-requires"]
         pkg_resources.working_set.add_entry("setup-requires")
@@ -82,6 +79,5 @@ class SetupHelper(object):
             subprocess.call(cmd)
 
     def get_long_description(self, filename="README.md"):
-        """ I really prefer Markdown to reStructuredText. PyPi does not.
-        """
-        return open("README.md").read()
+        """I really prefer Markdown to reStructuredText. PyPi does not."""
+        return open(filename).read()

@@ -110,7 +110,7 @@ class Shade(object):
         lw=1,
         zorder=1,
     ):
-        """ Create syntenic wedges between tracks.
+        """Create syntenic wedges between tracks.
 
         Args:
             ax: matplotlib Axes
@@ -127,7 +127,7 @@ class Shade(object):
             zorder (int, optional): Z-order. Defaults to 1.
         """
         fc = fc or "gainsboro"  # Default block color is grayish
-        assert style in self.Styles, "style must be one of {}".format(Styles)
+        assert style in self.Styles, "style must be one of {}".format(self.Styles)
         a1, a2 = a
         b1, b2 = b
         ax1, ay1 = a1
@@ -496,7 +496,14 @@ class Synteny(object):
 
 
 def draw_gene_legend(
-    ax, x1, x2, ytop, d=0.04, text=False, repeat=False, glyphstyle="box",
+    ax,
+    x1,
+    x2,
+    ytop,
+    d=0.04,
+    text=False,
+    repeat=False,
+    glyphstyle="box",
 ):
     ax.plot([x1, x1 + d], [ytop, ytop], ":", color=forward, lw=2)
     ax.plot([x1 + d], [ytop], ">", color=forward, mec=forward)

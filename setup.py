@@ -1,14 +1,38 @@
 #!/usr/bin/env python
 
-from __future__ import absolute_import
+"""Package setup
+"""
 
 import os.path as op
-import versioneer
+import sys
 
 from setuptools import setup, find_packages, Extension
+from setuptools.command.test import test as testCommand
 from setup_helper import SetupHelper
 
-name = "jcvi"
+import versioneer
+
+
+class PyTest(testCommand):
+    """Allow testing to be run from setuptools."""
+
+    def initialize_options(self):
+        testCommand.initialize_options(self)
+        self.test_args = []
+
+    def finalize_options(self):
+        testCommand.finalize_options(self)
+        self.test_args += ["--cov", "jcvi", "tests"]
+
+    def run_tests(self):
+        # pylint:disable=import-outside-toplevel
+        import pytest
+
+        errno = pytest.main(self.test_args)
+        sys.exit(errno)
+
+
+NAME = "jcvi"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
@@ -21,7 +45,7 @@ classifiers = [
 
 # Use the helper
 h = SetupHelper(initfile="jcvi/__init__.py", readmefile="README.md")
-h.check_version(name, majorv=2, minorv=7)
+h.check_version(NAME, majorv=2, minorv=7)
 cmdclass = versioneer.get_cmdclass()
 include_dirs = []
 setup_dir = op.abspath(op.dirname(__file__))
@@ -50,12 +74,14 @@ ext_modules = [
     ),
 ]
 
-packages = [name] + [
-    ".".join((name, x)) for x in find_packages("jcvi", exclude=["test*.py"])
+packages = [NAME] + [
+    ".".join((NAME, x)) for x in find_packages("jcvi", exclude=["test*.py"])
 ]
 
+cmdclass.update({"test": PyTest})
+
 setup(
-    name=name,
+    name=NAME,
     author=h.author,
     author_email=h.email,
     version=versioneer.get_version(),
@@ -70,8 +96,8 @@ setup(
     classifiers=classifiers,
     zip_safe=False,
     url="http://github.com/tanghaibao/jcvi",
-    description="Python utility libraries on genome assembly, "
-    "annotation and comparative genomics",
+    description="Python utility libraries on genome assembly, annotation and comparative genomics",
     setup_requires=["setuptools>=18.0", "cython"],
     install_requires=requirements,
+    tests_require=["pytest", "pytest-cov", "pytest-benchmark"],
 )

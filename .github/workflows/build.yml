@@ -41,5 +41,5 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pip install pytest
-          pytest --cov=jcvi tests/
+          pip install pytest pytest-cov pytest-benchmark
+          pytest --cov=jcvi tests

@@ -21,7 +21,7 @@ e, 0, 1, athaliana.grape.4x1.simple
 
 
 import sys
-import string
+import logging
 
 from jcvi.apps.base import OptionParser
 from jcvi.compara.synteny import SimpleFile
@@ -128,7 +128,6 @@ class Track(object):
         height=0.01,
         lw=1,
         draw=True,
-        heightpad=0,
         roundrect=False,
     ):
 
@@ -227,7 +226,14 @@ class Track(object):
             hpad = -pad if va == "bottom" else pad
             if plot_circles:
                 TextCircle(
-                    ax, xx, y + hpad, si, fc="w", color=color, size=10, transform=tr,
+                    ax,
+                    xx,
+                    y + hpad,
+                    si,
+                    fc="w",
+                    color=color,
+                    size=10,
+                    transform=tr,
                 )
 
         label = markup(self.label)
@@ -252,7 +258,7 @@ class Track(object):
 
     def get_coords(self, gene):
         order_in_chr = self.order_in_chr
-        seqid, i, f = order_in_chr[gene]
+        seqid, i, _ = order_in_chr[gene]
         if seqid not in self.offsets:
             return [None, None]
 
@@ -279,7 +285,7 @@ class ShadeManager(object):
             )
 
     def draw_blocks(self, ax, blocks, atrack, btrack, samearc="below", heightpad=0):
-        for a, b, c, d, score, orientation, highlight in blocks:
+        for a, b, c, d, _, _, highlight in blocks:
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
             if p[0] is None or q[0] is None:
@@ -346,7 +352,9 @@ class Karyotype(object):
             if row[0] == "#":
                 continue
             t = layout[i]
-            seqids = row.rstrip().split(",")
+            # There can be comments in seqids file:
+            # https://github.com/tanghaibao/jcvi/issues/335
+            seqids = row.split("#", 1)[0].rstrip().split(",")
             t.rev = set(x[:-1] for x in seqids if x[-1] == "-")
             seqids = [di(x) for x in seqids]
             if t.empty:
@@ -362,6 +370,10 @@ class Karyotype(object):
                 )
                 assert sz is not None, "sizes not available and cannot be inferred"
             t.seqids = seqids
+            # validate if all seqids are non-empty
+            for k, v in sz.items():
+                if v == 0:
+                    logging.error("Size of `%s` is empty. Please check", k)
             t.sizes = sz
 
         tracks = []

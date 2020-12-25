@@ -224,15 +224,19 @@ class AGPLine(object):
             assert (
                 self.component_beg <= self.component_end
             ), "component_begin must be <= component_end"
-            assert self.object_span == self.component_span, (
-                "object_span (%d) must be same as component_span (%d)"
-                % (self.object_span, self.component_span)
+            assert (
+                self.object_span == self.component_span
+            ), "object_span (%d) must be same as component_span (%d)" % (
+                self.object_span,
+                self.component_span,
             )
         else:
             assert self.gap_length >= 1, "gap_length must be >= 1"
-            assert self.object_span == self.gap_length, (
-                "object span (%d) must be same as gap_length (%d)"
-                % (self.object_span, self.gap_length)
+            assert (
+                self.object_span == self.gap_length
+            ), "object span (%d) must be same as gap_length (%d)" % (
+                self.object_span,
+                self.gap_length,
             )
             assert all(
                 x in Valid_evidence for x in self.linkage_evidence
@@ -489,9 +493,11 @@ class AGP(LineFile):
             total_bp += len(seq)
 
             if self.validate:
-                assert total_bp == line.object_end, (
-                    "cumulative base pairs (%d) does not match (%d)"
-                    % (total_bp, line.object_end)
+                assert (
+                    total_bp == line.object_end
+                ), "cumulative base pairs (%d) does not match (%d)" % (
+                    total_bp,
+                    line.object_end,
                 )
 
         if not newagp:
@@ -1130,7 +1136,10 @@ def frombed(args):
     """
     p = OptionParser(frombed.__doc__)
     p.add_option(
-        "--gapsize", default=100, type="int", help="Insert gaps of size",
+        "--gapsize",
+        default=100,
+        type="int",
+        help="Insert gaps of size",
     )
     opts, args = p.parse_args(args)
 
@@ -1380,7 +1389,9 @@ def mask(args):
         help="Do not remove base on single point",
     )
     p.add_option(
-        "--gaptype", default="scaffold", help="Masked region has gap type of",
+        "--gaptype",
+        default="scaffold",
+        help="Masked region has gap type of",
     )
     p.add_option(
         "--noretain",
@@ -1509,10 +1520,16 @@ def reindex(args):
     """
     p = OptionParser(reindex.__doc__)
     p.add_option(
-        "--nogaps", default=False, action="store_true", help="Remove all gap lines",
+        "--nogaps",
+        default=False,
+        action="store_true",
+        help="Remove all gap lines",
     )
     p.add_option(
-        "--inplace", default=False, action="store_true", help="Replace input file",
+        "--inplace",
+        default=False,
+        action="store_true",
+        help="Replace input file",
     )
     opts, args = p.parse_args(args)
 
@@ -1584,8 +1601,8 @@ def summary(args):
     write_csv(header, data, sep=" ")
 
 
-chr_pat = re.compile("chromosome (\d)", re.I)
-clone_pat = re.compile("clone ([^, ]*\d)[ ,]", re.I)
+chr_pat = re.compile(r"chromosome (\d)", re.I)
+clone_pat = re.compile(r"clone ([^, ]*\d)[ ,]", re.I)
 
 
 def get_clone(rec):
@@ -1672,7 +1689,10 @@ def tpf(args):
         help="Remove trailing accession versions",
     )
     p.add_option(
-        "--gaps", default=False, action="store_true", help="Include gaps in the output",
+        "--gaps",
+        default=False,
+        action="store_true",
+        help="Include gaps in the output",
     )
     opts, args = p.parse_args(args)
 
@@ -1744,7 +1764,9 @@ def bed(args):
     )
     g1.add_option("--source", default="MGSC", help="Specify a gff3 source")
     g1.add_option(
-        "--feature", default="golden_path_fragment", help="Specify a gff3 feature type",
+        "--feature",
+        default="golden_path_fragment",
+        help="Specify a gff3 feature type",
     )
     p.add_option_group(g1)
     p.set_SO_opts()
@@ -1911,7 +1933,10 @@ def gaps(args):
         help="Merge adjacent gaps (to conform to AGP specification)",
     )
     p.add_option(
-        "--header", default=False, action="store_true", help="Produce an AGP header",
+        "--header",
+        default=False,
+        action="store_true",
+        help="Produce an AGP header",
     )
 
     opts, args = p.parse_args(args)
@@ -1998,7 +2023,10 @@ def tidy(args):
     """
     p = OptionParser(tidy.__doc__)
     p.add_option(
-        "--nogaps", default=False, action="store_true", help="Remove all gap lines",
+        "--nogaps",
+        default=False,
+        action="store_true",
+        help="Remove all gap lines",
     )
     opts, args = p.parse_args(args)
 

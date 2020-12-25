@@ -42,8 +42,7 @@ logging.getLogger().setLevel(logging.DEBUG)
 
 
 def is_usetex():
-    """Check if latex command is available
-    """
+    """Check if latex command is available"""
     return bool(which("latex")) and bool(which("lp"))
 
 
@@ -145,7 +144,7 @@ CHARS = {
 
 
 def linear_blend(from_color, to_color, fraction=0.5):
-    """ Interpolate a new color between two colors.
+    """Interpolate a new color between two colors.
 
     https://github.com/PimpTrizkit/PJs/wiki/12.-Shade,-Blend-and-Convert-a-Web-Color-(pSBC.js)
 
@@ -167,7 +166,7 @@ def linear_blend(from_color, to_color, fraction=0.5):
 
 
 def linear_shade(from_color, fraction=0.5):
-    """ Interpolate a lighter or darker color.
+    """Interpolate a lighter or darker color.
 
     https://github.com/PimpTrizkit/PJs/wiki/12.-Shade,-Blend-and-Convert-a-Web-Color-(pSBC.js)
 
@@ -353,7 +352,7 @@ def markup(s):
     import re
 
     s = latex(s)
-    s = re.sub("\*(.*)\*", r"\\textit{\1}", s)
+    s = re.sub(r"\*(.*)\*", r"\\textit{\1}", s)
     return s
 
 

@@ -1886,7 +1886,7 @@ def is_valid_email(email):
     local_part = "%s(?:\\x2e%s)*" % (word, word)
     addr_spec = "%s\\x40%s" % (local_part, domain)
 
-    email_address = re.compile("\A%s\Z" % addr_spec)
+    email_address = re.compile(r"\A%s\Z" % addr_spec)
     if email_address.match(email):
         return True
     return False

@@ -20,8 +20,7 @@ from Bio.SeqIO.QualityIO import FastqGeneralIterator
 from jcvi.formats.fasta import must_open, rc
 from jcvi.formats.base import DictFile
 from jcvi.utils.cbook import percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, \
-        which, mkdir, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which, mkdir, need_update
 
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -31,7 +30,7 @@ allowed_dialect_conversions = {
 }
 
 
-class FastqLite (object):
+class FastqLite(object):
     def __init__(self, name, seq, qual):
         self.name = name
         self.seq = seq
@@ -45,7 +44,7 @@ class FastqLite (object):
         self.qual = self.qual[::-1]
 
 
-class FastqRecord (object):
+class FastqRecord(object):
     def __init__(self, fh, offset=0, key=None):
         self.name = self.header = fh.readline()
         if not self.name:
@@ -57,8 +56,9 @@ class FastqRecord (object):
         if offset != 0:
             self.qual = "".join(chr(ord(x) + offset) for x in self.qual)
         self.length = len(self.seq)
-        assert self.length == len(self.qual), \
-                "length mismatch: seq(%s) and qual(%s)" % (self.seq, self.qual)
+        assert self.length == len(
+            self.qual
+        ), "length mismatch: seq(%s) and qual(%s)" % (self.seq, self.qual)
         if key:
             self.name = key(self.name)
 
@@ -74,7 +74,6 @@ class FastqRecord (object):
 
 
 class FastqHeader(object):
-
     def __init__(self, row):
         header = row.strip().split(" ")
         self.readId, self.readLen, self.readNum = None, None, None
@@ -82,8 +81,8 @@ class FastqHeader(object):
         self.paired = False
         if len(header) == 3 and "length" in header[2]:
             self.dialect = "sra"
-            self.readId = header[0].lstrip('@')
-            m = re.search("length\=(\d+)", header[2])
+            self.readId = header[0].lstrip("@")
+            m = re.search(r"length\=(\d+)", header[2])
             if m:
                 self.readLen = m.group(1)
             h = header[1].split(":")
@@ -99,7 +98,7 @@ class FastqHeader(object):
                 self.xPos, self.yPos = h[3], h[4]
         else:
             h = header[0].split(":")
-            self.instrument = h[0].lstrip('@')
+            self.instrument = h[0].lstrip("@")
             if len(header) == 2 and header[1].find(":"):
                 self.dialect = ">=1.8"  # Illumina Casava 1.8+ format
 
@@ -119,7 +118,7 @@ class FastqHeader(object):
                 self.controlNum = int(a[2])
                 self.barcode = a[3]
             else:
-                self.dialect = "<1.8"   # Old Illumina Casava format (< 1.8)
+                self.dialect = "<1.8"  # Old Illumina Casava format (< 1.8)
                 self.laneNum = int(h[1])
                 self.tileNum = int(h[2])
                 self.xPos = int(h[3])
@@ -127,9 +126,11 @@ class FastqHeader(object):
                 m = re.search(r"(\d+)(#\S+)\/(\d+)", self.yPos)
                 if m:
                     self.paired = True
-                    self.yPos, self.multiplexId, self.readNum = \
-                            m.group(1), m.group(2), m.group(3)
-
+                    self.yPos, self.multiplexId, self.readNum = (
+                        m.group(1),
+                        m.group(2),
+                        m.group(3),
+                    )
 
     def __str__(self):
         if self.dialect == "sra":
@@ -137,8 +138,13 @@ class FastqHeader(object):
             if self.readNum:
                 h0 += "/{0}".format(self.readNum)
 
-            h1elems = [self.instrument, self.laneNum, self.tileNum, \
-                    self.xPos, self.yPos]
+            h1elems = [
+                self.instrument,
+                self.laneNum,
+                self.tileNum,
+                self.xPos,
+                self.yPos,
+            ]
             if self.runId and self.flowcellId:
                 h1elems[1:1] = [self.runId, self.flowcellId]
             h1 = ":".join(str(x) for x in h1elems)
@@ -146,21 +152,38 @@ class FastqHeader(object):
 
             return "@{0} {1} {2}".format(h0, h1, h2)
         elif self.dialect == ">=1.8":
-            yPos = "{0}/{1}".format(self.yPos, self.readNum) if self.paired \
-                    else self.yPos
+            yPos = (
+                "{0}/{1}".format(self.yPos, self.readNum) if self.paired else self.yPos
+            )
 
-            h0 = ":".join(str(x) for x in (self.instrument, self.runId, \
-                    self.flowcellId, self.laneNum, self.tileNum, \
-                    self.xPos, yPos))
-            h1 = ":".join(str(x) for x in (self.readNum, self.isFiltered, \
-                    self.controlNum, self.barcode))
+            h0 = ":".join(
+                str(x)
+                for x in (
+                    self.instrument,
+                    self.runId,
+                    self.flowcellId,
+                    self.laneNum,
+                    self.tileNum,
+                    self.xPos,
+                    yPos,
+                )
+            )
+            h1 = ":".join(
+                str(x)
+                for x in (self.readNum, self.isFiltered, self.controlNum, self.barcode)
+            )
 
             return "@{0} {1}".format(h0, h1)
         else:
-            yPos = "{0}#{1}/{2}".format(self.yPos, self.multiplexId, \
-                    self.readNum) if self.paired else self.yPos
-            h0 = ":".join(str(x) for x in (self.instrument, self.laneNum, \
-                    self.tileNum, self.xPos, yPos))
+            yPos = (
+                "{0}#{1}/{2}".format(self.yPos, self.multiplexId, self.readNum)
+                if self.paired
+                else self.yPos
+            )
+            h0 = ":".join(
+                str(x)
+                for x in (self.instrument, self.laneNum, self.tileNum, self.xPos, yPos)
+            )
 
             return "@{0}".format(h0)
 
@@ -169,8 +192,16 @@ class FastqHeader(object):
             if self.dialect == dialect:
                 logging.error("Input and output dialect are the same")
             elif dialect not in allowed_dialect_conversions[self.dialect]:
-                logging.error("Error: Cannot convert from `{0}` to `{1}` dialect".format(self.dialect, dialect))
-                logging.error("Allowed conversions: {0}".format(json.dumps(allowed_dialect_conversions, indent=4)))
+                logging.error(
+                    "Error: Cannot convert from `{0}` to `{1}` dialect".format(
+                        self.dialect, dialect
+                    )
+                )
+                logging.error(
+                    "Allowed conversions: {0}".format(
+                        json.dumps(allowed_dialect_conversions, indent=4)
+                    )
+                )
                 sys.exit()
             else:
                 self.dialect = dialect
@@ -212,25 +243,28 @@ def iter_fastq(filename, offset=0, key=None):
 def main():
 
     actions = (
-        ('size', 'total base pairs in the fastq files'),
-        ('shuffle', 'shuffle paired reads into the same file interleaved'),
-        ('split', 'split paired reads into two files'),
-        ('splitread', 'split appended reads (from JGI)'),
-        ('catread', 'cat pairs together (reverse of splitread)'),
-        ('pairinplace', 'collect pairs by checking adjacent ids'),
-        ('convert', 'convert between illumina and sanger offset'),
-        ('first', 'get first N reads from file'),
-        ('filter', 'filter to get high qv reads'),
-        ('suffix', 'filter reads based on suffix'),
-        ('trim', 'trim reads using fastx_trimmer'),
-        ('some', 'select a subset of fastq reads'),
-        ('guessoffset', 'guess the quality offset of the fastq records'),
-        ('readlen', 'calculate read length'),
-        ('format', 'format fastq file, convert header from casava 1.8+ to older format'),
-        ('fasta', 'convert fastq to fasta and qual file'),
-        ('fromsra', 'convert sra to fastq using `fastq-dump`'),
-        ('uniq', 'retain only first instance of duplicate (by name) reads'),
-            )
+        ("size", "total base pairs in the fastq files"),
+        ("shuffle", "shuffle paired reads into the same file interleaved"),
+        ("split", "split paired reads into two files"),
+        ("splitread", "split appended reads (from JGI)"),
+        ("catread", "cat pairs together (reverse of splitread)"),
+        ("pairinplace", "collect pairs by checking adjacent ids"),
+        ("convert", "convert between illumina and sanger offset"),
+        ("first", "get first N reads from file"),
+        ("filter", "filter to get high qv reads"),
+        ("suffix", "filter reads based on suffix"),
+        ("trim", "trim reads using fastx_trimmer"),
+        ("some", "select a subset of fastq reads"),
+        ("guessoffset", "guess the quality offset of the fastq records"),
+        ("readlen", "calculate read length"),
+        (
+            "format",
+            "format fastq file, convert header from casava 1.8+ to older format",
+        ),
+        ("fasta", "convert fastq to fasta and qual file"),
+        ("fromsra", "convert sra to fastq using `fastq-dump`"),
+        ("uniq", "retain only first instance of duplicate (by name) reads"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -249,7 +283,7 @@ def uniq(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastqfile, = args
+    (fastqfile,) = args
     fw = must_open(opts.outfile, "w")
     nduplicates = nreads = 0
     seen = set()
@@ -263,8 +297,7 @@ def uniq(args):
             continue
         seen.add(name)
         print(rec, file=fw)
-    logging.debug("Removed duplicate reads: {}".\
-                  format(percentage(nduplicates, nreads)))
+    logging.debug("Removed duplicate reads: {}".format(percentage(nduplicates, nreads)))
 
 
 def suffix(args):
@@ -290,8 +323,9 @@ def suffix(args):
         if rec.seq.endswith(sf):
             print(rec, file=fw)
             nselected += 1
-    logging.debug("Selected reads with suffix {0}: {1}".\
-                  format(sf, percentage(nselected, nreads)))
+    logging.debug(
+        "Selected reads with suffix {0}: {1}".format(sf, percentage(nselected, nreads))
+    )
 
 
 def calc_readlen(f, first):
@@ -324,16 +358,24 @@ def readlen(args):
     """
     p = OptionParser(readlen.__doc__)
     p.set_firstN()
-    p.add_option("--silent", default=False, action="store_true",
-                 help="Do not print read length stats")
-    p.add_option("--nocheck", default=False, action="store_true",
-                 help="Do not check file type suffix")
+    p.add_option(
+        "--silent",
+        default=False,
+        action="store_true",
+        help="Do not print read length stats",
+    )
+    p.add_option(
+        "--nocheck",
+        default=False,
+        action="store_true",
+        help="Do not check file type suffix",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    f, = args
+    (f,) = args
     if (not opts.nocheck) and (not is_fastq(f)):
         logging.debug("File `{}` does not endswith .fastq or .fq".format(f))
         return 0
@@ -352,8 +394,9 @@ def fasta(args):
     Convert fastq to fasta and qual file.
     """
     p = OptionParser(fasta.__doc__)
-    p.add_option("--seqtk", default=False, action="store_true",
-                 help="Use seqtk to convert")
+    p.add_option(
+        "--seqtk", default=False, action="store_true", help="Use seqtk to convert"
+    )
     p.set_outdir()
     p.set_outfile(outfile=None)
     opts, args = p.parse_args(args)
@@ -455,11 +498,20 @@ def filter(args):
     format (two files) to filter on paired reads.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("-q", dest="qv", default=20, type="int",
-                 help="Minimum quality score to keep [default: %default]")
-    p.add_option("-p", dest="pct", default=95, type="int",
-                 help="Minimum percent of bases that have [-q] quality "\
-                 "[default: %default]")
+    p.add_option(
+        "-q",
+        dest="qv",
+        default=20,
+        type="int",
+        help="Minimum quality score to keep",
+    )
+    p.add_option(
+        "-p",
+        dest="pct",
+        default=95,
+        type="int",
+        help="Minimum percent of bases that have [-q] quality",
+    )
 
     opts, args = p.parse_args(args)
 
@@ -501,9 +553,11 @@ def checkShuffleSizes(p1, p2, pairsfastq, extra=0):
     pairssize = getfilesize(pairsfastq)
     p1size = getfilesize(p1)
     p2size = getfilesize(p2)
-    assert pairssize == p1size + p2size + extra, \
-          "The sizes do not add up: {0} + {1} + {2} != {3}".\
-          format(p1size, p2size, extra, pairssize)
+    assert (
+        pairssize == p1size + p2size + extra
+    ), "The sizes do not add up: {0} + {1} + {2} != {3}".format(
+        p1size, p2size, extra, pairssize
+    )
 
 
 def shuffle(args):
@@ -546,8 +600,9 @@ def shuffle(args):
     extra = nreads * 2 if tag else 0
     checkShuffleSizes(p1, p2, pairsfastq, extra=extra)
 
-    logging.debug("File `{0}` verified after writing {1} reads.".\
-                     format(pairsfastq, nreads))
+    logging.debug(
+        "File `{0}` verified after writing {1} reads.".format(pairsfastq, nreads)
+    )
     return pairsfastq
 
 
@@ -568,7 +623,7 @@ def split(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    pairsfastq, = args
+    (pairsfastq,) = args
     gz = pairsfastq.endswith(".gz")
     pf = pairsfastq.replace(".gz", "").rsplit(".", 1)[0]
     p1 = pf + ".1.fastq"
@@ -587,7 +642,7 @@ def split(args):
     p1cmd += " > " + p1
     p2cmd += " > " + p2
 
-    args = [(p1cmd, ), (p2cmd, )]
+    args = [(p1cmd,), (p2cmd,)]
     m = Jobs(target=sh, args=args)
     m.run()
 
@@ -595,7 +650,7 @@ def split(args):
 
 
 def guessoffset(args):
-    """
+    r"""
     %prog guessoffset fastqfile
 
     Guess the quality offset of the fastqfile, whether 33 or 64.
@@ -623,7 +678,7 @@ def guessoffset(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastqfile, = args
+    (fastqfile,) = args
     ai = iter_fastq(fastqfile)
     rec = next(ai)
     offset = 64
@@ -656,16 +711,19 @@ def format(args):
     """
     p = OptionParser(format.__doc__)
 
-    p.add_option("--convert", default=None, choices=[">=1.8", "<1.8", "sra"],
-                help="Convert fastq header to a different format" +
-                " [default: %default]")
+    p.add_option(
+        "--convert",
+        default=None,
+        choices=[">=1.8", "<1.8", "sra"],
+        help="Convert fastq header to a different format",
+    )
     p.set_tag(specify_tag=True)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastqfile, = args
+    (fastqfile,) = args
     ai = iter_fastq(fastqfile)
     rec = next(ai)
     dialect = None
@@ -696,7 +754,10 @@ def some(args):
     if len(args) not in (2, 3):
         sys.exit(not p.print_help())
 
-    idsfile, afastq, = args[:2]
+    (
+        idsfile,
+        afastq,
+    ) = args[:2]
     bfastq = args[2] if len(args) == 3 else None
 
     ids = DictFile(idsfile, valuepos=None)
@@ -725,16 +786,26 @@ def trim(args):
     Wraps `fastx_trimmer` to trim from begin or end of reads.
     """
     p = OptionParser(trim.__doc__)
-    p.add_option("-f", dest="first", default=0, type="int",
-            help="First base to keep. Default is 1.")
-    p.add_option("-l", dest="last", default=0, type="int",
-            help="Last base to keep. Default is entire read.")
+    p.add_option(
+        "-f",
+        dest="first",
+        default=0,
+        type="int",
+        help="First base to keep. Default is 1.",
+    )
+    p.add_option(
+        "-l",
+        dest="last",
+        default=0,
+        type="int",
+        help="Last base to keep. Default is entire read.",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastqfile, = args
+    (fastqfile,) = args
     obfastqfile = op.basename(fastqfile)
     fq = obfastqfile.rsplit(".", 1)[0] + ".ntrimmed.fastq"
     if fastqfile.endswith(".gz"):
@@ -772,8 +843,17 @@ def catread(args):
             break
         atitle, aseq, _, aqual = a
         btitle, bseq, _, bqual = list(islice(p2fp, 4))
-        print("\n".join((atitle.strip(), aseq.strip() + bseq.strip(), \
-                                "+", aqual.strip() + bqual.strip())), file=fw)
+        print(
+            "\n".join(
+                (
+                    atitle.strip(),
+                    aseq.strip() + bseq.strip(),
+                    "+",
+                    aqual.strip() + bqual.strip(),
+                )
+            ),
+            file=fw,
+        )
 
 
 def splitread(args):
@@ -783,16 +863,25 @@ def splitread(args):
     Split fastqfile into two read fastqfiles, cut in the middle.
     """
     p = OptionParser(splitread.__doc__)
-    p.add_option("-n", dest="n", default=76, type="int",
-            help="Split at N-th base position [default: %default]")
-    p.add_option("--rc", default=False, action="store_true",
-            help="Reverse complement second read [default: %default]")
+    p.add_option(
+        "-n",
+        dest="n",
+        default=76,
+        type="int",
+        help="Split at N-th base position",
+    )
+    p.add_option(
+        "--rc",
+        default=False,
+        action="store_true",
+        help="Reverse complement second read",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    pairsfastq, = args
+    (pairsfastq,) = args
 
     base = op.basename(pairsfastq).split(".")[0]
     fq1 = base + ".1.fastq"
@@ -844,14 +933,12 @@ def size(args):
             cur_numrecords += 1
             cur_size += len(rec)
 
-        print(" ".join(str(x) for x in \
-                (op.basename(f), cur_numrecords, cur_size)))
+        print(" ".join(str(x) for x in (op.basename(f), cur_numrecords, cur_size)))
         total_numrecords += cur_numrecords
         total_size += cur_size
 
     if len(args) > 1:
-        print(" ".join(str(x) for x in \
-                ("Total", total_numrecords, total_size)))
+        print(" ".join(str(x) for x in ("Total", total_numrecords, total_size)))
 
 
 def convert(args):
@@ -869,7 +956,7 @@ def convert(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    infastq, = args
+    (infastq,) = args
     phred = opts.phred or str(guessoffset([infastq]))
     ophred = {"64": "33", "33": "64"}[phred]
 
@@ -886,11 +973,9 @@ def convert(args):
     seqret = "seqret"
     if infastq.endswith(".gz"):
         cmd = "zcat {0} | ".format(infastq)
-        cmd += seqret + " fastq-{0}::stdin fastq-{1}::stdout".\
-                format(fin, fout)
+        cmd += seqret + " fastq-{0}::stdin fastq-{1}::stdout".format(fin, fout)
     else:
-        cmd = seqret + " fastq-{0}::{1} fastq-{2}::stdout".\
-                format(fin, infastq, fout)
+        cmd = seqret + " fastq-{0}::{1} fastq-{2}::stdout".format(fin, infastq, fout)
 
     sh(cmd, outfile=outfastq)
 
@@ -910,14 +995,13 @@ def pairinplace(args):
     p = OptionParser(pairinplace.__doc__)
     p.set_rclip()
     p.set_tag()
-    p.add_option("--base",
-                help="Base name for the output files [default: %default]")
+    p.add_option("--base", help="Base name for the output files")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastqfile, = args
+    (fastqfile,) = args
     base = opts.base or op.basename(fastqfile).split(".")[0]
 
     frags = base + ".frags.fastq"
@@ -968,11 +1052,18 @@ def fromsra(args):
     Convert sra file to fastq using the sratoolkit `fastq-dump`
     """
     p = OptionParser(fromsra.__doc__)
-    p.add_option("--paired", default=False, action="store_true",
-            help="Specify if library layout is paired-end " + \
-                 "[default: %default]")
-    p.add_option("--compress", default=None, choices=["gzip", "bzip2"],
-            help="Compress output fastq files [default: %default]")
+    p.add_option(
+        "--paired",
+        default=False,
+        action="store_true",
+        help="Specify if library layout is paired-end",
+    )
+    p.add_option(
+        "--compress",
+        default=None,
+        choices=["gzip", "bzip2"],
+        help="Compress output fastq files",
+    )
     p.set_outdir()
     p.set_grid()
     opts, args = p.parse_args(args)
@@ -980,7 +1071,7 @@ def fromsra(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    srafile, = args
+    (srafile,) = args
     paired = opts.paired
     compress = opts.compress
     outdir = opts.outdir
@@ -1003,5 +1094,5 @@ def fromsra(args):
     sh(outcmd, grid=opts.grid)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

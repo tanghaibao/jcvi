@@ -570,7 +570,7 @@ def renumber(args):
 
 
 def annotate(args):
-    """
+    r"""
     %prog annotate new.bed old.bed 2> log
 
     Annotate the `new.bed` with features from `old.bed` for the purpose of
@@ -758,9 +758,9 @@ def read_scores(scoresfile, opts=None, sort=False, trimsuffix=True):
     for row in fp:
         (new, old, identity, score) = row.strip().split("\t")
         if trimsuffix:
-            old = re.sub("\.\d+$", "", old)
+            old = re.sub(r"\.\d+$", "", old)
         if resolve == "alignment":
-            match = re.search("\d+\/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
+            match = re.search(r"\d+\/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
             pid = match.group(1)
             if float(pid) < _pid or float(score) < _score:
                 continue

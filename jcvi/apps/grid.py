@@ -184,7 +184,7 @@ def write(queue_in, queue_out, filename, cpus):
     isize = isize or 1
     poisons = 0
     with Progress() as progress:
-        task = progress.add_task("[green] Processing ...", total=isize)
+        task = progress.add_task("[green]Processing ...", total=isize)
         while True:
             res = queue_out.get()
             qsize = queue_in.qsize()

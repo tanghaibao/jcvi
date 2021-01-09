@@ -824,7 +824,7 @@ def build(args):
     p.add_option(
         "--longest",
         action="store_true",
-        help="Get longest ORF, only works if no pep file, " "e.g. ESTs",
+        help="Get longest ORF, only works if no pep file, e.g. ESTs",
     )
     p.add_option(
         "--nogblocks",
@@ -869,7 +869,7 @@ def build(args):
     p.add_option("--stree", help="path to species Newick tree")
     p.add_option(
         "--smap",
-        help="path to smap file: " "gene_name_pattern<tab>species_name",
+        help="path to smap file: gene_name_pattern<tab>species_name",
     )
     p.set_outdir()
 
@@ -917,9 +917,7 @@ def build(args):
     mrtrans_fasta = run_mrtrans(align_fasta, n_recs, work_dir, outfmt="fasta")
 
     if not mrtrans_fasta:
-        logging.debug(
-            "pal2nal aborted. " "Cannot reliably build tree for {0}".format(dna_file)
-        )
+        logging.debug("pal2nal aborted. Cannot reliably build tree for %s", dna_file)
         return
 
     codon_aln_fasta = mrtrans_fasta

@@ -888,7 +888,7 @@ def hmm(args):
         "--threshold",
         default=1,
         type="float",
-        help="Standard deviation must be < this " "in the baseline population",
+        help="Standard deviation must be < this in the baseline population",
     )
     opts, args = p.parse_args(args)
 

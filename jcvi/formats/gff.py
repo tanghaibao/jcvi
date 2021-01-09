@@ -663,7 +663,11 @@ def fixpartials(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    gffile, gfasta, partials, = args
+    (
+        gffile,
+        gfasta,
+        partials,
+    ) = args
 
     gff = make_index(gffile)
     genome = Fasta(gfasta, index=True)
@@ -2882,7 +2886,10 @@ def splicecov(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    gfffile, juncsbed, = args
+    (
+        gfffile,
+        juncsbed,
+    ) = args
     tagged = "{0}.{1}.gff3".format(gfffile.rsplit(".", 1)[0], "tag_introns")
 
     gff3, junc = BedTool(gfffile), BedTool(juncsbed)
@@ -3077,7 +3084,7 @@ def children(args):
     p.add_option(
         "--parents",
         default="gene",
-        help="list of features to extract, use comma to separate (e.g." "'gene,mRNA')",
+        help="list of features to extract, use comma to separate (e.g. 'gene,mRNA')",
     )
 
     opts, args = p.parse_args(args)

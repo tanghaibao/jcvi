@@ -19,6 +19,8 @@ import networkx as nx
 from random import choice
 from Bio import SeqIO
 
+from rich import print
+
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, filter, format, parse_fasta
 from jcvi.formats.blast import Blast
@@ -275,8 +277,6 @@ def overlap(args):
     Visualize overlaps for a given fragment. Must be run in 4-unitigger. All
     overlaps for iid were retrieved, excluding the ones matching best.contains.
     """
-    from jcvi.apps.console import green
-
     p = OptionParser(overlap.__doc__)
     p.add_option("--maxerr", default=2, type="int", help="Maximum error rate")
     p.add_option("--canvas", default=100, type="int", help="Canvas size")
@@ -341,12 +341,12 @@ def overlap(args):
         else:
             t = "<" + t[1:]
         if f.ahang == 0 and f.bhang == 0:
-            t = green(t)
+            t = "[green]{}".format(t)
         c = canvas - a - b
-        fw.write(" " * a)
-        fw.write(t)
-        fw.write(" " * c)
-        print("{0} ({1})".format(str(f.bid).rjust(10), f.erate_adj), file=fw)
+        print(" " * a, file=fw)
+        print(t, file=fw)
+        print(" " * c, file=fw)
+        print("{} ({})".format(str(f.bid).rjust(10), f.erate_adj), file=fw)
 
 
 def parse_ctgs(bestedges, frgtoctg):

@@ -28,6 +28,8 @@ from socket import gethostname
 from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
+from rich.logging import RichHandler
+
 from jcvi import __copyright__, __version__
 from jcvi.utils.natsort import natsorted
 
@@ -1485,8 +1487,6 @@ def debug(level=logging.DEBUG):
     """
     Turn on the debugging
     """
-    from rich.logging import RichHandler
-
     logging.basicConfig(
         level=level,
         format="%(message)s",

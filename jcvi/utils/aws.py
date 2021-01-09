@@ -539,7 +539,7 @@ def role(args):
     )
     p.add_option(
         "--role-session-name",
-        help="Friendly session name required when using " "--assume-role",
+        help="Friendly session name required when using --assume-role",
         default=getpass.getuser(),
     )
     p.add_option(
@@ -728,7 +728,7 @@ def get_credentials(profile, args, config):
             )
         except ClientError as e:
             log_error_and_exit(
-                "An error occured while calling " "assume role: {}".format(e)
+                "An error occured while calling assume role: {}".format(e)
             )
         except ParamValidationError:
             log_error_and_exit("Token must be six digits")

@@ -343,10 +343,12 @@ def overlap(args):
         if f.ahang == 0 and f.bhang == 0:
             t = "[green]{}".format(t)
         c = canvas - a - b
-        print(" " * a, file=fw)
-        print(t, file=fw)
-        print(" " * c, file=fw)
-        print("{} ({})".format(str(f.bid).rjust(10), f.erate_adj), file=fw)
+        print(
+            "{}{}{}{} ({})".format(
+                " " * a, t, " " * c, str(f.bid).rjust(10), f.erate_adj
+            ),
+            file=fw,
+        )
 
 
 def parse_ctgs(bestedges, frgtoctg):
@@ -652,7 +654,10 @@ def astat(args):
     p.add_option("--cutoff", default=1000, type="int", help="Length cutoff")
     p.add_option("--genome", default="", help="Genome name")
     p.add_option(
-        "--arrDist", default=False, action="store_true", help="Use arrDist instead",
+        "--arrDist",
+        default=False,
+        action="store_true",
+        help="Use arrDist instead",
     )
     opts, args = p.parse_args(args)
 
@@ -763,10 +768,16 @@ def shred(args):
     p = OptionParser(shred.__doc__)
     p.set_depth(depth=2)
     p.add_option(
-        "--readlen", default=1000, type="int", help="Desired length of the reads",
+        "--readlen",
+        default=1000,
+        type="int",
+        help="Desired length of the reads",
     )
     p.add_option(
-        "--minctglen", default=0, type="int", help="Ignore contig sequence less than",
+        "--minctglen",
+        default=0,
+        type="int",
+        help="Ignore contig sequence less than",
     )
     p.add_option(
         "--shift",

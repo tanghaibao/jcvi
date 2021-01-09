@@ -108,7 +108,7 @@ class Overlap(object):
         blastline = self.blastline.swapped
         asize = self.asize
         bsize = self.bsize
-        ao, bo = self.get_ao_bo()
+        _, bo = self.get_ao_bo()
         qreverse = bo == "-"
         return Overlap(blastline, bsize, asize, self.cutoff, qreverse=qreverse)
 
@@ -137,7 +137,7 @@ class Overlap(object):
         return self.hitlen >= cutoff.overlap and self.pctid >= cutoff.pctid
 
     def get_hangs(self):
-        """
+        r"""
         Determine the type of overlap given query, ref alignment coordinates
         Consider the following alignment between sequence a and b:
 

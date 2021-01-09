@@ -154,7 +154,7 @@ def variation(args):
             bp_diff_abs[abs(k)] += v
         plt.figure(1, (iopts.w, iopts.h))
         left, height = zip(*sorted(bp_diff_abs.items()))
-        for l, h in zip(left, height)[:21]:
+        for l, h in list(zip(left, height))[:21]:
             plt.text(
                 l,
                 h + 50,

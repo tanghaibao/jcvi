@@ -186,7 +186,7 @@ def blat(args):
     from jcvi.apps.align import blat as blat_align
 
     p = OptionParser(blat.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -361,9 +361,7 @@ def ld(args):
 
     Calculate pairwise linkage disequilibrium given MSTmap.
     """
-    import numpy as np
     from random import sample
-
     from jcvi.algorithms.matrix import symmetrize
 
     p = OptionParser(ld.__doc__)

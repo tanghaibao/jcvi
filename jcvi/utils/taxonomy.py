@@ -36,6 +36,8 @@ from six.moves.urllib.error import HTTPError, URLError
 
 from functools import lru_cache
 
+from ete3 import Tree
+
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
@@ -88,8 +90,6 @@ class TaxIDTree(object):
         return self.newick
 
     def print_tree(self):
-        from ete2 import Tree
-
         t = Tree(self.newick, format=8)
         print(t)
 
@@ -125,8 +125,6 @@ def MRCA(list_of_taxids):
     >>> MRCA(mylist)
     'rosids'
     """
-
-    from ete2 import Tree
 
     t = TaxIDTree(list_of_taxids)
     t = Tree(str(t), format=8)

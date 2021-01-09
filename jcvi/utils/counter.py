@@ -11,17 +11,16 @@ from six.moves import filter
 
 
 class Counter(dict):
-    '''Dict subclass for counting hashable objects.  Sometimes called a bag
+    """Dict subclass for counting hashable objects.  Sometimes called a bag
     or multiset.  Elements are stored as dictionary keys and their counts
     are stored as dictionary values.
 
     >>> Counter('zyzygy')
     Counter({'y': 3, 'z': 2, 'g': 1})
-
-    '''
+    """
 
     def __init__(self, iterable=None, **kwds):
-        '''Create a new, empty Counter object.  And if given, count elements
+        """Create a new, empty Counter object.  And if given, count elements
         from an input iterable.  Or, initialize the count from another mapping
         of elements to their counts.
 
@@ -29,27 +28,25 @@ class Counter(dict):
         >>> c = Counter('gallahad')                 # a new counter from an iterable
         >>> c = Counter({'a': 4, 'b': 2})           # a new counter from a mapping
         >>> c = Counter(a=4, b=2)                   # a new counter from keyword args
-
-        '''
+        """
         self.update(iterable, **kwds)
 
     def __missing__(self, key):
         return 0
 
     def most_common(self, n=None):
-        '''List the n most common elements and their counts from the most
+        """List the n most common elements and their counts from the most
         common to the least.  If n is None, then list all element counts.
 
         >>> Counter('abracadabra').most_common(3)
         [('a', 5), ('r', 2), ('b', 2)]
-
-        '''
+        """
         if n is None:
-            return sorted(self.iteritems(), key=itemgetter(1), reverse=True)
-        return nlargest(n, self.iteritems(), key=itemgetter(1))
+            return sorted(self.items(), key=itemgetter(1), reverse=True)
+        return nlargest(n, self.items(), key=itemgetter(1))
 
     def elements(self):
-        '''Iterator over elements repeating each as many times as its count.
+        """Iterator over elements repeating each as many times as its count.
 
         >>> c = Counter('ABCABC')
         >>> sorted(c.elements())
@@ -57,9 +54,8 @@ class Counter(dict):
 
         If an element's count has been set to zero or is a negative number,
         elements() will ignore it.
-
-        '''
-        for elem, count in self.iteritems():
+        """
+        for elem, count in self.items():
             for _ in repeat(None, count):
                 yield elem
 
@@ -68,10 +64,11 @@ class Counter(dict):
     @classmethod
     def fromkeys(cls, iterable, v=None):
         raise NotImplementedError(
-            'Counter.fromkeys() is undefined.  Use Counter(iterable) instead.')
+            "Counter.fromkeys() is undefined.  Use Counter(iterable) instead."
+        )
 
     def update(self, iterable=None, **kwds):
-        '''Like dict.update() but add counts instead of replacing them.
+        """Like dict.update() but add counts instead of replacing them.
 
         Source can be an iterable, a dictionary, or another Counter instance.
 
@@ -81,13 +78,12 @@ class Counter(dict):
         >>> c.update(d)                 # add elements from another counter
         >>> c['h']                      # four 'h' in which, witch, and watch
         4
-
-        '''
+        """
         if iterable is not None:
-            if hasattr(iterable, 'iteritems'):
+            if hasattr(iterable, "items"):
                 if self:
                     self_get = self.get
-                    for elem, count in iterable.iteritems():
+                    for elem, count in iterable.items():
                         self[elem] = self_get(elem, 0) + count
                 else:
                     # fast path when counter is empty
@@ -100,19 +96,19 @@ class Counter(dict):
             self.update(kwds)
 
     def copy(self):
-        'Like dict.copy() but returns a Counter instance instead of a dict.'
+        "Like dict.copy() but returns a Counter instance instead of a dict."
         return Counter(self)
 
     def __delitem__(self, elem):
-        'Like dict.__delitem__() but does not raise KeyError for missing values.'
+        "Like dict.__delitem__() but does not raise KeyError for missing values."
         if elem in self:
             dict.__delitem__(self, elem)
 
     def __repr__(self):
         if not self:
-            return '%s()' % self.__class__.__name__
-        items = ', '.join(map('%r: %r'.__mod__, self.most_common()))
-        return '%s({%s})' % (self.__class__.__name__, items)
+            return "%s()" % self.__class__.__name__
+        items = ", ".join(map("%r: %r".__mod__, self.most_common()))
+        return "%s({%s})" % (self.__class__.__name__, items)
 
     # Multiset-style mathematical operations discussed in:
     #       Knuth TAOCP Volume II section 4.6.3 exercise 19
@@ -124,13 +120,11 @@ class Counter(dict):
     #       c += Counter()
 
     def __add__(self, other):
-        '''Add counts from two counters.
+        """Add counts from two counters.
 
         >>> Counter('abbb') + Counter('bcc')
         Counter({'b': 4, 'c': 2, 'a': 1})
-
-
-        '''
+        """
         if not isinstance(other, Counter):
             return NotImplemented
         result = Counter()
@@ -141,12 +135,11 @@ class Counter(dict):
         return result
 
     def __sub__(self, other):
-        ''' Subtract count, but keep only results with positive counts.
+        """Subtract count, but keep only results with positive counts.
 
         >>> Counter('abbbc') - Counter('bccd')
         Counter({'b': 2, 'a': 1})
-
-        '''
+        """
         if not isinstance(other, Counter):
             return NotImplemented
         result = Counter()
@@ -157,12 +150,11 @@ class Counter(dict):
         return result
 
     def __or__(self, other):
-        '''Union is the maximum of value in either of the input counters.
+        """Union is the maximum of value in either of the input counters.
 
         >>> Counter('abbb') | Counter('bcc')
         Counter({'b': 3, 'c': 2, 'a': 1})
-
-        '''
+        """
         if not isinstance(other, Counter):
             return NotImplemented
         _max = max
@@ -174,12 +166,11 @@ class Counter(dict):
         return result
 
     def __and__(self, other):
-        ''' Intersection is the minimum of corresponding counts.
+        """Intersection is the minimum of corresponding counts.
 
         >>> Counter('abbb') & Counter('bcc')
         Counter({'b': 1})
-
-        '''
+        """
         if not isinstance(other, Counter):
             return NotImplemented
         _min = min
@@ -198,12 +189,13 @@ class Counter(dict):
         for k, v in sorted(self.items(), key=lambda x: -x[-1]):
             item = "{0}:{1}".format(k, v)
             if percentage:
-                item += " ({0:.1f}%)".format(v * 100. / total)
+                item += " ({0:.1f}%)".format(v * 100.0 / total)
             items.append(item)
 
         return sep.join(items)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     print(doctest.testmod())

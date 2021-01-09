@@ -569,7 +569,7 @@ def kill(args):
         jobids = tag.split(",")
         valid_jobids |= set(jobids)
     elif method == "pattern":
-        qsxmlcmd = 'qstat -u "{0}" -j "{1}" -nenv -njd -xml'.format(username, tag)
+        qsxmlcmd = 'qstat -u "{}" -j "{}" -nenv -njd -xml'.format(username, tag)
         try:
             qsxml = check_output(shlex.split(qsxmlcmd)).strip()
         except CalledProcessError as e:

@@ -106,14 +106,14 @@ def variation(args):
         bp_diff.extend(x.end - ref.end for x in P1_accns)
 
     print(
-        "A total of {0} sites show consistent deletions across samples.".format(
+        "A total of {} sites show consistent deletions across samples.".format(
             percentage(valid, len(bed))
         ),
         file=sys.stderr,
     )
     for pf, count in total_counts.items():
         print(
-            "{0:>9}: {1:.2f} deletions/site".format(pf, count * 1.0 / valid),
+            "{:>9}: {:.2f} deletions/site".format(pf, count * 1.0 / valid),
             file=sys.stderr,
         )
 
@@ -366,7 +366,7 @@ def deletion(args):
         all_scores = [float(b.score) for b in bed]
         lb, ub = outlier_cutoff(all_scores)
         logging.debug(
-            "Bounds for depths: LB={0:.2f} (ignored)  UB={1:.2f}".format(lb, ub)
+            "Bounds for depths: LB={:.2f} (ignored)  UB={:.2f}".format(lb, ub)
         )
         for b in bed:
             if float(b.score) > ub:
@@ -399,7 +399,7 @@ def deletion(args):
                 validbedfile,
                 intersectidsfile,
                 "-v",
-                "--outfile={0}".format(selectedbedfile),
+                "--outfile={}".format(selectedbedfile),
             ]
         )
 
@@ -414,7 +414,7 @@ def deletion(args):
             for i, x in enumerate(bed)
         ]
         iranges, iscore = range_chain(branges)
-        logging.debug("Best chain score: {0} ({1} IES)".format(iscore, len(iranges)))
+        logging.debug("Best chain score: {} ({} IES)".format(iscore, len(iranges)))
         ies_id = 1
         for seqid, start, end, score, id in iranges:
             ies_name = "IES-{0:05d}-r{1}".format(ies_id, score)

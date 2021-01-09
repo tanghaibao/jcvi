@@ -20,6 +20,7 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+from brewer2mpl import get_map
 from matplotlib import cm, rc, rcParams
 from matplotlib.patches import (
     Rectangle,
@@ -33,7 +34,6 @@ from matplotlib.patches import (
 )
 from matplotlib.path import Path
 
-from jcvi.utils.brewer2mpl import get_map
 from jcvi.formats.base import LineFile
 from jcvi.apps.base import glob, listify, datadir, sample_N, which
 

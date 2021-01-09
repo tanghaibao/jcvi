@@ -7,12 +7,13 @@ Script to plot diagrams of assembly graph in polyploids.
 """
 
 from collections import defaultdict
-from graphviz import Graph
 from random import choice, sample
+
+from brewer2mpl import get_map
+from graphviz import Graph
 from matplotlib.colors import to_hex
 
 from jcvi.utils.iter import pairwise
-from jcvi.utils.brewer2mpl import get_map
 
 
 def make_sequence(seq, name="S"):
@@ -22,7 +23,7 @@ def make_sequence(seq, name="S"):
     return ["{}_{}_{}".format(name, i, x) for i, x in enumerate(seq)]
 
 
-def sequence_to_graph(G, seq, color='black'):
+def sequence_to_graph(G, seq, color="black"):
     """
     Automatically construct graph given a sequence of characters.
     """
@@ -43,7 +44,7 @@ def zip_sequences(G, allseqs, color="white"):
     for s in zip(*allseqs):
         groups = defaultdict(list)
         for x in s:
-            part = x.split('_', 1)[1]
+            part = x.split("_", 1)[1]
             groups[part].append(x)
         for part, g in groups.items():
             with G.subgraph(name="cluster_" + part) as c:
@@ -65,17 +66,19 @@ def main():
         for i in [choice(indices) for x in range(MUTATIONS)]:
             s[i] = "1"
 
-    allseqs = [make_sequence(s, name=name) for (s, name) in \
-                zip(allseqs, [str(x) for x in range(PLOIDY)])]
+    allseqs = [
+        make_sequence(s, name=name)
+        for (s, name) in zip(allseqs, [str(x) for x in range(PLOIDY)])
+    ]
 
     # Build graph structure
     G = Graph("Assembly graph", filename="graph")
     G.attr(rankdir="LR", fontname="Helvetica", splines="true")
     G.attr(ranksep=".2", nodesep="0.02")
-    G.attr('node', shape='point')
-    G.attr('edge', dir='none', penwidth='4')
+    G.attr("node", shape="point")
+    G.attr("edge", dir="none", penwidth="4")
 
-    colorset = get_map('Set2', 'qualitative', 8).mpl_colors
+    colorset = get_map("Set2", "qualitative", 8).mpl_colors
     colorset = [to_hex(x) for x in colorset]
     colors = sample(colorset, PLOIDY)
     for s, color in zip(allseqs, colors):
@@ -86,5 +89,5 @@ def main():
     G.view()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

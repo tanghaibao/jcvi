@@ -1,5 +1,6 @@
 biopython
 boto3
+brewer2mpl
 coveralls
 cython
 deap

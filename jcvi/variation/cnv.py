@@ -213,8 +213,7 @@ class CopyNumberHMM(object):
         return Z * self.step
 
     def annotate_segments(self, Z):
-        """ Report the copy number and start-end segment
-        """
+        """Report the copy number and start-end segment"""
         # We need a way to go from compressed idices to original indices
         P = Z.copy()
         P[~np.isfinite(P)] = -1
@@ -234,9 +233,8 @@ class CopyNumberHMM(object):
     def plot(
         self, samplekey, chrs=allsomes, color=None, dx=None, ymax=8, ms=2, alpha=0.7
     ):
-
+        from brewer2mpl import get_map
         import matplotlib.pyplot as plt
-        from jcvi.utils.brewer2mpl import get_map
 
         props = dict(boxstyle="round", facecolor="wheat", alpha=0.2)
 
@@ -478,8 +476,7 @@ def exonunion(args):
 
 
 def get_gain_loss_summary(vcffile):
-    """ Extract Canvas:GAIN/LOSS/REF/LOH tags
-    """
+    """Extract Canvas:GAIN/LOSS/REF/LOH tags"""
     from cyvcf2 import VCF
 
     counter = Counter()
@@ -513,7 +510,7 @@ def summarycanvas(args):
 
 
 def parse_segments(vcffile):
-    """ Extract all copy number segments from a CANVAS file
+    """Extract all copy number segments from a CANVAS file
 
     VCF line looks like:
     chr1    788879  Canvas:GAIN:chr1:788880-821005  N       <CNV>   2       q10
@@ -535,8 +532,7 @@ def parse_segments(vcffile):
 
 
 def counter_mean_and_median(counter):
-    """ Calculate the mean and median value of a counter
-    """
+    """Calculate the mean and median value of a counter"""
     if not counter:
         return np.nan, np.nan
 
@@ -556,8 +552,7 @@ def counter_mean_and_median(counter):
 
 
 def counter_format(counter):
-    """ Pretty print a counter so that it appears as: "2:200,3:100,4:20"
-    """
+    """Pretty print a counter so that it appears as: "2:200,3:100,4:20" """
     if not counter:
         return "na"
 
@@ -593,8 +588,7 @@ def gcn(args):
 
 
 def vcf_to_df_worker(arg):
-    """ Convert CANVAS vcf to a dict, single thread
-    """
+    """Convert CANVAS vcf to a dict, single thread"""
     canvasvcf, exonbed, i = arg
     logging.debug("Working on job {}: {}".format(i, canvasvcf))
     samplekey = op.basename(canvasvcf).split(".")[0].rsplit("_", 1)[0]
@@ -631,8 +625,7 @@ def vcf_to_df_worker(arg):
 
 
 def vcf_to_df(canvasvcfs, exonbed, cpus):
-    """ Compile a number of vcf files into tsv file for easy manipulation
-    """
+    """Compile a number of vcf files into tsv file for easy manipulation"""
     df = pd.DataFrame()
     p = Pool(processes=cpus)
     results = []
@@ -646,8 +639,7 @@ def vcf_to_df(canvasvcfs, exonbed, cpus):
 
 
 def df_to_tsv(df, tsvfile, suffix):
-    """ Serialize the dataframe as a tsv
-    """
+    """Serialize the dataframe as a tsv"""
     tsvfile += suffix
     columns = ["SampleKey"] + sorted(x for x in df.columns if x.endswith(suffix))
     tf = df.reindex_axis(columns, axis="columns")

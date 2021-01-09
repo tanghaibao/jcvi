@@ -13,6 +13,8 @@ import string
 import logging
 from math import sin, cos, pi
 
+from collections import Counter
+
 import numpy as np
 from jcvi.graphics.base import (
     plt,
@@ -33,7 +35,6 @@ from skimage.feature import canny, peak_local_max
 from skimage.measure import regionprops, label
 from skimage.morphology import disk, closing, watershed
 from skimage.segmentation import clear_border
-from jcvi.utils.counter import Counter
 from jcvi.utils.webcolors import rgb_to_hex, closest_color, normalize_integer_triplet
 from jcvi.formats.base import must_open
 from jcvi.algorithms.formula import reject_outliers, get_kmeans
@@ -392,8 +393,7 @@ def slice(s, m):
 
 
 def convert_background(pngfile, new_background):
-    """Replace the background color with the specified background color, default is blue
-    """
+    """Replace the background color with the specified background color, default is blue"""
     if new_background:
         _name, _ext = op.splitext(op.basename(pngfile))
         _name += "_bgxform"

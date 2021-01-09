@@ -16,6 +16,7 @@ import logging
 from six.moves.cPickle import dump, load
 
 import networkx as nx
+from collections import Counter
 from random import choice
 from Bio import SeqIO
 
@@ -25,7 +26,6 @@ from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, filter, format, parse_fasta
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
-from jcvi.utils.counter import Counter
 from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
 from jcvi.apps.base import (
     OptionParser,

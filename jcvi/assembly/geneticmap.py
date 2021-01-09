@@ -12,12 +12,12 @@ import sys
 import logging
 import numpy as np
 
+from collections import Counter
 from itertools import combinations, groupby
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
 from jcvi.utils.cbook import memoized
-from jcvi.utils.counter import Counter
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
@@ -52,7 +52,7 @@ class BinMap(BaseFile, dict):
                 self[lg].append((marker, pos))
 
     def print_to_bed(self, filename="stdout", switch=False, sep="."):
-        """ Print the genetic map in the BED format.
+        """Print the genetic map in the BED format.
 
         Args:
             filename (str, optional): Output filename. Defaults to "stdout".
@@ -368,7 +368,10 @@ def ld(args):
 
     p = OptionParser(ld.__doc__)
     p.add_option(
-        "--subsample", default=1000, type="int", help="Subsample markers to speed up",
+        "--subsample",
+        default=1000,
+        type="int",
+        help="Subsample markers to speed up",
     )
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
@@ -614,7 +617,10 @@ def fasta(args):
 
     p = OptionParser(fasta.__doc__)
     p.add_option(
-        "--extend", default=1000, type="int", help="Extend seq flanking the gaps",
+        "--extend",
+        default=1000,
+        type="int",
+        help="Extend seq flanking the gaps",
     )
     opts, args = p.parse_args(args)
 

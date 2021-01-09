@@ -15,7 +15,7 @@ import numpy as np
 import networkx as nx
 
 from itertools import combinations, product
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import partial
 
 from jcvi import __version__ as version
@@ -34,7 +34,6 @@ from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
 from jcvi.graphics.landscape import draw_gauge
 from jcvi.utils.cbook import human_size, percentage
-from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.iter import flatten, pairwise
 from jcvi.utils.table import tabulate
@@ -866,8 +865,7 @@ def main():
 def normalize_lms_axis(
     ax, xlim=None, ylim=None, xfactor=1e-6, yfactor=1, xlabel=None, ylabel="Map (cM)"
 ):
-    """ Normalize the axis limits and labels to beautify axis.
-    """
+    """Normalize the axis limits and labels to beautify axis."""
     if xlim:
         ax.set_xlim(0, xlim)
     if ylim:
@@ -1139,8 +1137,7 @@ def movie(args):
 
 
 def make_movie(workdir, pf, dpi=120, fps=1, format="pdf", engine="ffmpeg"):
-    """ Make the movie using either ffmpeg or gifsicle.
-    """
+    """Make the movie using either ffmpeg or gifsicle."""
     os.chdir(workdir)
     if format != "png":
         cmd = "parallel convert -density {}".format(dpi)

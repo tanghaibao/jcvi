@@ -12,11 +12,12 @@ import os.path as op
 import logging
 import sys
 
+from collections import Counter
+
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.fastq import iter_fastq
 from jcvi.formats.base import must_open, write_file
 from jcvi.formats.sam import get_prefix
-from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import deduplicate
 from jcvi.apps.gmap import check_index
 from jcvi.apps.grid import MakeManager

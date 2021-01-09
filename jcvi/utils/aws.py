@@ -751,12 +751,10 @@ def log_error_and_exit(message):
 
 def prompter():
     """Ask for a string from the user"""
-    try:
-        console_input = raw_input
-    except NameError:
-        console_input = input
+    from rich.console import Console
+    console = Console()
 
-    return console_input
+    return console.input
 
 
 if __name__ == '__main__':

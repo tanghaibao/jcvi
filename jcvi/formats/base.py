@@ -107,7 +107,7 @@ class DictFile(BaseFile, OrderedDict):
 
     @classmethod
     def num_columns(cls, filename, delimiter=None):
-        """ Return the column number of the csv file.
+        """Return the column number of the csv file.
 
         Args:
             filename (str): Path to the file.
@@ -343,11 +343,15 @@ def check_exists(filename, oappend=False):
     """
     Avoid overwriting some files accidentally.
     """
+    from rich.console import Console
+
+    console = Console()
     if op.exists(filename):
         if oappend:
             return oappend
-        logging.error("`{0}` found, overwrite (Y/N)?".format(filename))
-        overwrite = input() == "Y"
+        overwrite = (
+            console.input("`{}` found, overwrite (Y/n)?".format(filename)) == "Y"
+        )
     else:
         overwrite = True
 
@@ -781,20 +785,20 @@ def group(args):
 
     For example, convert this | into this
     ---------------------------------------
-    a	2    3    4           | a,2,3,4,5,6
-    a	5    6                | b,7,8
-    b	7    8                | c,9,10,11
-    c	9                     |
-    c 	10   11               |
+    a   2    3    4           | a,2,3,4,5,6
+    a   5    6                | b,7,8
+    b   7    8                | c,9,10,11
+    c   9                     |
+    c  10   11                |
 
     If grouping by a particular column,
     convert this              | into this:
     ---------------------------------------------
-    a	2    3    4           | a	2,5   3,6   4
-    a	5    6                | b	7     8
-    b	7    8                | c	9,10  11
-    c	9                     |
-    c 	10   11               |
+    a   2    3    4           | a   2,5   3,6   4
+    a   5    6                | b   7     8
+    b   7    8                | c   9,10  11
+    c   9                     |
+    c  10   11                |
 
     By default, it uniqifies all the grouped elements
     """

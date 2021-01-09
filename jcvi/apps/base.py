@@ -371,7 +371,7 @@ class OptionParser(OptionP):
                 "--strip_names",
                 action="store_true",
                 default=False,
-                help="strip alternative splicing " "(e.g. At5g06540.1 -> At5g06540)",
+                help="strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
             )
 
     def set_fixchrnames(self, orgn="medicago"):

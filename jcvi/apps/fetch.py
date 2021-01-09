@@ -183,13 +183,12 @@ def download_species_ensembl(species, valid_species, url):
 
 
 def get_cookies(cookies=PHYTOZOME_COOKIES):
-    from rich.console import Console
+    from jcvi.utils.console import console
 
     # Check if cookies is still good
     if op.exists(cookies) and last_updated(cookies) < 3600:
         return cookies
 
-    console = Console()
     if console.is_terminal:
         username = console.input("[bold green]Phytozome Login: ")
         pw = console.input("[bold green]Phytozome Password: ", password=True)

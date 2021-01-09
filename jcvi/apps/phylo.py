@@ -120,13 +120,16 @@ class FfitchCommandline(AbstractCommandline):
         self.parameters = ["-{0} {1}".format(k, v) for k, v in kwargs.items()]
 
     def __str__(self):
-        return self.command + " -datafile %s -intreefile %s -outfile %s " "-outtreefile %s " % (
-            self.datafile,
-            self.intreefile,
-            self.outfile,
-            self.outtreefile,
-        ) + " ".join(
-            self.parameters
+        return (
+            self.command
+            + " -datafile %s -intreefile %s -outfile %s -outtreefile %s "
+            % (
+                self.datafile,
+                self.intreefile,
+                self.outfile,
+                self.outtreefile,
+            )
+            + " ".join(self.parameters)
         )
 
 
@@ -821,10 +824,12 @@ def build(args):
     p.add_option(
         "--longest",
         action="store_true",
-        help="Get longest ORF, only works if no pep file, " "e.g. ESTs",
+        help="Get longest ORF, only works if no pep file, e.g. ESTs",
     )
     p.add_option(
-        "--nogblocks", action="store_true", help="don't use Gblocks to edit alignment",
+        "--nogblocks",
+        action="store_true",
+        help="don't use Gblocks to edit alignment",
     )
     p.add_option(
         "--synonymous",
@@ -843,7 +848,9 @@ def build(args):
         help="software used to align the proteins",
     )
     p.add_option(
-        "--noneighbor", action="store_true", help="don't build NJ tree",
+        "--noneighbor",
+        action="store_true",
+        help="don't build NJ tree",
     )
     p.add_option(
         "--ml",
@@ -855,11 +862,14 @@ def build(args):
     p.add_option("--SH", help="path to reference Newick tree")
     p.add_option("--shout", default="SH_out.txt", help="SH output file name")
     p.add_option(
-        "--treefix", action="store_true", help="use TreeFix to rearrange ML tree",
+        "--treefix",
+        action="store_true",
+        help="use TreeFix to rearrange ML tree",
     )
     p.add_option("--stree", help="path to species Newick tree")
     p.add_option(
-        "--smap", help="path to smap file: " "gene_name_pattern<tab>species_name",
+        "--smap",
+        help="path to smap file: gene_name_pattern<tab>species_name",
     )
     p.set_outdir()
 
@@ -907,9 +917,7 @@ def build(args):
     mrtrans_fasta = run_mrtrans(align_fasta, n_recs, work_dir, outfmt="fasta")
 
     if not mrtrans_fasta:
-        logging.debug(
-            "pal2nal aborted. " "Cannot reliably build tree for {0}".format(dna_file)
-        )
+        logging.debug("pal2nal aborted. Cannot reliably build tree for %s", dna_file)
         return
 
     codon_aln_fasta = mrtrans_fasta

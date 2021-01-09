@@ -1336,7 +1336,7 @@ def format(args):
     p.add_option("--switch", help="Switch ID from two-column file")
     p.add_option(
         "--annotation",
-        help="Add functional annotation from " "two-column file ('ID <--> Annotation')",
+        help="Add functional annotation from two-column file ('ID <--> Annotation')",
     )
     p.add_option("--ids", help="Generate ID conversion table")
     p.add_option(

@@ -343,9 +343,8 @@ def check_exists(filename, oappend=False):
     """
     Avoid overwriting some files accidentally.
     """
-    from rich.console import Console
+    from jcvi.utils.console import console
 
-    console = Console()
     if op.exists(filename):
         if oappend:
             return oappend

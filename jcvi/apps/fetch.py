@@ -183,14 +183,18 @@ def download_species_ensembl(species, valid_species, url):
 
 
 def get_cookies(cookies=PHYTOZOME_COOKIES):
-    from getpass import getpass
+    from rich.console import Console
 
     # Check if cookies is still good
     if op.exists(cookies) and last_updated(cookies) < 3600:
         return cookies
 
-    username = input("Phytozome Login: ")
-    pw = getpass("Phytozome Password: ")
+    console = Console()
+    if console.is_terminal:
+        username = console.input("[bold green]Phytozome Login: ")
+        pw = console.input("[bold green]Phytozome Password: ", password=True)
+    else:
+        username, pw = None, None
     curlcmd = which("curl")
     if curlcmd is None:
         print("curl command not installed. Aborting.", file=sys.stderr)

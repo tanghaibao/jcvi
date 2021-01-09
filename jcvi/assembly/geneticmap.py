@@ -12,12 +12,12 @@ import sys
 import logging
 import numpy as np
 
+from collections import Counter
+from functools import lru_cache
 from itertools import combinations, groupby
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
-from jcvi.utils.cbook import memoized
-from jcvi.utils.counter import Counter
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
@@ -52,7 +52,7 @@ class BinMap(BaseFile, dict):
                 self[lg].append((marker, pos))
 
     def print_to_bed(self, filename="stdout", switch=False, sep="."):
-        """ Print the genetic map in the BED format.
+        """Print the genetic map in the BED format.
 
         Args:
             filename (str, optional): Output filename. Defaults to "stdout".
@@ -186,7 +186,7 @@ def blat(args):
     from jcvi.apps.align import blat as blat_align
 
     p = OptionParser(blat.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -235,9 +235,9 @@ def dotplot(args):
     scaffold_2707,11508,1,0
     scaffold_2707,11525,1,1.2
     """
+    from natsort import natsorted
     from jcvi.assembly.allmaps import CSVMapLine
     from jcvi.formats.sizes import Sizes
-    from jcvi.utils.natsort import natsorted
     from jcvi.graphics.base import shorten
     from jcvi.graphics.dotplot import (
         plt,
@@ -324,7 +324,7 @@ def dotplot(args):
     fig.clear()
 
 
-@memoized
+@lru_cache(maxsize=None)
 def calc_ldscore(a, b):
     assert len(a) == len(b), "{0}\n{1}".format(a, b)
     # Assumes markers as A/B
@@ -361,14 +361,15 @@ def ld(args):
 
     Calculate pairwise linkage disequilibrium given MSTmap.
     """
-    import numpy as np
     from random import sample
-
     from jcvi.algorithms.matrix import symmetrize
 
     p = OptionParser(ld.__doc__)
     p.add_option(
-        "--subsample", default=1000, type="int", help="Subsample markers to speed up",
+        "--subsample",
+        default=1000,
+        type="int",
+        help="Subsample markers to speed up",
     )
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
@@ -614,7 +615,10 @@ def fasta(args):
 
     p = OptionParser(fasta.__doc__)
     p.add_option(
-        "--extend", default=1000, type="int", help="Extend seq flanking the gaps",
+        "--extend",
+        default=1000,
+        type="int",
+        help="Extend seq flanking the gaps",
     )
     opts, args = p.parse_args(args)
 

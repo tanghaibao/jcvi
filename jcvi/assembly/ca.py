@@ -16,14 +16,16 @@ import logging
 from six.moves.cPickle import dump, load
 
 import networkx as nx
+from collections import Counter
 from random import choice
 from Bio import SeqIO
+
+from rich import print
 
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, filter, format, parse_fasta
 from jcvi.formats.blast import Blast
 from jcvi.utils.range import range_minmax
-from jcvi.utils.counter import Counter
 from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
 from jcvi.apps.base import (
     OptionParser,
@@ -275,8 +277,6 @@ def overlap(args):
     Visualize overlaps for a given fragment. Must be run in 4-unitigger. All
     overlaps for iid were retrieved, excluding the ones matching best.contains.
     """
-    from jcvi.apps.console import green
-
     p = OptionParser(overlap.__doc__)
     p.add_option("--maxerr", default=2, type="int", help="Maximum error rate")
     p.add_option("--canvas", default=100, type="int", help="Canvas size")
@@ -341,12 +341,14 @@ def overlap(args):
         else:
             t = "<" + t[1:]
         if f.ahang == 0 and f.bhang == 0:
-            t = green(t)
+            t = "[green]{}".format(t)
         c = canvas - a - b
-        fw.write(" " * a)
-        fw.write(t)
-        fw.write(" " * c)
-        print("{0} ({1})".format(str(f.bid).rjust(10), f.erate_adj), file=fw)
+        print(
+            "{}{}{}{} ({})".format(
+                " " * a, t, " " * c, str(f.bid).rjust(10), f.erate_adj
+            ),
+            file=fw,
+        )
 
 
 def parse_ctgs(bestedges, frgtoctg):
@@ -652,7 +654,10 @@ def astat(args):
     p.add_option("--cutoff", default=1000, type="int", help="Length cutoff")
     p.add_option("--genome", default="", help="Genome name")
     p.add_option(
-        "--arrDist", default=False, action="store_true", help="Use arrDist instead",
+        "--arrDist",
+        default=False,
+        action="store_true",
+        help="Use arrDist instead",
     )
     opts, args = p.parse_args(args)
 
@@ -763,10 +768,16 @@ def shred(args):
     p = OptionParser(shred.__doc__)
     p.set_depth(depth=2)
     p.add_option(
-        "--readlen", default=1000, type="int", help="Desired length of the reads",
+        "--readlen",
+        default=1000,
+        type="int",
+        help="Desired length of the reads",
     )
     p.add_option(
-        "--minctglen", default=0, type="int", help="Ignore contig sequence less than",
+        "--minctglen",
+        default=0,
+        type="int",
+        help="Ignore contig sequence less than",
     )
     p.add_option(
         "--shift",

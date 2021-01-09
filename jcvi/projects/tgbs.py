@@ -12,17 +12,17 @@ import os.path as op
 import logging
 import sys
 
+from collections import Counter
+
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.fastq import iter_fastq
 from jcvi.formats.base import must_open, write_file
 from jcvi.formats.sam import get_prefix
-from jcvi.utils.counter import Counter
 from jcvi.apps.cdhit import deduplicate
 from jcvi.apps.gmap import check_index
 from jcvi.apps.grid import MakeManager
 from jcvi.graphics.base import plt, savefig, normalize_axes
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
-    iglob, mkdir
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglob, mkdir
 
 
 speedupsh = r"""
@@ -51,15 +51,15 @@ cd ..
 def main():
 
     actions = (
-        ('snpflow', 'run SNP calling pipeline from reads to allele_counts'),
-        ('count', 'count the number of reads in all clusters'),
-        ('snpplot', 'illustrate the SNP sites in CDT'),
-        ('weblogo', 'extract base composition for reads'),
-        ('novo', 'reference-free tGBS pipeline v1'),
-        ('novo2', 'reference-free tGBS pipeline v2'),
-        ('mstmap', 'convert LMDs to MSTMAP input'),
-        ('query', 'random access to loci file'),
-        ('synteny', 'plot mst map against reference genome'),
+        ("snpflow", "run SNP calling pipeline from reads to allele_counts"),
+        ("count", "count the number of reads in all clusters"),
+        ("snpplot", "illustrate the SNP sites in CDT"),
+        ("weblogo", "extract base composition for reads"),
+        ("novo", "reference-free tGBS pipeline v1"),
+        ("novo2", "reference-free tGBS pipeline v2"),
+        ("mstmap", "convert LMDs to MSTMAP input"),
+        ("query", "random access to loci file"),
+        ("synteny", "plot mst map against reference genome"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -165,17 +165,23 @@ def mstmap(args):
     from jcvi.assembly.geneticmap import MSTMatrix
 
     p = OptionParser(mstmap.__doc__)
-    p.add_option("--population_type", default="RIL6",
-                 help="Type of population, possible values are DH and RILd")
-    p.add_option("--missing_threshold", default=.5,
-                 help="Missing threshold, .25 excludes any marker with >25% missing")
+    p.add_option(
+        "--population_type",
+        default="RIL6",
+        help="Type of population, possible values are DH and RILd",
+    )
+    p.add_option(
+        "--missing_threshold",
+        default=0.5,
+        help="Missing threshold, .25 excludes any marker with >25% missing",
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    lmd, = args
+    (lmd,) = args
     fp = open(lmd)
     next(fp)  # Header
     table = {"0": "-", "1": "A", "2": "B", "3": "X"}
@@ -199,19 +205,17 @@ def weblogo(args):
     Extract base composition for reads
     """
     import numpy as np
-    from jcvi.utils.progressbar import ProgressBar, Percentage, Bar, ETA
+    from rich.progress import Progress
 
     p = OptionParser(weblogo.__doc__)
-    p.add_option("-N", default=10, type="int",
-                 help="Count the first and last N bases")
-    p.add_option("--nreads", default=1000000, type="int",
-                 help="Parse first N reads")
+    p.add_option("-N", default=10, type="int", help="Count the first and last N bases")
+    p.add_option("--nreads", default=1000000, type="int", help="Parse first N reads")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastqfile, = args
+    (fastqfile,) = args
     N = opts.N
     nreads = opts.nreads
 
@@ -220,38 +224,35 @@ def weblogo(args):
     R = np.zeros((4, N), dtype="int32")
     p = dict((a, i) for (i, a) in enumerate(pat))
     L4, R3 = Counter(), Counter()
-    widgets = ['Parse reads: ', Percentage(), ' ',
-               Bar(marker='>', left='[', right=']'), ' ', ETA()]
-    pr = ProgressBar(maxval=nreads, term_width=60, widgets=widgets).start()
 
     k = 0
     fw_L = open("L.fasta", "w")
     fw_R = open("R.fasta", "w")
     fastq = fastqfile.endswith(".fastq")
-    it = iter_fastq(fastqfile) if fastq else \
-        SeqIO.parse(must_open(fastqfile), "fasta")
-    for rec in it:
-        k += 1
-        if k % 1000 == 0:
-            pr.update(k)
-        if k > nreads:
-            break
-        if rec is None:
-            break
-        s = str(rec.seq)
-        for i, a in enumerate(s[:N]):
-            if a in p:
-                a = p[a]
-                L[a][i] += 1
-        for j, a in enumerate(s[-N:][::-1]):
-            if a in p:
-                a = p[a]
-                R[a][N - 1 - j] += 1
-        l4, r3 = s[:4], s[-3:]
-        L4[l4] += 1
-        R3[r3] += 1
-        print(">{0}\n{1}".format(k, s[:N]), file=fw_L)
-        print(">{0}\n{1}".format(k, s[-N:]), file=fw_R)
+    it = iter_fastq(fastqfile) if fastq else SeqIO.parse(must_open(fastqfile), "fasta")
+
+    with Progress() as progress:
+        progress.add_task("[green] Processing ...", start=False, total=nreads)
+        for rec in it:
+            k += 1
+            if k > nreads:
+                break
+            if rec is None:
+                break
+            s = str(rec.seq)
+            for i, a in enumerate(s[:N]):
+                if a in p:
+                    a = p[a]
+                    L[a][i] += 1
+            for j, a in enumerate(s[-N:][::-1]):
+                if a in p:
+                    a = p[a]
+                    R[a][N - 1 - j] += 1
+            l4, r3 = s[:4], s[-3:]
+            L4[l4] += 1
+            R3[r3] += 1
+            print(">{0}\n{1}".format(k, s[:N]), file=fw_L)
+            print(">{0}\n{1}".format(k, s[-N:]), file=fw_R)
 
     fw_L.close()
     fw_R.close()
@@ -259,11 +260,11 @@ def weblogo(args):
     cmd = "weblogo -F png -s large -f {0}.fasta -o {0}.png"
     cmd += " --color-scheme classic --composition none -U probability"
     cmd += " --title {1}"
-    sh(cmd.format('L', "First_10_bases"))
-    sh(cmd.format('R', "Last_10_bases"))
+    sh(cmd.format("L", "First_10_bases"))
+    sh(cmd.format("R", "Last_10_bases"))
 
-    np.savetxt("L.{0}.csv".format(pat), L, delimiter=',', fmt="%d")
-    np.savetxt("R.{0}.csv".format(pat), R, delimiter=',', fmt="%d")
+    np.savetxt("L.{0}.csv".format(pat), L, delimiter=",", fmt="%d")
+    np.savetxt("R.{0}.csv".format(pat), R, delimiter=",", fmt="%d")
 
     fw = open("L4.common", "w")
     for p, c in L4.most_common(N):
@@ -292,7 +293,7 @@ def count(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     csv = open(opts.csv, "w") if opts.csv else None
 
     f = Fasta(fastafile, lazy=True)
@@ -306,8 +307,7 @@ def count(args):
         if "with" in desc:
             name, w, size, seqs = desc.split()
             if csv:
-                print("\t".join(str(x)
-                                for x in (name, size, len(rec))), file=csv)
+                print("\t".join(str(x) for x in (name, size, len(rec))), file=csv)
             assert w == "with"
             sizes.append(int(size))
         # MRD85:00603:02472;size=167;
@@ -336,8 +336,12 @@ def novo(args):
     from jcvi.apps.cdhit import filter as cdhit_filter
 
     p = OptionParser(novo.__doc__)
-    p.add_option("--technology", choices=("illumina", "454", "iontorrent"),
-                 default="iontorrent", help="Sequencing platform")
+    p.add_option(
+        "--technology",
+        choices=("illumina", "454", "iontorrent"),
+        default="iontorrent",
+        help="Sequencing platform",
+    )
     p.set_depth(depth=50)
     p.set_align(pctid=96)
     p.set_home("cdhit", default="/usr/local/bin/")
@@ -349,7 +353,7 @@ def novo(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastqfile, = args
+    (fastqfile,) = args
     cpus = opts.cpus
     depth = opts.depth
     pf, sf = fastqfile.rsplit(".", 1)
@@ -362,16 +366,22 @@ def novo(args):
 
     jf = pf + "-K23.histogram"
     if need_update(diginormfile, jf):
-        jellyfish([diginormfile, "--prefix={0}".format(pf),
-                   "--cpus={0}".format(cpus),
-                   "--jellyfish_home={0}".format(opts.jellyfish_home)])
+        jellyfish(
+            [
+                diginormfile,
+                "--prefix={0}".format(pf),
+                "--cpus={0}".format(cpus),
+                "--jellyfish_home={0}".format(opts.jellyfish_home),
+            ]
+        )
 
     genomesize = histogram([jf, pf, "23"])
     fiona = pf + ".fiona.fa"
     if need_update(diginormfile, fiona):
         cmd = op.join(opts.fiona_home, "fiona")
-        cmd += " -g {0} -nt {1} --sequencing-technology {2}".\
-            format(genomesize, cpus, opts.technology)
+        cmd += " -g {0} -nt {1} --sequencing-technology {2}".format(
+            genomesize, cpus, opts.technology
+        )
         cmd += " -vv {0} {1}".format(diginormfile, fiona)
         logfile = pf + ".fiona.log"
         sh(cmd, outfile=logfile, errfile=logfile)
@@ -380,28 +390,42 @@ def novo(args):
     pctid = opts.pctid
     cons = fiona + ".P{0}.{1}.consensus.fasta".format(pctid, dedup)
     if need_update(fiona, cons):
-        deduplicate([fiona, "--consensus", "--reads",
-                     "--pctid={0}".format(pctid),
-                     "--cdhit_home={0}".format(opts.cdhit_home)])
+        deduplicate(
+            [
+                fiona,
+                "--consensus",
+                "--reads",
+                "--pctid={0}".format(pctid),
+                "--cdhit_home={0}".format(opts.cdhit_home),
+            ]
+        )
 
     filteredfile = pf + ".filtered.fasta"
     if need_update(cons, filteredfile):
         covfile = pf + ".cov.fasta"
-        cdhit_filter([cons, "--outfile={0}".format(covfile),
-                      "--minsize={0}".format(depth / 5)])
+        cdhit_filter(
+            [cons, "--outfile={0}".format(covfile), "--minsize={0}".format(depth / 5)]
+        )
         fasta_filter([covfile, "50", "--outfile={0}".format(filteredfile)])
 
     finalfile = pf + ".final.fasta"
     if need_update(filteredfile, finalfile):
-        format([filteredfile, finalfile, "--sequential=replace",
-                "--prefix={0}_".format(pf)])
+        format(
+            [
+                filteredfile,
+                finalfile,
+                "--sequential=replace",
+                "--prefix={0}_".format(pf),
+            ]
+        )
 
 
 def scan_read_files(trimmed, patterns):
     reads = iglob(trimmed, patterns)
     samples = sorted(set(op.basename(x).split(".")[0] for x in reads))
-    logging.debug("Total {0} read files from {1} samples".
-                  format(len(reads), len(samples)))
+    logging.debug(
+        "Total {0} read files from {1} samples".format(len(reads), len(samples))
+    )
     return reads, samples
 
 
@@ -488,8 +512,7 @@ def snpflow(args):
     nseqs = len(Fasta(ref))
     supercat = nseqs >= 1000
     if supercat:
-        logging.debug("Total seqs in ref: {0} (supercat={1})".
-                      format(nseqs, supercat))
+        logging.debug("Total seqs in ref: {0} (supercat={1})".format(nseqs, supercat))
 
     reads, samples = scan_read_files(trimmed, opts.names)
 
@@ -523,8 +546,7 @@ def snpflow(args):
         cmd += " --outdir={0} --native --cpus=1".format(nativedir)
         mm.add((f, db), nativefile, cmd)
 
-        cmd = "python -m jcvi.apps.gmap bam {0} {1} --cpus=1".\
-            format(gsnapfile, gmapdb)
+        cmd = "python -m jcvi.apps.gmap bam {0} {1} --cpus=1".format(gsnapfile, gmapdb)
         mm.add(nativefile, samstatsfile, cmd)
         allnatives.append(nativefile)
         allsamstats.append(samstatsfile)
@@ -533,8 +555,7 @@ def snpflow(args):
     if supercat:
         nativeconverted = nativedir + "-converted"
         mkdir(nativeconverted)
-        allnativesc = [op.join(nativeconverted, op.basename(x))
-                       for x in allnatives]
+        allnativesc = [op.join(nativeconverted, op.basename(x)) for x in allnatives]
         cmd = "tGBS-Convert_Pseudo_Genome_NATIVE_Coordinates.pl"
         cmd += " -i {0}/*.native -o {1}".format(nativedir, nativeconverted)
         cmd += " -c {0}".format(coordsfile)
@@ -544,8 +565,7 @@ def snpflow(args):
         runfile = "speedup.sh"
         write_file(runfile, speedupsh.format(nativeconverted, opts.cpus))
         nativedir = nativeconverted
-        allsnps = [
-            op.join(nativedir, "{0}.SNPs_Het.txt".format(x)) for x in samples]
+        allsnps = [op.join(nativedir, "{0}.SNPs_Het.txt".format(x)) for x in samples]
         mm.add(allnativesc, allsnps, "./{0}".format(runfile))
     else:
         for s in samples:
@@ -553,13 +573,11 @@ def snpflow(args):
             cmd = "SNP_Discovery-short.pl"
             cmd += " -native {0}/{1}.*unique.native".format(nativedir, s)
             cmd += " -o {0} -a 2 -ac 0.3 -c 0.8".format(snpfile)
-            flist = [x for x in allnatives if op.basename(x).split(".")[
-                0] == s]
+            flist = [x for x in allnatives if op.basename(x).split(".")[0] == s]
             mm.add(flist, snpfile, cmd)
 
     # Step 3 - generate equal file
-    allsnps = [op.join(nativedir, "{0}.SNPs_Het.txt".format(x))
-               for x in samples]
+    allsnps = [op.join(nativedir, "{0}.SNPs_Het.txt".format(x)) for x in samples]
     for s in samples:
         equalfile = op.join(nativedir, "{0}.equal".format(s))
         cmd = "extract_reference_alleles.pl"
@@ -580,8 +598,7 @@ def snpflow(args):
     # Step 5 - generate allele counts
     allcounts = []
     for s in samples:
-        allele_counts = op.join(
-            countsdir, "{0}.SNPs_Het.allele_counts".format(s))
+        allele_counts = op.join(countsdir, "{0}.SNPs_Het.allele_counts".format(s))
         cmd = "count_reads_per_allele.pl -m snps.matrix.txt"
         cmd += " -s {0} --native {1}/{0}.*unique.native".format(s, nativedir)
         cmd += " -o {0}".format(allele_counts)
@@ -621,7 +638,7 @@ def snpplot(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    datafile, = args
+    (datafile,) = args
     # Read in CDT file
     fp = open(datafile)
     next(fp)
@@ -632,14 +649,14 @@ def snpplot(args):
         nval = len(atoms)
         values = [float(x) for x in atoms]
         # normalize
-        values = [x * 1. / sum(values) for x in values]
+        values = [x * 1.0 / sum(values) for x in values]
         data.append(values)
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    xmin, xmax = .1, .9
-    ymin, ymax = .1, .9
+    xmin, xmax = 0.1, 0.9
+    ymin, ymax = 0.1, 0.9
     yinterval = (ymax - ymin) / len(data)
     colors = "rbg" if nval == 3 else ["lightgray"] + list("rbg")
     ystart = ymax
@@ -651,16 +668,23 @@ def snpplot(args):
             xstart = xend
         ystart -= yinterval
 
-    root.text(.05, .5, "{0} LMD50 SNPs".format(len(data)),
-              ha="center", va="center", rotation=90, color="lightslategray")
+    root.text(
+        0.05,
+        0.5,
+        "{0} LMD50 SNPs".format(len(data)),
+        ha="center",
+        va="center",
+        rotation=90,
+        color="lightslategray",
+    )
 
-    for x, t, c in zip((.3, .5, .7), ("REF", "ALT", "HET"), "rbg"):
-        root.text(x, .95, t, color=c, ha="center", va="center")
+    for x, t, c in zip((0.3, 0.5, 0.7), ("REF", "ALT", "HET"), "rbg"):
+        root.text(x, 0.95, t, color=c, ha="center", va="center")
     normalize_axes(root)
 
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

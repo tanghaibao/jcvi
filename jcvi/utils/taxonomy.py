@@ -33,10 +33,14 @@ import logging
 
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.error import HTTPError, URLError
+
+from functools import lru_cache
+
+from ete3 import Tree
+
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
-from jcvi.utils.cbook import memoized
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -86,8 +90,6 @@ class TaxIDTree(object):
         return self.newick
 
     def print_tree(self):
-        from ete2 import Tree
-
         t = Tree(self.newick, format=8)
         print(t)
 
@@ -124,8 +126,6 @@ def MRCA(list_of_taxids):
     'rosids'
     """
 
-    from ete2 import Tree
-
     t = TaxIDTree(list_of_taxids)
     t = Tree(str(t), format=8)
 
@@ -134,7 +134,7 @@ def MRCA(list_of_taxids):
     return ancestor.name
 
 
-@memoized
+@lru_cache(maxsize=None)
 def isPlantOrigin(taxid):
     """
     Given a taxid, this gets the expanded tree which can then be checked to

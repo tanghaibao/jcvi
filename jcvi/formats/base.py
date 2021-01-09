@@ -1144,7 +1144,7 @@ def setop(args):
 
     Please quote the argument to avoid shell interpreting | and &.
     """
-    from jcvi.utils.natsort import natsorted
+    from natsort import natsorted
 
     p = OptionParser(setop.__doc__)
     p.add_option(

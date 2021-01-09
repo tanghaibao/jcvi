@@ -10,35 +10,34 @@ import os.path as op
 import sys
 import logging
 
+from collections import Counter
 from itertools import groupby
 
 from jcvi.algorithms.formula import outlier_cutoff
 from jcvi.formats.bed import Bed, sort, depth, some, mergeBed
 from jcvi.formats.base import must_open
-from jcvi.utils.counter import Counter
 from jcvi.utils.range import Range, range_interleave, range_chain
 from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
-class EndPoint (object):
-
+class EndPoint(object):
     def __init__(self, label):
-        args = label.split('-')
+        args = label.split("-")
         self.label = label
         self.leftright = args[0]
         self.position = int(args[1])
-        self.reads = int(args[2].strip('r'))
+        self.reads = int(args[2].strip("r"))
 
 
 def main():
 
     actions = (
-        ('deletion', 'find IES based on mapping MAC reads'),
-        ('insertion', 'find IES excision points based on mapping MIC reads'),
-        ('insertionpairs', 'pair up the candidate insertions'),
-        ('variation', 'associate IES in parents and progeny'),
-            )
+        ("deletion", "find IES based on mapping MAC reads"),
+        ("insertion", "find IES excision points based on mapping MIC reads"),
+        ("insertionpairs", "pair up the candidate insertions"),
+        ("variation", "associate IES in parents and progeny"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -50,14 +49,18 @@ def variation(args):
     Associate IES in parents and progeny.
     """
     p = OptionParser(variation.__doc__)
-    p.add_option("--diversity", choices=("breakpoint", "variant"),
-                 default="variant", help="Plot diversity")
+    p.add_option(
+        "--diversity",
+        choices=("breakpoint", "variant"),
+        default="variant",
+        help="Plot diversity",
+    )
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    pfs = [op.basename(x).split('-')[0] for x in args]
+    pfs = [op.basename(x).split("-")[0] for x in args]
     P1, P2, F1 = pfs
     newbedfile = "-".join(pfs) + ".bed"
     if need_update(args, newbedfile):
@@ -80,7 +83,7 @@ def variation(args):
     novelbedfile = "novel.bed"
     fw = open(novelbedfile, "w")
     for b in bed:
-        accns = b.accn.split(',')
+        accns = b.accn.split(",")
         pfs_accns = [x.split("-")[0] for x in accns]
         pfs_counts = Counter(pfs_accns)
         if len(pfs_counts) != 3:
@@ -102,11 +105,17 @@ def variation(args):
         bp_diff.extend(x.start - ref.start for x in P1_accns)
         bp_diff.extend(x.end - ref.end for x in P1_accns)
 
-    print("A total of {0} sites show consistent deletions across samples.".\
-                    format(percentage(valid, len(bed))), file=sys.stderr)
+    print(
+        "A total of {} sites show consistent deletions across samples.".format(
+            percentage(valid, len(bed))
+        ),
+        file=sys.stderr,
+    )
     for pf, count in total_counts.items():
-        print("{0:>9}: {1:.2f} deletions/site".\
-                    format(pf, count * 1. / valid), file=sys.stderr)
+        print(
+            "{:>9}: {:.2f} deletions/site".format(pf, count * 1.0 / valid),
+            file=sys.stderr,
+        )
 
     F1_counts = Counter(F1_counts)
 
@@ -118,8 +127,16 @@ def variation(args):
         left, height = zip(*sorted(F1_counts.items()))
         for l, h in zip(left, height):
             print("{0:>9} variants: {1}".format(l, h), file=sys.stderr)
-            plt.text(l, h + 5, str(h), color="darkslategray", size=8,
-                     ha="center", va="bottom", rotation=90)
+            plt.text(
+                l,
+                h + 5,
+                str(h),
+                color="darkslategray",
+                size=8,
+                ha="center",
+                va="bottom",
+                rotation=90,
+            )
 
         plt.bar(left, height, align="center")
         plt.xlabel("Identified number of IES per site")
@@ -137,14 +154,22 @@ def variation(args):
             bp_diff_abs[abs(k)] += v
         plt.figure(1, (iopts.w, iopts.h))
         left, height = zip(*sorted(bp_diff_abs.items()))
-        for l, h in zip(left, height)[:21]:
-            plt.text(l, h + 50, str(h), color="darkslategray", size=8,
-                     ha="center", va="bottom", rotation=90)
+        for l, h in list(zip(left, height))[:21]:
+            plt.text(
+                l,
+                h + 50,
+                str(h),
+                color="darkslategray",
+                size=8,
+                ha="center",
+                va="bottom",
+                rotation=90,
+            )
 
         plt.bar(left, height, align="center")
         plt.xlabel("Progeny breakpoint relative to SB210")
         plt.ylabel("Counts")
-        plt.xlim(-.5, 20.5)
+        plt.xlim(-0.5, 20.5)
         ax = plt.gca()
         set_ticklabels_helvetica(ax)
         savefig(F1 + ".breaks.pdf")
@@ -174,15 +199,19 @@ def insertionpairs(args):
             (RE)   (LE)
     """
     p = OptionParser(insertionpairs.__doc__)
-    p.add_option("--extend", default=10, type="int",
-                 help="Allow insertion sites to match up within distance")
+    p.add_option(
+        "--extend",
+        default=10,
+        type="int",
+        help="Allow insertion sites to match up within distance",
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     mergedbedfile = mergeBed(bedfile, d=opts.extend, nms=True)
     bed = Bed(mergedbedfile)
     fw = must_open(opts.outfile, "w")
@@ -213,15 +242,16 @@ def insertion(args):
     'lesions' (stack of broken reads) in the MAC genome.
     """
     p = OptionParser(insertion.__doc__)
-    p.add_option("--mindepth", default=6, type="int",
-                 help="Minimum depth to call an insertion")
+    p.add_option(
+        "--mindepth", default=6, type="int", help="Minimum depth to call an insertion"
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bedfile, = args
+    (bedfile,) = args
     mindepth = opts.mindepth
     bed = Bed(bedfile)
     fw = must_open(opts.outfile, "w")
@@ -248,12 +278,18 @@ def deletion(args):
     Find IES based on mapping MAC reads to MIC genome.
     """
     p = OptionParser(deletion.__doc__)
-    p.add_option("--mindepth", default=3, type="int",
-                 help="Minimum depth to call a deletion")
-    p.add_option("--minspan", default=30, type="int",
-                 help="Minimum span to call a deletion")
-    p.add_option("--split", default=False, action="store_true",
-                 help="Break at cigar N into separate parts")
+    p.add_option(
+        "--mindepth", default=3, type="int", help="Minimum depth to call a deletion"
+    )
+    p.add_option(
+        "--minspan", default=30, type="int", help="Minimum span to call a deletion"
+    )
+    p.add_option(
+        "--split",
+        default=False,
+        action="store_true",
+        help="Break at cigar N into separate parts",
+    )
     p.set_tmpdir()
     opts, args = p.parse_args(args)
 
@@ -294,8 +330,10 @@ def deletion(args):
             for seqid, start, end in iranges:
                 if end - start + 1 < opts.minspan:
                     continue
-                print("\t".join(str(x) for x in \
-                            (seqid, start - 1, end, accn + '-d')), file=fw)
+                print(
+                    "\t".join(str(x) for x in (seqid, start - 1, end, accn + "-d")),
+                    file=fw,
+                )
         fw.close()
 
     # Uniqify the insertions and count occurrences
@@ -310,8 +348,7 @@ def deletion(args):
             ies_name = "{0:05d}-r{1}".format(ies_id, count)
             if count < opts.mindepth:
                 continue
-            print("\t".join(str(x) for x in \
-                            (seqid, start - 1, end, ies_name)), file=fw)
+            print("\t".join(str(x) for x in (seqid, start - 1, end, ies_name)), file=fw)
             ies_id += 1
         fw.close()
         sort([countbedfile, "-i", sort_tmpdir])
@@ -328,7 +365,9 @@ def deletion(args):
         bed = Bed(depthbedfile)
         all_scores = [float(b.score) for b in bed]
         lb, ub = outlier_cutoff(all_scores)
-        logging.debug("Bounds for depths: LB={0:.2f} (ignored)  UB={1:.2f}".format(lb, ub))
+        logging.debug(
+            "Bounds for depths: LB={:.2f} (ignored)  UB={:.2f}".format(lb, ub)
+        )
         for b in bed:
             if float(b.score) > ub:
                 continue
@@ -355,8 +394,14 @@ def deletion(args):
         cmd = "intersectBed -a {0} -b {1}".format(flanksbedfile, gapsbedfile)
         cmd += " | cut -f4 | sort -u"
         sh(cmd, outfile=intersectidsfile)
-        some([validbedfile, intersectidsfile, "-v",
-                "--outfile={0}".format(selectedbedfile)])
+        some(
+            [
+                validbedfile,
+                intersectidsfile,
+                "-v",
+                "--outfile={}".format(selectedbedfile),
+            ]
+        )
 
     # Find best-scoring non-overlapping set
     iesbedfile = pf + ".ies.bed"
@@ -364,20 +409,23 @@ def deletion(args):
         bed = Bed(selectedbedfile)
         fw = open(iesbedfile, "w")
         logging.debug("Write IES to `{0}`.".format(iesbedfile))
-        branges = [Range(x.seqid, x.start, x.end, int(x.accn.rsplit("r")[-1]), i) \
-                        for i, x in enumerate(bed)]
+        branges = [
+            Range(x.seqid, x.start, x.end, int(x.accn.rsplit("r")[-1]), i)
+            for i, x in enumerate(bed)
+        ]
         iranges, iscore = range_chain(branges)
-        logging.debug("Best chain score: {0} ({1} IES)".\
-                        format(iscore, len(iranges)))
+        logging.debug("Best chain score: {} ({} IES)".format(iscore, len(iranges)))
         ies_id = 1
         for seqid, start, end, score, id in iranges:
             ies_name = "IES-{0:05d}-r{1}".format(ies_id, score)
             span = end - start + 1
-            print("\t".join(str(x) for x in \
-                            (seqid, start - 1, end, ies_name, span)), file=fw)
+            print(
+                "\t".join(str(x) for x in (seqid, start - 1, end, ies_name, span)),
+                file=fw,
+            )
             ies_id += 1
         fw.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

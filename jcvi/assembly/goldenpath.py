@@ -15,6 +15,7 @@ import shutil
 import logging
 
 from copy import deepcopy
+from functools import lru_cache
 from itertools import groupby
 
 from jcvi.formats.agp import AGP, TPF, get_phase, reindex, tidy, build
@@ -22,7 +23,6 @@ from jcvi.formats.base import BaseFile, must_open
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.blast import BlastSlow, BlastLine
 from jcvi.formats.coords import Overlap_types
-from jcvi.utils.cbook import memoized
 from jcvi.apps.fetch import entrez
 from jcvi.apps.grid import WriteJobs
 from jcvi.apps.base import OptionParser, ActionDispatcher, popen, mkdir, sh, need_update
@@ -33,32 +33,31 @@ GoodOverlap = 200
 GoodOverhang = 2000
 
 
-class Cutoff (object):
-
+class Cutoff(object):
     def __init__(self, pctid=GoodPct, overlap=GoodOverlap, hang=GoodOverhang):
         self.pctid = pctid
         self.overlap = overlap
         self.hang = hang
 
     def __str__(self):
-        return "Configuration: PCTID={0} OVERLAP={1} HANG={2}".\
-                format(self.pctid, self.overlap, self.hang)
+        return "Configuration: PCTID={} OVERLAP={} HANG={}".format(
+            self.pctid, self.overlap, self.hang
+        )
 
 
-class CLR (object):
-
-    def __init__(self, id, size, orientation='+'):
+class CLR(object):
+    def __init__(self, id, size, orientation="+"):
         self.id = id
         self.start = 1
         self.end = size
-        if orientation == '?':
-            orientation = '+'
-        assert orientation in ('+', '-')
+        if orientation == "?":
+            orientation = "+"
+        assert orientation in ("+", "-")
         self.orientation = orientation
 
     def __str__(self):
-        return "{0}: {1}-{2}({3})".format(self.id, self.start, self.end,
-                                         self.orientation)
+        return "{}: {}-{}({})".format(self.id, self.start, self.end, self.orientation)
+
     @property
     def is_valid(self):
         return self.start < self.end
@@ -71,8 +70,7 @@ class CLR (object):
         return c
 
 
-class Overlap (object):
-
+class Overlap(object):
     def __init__(self, blastline, asize, bsize, cutoff, qreverse=False):
 
         b = blastline
@@ -100,8 +98,9 @@ class Overlap (object):
     def __str__(self):
         ov = Overlap_types[self.otype]
         s = "{0} - {1}: {2} ".format(self.aid, self.bid, ov)
-        s += "Overlap: {0} Identity: {1}% Orientation: {2}".\
-            format(self.hitlen, self.pctid, self.orientation)
+        s += "Overlap: {0} Identity: {1}% Orientation: {2}".format(
+            self.hitlen, self.pctid, self.orientation
+        )
         return s
 
     @property
@@ -109,16 +108,24 @@ class Overlap (object):
         blastline = self.blastline.swapped
         asize = self.asize
         bsize = self.bsize
-        ao, bo = self.get_ao_bo()
-        qreverse = bo == '-'
+        _, bo = self.get_ao_bo()
+        qreverse = bo == "-"
         return Overlap(blastline, bsize, asize, self.cutoff, qreverse=qreverse)
 
     @property
     def certificateline(self):
         terminal_tag = "Terminal" if self.isTerminal else "Non-terminal"
-        return "\t".join(str(x) for x in (self.bid, \
-                          self.asize, self.qstart, self.qstop, \
-                          self.orientation, terminal_tag))
+        return "\t".join(
+            str(x)
+            for x in (
+                self.bid,
+                self.asize,
+                self.qstart,
+                self.qstop,
+                self.orientation,
+                terminal_tag,
+            )
+        )
 
     @property
     def isTerminal(self):
@@ -127,11 +134,10 @@ class Overlap (object):
     @property
     def isGoodQuality(self):
         cutoff = self.cutoff
-        return self.hitlen >= cutoff.overlap and \
-               self.pctid >= cutoff.pctid
+        return self.hitlen >= cutoff.overlap and self.pctid >= cutoff.pctid
 
     def get_hangs(self):
-        """
+        r"""
         Determine the type of overlap given query, ref alignment coordinates
         Consider the following alignment between sequence a and b:
 
@@ -145,7 +151,7 @@ class Overlap (object):
         """
         aLhang, aRhang = self.qstart - 1, self.asize - self.qstop
         bLhang, bRhang = self.sstart - 1, self.bsize - self.sstop
-        if self.orientation == '-':
+        if self.orientation == "-":
             bLhang, bRhang = bRhang, bLhang
         if self.qreverse:
             aLhang, aRhang = aRhang, aLhang
@@ -165,11 +171,11 @@ class Overlap (object):
         otype = self.otype
 
         if otype == 1:
-            if aclr.orientation == '+':
+            if aclr.orientation == "+":
                 aclr.end = self.qstop
             else:
                 aclr.start = self.qstart
-            if bclr.orientation == '+':
+            if bclr.orientation == "+":
                 bclr.start = self.sstop + 1
             else:
                 bclr.end = self.sstart - 1
@@ -183,20 +189,25 @@ class Overlap (object):
         print(aclr, bclr, file=sys.stderr)
 
     def get_ao_bo(self):
-        ao = '-' if self.qreverse else '+'
-        bo = ao if self.orientation == '+' else {'+':'-', '-':'+'}[ao]
+        ao = "-" if self.qreverse else "+"
+        bo = ao if self.orientation == "+" else {"+": "-", "-": "+"}[ao]
         return ao, bo
 
     def anneal(self, aclr, bclr):
         ao, bo = self.get_ao_bo()
 
         # Requirement: end-to-end join in correct order and orientation
-        can_anneal = self.otype in (1, 3, 4) and \
-                     (ao, bo) == (aclr.orientation, bclr.orientation)
+        can_anneal = self.otype in (1, 3, 4) and (ao, bo) == (
+            aclr.orientation,
+            bclr.orientation,
+        )
         if not can_anneal:
-            print("* Cannot anneal! (otype={0}|{1}{2}|{3}{4})".\
-                                format(self.otype, ao, bo,
-                                       aclr.orientation, bclr.orientation), file=sys.stderr)
+            print(
+                "* Cannot anneal! (otype={0}|{1}{2}|{3}{4})".format(
+                    self.otype, ao, bo, aclr.orientation, bclr.orientation
+                ),
+                file=sys.stderr,
+            )
             return False
 
         self.update_clr(aclr, bclr)
@@ -211,10 +222,10 @@ class Overlap (object):
         aLhang, aRhang, bLhang, bRhang = self.get_hangs()
 
         achar = ">"
-        bchar = "<" if self.orientation == '-' else ">"
+        bchar = "<" if self.orientation == "-" else ">"
         if self.qreverse:
             achar = "<"
-            bchar = {">" : "<", "<" : ">"}[bchar]
+            bchar = {">": "<", "<": ">"}[bchar]
 
         print(aLhang, aRhang, bLhang, bRhang, file=sys.stderr)
         width = 50  # Canvas
@@ -222,7 +233,7 @@ class Overlap (object):
         lmax = max(aLhang, bLhang)
         rmax = max(aRhang, bRhang)
         bpwidth = lmax + hitlen + rmax
-        ratio = width * 1. / bpwidth
+        ratio = width * 1.0 / bpwidth
 
         _ = lambda x: int(round(x * ratio, 0))
         a1, a2 = _(aLhang), _(aRhang)
@@ -274,7 +285,7 @@ class Overlap (object):
         return type
 
 
-class CertificateLine (object):
+class CertificateLine(object):
 
     """
     North  chr1  2  0  AC229737.8  telomere     58443
@@ -314,24 +325,30 @@ class CertificateLine (object):
         return self.terminal == "Terminal"
 
     def __str__(self):
-        ar = [self.tag, self.chr, self.aphase, self.bphase, \
-              self.aid, self.bid, self.asize]
+        ar = [
+            self.tag,
+            self.chr,
+            self.aphase,
+            self.bphase,
+            self.aid,
+            self.bid,
+            self.asize,
+        ]
 
         if self.is_no_overlap:
             ar += ["None"]
         elif not self.is_gap:
-            ar += [self.astart, self.astop,
-                   self.orientation, self.terminal]
+            ar += [self.astart, self.astop, self.orientation, self.terminal]
 
         return "\t".join(str(x) for x in ar)
 
 
-class Certificate (BaseFile):
+class Certificate(BaseFile):
 
     gapsize = 100000
-    gaps = dict(telomere=gapsize, centromere=gapsize, \
-                contig=gapsize, clone=50000, \
-                fragment=5000)
+    gaps = dict(
+        telomere=gapsize, centromere=gapsize, contig=gapsize, clone=50000, fragment=5000
+    )
 
     def __init__(self, filename):
 
@@ -414,7 +431,7 @@ class Certificate (BaseFile):
                 Lhang = start - 1
                 Rhang = size - stop
 
-                orientation = '+' if Lhang < Rhang else '-'
+                orientation = "+" if Lhang < Rhang else "-"
                 if north.bphase == 1 and north.bphase < aphase:
                     if Lhang < Rhang:  # North overlap at 5`
                         clr[0] = start
@@ -432,7 +449,7 @@ class Certificate (BaseFile):
                 Lhang = start - 1
                 Rhang = size - stop
 
-                sorientation = '+' if Lhang > Rhang else '-'
+                sorientation = "+" if Lhang > Rhang else "-"
                 # Override left-greedy (also see above)
                 if aphase == 1 and aphase < south.bphase:
                     if Lhang < Rhang:  # South overlap at 5`
@@ -448,8 +465,9 @@ class Certificate (BaseFile):
             if orientation:
                 if sorientation:
                     try:
-                        assert orientation == sorientation, \
-                                "Orientation conflicts:\n{0}\n{1}".format(north, south)
+                        assert (
+                            orientation == sorientation
+                        ), "Orientation conflicts:\n{0}\n{1}".format(north, south)
                     except AssertionError as e:
                         logging.debug(e)
             else:
@@ -476,17 +494,17 @@ class Certificate (BaseFile):
 def main():
 
     actions = (
-        ('bes', 'confirm the BES mapping'),
-        ('flip', 'flip the FASTA sequences according to a set of references'),
-        ('overlap', 'check terminal overlaps between two records'),
-        ('batchoverlap', 'check terminal overlaps for many pairs'),
-        ('neighbor', 'check neighbors of a component in agpfile'),
-        ('blast', 'blast a component to componentpool'),
-        ('certificate', 'make certificates for all overlaps in agpfile'),
-        ('agp', 'make agpfile based on certificates'),
-        ('anneal', 'merge adjacent contigs and make new agpfile'),
-        ('dedup', 'remove redundant contigs with cdhit'),
-            )
+        ("bes", "confirm the BES mapping"),
+        ("flip", "flip the FASTA sequences according to a set of references"),
+        ("overlap", "check terminal overlaps between two records"),
+        ("batchoverlap", "check terminal overlaps for many pairs"),
+        ("neighbor", "check neighbors of a component in agpfile"),
+        ("blast", "blast a component to componentpool"),
+        ("certificate", "make certificates for all overlaps in agpfile"),
+        ("agp", "make agpfile based on certificates"),
+        ("anneal", "merge adjacent contigs and make new agpfile"),
+        ("dedup", "remove redundant contigs with cdhit"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -509,9 +527,11 @@ def dedup(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    scaffolds, = args
+    (scaffolds,) = args
     mingap = opts.mingap
-    splitfile, oagpfile, cagpfile = gaps([scaffolds, "--split", "--mingap={0}".format(mingap)])
+    splitfile, oagpfile, cagpfile = gaps(
+        [scaffolds, "--split", "--mingap={0}".format(mingap)]
+    )
 
     dd = splitfile + ".cdhit"
     clstrfile = dd + ".clstr"
@@ -531,16 +551,16 @@ def dedup(args):
     for a in agp:
         if not a.is_gap and a.component_id not in reps:
             span = a.component_span
-            logging.debug("Drop component {0} ({1})".\
-                          format(a.component_id, span))
+            logging.debug("Drop component {0} ({1})".format(a.component_id, span))
             ndropped += 1
             ndroppedbases += span
             continue
         print(a, file=fw)
     fw.close()
 
-    logging.debug("Dropped components: {0}, Dropped bases: {1}".\
-                  format(ndropped, ndroppedbases))
+    logging.debug(
+        "Dropped components: {0}, Dropped bases: {1}".format(ndropped, ndroppedbases)
+    )
     logging.debug("Deduplicated file written to `{0}`.".format(dedupagp))
 
     tidyagp = tidy([dedupagp, splitfile])
@@ -588,11 +608,16 @@ def overlap_blastline_writer(oopts):
 
 
 def get_overlap_opts(aid, bid, qreverse, outdir, opts):
-    oopts = [aid, bid, \
-            "--suffix", "fa", \
-            "--dir", outdir, \
-            "--pctid={0}".format(opts.pctid), \
-            "--hitlen={0}".format(opts.hitlen)]
+    oopts = [
+        aid,
+        bid,
+        "--suffix",
+        "fa",
+        "--dir",
+        outdir,
+        "--pctid={0}".format(opts.pctid),
+        "--hitlen={0}".format(opts.hitlen),
+    ]
     if qreverse:
         oopts += ["--qreverse"]
     return oopts
@@ -607,8 +632,7 @@ def populate_blastfile(blastfile, agp, outdir, opts):
         oopts = get_overlap_opts(aid, bid, qreverse, outdir, opts)
         all_oopts.append(oopts)
 
-    pool = WriteJobs(overlap_blastline_writer, all_oopts, \
-                     blastfile, cpus=opts.cpus)
+    pool = WriteJobs(overlap_blastline_writer, all_oopts, blastfile, cpus=opts.cpus)
     pool.run()
 
 
@@ -627,8 +651,9 @@ def anneal(args):
     """
     p = OptionParser(anneal.__doc__)
     p.set_align(pctid=GoodPct, hitlen=GoodOverlap)
-    p.add_option("--hang", default=GoodOverhang, type="int",
-                 help="Maximum overhang length [default: %default]")
+    p.add_option(
+        "--hang", default=GoodOverhang, type="int", help="Maximum overhang length"
+    )
     p.set_outdir(outdir="outdir")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -674,8 +699,7 @@ def anneal(args):
                 continue
             bl = o.blastline
 
-        o = Overlap(bl, a.component_span, b.component_span,
-                        cutoff, qreverse=qreverse)
+        o = Overlap(bl, a.component_span, b.component_span, cutoff, qreverse=qreverse)
 
         if aid not in clrstore:
             clrstore[aid] = CLR.from_agpline(a)
@@ -695,8 +719,7 @@ def anneal(args):
                 newagp.switch_between(bid, aid, verbose=True)
                 newagp.delete_between(bid, aid, verbose=True)
 
-    logging.debug("A total of {0} components with modified CLR.".\
-                    format(len(clrstore)))
+    logging.debug("A total of {0} components with modified CLR.".format(len(clrstore)))
 
     for cid, c in clrstore.items():
         if c.is_valid:
@@ -731,8 +754,7 @@ def blast(args):
     from jcvi.apps.align import run_megablast
 
     p = OptionParser(blast.__doc__)
-    p.add_option("-n", type="int", default=2,
-            help="Take best N hits [default: %default]")
+    p.add_option("-n", type="int", default=2, help="Take best N hits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -745,8 +767,9 @@ def blast(args):
         entrez([clonename, "--skipcheck", "--outdir=" + fastadir])
 
     outfile = "{0}.{1}.blast".format(clonename, allfasta.split(".")[0])
-    run_megablast(infile=infile, outfile=outfile, db=allfasta, \
-            pctid=GoodPct, hitlen=GoodOverlap)
+    run_megablast(
+        infile=infile, outfile=outfile, db=allfasta, pctid=GoodPct, hitlen=GoodOverlap
+    )
 
     blasts = [BlastLine(x) for x in open(outfile)]
     besthits = []
@@ -793,8 +816,14 @@ def bes(args):
     entrez([clonename, "--database=nucgss", "--skipcheck"])
     besfasta = clonename + ".fasta"
     blatfile = clonename + ".bes.blat"
-    run_blat(infile=besfasta, outfile=blatfile, db=bacfasta, \
-             pctid=95, hitlen=100, cpus=opts.cpus)
+    run_blat(
+        infile=besfasta,
+        outfile=blatfile,
+        db=bacfasta,
+        pctid=95,
+        hitlen=100,
+        cpus=opts.cpus,
+    )
 
     aid, asize = next(Fasta(bacfasta).itersizes())
 
@@ -803,17 +832,17 @@ def bes(args):
     msg += "  " + aid
     print(msg, file=sys.stderr)
 
-    ratio = width * 1. / asize
+    ratio = width * 1.0 / asize
     _ = lambda x: int(round(x * ratio, 0))
     blasts = [BlastLine(x) for x in open(blatfile)]
     for b in blasts:
-        if b.orientation == '+':
+        if b.orientation == "+":
             msg = " " * _(b.sstart) + "->"
         else:
             msg = " " * (_(b.sstop) - 2) + "<-"
         msg += " " * (width - len(msg) + 2)
         msg += b.query
-        if b.orientation == '+':
+        if b.orientation == "+":
             msg += " (hang={0})".format(b.sstart - 1)
         else:
             msg += " (hang={0})".format(asize - b.sstop)
@@ -835,7 +864,7 @@ def flip(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     outfastafile = fastafile.rsplit(".", 1)[0] + ".flipped.fasta"
     fo = open(outfastafile, "w")
     f = Fasta(fastafile, lazy=True)
@@ -846,7 +875,7 @@ def flip(args):
         fw.close()
 
         o = overlap([tmpfasta, name])
-        if o.orientation == '-':
+        if o.orientation == "-":
             rec.seq = rec.seq.reverse_complement()
 
         SeqIO.write([rec], fo, "fasta")
@@ -892,15 +921,29 @@ def overlap(args):
     from jcvi.formats.blast import chain_HSPs
 
     p = OptionParser(overlap.__doc__)
-    p.add_option("--dir", default=os.getcwd(),
-            help="Download sequences to dir [default: %default]")
-    p.add_option("--suffix", default="fasta",
-            help="Suffix of the sequence file in dir [default: %default]")
-    p.add_option("--qreverse", default=False, action="store_true",
-            help="Reverse seq a [default: %default]")
-    p.add_option("--nochain", default=False, action="store_true",
-            help="Do not chain adjacent HSPs [default: chain HSPs]")
-    p.set_align(pctid=GoodPct, hitlen=GoodOverlap, evalue=.01)
+    p.add_option(
+        "--dir",
+        default=os.getcwd(),
+        help="Download sequences to dir",
+    )
+    p.add_option(
+        "--suffix",
+        default="fasta",
+        help="Suffix of the sequence file in dir",
+    )
+    p.add_option(
+        "--qreverse",
+        default=False,
+        action="store_true",
+        help="Reverse seq a",
+    )
+    p.add_option(
+        "--nochain",
+        default=False,
+        action="store_true",
+        help="Do not chain adjacent HSPs",
+    )
+    p.set_align(pctid=GoodPct, hitlen=GoodOverlap, evalue=0.01)
     p.set_outfile(outfile=None)
     opts, args = p.parse_args(args)
 
@@ -964,13 +1007,12 @@ def overlap(args):
     return o
 
 
-@memoized
+@lru_cache(maxsize=None)
 def phase(accession):
     gbdir = "gb"
     gbfile = op.join(gbdir, accession + ".gb")
     if not op.exists(gbfile):
-        entrez([accession, "--skipcheck", "--outdir=" + gbdir, \
-               "--format=gb"])
+        entrez([accession, "--skipcheck", "--outdir=" + gbdir, "--format=gb"])
     rec = next(SeqIO.parse(gbfile, "gb"))
     ph, keywords = get_phase(rec)
     return ph, len(rec)
@@ -999,8 +1041,8 @@ def certificate(args):
     Generate certificate file for all overlaps in tpffile. tpffile can be
     generated by jcvi.formats.agp.tpf().
 
-    North  chr1  2  0  AC229737.8  telomere     58443
-    South  chr1  2  1  AC229737.8  AC202463.29  58443  37835  58443  + Non-terminal
+    North chr1 2 0 AC229737.8 telomere 58443
+    South chr1 2 1 AC229737.8 AC202463.29 58443 37835 58443 + Non-terminal
 
     Each line describes a relationship between the current BAC and the
     north/south BAC. First, "North/South" tag, then the chromosome, phases of
@@ -1050,11 +1092,12 @@ def certificate(args):
 
                 ar = [aid, bid, "--dir=" + fastadir]
                 o = overlap(ar)
-                ov = o.certificateline if o \
-                        else "{0}\t{1}\tNone".format(bid, asize)
+                ov = o.certificateline if o else "{0}\t{1}\tNone".format(bid, asize)
 
-            print("\t".join(str(x) for x in \
-                    (tag, a.object, aphase, bphase, aid, ov)), file=fw)
+            print(
+                "\t".join(str(x) for x in (tag, a.object, aphase, bphase, aid, ov)),
+                file=fw,
+            )
             fw.flush()
 
 
@@ -1080,8 +1123,10 @@ def neighbor(args):
     agp = AGP(agpfile)
     aorder = agp.order
     if not componentID in aorder:
-        print("Record {0} not present in `{1}`."\
-                .format(componentID, agpfile), file=sys.stderr)
+        print(
+            "Record {0} not present in `{1}`.".format(componentID, agpfile),
+            file=sys.stderr,
+        )
         return
 
     i, c = aorder[componentID]
@@ -1089,13 +1134,13 @@ def neighbor(args):
 
     if not north.isCloneGap:
         ar = [north.component_id, componentID, "--dir=" + fastadir]
-        if north.orientation == '-':
+        if north.orientation == "-":
             ar += ["--qreverse"]
         overlap(ar)
 
     if not south.isCloneGap:
         ar = [componentID, south.component_id, "--dir=" + fastadir]
-        if c.orientation == '-':
+        if c.orientation == "-":
             ar += ["--qreverse"]
         overlap(ar)
 
@@ -1109,9 +1154,9 @@ def agp(args):
     Tiling Path File (tpf) is a file that lists the component and the gaps.
     It is a three-column file similar to below, also see jcvi.formats.agp.tpf():
 
-    telomere        chr1	na
-    AC229737.8      chr1    +
-    AC202463.29     chr1    +
+    telomere    chr1 na
+    AC229737.8  chr1 +
+    AC202463.29 chr1 +
 
     Note: the orientation of the component is only used as a guide. If the
     orientation is derivable from a terminal overlap, it will use it regardless
@@ -1138,5 +1183,5 @@ def agp(args):
     cert.write_AGP(agpfile, orientationguide=orientationguide)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

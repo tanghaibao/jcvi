@@ -20,11 +20,12 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils.CheckSum import seguid
 
+from rich import print
+
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
 from jcvi.utils.cbook import percentage
 from jcvi.utils.table import write_csv
-from jcvi.apps.console import red, green
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
@@ -208,7 +209,7 @@ class ORFFinder(object):
         return "\t".join(str(x) for x in (strand, frame, start, end))
 
     def codons(self, frame):
-        """ A generator that yields DNA in one codon blocks
+        """A generator that yields DNA in one codon blocks
         "frame" counts for 0. This function yields a tuple (triplet, index) with
         index relative to the original DNA sequence
         """
@@ -1227,7 +1228,7 @@ def summary(args):
 
     Report real bases and N's in fastafiles in a tabular report
     """
-    from jcvi.utils.natsort import natsort_key
+    from natsort import natsort_key
 
     p = OptionParser(summary.__doc__)
     p.add_option(
@@ -1505,21 +1506,21 @@ def _print_first_difference(
 
     if i + 1 == asize and matched:
         if report_match:
-            print(green("Two sequences match"))
+            print("[green]Two sequences match")
         match = True
     else:
-        print(red("Two sequences do not match"))
+        print("[red]Two sequences do not match")
 
         snippet_size = 20  # show the context of the difference
 
-        print(red("Sequence start to differ at position %d:" % (i + 1)))
+        print("[red]Sequence start to differ at position {}:".format(i + 1))
 
         begin = max(i - snippet_size, 0)
         aend = min(i + snippet_size, asize)
         bend = min(i + snippet_size, bsize)
 
-        print(red(aseq[begin:i] + "|" + aseq[i:aend]))
-        print(red(bseq[begin:i] + "|" + bseq[i:bend]))
+        print("[red]{}|{}".format(aseq[begin:i], aseq[i:aend]))
+        print("[red]{}|{}".format(bseq[begin:i], bseq[i:bend]))
         match = False
 
     return match
@@ -1577,18 +1578,14 @@ def diff(args):
 
     if afastan == bfastan:
         print(
-            green(
-                "Two sets contain the same number of sequences ({0}, {1})".format(
-                    afastan, bfastan
-                )
+            "[green]Two sets contain the same number of sequences ({}, {})".format(
+                afastan, bfastan
             )
         )
     else:
         print(
-            red(
-                "Two sets contain different number of sequences ({0}, {1})".format(
-                    afastan, bfastan
-                )
+            "[red]Two sets contain different number of sequences ({}, {})".format(
+                afastan, bfastan
             )
         )
 
@@ -1607,9 +1604,11 @@ def diff(args):
         if not opts.quiet:
             print(banner(str(arec), [str(brec)]))
             if asize == bsize:
-                print(green("Two sequence size match (%d)" % asize))
+                print("[green]Two sequence size match ({})".format(asize))
             else:
-                print(red("Two sequence size do not match (%d, %d)" % (asize, bsize)))
+                print(
+                    "[red]Two sequence size do not match ({}, {}})".format(asize, bsize)
+                )
 
         # print out the first place the two sequences diff
         fd = print_first_difference(
@@ -1669,15 +1668,15 @@ def identical(args):
 
     Example output:
     ---------------------------
-	       tta1.fsa    tta2.fsa
-	t0         2131          na
-	t1         3420          na
-	t2    3836,3847         852
-	t3          148         890
-	t4          584         614
-	t5          623         684
-	t6         1281         470
-	t7         3367          na
+               tta1.fsa    tta2.fsa
+        t0         2131          na
+        t1         3420          na
+        t2    3836,3847         852
+        t3          148         890
+        t4          584         614
+        t5          623         684
+        t6         1281         470
+        t7         3367          na
     """
     from jcvi.utils.cbook import AutoVivification
 

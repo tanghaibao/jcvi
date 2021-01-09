@@ -1,5 +1,6 @@
 biopython
 boto3
+brewer2mpl
 coveralls
 cython
 deap
@@ -9,10 +10,12 @@ gffutils
 goatools
 jinja2
 matplotlib
+natsort
 networkx
 numpy
 graphviz
 PyPDF2
 PyYAML
+rich
 scipy
 seaborn

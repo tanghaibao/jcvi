@@ -24,6 +24,7 @@ from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from itertools import product
+from natsort import natsorted
 
 from jcvi.graphics.base import (
     FancyArrow,
@@ -37,7 +38,6 @@ from jcvi.formats.base import is_number, must_open
 from jcvi.formats.sam import get_minibam_bed, index
 from jcvi.variation.str import TREDsRepo, af_to_counts, read_treds
 from jcvi.utils.cbook import percentage
-from jcvi.utils.natsort import natsorted
 from jcvi.utils.table import tabulate
 from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
@@ -719,9 +719,9 @@ def extract_trios(family):
     Identify all trios/duos inside a family, where a family contains dictionary
     of relationship: individual, for example:
       {
-	"ChildSelf": "176531498",
-	"DzTwin": "176531497",
-	"Parent": "176449143"
+        "ChildSelf": "176531498",
+        "DzTwin": "176531497",
+        "Parent": "176449143"
       }
     """
     self_key = ["ChildSelf"]

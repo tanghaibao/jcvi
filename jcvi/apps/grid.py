@@ -11,14 +11,22 @@ import logging
 from multiprocessing import Pool, Process, Queue, cpu_count
 
 from jcvi.formats.base import write_file, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, popen, backup, \
-            mkdir, sh, listify
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    popen,
+    backup,
+    mkdir,
+    sh,
+    listify,
+)
 
 
 class Parallel(object):
     """
     Run a number of commands in parallel.
     """
+
     def __init__(self, cmds, cpus=cpu_count()):
         self.cmds = cmds
         self.cpus = min(len(cmds), cpus)
@@ -28,10 +36,11 @@ class Parallel(object):
         p.map(sh, self.cmds)
 
 
-class Dependency (object):
+class Dependency(object):
     """
     Used by MakeManager.
     """
+
     def __init__(self, source, target, cmds, id, remove=False):
         self.id = id
         self.source = listify(source)
@@ -60,10 +69,11 @@ class Dependency (object):
         return s
 
 
-class MakeManager (list):
+class MakeManager(list):
     """
     Write and execute makefile.
     """
+
     def __init__(self, filename="makefile"):
         self.makefile = filename
         self.targets = set()
@@ -99,10 +109,11 @@ class MakeManager (list):
         sh(cmd)
 
 
-class Jobs (list):
+class Jobs(list):
     """
     Runs multiple funcion calls on the SAME computer, using multiprocessing.
     """
+
     def __init__(self, target, args):
 
         for x in args:
@@ -126,12 +137,13 @@ class Poison:
     pass
 
 
-class WriteJobs (object):
+class WriteJobs(object):
     """
     Runs multiple function calls, but write to the same file.
 
     Producer-consumer model.
     """
+
     def __init__(self, target, args, filename, cpus=cpu_count()):
         workerq = Queue()
         writerq = Queue()
@@ -144,8 +156,7 @@ class WriteJobs (object):
             workerq.put(Poison())
 
         self.worker = Jobs(work, args=[(workerq, writerq, target)] * cpus)
-        self.writer = Process(target=write, args=(workerq, writerq, \
-                                                  filename, cpus))
+        self.writer = Process(target=write, args=(workerq, writerq, filename, cpus))
 
     def run(self):
         self.worker.start()
@@ -165,49 +176,68 @@ def work(queue_in, queue_out, target):
 
 
 def write(queue_in, queue_out, filename, cpus):
-    from jcvi.utils.progressbar import ProgressBar, Percentage, Bar, ETA
+    from rich.progress import Progress
 
     fw = must_open(filename, "w")
     isize = queue_in.qsize()
     logging.debug("A total of {0} items to compute.".format(isize))
     isize = isize or 1
-    widgets = ['Queue: ', Percentage(), ' ',
-               Bar(marker='>', left='[', right=']'), ' ', ETA()]
-    p = ProgressBar(maxval=isize, term_width=60, widgets=widgets).start()
     poisons = 0
-    while True:
-        res = queue_out.get()
-        qsize = queue_in.qsize()
-        p.update(isize - qsize)
-        if isinstance(res, Poison):
-            poisons += 1
-            if poisons == cpus:  # wait all workers finish
-                break
-        elif res:
-            print(res, file=fw)
-            fw.flush()
+    with Progress() as progress:
+        task = progress.add_task("[green]Processing ...", total=isize)
+        while True:
+            res = queue_out.get()
+            qsize = queue_in.qsize()
+            progress.update(task, advance=qsize)
+            if isinstance(res, Poison):
+                poisons += 1
+                if poisons == cpus:  # wait all workers finish
+                    break
+            elif res:
+                print(res, file=fw)
+                fw.flush()
     fw.close()
 
 
-class GridOpts (dict):
-
+class GridOpts(dict):
     def __init__(self, opts):
-        export = ("pcode", "queue", "threaded", "concurrency",
-                  "outdir", "name", "hold_jid")
+        export = (
+            "pcode",
+            "queue",
+            "threaded",
+            "concurrency",
+            "outdir",
+            "name",
+            "hold_jid",
+        )
         for e in export:
             if e in opts.__dict__:
                 self[e] = getattr(opts, e)
 
 
-class GridProcess (object):
+class GridProcess(object):
 
     pat1 = re.compile(r"Your job (?P<id>[0-9]*) ")
     pat2 = re.compile(r"Your job-array (?P<id>\S*) ")
 
-    def __init__(self, cmd, jobid="", pcode="99999", queue="default", threaded=None,
-                       infile=None, outfile=None, errfile=None, arr=None,
-                       concurrency=None, outdir=".", name=None, hold_jid=None,
-                       extra_opts=None, grid_opts=None):
+    def __init__(
+        self,
+        cmd,
+        jobid="",
+        pcode="99999",
+        queue="default",
+        threaded=None,
+        infile=None,
+        outfile=None,
+        errfile=None,
+        arr=None,
+        concurrency=None,
+        outdir=".",
+        name=None,
+        hold_jid=None,
+        extra_opts=None,
+        grid_opts=None,
+    ):
 
         self.cmd = cmd
         self.jobid = jobid
@@ -228,13 +258,12 @@ class GridProcess (object):
             self.__dict__.update(GridOpts(grid_opts))
 
     def __str__(self):
-        return "\t".join((x for x in \
-                (self.jobid, self.cmd, self.outfile) if x))
+        return "\t".join((x for x in (self.jobid, self.cmd, self.outfile) if x))
 
     def build(self):
         # Shell commands
         if "|" in self.cmd or "&&" in self.cmd or "||" in self.cmd:
-            quote = "\"" if "'" in self.cmd else "'"
+            quote = '"' if "'" in self.cmd else "'"
             self.cmd = "sh -c {1}{0}{1}".format(self.cmd, quote)
 
         # qsub command (the project code is specific to jcvi)
@@ -302,8 +331,7 @@ class GridProcess (object):
         logging.debug(msg)
 
 
-class Grid (list):
-
+class Grid(list):
     def __init__(self, cmds, outfiles=[]):
 
         assert cmds, "Commands empty!"
@@ -331,10 +359,13 @@ arraysh = """
 CMD=`awk "NR==$SGE_TASK_ID" {0}`
 $CMD"""
 
-arraysh_ua = PBS_STANZA + """
+arraysh_ua = (
+    PBS_STANZA
+    + """
 cd $PBS_O_WORKDIR
 CMD=`awk "NR==$PBS_ARRAY_INDEX" {2}`
 $CMD"""
+)
 
 
 def get_grid_engine():
@@ -346,10 +377,10 @@ def get_grid_engine():
 def main():
 
     actions = (
-        ('run', 'run a normal command on grid'),
-        ('array', 'run an array job'),
-        ('kill', 'wrapper around the `qdel` command'),
-            )
+        ("run", "run a normal command on grid"),
+        ("array", "run an array job"),
+        ("kill", "wrapper around the `qdel` command"),
+    )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -369,20 +400,22 @@ def array(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    cmds, = args
+    (cmds,) = args
     fp = open(cmds)
     N = sum(1 for x in fp)
     fp.close()
 
-    pf = cmds.rsplit(".",  1)[0]
+    pf = cmds.rsplit(".", 1)[0]
     runfile = pf + ".sh"
-    assert runfile != cmds, \
-            "Commands list file should not have a `.sh` extension"
+    assert runfile != cmds, "Commands list file should not have a `.sh` extension"
 
     engine = get_grid_engine()
     threaded = opts.threaded or 1
-    contents = arraysh.format(cmds) if engine == "SGE" \
-                else arraysh_ua.format(N, threaded, cmds)
+    contents = (
+        arraysh.format(cmds)
+        if engine == "SGE"
+        else arraysh_ua.format(N, threaded, cmds)
+    )
     write_file(runfile, contents)
 
     if engine == "PBS":
@@ -390,8 +423,14 @@ def array(args):
 
     outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
     errfile = "{0}.{1}.err".format(pf, "\$TASK_ID")
-    p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=errfile,
-                    arr=N, extra_opts=opts.extra, grid_opts=opts)
+    p = GridProcess(
+        "sh {0}".format(runfile),
+        outfile=outfile,
+        errfile=errfile,
+        arr=N,
+        extra_opts=opts.extra,
+        grid_opts=opts,
+    )
     p.start()
 
 
@@ -433,7 +472,7 @@ def run(args):
     sep = ":::"
     if sep in args:
         sepidx = args.index(sep)
-        filenames = args[sepidx + 1:]
+        filenames = args[sepidx + 1 :]
         args = args[:sepidx]
         if not filenames:
             filenames = [""]
@@ -506,15 +545,18 @@ def kill(args):
 
     valid_methods = ("pattern", "jobid")
     p = OptionParser(kill.__doc__)
-    p.add_option("--method", choices=valid_methods,
-                 help="Identify jobs based on [default: guess]")
+    p.add_option(
+        "--method",
+        choices=valid_methods,
+        help="Identify jobs based on [default: guess]",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     username = getusername()
-    tag, = args
+    (tag,) = args
     tag = tag.strip()
 
     if tag == "all":
@@ -527,8 +569,7 @@ def kill(args):
         jobids = tag.split(",")
         valid_jobids |= set(jobids)
     elif method == "pattern":
-        qsxmlcmd = 'qstat -u "{0}" -j "{1}" -nenv -njd -xml'.\
-                                format(username, tag)
+        qsxmlcmd = 'qstat -u "{}" -j "{}" -nenv -njd -xml'.format(username, tag)
         try:
             qsxml = check_output(shlex.split(qsxmlcmd)).strip()
         except CalledProcessError as e:
@@ -545,5 +586,5 @@ def kill(args):
         sh("qdel {0}".format(",".join(valid_jobids)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

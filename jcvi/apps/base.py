@@ -28,8 +28,10 @@ from socket import gethostname
 from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
+from natsort import natsorted
+from rich.logging import RichHandler
+
 from jcvi import __copyright__, __version__
-from jcvi.utils.natsort import natsorted
 
 # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
 nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
@@ -276,7 +278,9 @@ class OptionParser(OptionP):
         Add --email option to specify an email address
         """
         self.add_option(
-            "--email", default=get_email_address(), help="Specify an email address",
+            "--email",
+            default=get_email_address(),
+            help="Specify an email address",
         )
 
     def set_tmpdir(self, tmpdir=None):
@@ -590,8 +594,7 @@ class OptionParser(OptionP):
         return opts, args, ImageOptions(opts)
 
     def set_dotplot_opts(self, theme=2):
-        """Used in compara.catalog and graphics.dotplot
-        """
+        """Used in compara.catalog and graphics.dotplot"""
         from jcvi.graphics.base import set1
 
         group = OptionGroup(self, "Dot plot parameters")
@@ -965,33 +968,36 @@ class OptionParser(OptionP):
 
     def set_home(self, prog, default=None):
         tag = "--{0}_home".format(prog)
-        default = default or {
-            "amos": "~/code/amos-code",
-            "trinity": "~/export/trinityrnaseq-2.0.6",
-            "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
-            "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
-            "maker": "~/export/maker",
-            "augustus": "~/export/maker/exe/augustus",
-            "pasa": "~/export/PASApipeline-2.0.2",
-            "gatk": "~/export",
-            "gmes": "~/export/gmes",
-            "gt": "~/export/genometools",
-            "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
-            "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
-            "pbjelly": "~/export/PBSuite_15.2.20",
-            "picard": "~/export/picard-tools-1.138",
-            "khmer": "~/export/khmer",
-            "tassel": "/usr/local/projects/MTG4/packages/tassel",
-            "tgi": "~/export/seqclean-x86_64",
-            "eddyyeh": "/home/shared/scripts/eddyyeh",
-            "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
-            "fermi": "~/export/fermi",
-            "lobstr": "/mnt/software/lobSTR",
-            "shapeit": "/mnt/software/shapeit",
-            "impute": "/mnt/software/impute",
-            "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
-            "minimac": "/mnt/software/Minimac3/bin",
-        }.get(prog, None)
+        default = (
+            default
+            or {
+                "amos": "~/code/amos-code",
+                "trinity": "~/export/trinityrnaseq-2.0.6",
+                "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
+                "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
+                "maker": "~/export/maker",
+                "augustus": "~/export/maker/exe/augustus",
+                "pasa": "~/export/PASApipeline-2.0.2",
+                "gatk": "~/export",
+                "gmes": "~/export/gmes",
+                "gt": "~/export/genometools",
+                "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
+                "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
+                "pbjelly": "~/export/PBSuite_15.2.20",
+                "picard": "~/export/picard-tools-1.138",
+                "khmer": "~/export/khmer",
+                "tassel": "/usr/local/projects/MTG4/packages/tassel",
+                "tgi": "~/export/seqclean-x86_64",
+                "eddyyeh": "/home/shared/scripts/eddyyeh",
+                "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
+                "fermi": "~/export/fermi",
+                "lobstr": "/mnt/software/lobSTR",
+                "shapeit": "/mnt/software/shapeit",
+                "impute": "/mnt/software/impute",
+                "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
+                "minimac": "/mnt/software/Minimac3/bin",
+            }.get(prog, None)
+        )
         if default is None:  # Last attempt at guessing the path
             try:
                 default = op.dirname(which(prog))
@@ -1351,7 +1357,7 @@ def get_today():
 
 
 def ls_ftp(dir):
-    """ List the contents of a remote FTP server path.
+    """List the contents of a remote FTP server path.
 
     Args:
         dir (URL): URL of a remote FTP server path.
@@ -1371,7 +1377,7 @@ def ls_ftp(dir):
 def download(
     url, filename=None, debug=True, cookies=None, handle_gzip=False, downloader=None
 ):
-    """ Download URL to local
+    """Download URL to local
 
     Args:
         url (str): Link to the file on the internet.
@@ -1442,7 +1448,7 @@ def download(
 
 
 def remove_if_exists(filename):
-    """ Check if a file exists and if so remove it
+    """Check if a file exists and if so remove it
 
     Args:
         filename (str): Path to the local file.
@@ -1481,11 +1487,12 @@ def debug(level=logging.DEBUG):
     """
     Turn on the debugging
     """
-    from jcvi.apps.console import magenta, yellow
-
-    format = yellow("%(asctime)s [%(module)s]")
-    format += magenta(" %(message)s")
-    logging.basicConfig(level=level, format=format, datefmt="%H:%M:%S")
+    logging.basicConfig(
+        level=level,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler()],
+    )
 
 
 debug()
@@ -1573,7 +1580,7 @@ def timestamp(args):
     %prog timestamp path > timestamp.info
 
     Record the timestamps for all files in the current folder.
-    filename	atime	mtime
+    filename atime mtime
 
     This file can be used later to recover previous timestamps through touch().
     """
@@ -2198,8 +2205,7 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
 
 
 def inspect(object):
-    """ A better dir() showing attributes and values
-    """
+    """A better dir() showing attributes and values"""
     for k in dir(object):
         try:
             details = getattr(object, k)
@@ -2215,7 +2221,7 @@ def inspect(object):
 
 
 def sample_N(a, N, seed=None):
-    """ When size of N is > size of a, random.sample() will emit an error:
+    """When size of N is > size of a, random.sample() will emit an error:
     ValueError: sample larger than population
 
     This method handles such restrictions by repeatedly sampling when that

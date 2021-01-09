@@ -14,16 +14,23 @@ import os.path as op
 import sys
 import logging
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, write_file
 from jcvi.apps.grid import GridProcess, get_grid_engine, PBS_STANZA
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
-            sh, mkdir, glob, get_abs_path
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    need_update,
+    popen,
+    sh,
+    mkdir,
+    glob,
+    get_abs_path,
+)
 
 
-class CTLine (object):
-
+class CTLine(object):
     def __init__(self, row):
         row = row.strip()
         tag = value = real = comment = ""
@@ -51,8 +58,7 @@ class CTLine (object):
         return s
 
 
-class CTLFile (LineFile):
-
+class CTLFile(LineFile):
     def __init__(self, filename):
         super(CTLFile, self).__init__(filename)
         fp = open(filename)
@@ -83,8 +89,7 @@ class CTLFile (LineFile):
         logging.debug("File written to `{0}`".format(filename))
 
 
-class DatastoreIndexFile (BaseFile):
-
+class DatastoreIndexFile(BaseFile):
     def __init__(self, filename):
         super(DatastoreIndexFile, self).__init__(filename)
         scaffold_status = {}
@@ -105,14 +110,14 @@ class DatastoreIndexFile (BaseFile):
 def main():
 
     actions = (
-        ('parallel', 'partition the genome into parts and run separately'),
-        ('merge', 'generate the gff files after parallel'),
-        ('validate', 'validate after MAKER run to check for failures'),
-        ('datastore', 'generate a list of gff filenames to merge'),
-        ('split', 'split MAKER models by checking against evidences'),
-        ('batcheval', 'calls bed.evaluate() in batch'),
-        ('longest', 'pick the longest model per group'),
-            )
+        ("parallel", "partition the genome into parts and run separately"),
+        ("merge", "generate the gff files after parallel"),
+        ("validate", "validate after MAKER run to check for failures"),
+        ("datastore", "generate a list of gff filenames to merge"),
+        ("split", "split MAKER models by checking against evidences"),
+        ("batcheval", "calls bed.evaluate() in batch"),
+        ("longest", "pick the longest model per group"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -122,12 +127,15 @@ DIR=`awk "NR==$SGE_TASK_ID" {0}`
 cd $DIR
 {1} --ignore_nfs_tmp"""
 
-arraysh_ua = PBS_STANZA + """
+arraysh_ua = (
+    PBS_STANZA
+    + """
 cd $PBS_O_WORKDIR
 DIR=`awk "NR==$PBS_ARRAY_INDEX" {2}`
 cd $DIR
 {3} --ignore_nfs_tmp > ../maker.$PBS_ARRAY_INDEX.out 2>&1
 """
+)
 
 
 def parallel(args):
@@ -193,8 +201,11 @@ def parallel(args):
         cmd += " -TMP {0}".format(tmpdir)
 
     engine = get_grid_engine()
-    contents = arraysh.format(jobs, cmd) if engine == "SGE" \
-                else arraysh_ua.format(N, threaded, jobs, cmd)
+    contents = (
+        arraysh.format(jobs, cmd)
+        if engine == "SGE"
+        else arraysh_ua.format(N, threaded, jobs, cmd)
+    )
     write_file(runfile, contents)
 
     if engine == "PBS":
@@ -202,8 +213,9 @@ def parallel(args):
 
     # qsub script
     outfile = "maker.\$TASK_ID.out"
-    p = GridProcess(runfile, outfile=outfile, errfile=outfile,
-                    arr=ncmds, grid_opts=opts)
+    p = GridProcess(
+        runfile, outfile=outfile, errfile=outfile, arr=ncmds, grid_opts=opts
+    )
     qsubfile = "qsub.sh"
     qsub = p.build()
     write_file(qsubfile, qsub)
@@ -215,6 +227,7 @@ cd $1{0}/$1.maker.output
 {1} -n -d $1_master_datastore_index.log
 mv $1.all.gff ../../
 """
+
 
 def get_fsnames(outdir):
     fnames = glob(op.join(outdir, "*.fa*"))
@@ -275,8 +288,6 @@ def validate(args):
     Validate current folder after MAKER run and check for failures. Failed batch
     will be written to a directory for additional work.
     """
-    from jcvi.utils.counter import Counter
-
     p = OptionParser(validate.__doc__)
     opts, args = p.parse_args(args)
 
@@ -322,8 +333,7 @@ def validate(args):
     cmd = "cut -f2 {0}".format(failed)
     sh(cmd, outfile=failed_ids)
     if need_update((genome, failed_ids), failed_fasta):
-        cmd = "faSomeRecords {0} {1} {2}".\
-                    format(genome, failed_ids, failed_fasta)
+        cmd = "faSomeRecords {} {} {}".format(genome, failed_ids, failed_fasta)
         sh(cmd)
 
 
@@ -342,9 +352,12 @@ def batcheval(args):
     from jcvi.formats.gff import make_index
 
     p = OptionParser(evaluate.__doc__)
-    p.add_option("--type", default="CDS",
-            help="list of features to extract, use comma to separate (e.g."
-            "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
+    p.add_option(
+        "--type",
+        default="CDS",
+        help="list of features to extract, use comma to separate (e.g."
+        "'five_prime_UTR,CDS,three_prime_UTR')",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -438,14 +451,22 @@ def split(args):
     from jcvi.formats.bed import Bed
 
     p = OptionParser(split.__doc__)
-    p.add_option("--key", default="Name",
-            help="Key in the attributes to extract predictor.gff [default: %default]")
-    p.add_option("--parents", default="match",
-            help="list of features to extract, use comma to separate (e.g."
-            "'gene,mRNA') [default: %default]")
-    p.add_option("--children", default="match_part",
-            help="list of features to extract, use comma to separate (e.g."
-            "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
+    p.add_option(
+        "--key",
+        default="Name",
+        help="Key in the attributes to extract predictor.gff",
+    )
+    p.add_option(
+        "--parents",
+        default="match",
+        help="list of features to extract, use comma to separate (e.g.'gene,mRNA')",
+    )
+    p.add_option(
+        "--children",
+        default="match_part",
+        help="list of features to extract, use comma to separate (e.g."
+        "'five_prime_UTR,CDS,three_prime_UTR')",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 5:
@@ -496,7 +517,7 @@ def datastore(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    ds, = args
+    (ds,) = args
     fp = open(ds)
     for row in fp:
         fn = row.strip()
@@ -513,5 +534,5 @@ def datastore(args):
             print(gff_file)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

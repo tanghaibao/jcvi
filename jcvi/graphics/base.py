@@ -20,6 +20,7 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+from brewer2mpl import get_map
 from matplotlib import cm, rc, rcParams
 from matplotlib.patches import (
     Rectangle,
@@ -33,9 +34,7 @@ from matplotlib.patches import (
 )
 from matplotlib.path import Path
 
-from jcvi.utils.brewer2mpl import get_map
 from jcvi.formats.base import LineFile
-from jcvi.apps.console import dark, green
 from jcvi.apps.base import glob, listify, datadir, sample_N, which
 
 logging.getLogger().setLevel(logging.DEBUG)
@@ -424,7 +423,7 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     ay = np.array(y)
 
     if title:
-        print(dark(title), file=sys.stderr)
+        print("[bold white]".format(title), file=sys.stderr)
 
     az = ay * width // ay.max()
     tx = [asciiaxis(x, digit=digit) for x in ax]
@@ -433,8 +432,8 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     for x, y, z in zip(tx, ay, az):
         x = x.rjust(rjust)
         y = y or ""
-        z = green(char * z)
-        print("{0} |{1} {2}".format(x, z, y), file=sys.stderr)
+        z = "[green]{}".format(char * z)
+        print("{} | {} {}".format(x, z, y), file=sys.stderr)
 
 
 def print_colors(palette, outfile="Palette.png"):

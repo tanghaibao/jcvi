@@ -13,12 +13,13 @@ import numpy as np
 from collections import defaultdict, OrderedDict
 from itertools import groupby
 
+from natsort import natsorted, natsort_key
+
 from jcvi.formats.base import DictFile, LineFile, must_open, is_number, get_number
 from jcvi.formats.sizes import Sizes
 from jcvi.utils.iter import pairwise
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.natsort import natsort_key, natsorted
 from jcvi.utils.range import (
     Range,
     range_union,

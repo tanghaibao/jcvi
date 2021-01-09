@@ -14,15 +14,23 @@ import random
 import logging
 import multiprocessing
 
+from rich import print
 from deap import base, creator, tools
 from deap.algorithms import varAnd
 from jcvi.algorithms.lis import longest_monotonic_subseq_length
 
 
+# This has to be in global space, otherwise runs into error "creator.Individual
+# not found" when runnning on macOS. See also:
+# https://github.com/DEAP/deap/issues/268
+creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+creator.create("Individual", array.array, typecode="i", fitness=creator.FitnessMax)
+
+
 def make_data(POINTS, SCF):
     seq = range(POINTS)
     scaffolds = []
-    batch = POINTS / SCF
+    batch = POINTS // SCF
     for i in range(SCF):
         p = seq[i * batch : (i + 1) * batch]
         scaffolds.append(p)
@@ -81,10 +89,7 @@ def genome_mutation_orientation(candidate):
     return (candidate,)
 
 
-def GA_setup(guess, weights=(1.0,)):
-    creator.create("FitnessMax", base.Fitness, weights=weights)
-    creator.create("Individual", array.array, typecode="i", fitness=creator.FitnessMax)
-
+def GA_setup(guess):
     toolbox = base.Toolbox()
 
     toolbox.register("individual", creator.Individual, guess)
@@ -172,9 +177,7 @@ def eaSimpleConverge(
 
 
 def GA_run(toolbox, ngen=500, npop=100, seed=666, cpus=1, callback=None):
-    logging.debug(
-        "GA setup: ngen={0} npop={1} cpus={2} seed={3}".format(ngen, npop, cpus, seed)
-    )
+    logging.debug("GA setup: ngen=%d npop=%d cpus=%d seed=%d", ngen, npop, cpus, seed)
     if cpus > 1:
         pool = multiprocessing.Pool(cpus)
         toolbox.register("map", pool.map)
@@ -200,7 +203,7 @@ if __name__ == "__main__":
     scaffolds = make_data(POINTS, SCF)
 
     # Demo case: scramble of the list
-    guess = range(SCF)
+    guess = list(range(SCF))
     guess[5:15] = guess[5:15][::-1]
     guess[7:18] = guess[7:18][::-1]
     print(guess)

@@ -12,6 +12,8 @@ from six.moves.urllib.error import HTTPError, URLError
 import re
 from os.path import join as urljoin
 
+from rich import print
+
 from Bio import Entrez, SeqIO
 
 from jcvi.formats.base import FileShredder, must_open
@@ -19,7 +21,6 @@ from jcvi.formats.fasta import print_first_difference
 from jcvi.formats.fastq import fromsra
 from jcvi.utils.cbook import tile
 from jcvi.utils.iter import grouper
-from jcvi.apps.console import green
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
@@ -232,7 +233,10 @@ def phytozome(args):
         help="Phytozome version",
     )
     p.add_option(
-        "--assembly", default=False, action="store_true", help="Download assembly",
+        "--assembly",
+        default=False,
+        action="store_true",
+        help="Download assembly",
     )
     p.add_option(
         "--format",
@@ -261,7 +265,10 @@ def phytozome(args):
     # Proceed to use the cookies and download the species list
     try:
         d = download(
-            dlist, filename=directory_listing, cookies=cookies, downloader=downloader,
+            dlist,
+            filename=directory_listing,
+            cookies=cookies,
+            downloader=downloader,
         )
         g = GlobusXMLParser(directory_listing)
     except:
@@ -354,7 +361,10 @@ def phytozome9(args):
     """
     p = OptionParser(phytozome9.__doc__)
     p.add_option(
-        "--assembly", default=False, action="store_true", help="Download assembly",
+        "--assembly",
+        default=False,
+        action="store_true",
+        help="Download assembly",
     )
     p.add_option(
         "--format",
@@ -508,7 +518,7 @@ def bisect(args):
 
     if valid:
         print()
-        print(green("%s matches the sequence in `%s`" % (valid, fastafile)))
+        print("[green]{} matches the sequence in `{}`".format(valid, fastafile))
 
 
 def entrez(args):
@@ -542,7 +552,10 @@ def entrez(args):
         help="Remove trailing accession versions",
     )
     p.add_option(
-        "--format", default="fasta", choices=valid_formats, help="download format",
+        "--format",
+        default="fasta",
+        choices=valid_formats,
+        help="download format",
     )
     p.add_option(
         "--database",
@@ -551,7 +564,10 @@ def entrez(args):
         help="search database",
     )
     p.add_option(
-        "--retmax", default=1000000, type="int", help="how many results to return",
+        "--retmax",
+        default=1000000,
+        type="int",
+        help="how many results to return",
     )
     p.add_option(
         "--skipcheck",

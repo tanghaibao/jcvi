@@ -19,11 +19,13 @@ from multiprocessing import Pool
 
 import numpy as np
 
+from natsort import natsorted
+from rich import print
+
 from jcvi.algorithms.ec import GA_run, GA_setup
 from jcvi.algorithms.formula import outlier_cutoff
 from jcvi.algorithms.matrix import get_signs
 from jcvi.apps.base import ActionDispatcher, OptionParser, backup, iglob, mkdir, symlink
-from jcvi.apps.console import green, red
 from jcvi.apps.grid import Jobs
 from jcvi.assembly.allmaps import make_movie
 from jcvi.compara.synteny import check_beds, get_bed_filenames
@@ -42,7 +44,6 @@ from jcvi.graphics.base import (
 )
 from jcvi.graphics.dotplot import dotplot
 from jcvi.utils.cbook import gene_name, human_size
-from jcvi.utils.natsort import natsorted
 
 # Map orientations to ints
 FF = {"+": 1, "-": -1, "?": 1}
@@ -50,14 +51,13 @@ RR = {"+": -1, "-": 1, "?": -1}
 LB = 18  # Lower bound for golden_array()
 UB = 29  # Upper bound for golden_array()
 BB = UB - LB + 1  # Span for golden_array()
-ACCEPT = green("ACCEPT")
-REJECT = red("REJECT")
+ACCEPT = "[green]ACCEPT"
+REJECT = "[red]REJECT"
 BINSIZE = 50000
 
 
 class ContigOrderingLine(object):
-    """Stores one line in the ContigOrdering file
-    """
+    """Stores one line in the ContigOrdering file"""
 
     def __init__(self, line, sep="|"):
         args = line.split()
@@ -88,8 +88,7 @@ class ContigOrdering(LineFile):
     def write_agp(
         self, obj, sizes, fw=sys.stdout, gapsize=100, gaptype="contig", evidence="map"
     ):
-        """Converts the ContigOrdering file into AGP format
-        """
+        """Converts the ContigOrdering file into AGP format"""
         contigorder = [(x.contig_name, x.strand) for x in self]
         order_to_agp(
             obj,
@@ -279,14 +278,13 @@ class CLMFile:
         return tour
 
     def evaluate_tour_M(self, tour):
-        """ Use Cythonized version to evaluate the score of a current tour
-        """
+        """Use Cythonized version to evaluate the score of a current tour"""
         from .chic import score_evaluate_M
 
         return score_evaluate_M(tour, self.active_sizes, self.M)
 
     def evaluate_tour_P(self, tour):
-        """ Use Cythonized version to evaluate the score of a current tour,
+        """Use Cythonized version to evaluate the score of a current tour,
         with better precision on the distance of the contigs.
         """
         from .chic import score_evaluate_P
@@ -294,7 +292,7 @@ class CLMFile:
         return score_evaluate_P(tour, self.active_sizes, self.P)
 
     def evaluate_tour_Q(self, tour):
-        """ Use Cythonized version to evaluate the score of a current tour,
+        """Use Cythonized version to evaluate the score of a current tour,
         taking orientation into consideration. This may be the most accurate
         evaluation under the right condition.
         """
@@ -306,8 +304,7 @@ class CLMFile:
         logging.debug("{}: {} => {} {}".format(method, score, score_flipped, tag))
 
     def flip_all(self, tour):
-        """ Initialize the orientations based on pairwise O matrix.
-        """
+        """Initialize the orientations based on pairwise O matrix."""
         if self.signs is None:  # First run
             score = 0
         else:
@@ -326,8 +323,7 @@ class CLMFile:
         return tag
 
     def flip_whole(self, tour):
-        """ Test flipping all contigs at the same time to see if score improves.
-        """
+        """Test flipping all contigs at the same time to see if score improves."""
         (score,) = self.evaluate_tour_Q(tour)
         self.signs = -self.signs
         (score_flipped,) = self.evaluate_tour_Q(tour)
@@ -340,7 +336,7 @@ class CLMFile:
         return tag
 
     def flip_one(self, tour):
-        """ Test flipping every single contig sequentially to see if score
+        """Test flipping every single contig sequentially to see if score
         improves.
         """
         n_accepts = n_rejects = 0
@@ -370,7 +366,7 @@ class CLMFile:
         return ACCEPT if any_tag_ACCEPT else REJECT
 
     def prune_tour(self, tour, cpus):
-        """ Test deleting each contig and check the delta_score; tour here must
+        """Test deleting each contig and check the delta_score; tour here must
         be an array of ints.
         """
         while True:
@@ -513,15 +509,14 @@ class CLMFile:
 
 
 def hmean_int(a, a_min=5778, a_max=1149851):
-    """ Harmonic mean of an array, returns the closest int
-    """
+    """Harmonic mean of an array, returns the closest int"""
     from scipy.stats import hmean
 
     return int(round(hmean(np.clip(a, a_min, a_max))))
 
 
 def golden_array(a, phi=1.61803398875, lb=LB, ub=UB):
-    """ Given list of ints, we aggregate similar values so that it becomes an
+    """Given list of ints, we aggregate similar values so that it becomes an
     array of multiples of phi, where phi is the golden ratio.
 
     phi ^ 14 = 843
@@ -544,8 +539,7 @@ def golden_array(a, phi=1.61803398875, lb=LB, ub=UB):
 
 
 def prune_tour_worker(arg):
-    """ Worker thread for CLMFile.prune_tour()
-    """
+    """Worker thread for CLMFile.prune_tour()"""
     from .chic import score_evaluate_M
 
     t, stour, tour_score, active_sizes, M = arg
@@ -580,7 +574,7 @@ def main():
 
 
 def fit_power_law(xs, ys):
-    """ Fit power law distribution.
+    """Fit power law distribution.
 
     See reference:
     http://mathworld.wolfram.com/LeastSquaresFittingPowerLaw.html
@@ -672,7 +666,7 @@ def dist(args):
 
 
 def generate_groups(groupsfile):
-    """ Parse 'groups' file. The 'groups' file has the following format,
+    """Parse 'groups' file. The 'groups' file has the following format,
     for example:
 
     seq1,seq2 b
@@ -843,7 +837,7 @@ def mergemat(args):
 
 
 def get_seqstarts(bamfile, N, seqids=None):
-    """ Go through the SQ headers and pull out all sequences with size
+    """Go through the SQ headers and pull out all sequences with size
     greater than the resolution settings, i.e. contains at least a few cells
     """
     import pysam
@@ -868,8 +862,7 @@ def get_seqstarts(bamfile, N, seqids=None):
 
 
 def get_distbins(start=100, bins=2000, ratio=1.01):
-    """ Get exponentially sized bins for link length
-    """
+    """Get exponentially sized bins for link length"""
     b = np.ones(bins, dtype="float64")
     b[0] = 100
     for i in range(1, bins):
@@ -1599,7 +1592,7 @@ def prepare_ec(oo, sizes, M):
 
 
 def score_evaluate(tour, tour_sizes=None, tour_M=None):
-    """ SLOW python version of the evaluation function. For benchmarking
+    """SLOW python version of the evaluation function. For benchmarking
     purposes only. Do not use in production.
     """
     sizes_oo = np.array([tour_sizes[x] for x in tour])
@@ -1693,7 +1686,7 @@ def read_clm(clm, totalbins, bins):
 
 
 def plot_heatmap(ax, M, breaks, iopts, groups=[], plot_breaks=False, binsize=BINSIZE):
-    """ Plot heatmap illustrating the contact probabilities in Hi-C data.
+    """Plot heatmap illustrating the contact probabilities in Hi-C data.
 
     Args:
         ax (pyplot.axes): Matplotlib axis

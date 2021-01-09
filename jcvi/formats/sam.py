@@ -180,7 +180,7 @@ def get_minibam(bamfile, region, overwrite=True):
 
 
 def get_minibam_bed(bamfile, bedfile, minibam=None):
-    """ samtools view -L could do the work, but it is NOT random access. Here we
+    """samtools view -L could do the work, but it is NOT random access. Here we
     are processing multiple regions sequentially. See also:
 
     https://www.biostars.org/p/49306/
@@ -294,7 +294,7 @@ def noclip(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bamfile, = args
+    (bamfile,) = args
     noclipbam = bamfile.replace(".bam", ".noclip.bam")
     cmd = "samtools view -h {} | awk -F '\t' '($6 !~ /H|S/)'".format(bamfile)
     cmd += " | samtools view -@ 4 -b -o {}".format(noclipbam)
@@ -317,7 +317,7 @@ def append(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    bamfile, = args
+    (bamfile,) = args
     prepend = opts.prepend
 
     icmd = "samtools view -h {0}".format(bamfile)
@@ -549,7 +549,7 @@ def pairs(args):
     if len(targs) != 1:
         sys.exit(not p.print_help())
 
-    samfile, = targs
+    (samfile,) = targs
     bedfile = samfile.rsplit(".", 1)[0] + ".bed"
     if need_update(samfile, bedfile):
         cmd = "bamToBed -i {0}".format(samfile)
@@ -668,7 +668,7 @@ def chimera(args):
     Parse BAM file from `bwasw` and list multi-hit reads and breakpoints.
     """
     import pysam
-    from jcvi.utils.natsort import natsorted
+    from natsort import natsorted
 
     p = OptionParser(chimera.__doc__)
     p.set_verbose()
@@ -676,7 +676,7 @@ def chimera(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    samfile, = args
+    (samfile,) = args
     samfile = pysam.AlignmentFile(samfile)
     rstore = defaultdict(list)
     hstore = defaultdict(int)
@@ -720,7 +720,7 @@ def index(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    samfile, = args
+    (samfile,) = args
     cpus = opts.cpus
     fastafile = opts.fasta
     if fastafile:
@@ -778,7 +778,7 @@ def mapped(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    samfile, = args
+    (samfile,) = args
 
     view_opts = []
     oext, mopts = (".sam", ["-S"]) if samfile.endswith(".sam") else (".bam", [])

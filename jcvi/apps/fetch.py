@@ -518,7 +518,7 @@ def bisect(args):
 
     if valid:
         print()
-        print("[green]{} matches the sequence in `{}`".format(valid, fastafile)))
+        print("[green]{} matches the sequence in `{}`".format(valid, fastafile))
 
 
 def entrez(args):

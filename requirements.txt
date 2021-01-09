@@ -9,6 +9,7 @@ gffutils
 goatools
 jinja2
 matplotlib
+natsort
 networkx
 numpy
 graphviz

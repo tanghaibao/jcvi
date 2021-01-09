@@ -28,10 +28,10 @@ from socket import gethostname
 from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
+from natsort import natsorted
 from rich.logging import RichHandler
 
 from jcvi import __copyright__, __version__
-from jcvi.utils.natsort import natsorted
 
 # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
 nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)

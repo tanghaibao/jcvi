@@ -11,18 +11,17 @@ import sys
 import logging
 import traceback
 
+from natsort import natsorted
+
 from PyPDF2 import PdfFileMerger, parse_filename_page_ranges
 from PyPDF2.pagerange import PAGE_RANGE_HELP
 from jcvi.formats.base import must_open
-from jcvi.utils.natsort import natsorted
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 def main():
 
-    actions = (
-        ('cat', 'concatenate pages from pdf files into a single pdf file'),
-            )
+    actions = (("cat", "concatenate pages from pdf files into a single pdf file"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -50,10 +49,15 @@ def cat(args):
             In case you don't want chapter 10 before chapter 2.
     """
     p = OptionParser(cat.__doc__.format(page_range_help=PAGE_RANGE_HELP))
-    p.add_option("--nosort", default=False, action="store_true",
-                 help="Do not sort file names")
-    p.add_option("--cleanup", default=False, action="store_true",
-                 help="Remove individual pdfs after merging")
+    p.add_option(
+        "--nosort", default=False, action="store_true", help="Do not sort file names"
+    )
+    p.add_option(
+        "--cleanup",
+        default=False,
+        action="store_true",
+        help="Remove individual pdfs after merging",
+    )
     p.set_outfile()
     p.set_verbose(help="Show page ranges as they are being read")
     opts, args = p.parse_args(args)
@@ -94,5 +98,5 @@ def cat(args):
             os.remove(arg)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

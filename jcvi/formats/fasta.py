@@ -1228,7 +1228,7 @@ def summary(args):
 
     Report real bases and N's in fastafiles in a tabular report
     """
-    from jcvi.utils.natsort import natsort_key
+    from natsort import natsort_key
 
     p = OptionParser(summary.__doc__)
     p.add_option(

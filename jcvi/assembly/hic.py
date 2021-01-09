@@ -19,6 +19,7 @@ from multiprocessing import Pool
 
 import numpy as np
 
+from natsort import natsorted
 from rich import print
 
 from jcvi.algorithms.ec import GA_run, GA_setup
@@ -43,7 +44,6 @@ from jcvi.graphics.base import (
 )
 from jcvi.graphics.dotplot import dotplot
 from jcvi.utils.cbook import gene_name, human_size
-from jcvi.utils.natsort import natsorted
 
 # Map orientations to ints
 FF = {"+": 1, "-": -1, "?": 1}

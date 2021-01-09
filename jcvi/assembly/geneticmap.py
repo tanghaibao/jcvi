@@ -235,9 +235,9 @@ def dotplot(args):
     scaffold_2707,11508,1,0
     scaffold_2707,11525,1,1.2
     """
+    from natsort import natsorted
     from jcvi.assembly.allmaps import CSVMapLine
     from jcvi.formats.sizes import Sizes
-    from jcvi.utils.natsort import natsorted
     from jcvi.graphics.base import shorten
     from jcvi.graphics.dotplot import (
         plt,

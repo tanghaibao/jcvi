@@ -1,3 +1,5 @@
+PyPDF2
+PyYAML
 biopython
 boto3
 brewer2mpl
@@ -8,14 +10,14 @@ ete3
 ftpretty
 gffutils
 goatools
+graphviz
 jinja2
 matplotlib
 natsort
 networkx
 numpy
-graphviz
-PyPDF2
-PyYAML
 rich
+scikit-image
 scipy
 seaborn
+webcolors

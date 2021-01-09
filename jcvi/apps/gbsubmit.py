@@ -12,9 +12,10 @@ import string
 import logging
 
 from collections import defaultdict
+from functools import lru_cache
+
 from Bio import SeqIO
 
-from jcvi.utils.cbook import memoized
 from jcvi.utils.orderedcollections import parse_qs
 from jcvi.formats.base import DictFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, glob
@@ -137,7 +138,9 @@ def fcs(args):
     """
     p = OptionParser(fcs.__doc__)
     p.add_option(
-        "--cutoff", default=200, help="Skip small components less than",
+        "--cutoff",
+        default=200,
+        help="Skip small components less than",
     )
     opts, args = p.parse_args(args)
 
@@ -358,7 +361,9 @@ def htg(args):
 
     p = OptionParser(htg.__doc__)
     p.add_option(
-        "--phases", default=None, help="Use another phasefile to override",
+        "--phases",
+        default=None,
+        help="Use another phasefile to override",
     )
     p.add_option("--comment", default="", help="Comments for this update")
     opts, args = p.parse_args(args)
@@ -472,13 +477,13 @@ def htg(args):
     print("A total of {0} records updated.".format(nupdated), file=sys.stderr)
 
 
-@memoized
+@lru_cache(maxsize=None)
 def get_rows_cols(nrows=Nrows, ncols=Ncols):
     rows, cols = string.ascii_uppercase[:nrows], range(1, ncols + 1)
     return rows, cols
 
 
-@memoized
+@lru_cache(maxsize=None)
 def get_plate(nrows=Nrows, ncols=Ncols):
 
     rows, cols = get_rows_cols(nrows, ncols)

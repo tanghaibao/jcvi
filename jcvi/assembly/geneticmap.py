@@ -13,11 +13,11 @@ import logging
 import numpy as np
 
 from collections import Counter
+from functools import lru_cache
 from itertools import combinations, groupby
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
-from jcvi.utils.cbook import memoized
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
@@ -324,7 +324,7 @@ def dotplot(args):
     fig.clear()
 
 
-@memoized
+@lru_cache(maxsize=None)
 def calc_ldscore(a, b):
     assert len(a) == len(b), "{0}\n{1}".format(a, b)
     # Assumes markers as A/B

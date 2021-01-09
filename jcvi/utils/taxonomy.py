@@ -33,10 +33,12 @@ import logging
 
 from six.moves.urllib.request import urlopen
 from six.moves.urllib.error import HTTPError, URLError
+
+from functools import lru_cache
+
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
-from jcvi.utils.cbook import memoized
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -134,7 +136,7 @@ def MRCA(list_of_taxids):
     return ancestor.name
 
 
-@memoized
+@lru_cache(maxsize=None)
 def isPlantOrigin(taxid):
     """
     Given a taxid, this gets the expanded tree which can then be checked to

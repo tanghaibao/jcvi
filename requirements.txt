@@ -14,5 +14,6 @@ numpy
 graphviz
 PyPDF2
 PyYAML
+rich
 scipy
 seaborn

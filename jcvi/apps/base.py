@@ -1481,11 +1481,9 @@ def debug(level=logging.DEBUG):
     """
     Turn on the debugging
     """
-    from jcvi.apps.console import magenta, yellow
+    from rich.logging import RichHandler
 
-    format = yellow("%(asctime)s [%(module)s]")
-    format += magenta(" %(message)s")
-    logging.basicConfig(level=level, format=format, datefmt="%H:%M:%S")
+    logging.basicConfig(level=level, format="%(message)s", datefmt="[%X]", handlers=[RichHandler()])
 
 
 debug()

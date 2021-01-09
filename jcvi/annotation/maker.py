@@ -333,7 +333,7 @@ def validate(args):
     cmd = "cut -f2 {0}".format(failed)
     sh(cmd, outfile=failed_ids)
     if need_update((genome, failed_ids), failed_fasta):
-        cmd = "faSomeRecords {0} {1} {2}".format(genome, failed_ids, failed_fasta)
+        cmd = "faSomeRecords {} {} {}".format(genome, failed_ids, failed_fasta)
         sh(cmd)
 
 

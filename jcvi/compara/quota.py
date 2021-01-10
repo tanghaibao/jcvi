@@ -15,12 +15,12 @@ The algorithm is described in Tang et al. BMC Bioinformatics 2011.
 "Screening synteny blocks in pairwise genome comparisons through integer
 programming."
 """
-from __future__ import print_function
 
+import logging
 import os.path as op
 import sys
-from six.moves import StringIO
-import logging
+
+from io import StringIO
 
 from jcvi.utils.range import range_overlap
 from jcvi.utils.grouper import Grouper
@@ -45,7 +45,7 @@ def get_1D_overlap(eclusters, depth=1):
     ends.sort()
 
     chr_last = ""
-    for chr, pos, left_right, i in ends:
+    for chr, _, left_right, i in ends:
         if chr != chr_last:
             active.clear()
         if left_right == 0:
@@ -61,44 +61,6 @@ def get_1D_overlap(eclusters, depth=1):
     return overlap_set
 
 
-def get_2D_overlap(chain, eclusters):
-    """
-    Implements a sweep line algorithm, that has better running time than naive O(n^2):
-    assume block has x_ends, and y_ends for the bounds
-
-    1. sort x_ends, and take a sweep line to scan the x_ends
-    2. if left end, test y-axis intersection of current block with `active` set;
-       also put this block in the `active` set
-    3. if right end, remove block from the `active` set
-    """
-    mergeables = Grouper()
-    active = set()
-
-    x_ends = []
-    for i, (range_x, range_y, score) in enumerate(eclusters):
-        chr, left, right = range_x
-        x_ends.append((chr, left, 0, i))  # 0/1 for left/right-ness
-        x_ends.append((chr, right, 1, i))
-    x_ends.sort()
-
-    chr_last = ""
-    for chr, pos, left_right, i in x_ends:
-        if chr != chr_last:
-            active.clear()
-        if left_right == 0:
-            active.add(i)
-            for x in active:
-                # check y-overlap
-                if range_overlap(eclusters[x][1], eclusters[i][1]):
-                    mergeables.join(x, i)
-        else:  # right end
-            active.remove(i)
-
-        chr_last = chr
-
-    return mergeables
-
-
 def make_range(clusters, extend=0):
     """
     Convert to interval ends from a list of anchors
@@ -108,7 +70,7 @@ def make_range(clusters, extend=0):
     """
     eclusters = []
     for cluster in clusters:
-        xlist, ylist, scores = zip(*cluster)
+        xlist, ylist, _ = zip(*cluster)
         score = _score(cluster)
 
         xchr, xmin = min(xlist)
@@ -139,7 +101,7 @@ def get_constraints(clusters, quota=(1, 1), Nmax=0):
     # (1-based index, cluster score)
     nodes = [(i + 1, c[-1]) for i, c in enumerate(eclusters)]
 
-    eclusters_x, eclusters_y, scores = zip(*eclusters)
+    eclusters_x, eclusters_y, _ = zip(*eclusters)
 
     # represents the contraints over x-axis and y-axis
     constraints_x = get_1D_overlap(eclusters_x, qa)
@@ -236,6 +198,16 @@ def solve_lp(
 
 
 def read_clusters(qa_file, qorder, sorder):
+    """Read in the clusters from anchors file
+
+    Args:
+        qa_file (str): Path to input file
+        qorder (Dict): Dictionary to find position of feature in query
+        sorder (Dict): Dictionary to find position of feature in subject
+
+    Returns:
+        List: List of matches and scores
+    """
     af = AnchorFile(qa_file)
     blocks = af.blocks
     clusters = []
@@ -261,8 +233,7 @@ def main(args):
         help="`quota mapping` procedure -- screen blocks to constrain mapping"
         " (useful for orthology), "
         "put in the format like (#subgenomes expected for genome X):"
-        "(#subgenomes expected for genome Y) "
-        "[default: %default]",
+        "(#subgenomes expected for genome Y)",
     )
     p.add_option(
         "--Nm",
@@ -287,7 +258,7 @@ def main(args):
         "--solver",
         default="SCIP",
         choices=supported_solvers,
-        help="use MIP solver [default: %default]",
+        help="use MIP solver",
     )
     p.set_verbose(help="Show verbose solver output")
 
@@ -295,7 +266,7 @@ def main(args):
         "--screen",
         default=False,
         action="store_true",
-        help="generate new anchors file [default: %default]",
+        help="generate new anchors file",
     )
 
     opts, args = p.parse_args(args)
@@ -303,8 +274,8 @@ def main(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    qa_file, = args
-    qbed, sbed, qorder, sorder, is_self = check_beds(qa_file, p, opts)
+    (qa_file,) = args
+    _, _, qorder, sorder, _ = check_beds(qa_file, p, opts)
 
     # sanity check for the quota
     if opts.quota:

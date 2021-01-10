@@ -22,8 +22,6 @@ import sys
 
 from io import StringIO
 
-from jcvi.utils.range import range_overlap
-from jcvi.utils.grouper import Grouper
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
 from jcvi.compara.synteny import AnchorFile, _score, check_beds
 from jcvi.formats.base import must_open
@@ -162,6 +160,23 @@ def format_lp(nodes, constraints_x, qa, constraints_y, qb):
     return lp_data
 
 
+def create_solver(backend="SCIP"):
+    """
+    Create OR-tools solver instance. See also:
+    https://developers.google.com/optimization/mip/mip_var_array
+
+    Args:
+        backend (str, optional): Backend for the MIP solver. Defaults to "SCIP".
+
+    Returns:
+        OR-tools solver instance
+    """
+    from ortools.linear_solver import pywraplp
+
+    solver = pywraplp.Solver.CreateSolver(backend)
+    return solver
+
+
 def solve_lp(
     clusters,
     quota,
@@ -179,6 +194,8 @@ def solve_lp(
 
     if self_match:
         constraints_x = constraints_y = constraints_x | constraints_y
+
+    # solver = create_solver("SCIP")
 
     lp_data = format_lp(nodes, constraints_x, qa, constraints_y, qb)
 
@@ -282,7 +299,7 @@ def main(args):
         try:
             qa, qb = opts.quota.split(":")
             qa, qb = int(qa), int(qb)
-        except:
+        except ValueError:
             print(
                 "quota string should be the form x:x (2:4, 1:3, etc.)", file=sys.stderr
             )
@@ -315,14 +332,14 @@ def main(args):
         verbose=opts.verbose,
     )
 
-    logging.debug("Selected {0} blocks.".format(len(selected_ids)))
+    logging.debug("Selected %d blocks", len(selected_ids))
     prefix = qa_file.rsplit(".", 1)[0]
     suffix = "{0}x{1}".format(qa, qb)
     outfile = ".".join((prefix, suffix))
     fw = must_open(outfile, "w")
     print(",".join(str(x) for x in selected_ids), file=fw)
     fw.close()
-    logging.debug("Screened blocks ids written to `{0}`.".format(outfile))
+    logging.debug("Screened blocks ids written to `%s`", outfile)
 
     if opts.screen:
         from jcvi.compara.synteny import screen

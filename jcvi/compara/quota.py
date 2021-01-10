@@ -20,12 +20,22 @@ import logging
 import os.path as op
 import sys
 
+from dataclasses import dataclass
 from io import StringIO
 
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
 from jcvi.compara.synteny import AnchorFile, _score, check_beds
 from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser
+
+
+@dataclass
+class DataModel:
+    constraint_coeffs: list
+    bounds: list
+    obj_coeffs: list
+    num_vars: int
+    num_constraints: int
 
 
 def get_1D_overlap(eclusters, depth=1):
@@ -108,7 +118,7 @@ def get_constraints(clusters, quota=(1, 1), Nmax=0):
     return nodes, constraints_x, constraints_y
 
 
-def format_lp(nodes, constraints_x, qa, constraints_y, qb):
+def create_data_model(nodes, constraints_x, qa, constraints_y, qb):
     """
     Maximize
      4 x1 + 2 x2 + 3 x3 + x4
@@ -116,11 +126,50 @@ def format_lp(nodes, constraints_x, qa, constraints_y, qb):
      x1 + x2 <= 1
     End
     """
+    num_vars = len(nodes)
+    obj_coeffs = [0] * num_vars
+    for i, score in nodes:
+        obj_coeffs[i - 1] = score
+
+    num_constraints = 0
+    constraint_coeffs = []
+    bounds = []
+    for c in constraints_x:
+        constraint = [0] * num_vars
+        for x in c:
+            constraint[x] = 1
+        constraint_coeffs.append(constraint)
+        bounds.append(qa)
+    num_constraints = len(constraints_x)
+
+    # non-self
+    if not (constraints_x is constraints_y):
+        for c in constraints_y:
+            constraint = [0] * num_vars
+            for x in c:
+                constraint[x] = 1
+            constraint_coeffs.append(constraint)
+            bounds.append(qb)
+        num_constraints += len(constraints_y)
+
+    return DataModel(constraint_coeffs, bounds, obj_coeffs, num_vars, num_constraints)
+
+
+def format_lp(data: DataModel):
+    """Format data dictionary into MIP formatted string.
+
+    Args:
+        data (DataModel): Data model that contains "constraint_coeffs", "bounds",
+        "obj_coeffs", "num_vars" and "num_constraints"
+
+    Returns:
+        str: MIP formatted string
+    """
     lp_handle = StringIO()
 
     lp_handle.write("Maximize\n ")
     records = 0
-    for i, score in nodes:
+    for i, score in enumerate(data.obj_coeffs):
         lp_handle.write("+ %d x%d " % (score, i))
         # SCIP does not like really long string per row
         records += 1
@@ -128,29 +177,21 @@ def format_lp(nodes, constraints_x, qa, constraints_y, qb):
             lp_handle.write("\n")
     lp_handle.write("\n")
 
-    num_of_constraints = 0
     lp_handle.write("Subject To\n")
-    for c in constraints_x:
-        additions = " + ".join("x%d" % (x + 1) for x in c)
-        lp_handle.write(" %s <= %d\n" % (additions, qa))
-    num_of_constraints += len(constraints_x)
-
-    # non-self
-    if not (constraints_x is constraints_y):
-        for c in constraints_y:
-            additions = " + ".join("x%d" % (x + 1) for x in c)
-            lp_handle.write(" %s <= %d\n" % (additions, qb))
-        num_of_constraints += len(constraints_y)
+    for constraint, bound in zip(data.constraint_coeffs, data.bounds):
+        additions = " + ".join("x{}".format(i) for (i, x) in enumerate(constraint) if x)
+        lp_handle.write(" %s <= %d\n" % (additions, bound))
 
     print(
-        "number of variables (%d), number of constraints (%d)"
-        % (len(nodes), num_of_constraints),
+        "number of variables ({}), number of constraints ({})".format(
+            data.num_vars, data.num_constraints
+        ),
         file=sys.stderr,
     )
 
     lp_handle.write("Binary\n")
-    for i, score in nodes:
-        lp_handle.write(" x%d\n" % i)
+    for i in range(data.num_vars):
+        lp_handle.write(" x{}\n".format(i))
 
     lp_handle.write("End\n")
 
@@ -197,7 +238,8 @@ def solve_lp(
 
     # solver = create_solver("SCIP")
 
-    lp_data = format_lp(nodes, constraints_x, qa, constraints_y, qb)
+    data = create_data_model(nodes, constraints_x, qa, constraints_y, qb)
+    lp_data = format_lp(data)
 
     if solver == "SCIP":
         filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
@@ -219,8 +261,8 @@ def read_clusters(qa_file, qorder, sorder):
 
     Args:
         qa_file (str): Path to input file
-        qorder (Dict): Dictionary to find position of feature in query
-        sorder (Dict): Dictionary to find position of feature in subject
+        qorder (dict): Dictionary to find position of feature in query
+        sorder (dict): Dictionary to find position of feature in subject
 
     Returns:
         List: List of matches and scores

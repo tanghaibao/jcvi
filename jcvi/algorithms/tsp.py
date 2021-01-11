@@ -38,7 +38,7 @@ class Concorde(object):
         mkdir(work_dir)
         tspfile = op.join(work_dir, "data.tsp")
         self.print_to_tsplib(edges, tspfile, precision=precision)
-        retcode, outfile = self.run_concorde(tspfile, seed=seed)
+        _, outfile = self.run_concorde(tspfile, seed=seed)
         self.tour = self.parse_output(outfile)
 
         if clean:
@@ -62,7 +62,7 @@ class Concorde(object):
         (... numbers ...)
         """
         fw = must_open(tspfile, "w")
-        incident, nodes = node_to_edge(edges, directed=False)
+        _, nodes = node_to_edge(edges, directed=False)
         self.nodes = nodes
         nodes_indices = dict((n, i) for i, n in enumerate(nodes))
         self.nnodes = nnodes = len(nodes)
@@ -201,9 +201,20 @@ def hamiltonian(edges, directed=False, precision=0):
     return path
 
 
-def tsp(edges, precision=0):
-    c = Concorde(edges, precision=precision)
-    return c.tour
+def tsp(edges, concorde=False, precision=0):
+    """Compute TSP solution
+
+    Args:
+        edges (list): List of tuple (source, target, weight)
+        concorde (bool, optional): Shall we run concorde? Defaults to False.
+        precision (int, optional): Float precision of distance, only applicable
+        when running concorde. Defaults to 0.
+
+    Returns:
+        list: List of nodes to visit
+    """
+    if concorde:
+        return Concorde(edges, precision=precision).tour
 
 
 def reformulate_atsp_as_tsp(edges):
@@ -218,7 +229,7 @@ def reformulate_atsp_as_tsp(edges):
     from the city. The distances between all cities and the distances between
     all dummy cities are set to infeasible.
     """
-    incident, nodes = node_to_edge(edges, directed=False)
+    _, nodes = node_to_edge(edges, directed=False)
     new_edges = []
     for a, b, w in edges:
         new_edges.append(((a, "*"), b, w))
@@ -276,7 +287,7 @@ def concorde_demo(POINTS=100):
 def compare_lpsolve_to_concorde(POINTS=80, directed=False):
     from jcvi.algorithms.lpsolve import hamiltonian as lhamiltonian
 
-    x, y, M, edges = make_data(POINTS, directed=directed)
+    _, _, M, edges = make_data(POINTS, directed=directed)
     ltour = lhamiltonian(edges, directed=directed)
     print(ltour, evaluate(ltour, M))
 

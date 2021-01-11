@@ -20,25 +20,11 @@ import logging
 import os.path as op
 import sys
 
-from dataclasses import dataclass
-from io import StringIO
-
-from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
+from jcvi.algorithms.lpsolve import GLPKSolver, MIPDataModel, SCIPSolver
 from jcvi.compara.synteny import AnchorFile, _score, check_beds
 from jcvi.formats.base import must_open
 from jcvi.utils.console import printf
 from jcvi.apps.base import OptionParser
-
-
-@dataclass
-class MIPDataModel:
-    """Data model for use with OR-tools. Modeled after the tutorial."""
-
-    constraint_coeffs: list  # List of dict of coefficients
-    bounds: list  # Maximum value for each constraint clause
-    obj_coeffs: list  # Coefficient in the objective function
-    num_vars: int
-    num_constraints: int
 
 
 def get_1D_overlap(eclusters, depth=1):
@@ -150,84 +136,6 @@ def create_data_model(nodes, constraints_x, qa, constraints_y, qb):
     )
 
 
-def format_lp(data: MIPDataModel):
-    """Format data dictionary into MIP formatted string.
-
-    Args:
-        data (MIPDataModel): Data model that contains vars and constraints
-
-    Returns:
-        str: MIP formatted string
-    """
-    lp_handle = StringIO()
-
-    lp_handle.write("Maximize\n ")
-    records = 0
-    for i, score in enumerate(data.obj_coeffs):
-        lp_handle.write("+ %d x%d " % (score, i))
-        # SCIP does not like really long string per row
-        records += 1
-        if records % 10 == 0:
-            lp_handle.write("\n")
-    lp_handle.write("\n")
-
-    lp_handle.write("Subject To\n")
-    for constraint, bound in zip(data.constraint_coeffs, data.bounds):
-        additions = " + ".join("x{}".format(i) for (i, x) in constraint.items())
-        lp_handle.write(" %s <= %d\n" % (additions, bound))
-
-    logging.info(
-        "number of variables ({}), number of constraints ({})".format(
-            data.num_vars, data.num_constraints
-        ),
-    )
-
-    lp_handle.write("Binary\n")
-    for i in range(data.num_vars):
-        lp_handle.write(" x{}\n".format(i))
-
-    lp_handle.write("End\n")
-
-    lp_data = lp_handle.getvalue()
-    lp_handle.close()
-
-    return lp_data
-
-
-def create_solver(data: MIPDataModel, backend: str = "SCIP"):
-    """
-    Create OR-tools solver instance. See also:
-    https://developers.google.com/optimization/mip/mip_var_array
-
-    Args:
-        data (MIPDataModel): Data model that contains vars and constraints
-        backend (str, optional): Backend for the MIP solver. Defaults to "SCIP".
-
-    Returns:
-        OR-tools solver instance
-    """
-    from ortools.linear_solver import pywraplp
-
-    solver = pywraplp.Solver.CreateSolver(backend)
-    x = {}
-    for j in range(data.num_vars):
-        x[j] = solver.IntVar(0, 1, "x[%i]" % j)
-    printf("Number of variables =", solver.NumVariables())
-
-    for bound, constraint_coeff in zip(data.bounds, data.constraint_coeffs):
-        constraint = solver.RowConstraint(0, bound, "")
-        for j, coeff in constraint_coeff.items():
-            constraint.SetCoefficient(x[j], coeff)
-    printf("Number of constraints =", solver.NumConstraints())
-
-    objective = solver.Objective()
-    for j, score in enumerate(data.obj_coeffs):
-        objective.SetCoefficient(x[j], score)
-    objective.SetMaximization()
-
-    return solver, x
-
-
 def has_ortools() -> bool:
     """Do we have an installation of OR-tools?
 
@@ -266,19 +174,20 @@ def solve_lp(
         # Use OR-tools
         from ortools.linear_solver import pywraplp
 
-        solver, x = create_solver(data)
+        solver, x = data.create_solver()
         status = solver.Solve()
         if status == pywraplp.Solver.OPTIMAL:
-            printf("Objective value =", solver.Objective().Value())
+            logging.info("Objective value = %d", solver.Objective().Value())
             filtered_list = [
                 j for j in range(data.num_vars) if x[j].solution_value() == 1
             ]
-            printf("Problem solved in {} milliseconds".format(solver.wall_time()))
-            printf("Problem solved in {} iterations".format(solver.iterations()))
-            printf("Problem solved in {} branch-and-bound nodes".format(solver.nodes()))
-    else:
-        # Use custom formatter
-        lp_data = format_lp(data)
+            logging.info("Problem solved in %d milliseconds", solver.wall_time())
+            logging.info("Problem solved in %d iterations", solver.iterations())
+            logging.info("Problem solved in %d branch-and-bound nodes", solver.nodes())
+
+    # Use custom formatter as a backup
+    if not filtered_list:
+        lp_data = data.format_lp()
         filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
         if not filtered_list:
             logging.error("SCIP fails... trying GLPK")

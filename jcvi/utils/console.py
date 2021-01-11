@@ -16,3 +16,4 @@ of your top-level object.
 from rich.console import Console
 
 console = Console()
+printf = console.print

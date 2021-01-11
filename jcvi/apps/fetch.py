@@ -2,8 +2,6 @@
 Wrapper for fetching data from various online repositories \
 (Entrez, Ensembl, Phytozome, and SRA)
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import time
@@ -12,14 +10,13 @@ from six.moves.urllib.error import HTTPError, URLError
 import re
 from os.path import join as urljoin
 
-from rich import print
-
 from Bio import Entrez, SeqIO
 
 from jcvi.formats.base import FileShredder, must_open
 from jcvi.formats.fasta import print_first_difference
 from jcvi.formats.fastq import fromsra
 from jcvi.utils.cbook import tile
+from jcvi.utils.console import printf
 from jcvi.utils.iter import grouper
 from jcvi.apps.base import (
     OptionParser,
@@ -196,7 +193,7 @@ def get_cookies(cookies=PHYTOZOME_COOKIES):
         username, pw = None, None
     curlcmd = which("curl")
     if curlcmd is None:
-        print("curl command not installed. Aborting.", file=sys.stderr)
+        printf("curl command not installed. Aborting.", file=sys.stderr)
         return None
     cmd = "{} https://signon.jgi.doe.gov/signon/create".format(curlcmd)
     cmd += " --data-urlencode 'login={0}' --data-urlencode 'password={1}' -b {2} -c {2}".format(
@@ -204,7 +201,7 @@ def get_cookies(cookies=PHYTOZOME_COOKIES):
     )
     sh(cmd, outfile="/dev/null", errfile="/dev/null", log=False)
     if not op.exists(cookies):
-        print(
+        printf(
             "Cookies file `{}` not created. Aborting.".format(cookies), file=sys.stderr
         )
         return None
@@ -520,8 +517,8 @@ def bisect(args):
             break
 
     if valid:
-        print()
-        print("[green]{} matches the sequence in `{}`".format(valid, fastafile))
+        printf()
+        printf("[green]{} matches the sequence in `{}`".format(valid, fastafile))
 
 
 def entrez(args):
@@ -657,7 +654,7 @@ def entrez(args):
         seen.add(id)
 
     if seen:
-        print(
+        printf(
             "A total of {0} {1} records downloaded.".format(totalsize, fmt.upper()),
             file=sys.stderr,
         )

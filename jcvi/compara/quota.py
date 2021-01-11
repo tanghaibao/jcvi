@@ -23,16 +23,15 @@ import sys
 from dataclasses import dataclass
 from io import StringIO
 
-from rich import print
-
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
 from jcvi.compara.synteny import AnchorFile, _score, check_beds
 from jcvi.formats.base import must_open
+from jcvi.utils.console import printf
 from jcvi.apps.base import OptionParser
 
 
 @dataclass
-class DataModel:
+class MIPDataModel:
     """Data model for use with OR-tools. Modeled after the tutorial."""
 
     constraint_coeffs: list
@@ -156,10 +155,12 @@ def create_data_model(nodes, constraints_x, qa, constraints_y, qb):
             bounds.append(qb)
         num_constraints += len(constraints_y)
 
-    return DataModel(constraint_coeffs, bounds, obj_coeffs, num_vars, num_constraints)
+    return MIPDataModel(
+        constraint_coeffs, bounds, obj_coeffs, num_vars, num_constraints
+    )
 
 
-def format_lp(data: DataModel):
+def format_lp(data: MIPDataModel):
     """Format data dictionary into MIP formatted string.
 
     Args:
@@ -185,7 +186,7 @@ def format_lp(data: DataModel):
         additions = " + ".join("x{}".format(i) for (i, x) in enumerate(constraint) if x)
         lp_handle.write(" %s <= %d\n" % (additions, bound))
 
-    print(
+    printf(
         "number of variables ({}), number of constraints ({})".format(
             data.num_vars, data.num_constraints
         ),
@@ -204,13 +205,13 @@ def format_lp(data: DataModel):
     return lp_data
 
 
-def create_solver(data: DataModel, backend: str = "SCIP"):
+def create_solver(data: MIPDataModel, backend: str = "SCIP"):
     """
     Create OR-tools solver instance. See also:
     https://developers.google.com/optimization/mip/mip_var_array
 
     Args:
-        data (DataModel): Data model that contains vars and constraints
+        data (MIPDataModel): Data model that contains vars and constraints
         backend (str, optional): Backend for the MIP solver. Defaults to "SCIP".
 
     Returns:
@@ -222,14 +223,14 @@ def create_solver(data: DataModel, backend: str = "SCIP"):
     x = {}
     for j in range(data.num_vars):
         x[j] = solver.IntVar(0, 1, "x[%i]" % j)
-    print("Number of variables = ", solver.NumVariables())
+    printf("Number of variables =", solver.NumVariables())
 
     for bound, constraint_coeff in zip(data.bounds, data.constraint_coeffs):
         constraint = solver.RowConstraint(0, bound, "")
         for j, coeff in enumerate(constraint_coeff):
             if coeff:
                 constraint.SetCoefficient(x[j], coeff)
-    print("Number of constraints = ", solver.NumConstraints())
+    printf("Number of constraints =", solver.NumConstraints())
 
     objective = solver.Objective()
     for j, score in enumerate(data.obj_coeffs):
@@ -280,19 +281,19 @@ def solve_lp(
         solver, x = create_solver(data)
         status = solver.Solve()
         if status == pywraplp.Solver.OPTIMAL:
-            print("Objective value = ", solver.Objective().Value())
+            printf("Objective value =", solver.Objective().Value())
             filtered_list = [
                 j for j in range(data.num_vars) if x[j].solution_value() == 1
             ]
-            print("Problem solved in %f milliseconds" % solver.wall_time())
-            print("Problem solved in %d iterations" % solver.iterations())
-            print("Problem solved in %d branch-and-bound nodes" % solver.nodes())
+            printf("Problem solved in {} milliseconds".format(solver.wall_time()))
+            printf("Problem solved in {} iterations".format(solver.iterations()))
+            printf("Problem solved in {} branch-and-bound nodes".format(solver.nodes()))
     else:
         # Use custom formatter
         lp_data = format_lp(data)
         filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
         if not filtered_list:
-            print("SCIP fails... trying GLPK", file=sys.stderr)
+            printf("SCIP fails... trying GLPK", file=sys.stderr)
             filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
 
     return filtered_list
@@ -377,7 +378,7 @@ def main(args):
             qa, qb = opts.quota.split(":")
             qa, qb = int(qa), int(qb)
         except ValueError:
-            print(
+            printf(
                 "quota string should be the form x:x (2:4, 1:3, etc.)", file=sys.stderr
             )
             sys.exit(1)

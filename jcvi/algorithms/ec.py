@@ -6,7 +6,6 @@ This module contains methods to interface with DEAP evolutionary computation
 framewor, including a Genetic Algorithm (GA) based method to solve scaffold
 ordering and orientation problem.
 """
-from __future__ import print_function
 
 import sys
 import array
@@ -14,10 +13,10 @@ import random
 import logging
 import multiprocessing
 
-from rich import print
 from deap import base, creator, tools
 from deap.algorithms import varAnd
 from jcvi.algorithms.lis import longest_monotonic_subseq_length
+from jcvi.utils.console import printf
 
 
 # This has to be in global space, otherwise runs into error "creator.Individual
@@ -160,9 +159,8 @@ def eaSimpleConverge(
         record = stats.compile(population) if stats else {}
         current_best = record["max"]
         if gen % 20 == 0 and verbose:
-            print(
+            printf(
                 "Current iteration {0}: max_score={1}".format(gen, current_best),
-                file=sys.stderr,
             )
 
         if current_best > best:
@@ -206,9 +204,9 @@ if __name__ == "__main__":
     guess = list(range(SCF))
     guess[5:15] = guess[5:15][::-1]
     guess[7:18] = guess[7:18][::-1]
-    print(guess)
+    printf(guess)
 
     toolbox = GA_setup(guess)
     toolbox.register("evaluate", colinear_evaluate, scaffolds=scaffolds)
     tour, tour.fitness = GA_run(toolbox, cpus=8)
-    print(tour, tour.fitness)
+    printf(tour, tour.fitness)

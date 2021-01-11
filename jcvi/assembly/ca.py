@@ -8,8 +8,6 @@ Prepare input files for Celera Assembler, dispatch based on file suffix::
 *.sff: sffToCA
 *.fastq: fastqToCA
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
@@ -20,11 +18,10 @@ from collections import Counter
 from random import choice
 from Bio import SeqIO
 
-from rich import print
-
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta, SeqRecord, filter, format, parse_fasta
 from jcvi.formats.blast import Blast
+from jcvi.utils.console import printf
 from jcvi.utils.range import range_minmax
 from jcvi.algorithms.graph import graph_stats, graph_local_neighborhood
 from jcvi.apps.base import (
@@ -330,7 +327,6 @@ def overlap(args):
     xsize = -xmin + size + xmax
     ratio = xsize / canvas
 
-    fw = sys.stdout
     for f in frags:
         fsize = -f.ahang + size + f.bhang
         a = (f.ahang - xmin) / ratio
@@ -343,11 +339,10 @@ def overlap(args):
         if f.ahang == 0 and f.bhang == 0:
             t = "[green]{}".format(t)
         c = canvas - a - b
-        print(
+        printf(
             "{}{}{}{} ({})".format(
                 " " * a, t, " " * c, str(f.bid).rjust(10), f.erate_adj
             ),
-            file=fw,
         )
 
 

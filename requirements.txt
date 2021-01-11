@@ -16,6 +16,7 @@ matplotlib
 natsort
 networkx
 numpy
+ortools
 rich
 scikit-image
 scipy

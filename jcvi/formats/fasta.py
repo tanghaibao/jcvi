@@ -20,11 +20,10 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils.CheckSum import seguid
 
-from rich import print
-
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
 from jcvi.utils.cbook import percentage
+from jcvi.utils.console import printf
 from jcvi.utils.table import write_csv
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
@@ -1506,21 +1505,21 @@ def _print_first_difference(
 
     if i + 1 == asize and matched:
         if report_match:
-            print("[green]Two sequences match")
+            printf("[green]Two sequences match")
         match = True
     else:
-        print("[red]Two sequences do not match")
+        printf("[red]Two sequences do not match")
 
         snippet_size = 20  # show the context of the difference
 
-        print("[red]Sequence start to differ at position {}:".format(i + 1))
+        printf("[red]Sequence start to differ at position {}:".format(i + 1))
 
         begin = max(i - snippet_size, 0)
         aend = min(i + snippet_size, asize)
         bend = min(i + snippet_size, bsize)
 
-        print("[red]{}|{}".format(aseq[begin:i], aseq[i:aend]))
-        print("[red]{}|{}".format(bseq[begin:i], bseq[i:bend]))
+        printf("[red]{}|{}".format(aseq[begin:i], aseq[i:aend]))
+        printf("[red]{}|{}".format(bseq[begin:i], bseq[i:bend]))
         match = False
 
     return match
@@ -1577,13 +1576,13 @@ def diff(args):
     bfastan = len(Fasta(bfasta))
 
     if afastan == bfastan:
-        print(
+        printf(
             "[green]Two sets contain the same number of sequences ({}, {})".format(
                 afastan, bfastan
             )
         )
     else:
-        print(
+        printf(
             "[red]Two sets contain different number of sequences ({}, {})".format(
                 afastan, bfastan
             )
@@ -1604,9 +1603,9 @@ def diff(args):
         if not opts.quiet:
             print(banner(str(arec), [str(brec)]))
             if asize == bsize:
-                print("[green]Two sequence size match ({})".format(asize))
+                printf("[green]Two sequence size match ({})".format(asize))
             else:
-                print(
+                printf(
                     "[red]Two sequence size do not match ({}, {}})".format(asize, bsize)
                 )
 

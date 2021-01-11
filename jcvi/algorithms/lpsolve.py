@@ -24,14 +24,15 @@ The input lp_data is assumed in .lp format, see below
 >>> print GLPKSolver(lp_data).results
 [0, 1]
 """
-from __future__ import print_function
-
+import logging
 import os
 import os.path as op
 import shutil
-import logging
 from six.moves import cStringIO
 import networkx as nx
+
+from dataclasses import dataclass
+from io import StringIO
 
 from jcvi.utils.cbook import fill
 from jcvi.utils.iter import pairwise
@@ -51,6 +52,133 @@ BOUNDS = "Bounds"
 BINARY = "Binary"
 GENERNAL = "General"
 END = "End"
+
+
+@dataclass
+class MIPDataModel:
+    """Data model for use with OR-tools. Modeled after the tutorial."""
+
+    constraint_coeffs: list  # List of dict of coefficients
+    bounds: list  # Maximum value for each constraint clause
+    obj_coeffs: list  # Coefficient in the objective function
+    num_vars: int
+    num_constraints: int
+
+    def format_lp(self) -> str:
+        """Format data dictionary into MIP formatted string.
+
+        Returns:
+            str: MIP formatted string
+        """
+        lp_handle = StringIO()
+
+        lp_handle.write(f"{MAXIMIZE}\n ")
+        records = 0
+        for i, score in enumerate(self.obj_coeffs):
+            lp_handle.write("+ %d x%d " % (score, i))
+            # SCIP does not like really long string per row
+            records += 1
+            if records % 10 == 0:
+                lp_handle.write("\n")
+        lp_handle.write("\n")
+
+        lp_handle.write(f"{SUBJECTTO}\n")
+        for constraint, bound in zip(self.constraint_coeffs, self.bounds):
+            additions = " + ".join("x{}".format(i) for (i, x) in constraint.items())
+            lp_handle.write(" %s <= %d\n" % (additions, bound))
+
+        self.log()
+
+        lp_handle.write(f"{BINARY}\n")
+        for i in range(self.num_vars):
+            lp_handle.write(" x{}\n".format(i))
+
+        lp_handle.write(f"{END}\n")
+
+        lp_data = lp_handle.getvalue()
+        lp_handle.close()
+
+        return lp_data
+
+    def create_solver(self, backend: str = "SCIP"):
+        """
+        Create OR-tools solver instance. See also:
+        https://developers.google.com/optimization/mip/mip_var_array
+
+        Args:
+            backend (str, optional): Backend for the MIP solver. Defaults to "SCIP".
+
+        Returns:
+            OR-tools solver instance
+        """
+        from ortools.linear_solver import pywraplp
+
+        solver = pywraplp.Solver.CreateSolver(backend)
+        x = {}
+        for j in range(self.num_vars):
+            x[j] = solver.IntVar(0, 1, "x[%i]" % j)
+
+        for bound, constraint_coeff in zip(self.bounds, self.constraint_coeffs):
+            constraint = solver.RowConstraint(0, bound, "")
+            for j, coeff in constraint_coeff.items():
+                constraint.SetCoefficient(x[j], coeff)
+
+        self.log()
+
+        objective = solver.Objective()
+        for j, score in enumerate(self.obj_coeffs):
+            objective.SetCoefficient(x[j], score)
+        objective.SetMaximization()
+
+        return solver, x
+
+    def log(self):
+        """Log the size of the MIP instance"""
+        logging.info(
+            "Number of variables (%d), number of constraints (%d)",
+            self.num_vars,
+            self.num_constraints,
+        )
+
+    def solve(self, work_dir="work", verbose=False):
+        """Solve the MIP instance. This runs OR-tools as default solver, then
+        SCIP, GLPK in that order.
+
+        Args:
+            work_dir (str, optional): Work directory, only used when OR-tools fail. Defaults to "work".
+            verbose (bool, optional): Verbosity level, only used when OR-tools fail. Defaults to False.
+
+        Returns:
+            list[int]: List of indices that are selected
+        """
+        filtered_list = []
+
+        if has_ortools():
+            # Use OR-tools
+            from ortools.linear_solver import pywraplp
+
+            solver, x = self.create_solver()
+            status = solver.Solve()
+            if status == pywraplp.Solver.OPTIMAL:
+                logging.info("Objective value = %d", solver.Objective().Value())
+                filtered_list = [
+                    j for j in range(self.num_vars) if x[j].solution_value() == 1
+                ]
+                logging.info("Problem solved in %d milliseconds", solver.wall_time())
+                logging.info("Problem solved in %d iterations", solver.iterations())
+                logging.info(
+                    "Problem solved in %d branch-and-bound nodes", solver.nodes()
+                )
+
+        # Use custom formatter as a backup
+        if not filtered_list:
+            lp_data = self.format_lp()
+            filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
+            if not filtered_list:
+                logging.error("SCIP fails... trying GLPK")
+                filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
+
+        return filtered_list
 
 
 class AbstractMIPSolver(object):
@@ -290,6 +418,20 @@ class LPInstance(object):
         except AttributeError:  # No solution!
             return None, None
         return selected, obj_val
+
+
+def has_ortools() -> bool:
+    """Do we have an installation of OR-tools?
+
+    Returns:
+        bool: True if installed
+    """
+    try:
+        from ortools.linear_solver import pywraplp
+
+        return True
+    except ImportError:
+        return False
 
 
 def summation(incident_edges):

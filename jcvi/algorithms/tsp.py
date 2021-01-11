@@ -63,19 +63,42 @@ class TSPDataModel:
         D = D.astype(int)
         return D
 
+    def solve(self) -> list:
+        """Solve the TSP instance.
+
+        Returns:
+            list: Ordered list of node indices to visit
+        """
+
 
 class Concorde(object):
     def __init__(
-        self, edges, work_dir=Work_dir, clean=True, verbose=False, precision=0, seed=666
+        self,
+        data: TSPDataModel,
+        work_dir=Work_dir,
+        clean=True,
+        verbose=False,
+        precision=0,
+        seed=666,
     ):
+        """Run concorde on TSP instance
 
+        Args:
+            datamodel (TSPDataModel): TSP instance with edge weights
+            work_dir ([type], optional): Path to the work dir. Defaults to Work_dir.
+            clean (bool, optional): Clean up intermediate results. Defaults to True.
+            verbose (bool, optional): Show verbose messages. Defaults to False.
+            precision (int, optional): Float precision of distance. Defaults to 0.
+            seed (int, optional): Random seed. Defaults to 666.
+        """
+        self.data = data
         self.work_dir = work_dir
         self.clean = clean
         self.verbose = verbose
 
         mkdir(work_dir)
         tspfile = op.join(work_dir, "data.tsp")
-        self.print_to_tsplib(edges, tspfile, precision=precision)
+        self.print_to_tsplib(tspfile, precision=precision)
         _, outfile = self.run_concorde(tspfile, seed=seed)
         self.tour = self.parse_output(outfile)
 
@@ -84,7 +107,7 @@ class Concorde(object):
             residual_output = ["data.sol", "data.res", "Odata.res"]
             FileShredder(residual_output, verbose=False)
 
-    def print_to_tsplib(self, edges, tspfile, precision=0):
+    def print_to_tsplib(self, tspfile, precision=0):
         """
         See TSPlib format:
         <https://www.iwr.uni-heidelberg.de/groups/comopt/software/TSPLIB95/>
@@ -100,7 +123,7 @@ class Concorde(object):
         (... numbers ...)
         """
         fw = must_open(tspfile, "w")
-        _, _, nodes = node_to_edge(edges, directed=False)
+        _, _, nodes = node_to_edge(self.data.edges, directed=False)
         self.nodes = nodes
         self.nnodes = nnodes = len(nodes)
 
@@ -111,8 +134,7 @@ class Concorde(object):
         print("EDGE_WEIGHT_FORMAT: FULL_MATRIX", file=fw)
         print("EDGE_WEIGHT_SECTION", file=fw)
 
-        data = TSPDataModel(edges)
-        D = data.distance_matrix(precision)
+        D = self.data.distance_matrix(precision)
         for row in D:  # Dump the full matrix
             print(" " + " ".join(str(x) for x in row), file=fw)
 
@@ -231,8 +253,9 @@ def tsp(edges, concorde=False, precision=0):
     Returns:
         list: List of nodes to visit
     """
+    data = TSPDataModel(edges)
     if concorde:
-        return Concorde(edges, precision=precision).tour
+        return Concorde(data, precision=precision).tour
 
 
 def reformulate_atsp_as_tsp(edges):

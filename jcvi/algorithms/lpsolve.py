@@ -133,11 +133,52 @@ class MIPDataModel:
         return solver, x
 
     def log(self):
+        """Log the size of the MIP instance"""
         logging.info(
             "Number of variables (%d), number of constraints (%d)",
             self.num_vars,
             self.num_constraints,
         )
+
+    def solve(self, work_dir="work", verbose=False):
+        """Solve the MIP instance. This runs OR-tools as default solver, then
+        SCIP, GLPK in that order.
+
+        Args:
+            work_dir (str, optional): Work directory, only used when OR-tools fail. Defaults to "work".
+            verbose (bool, optional): Verbosity level, only used when OR-tools fail. Defaults to False.
+
+        Returns:
+            list[int]: List of indices that are selected
+        """
+        filtered_list = []
+
+        if has_ortools():
+            # Use OR-tools
+            from ortools.linear_solver import pywraplp
+
+            solver, x = self.create_solver()
+            status = solver.Solve()
+            if status == pywraplp.Solver.OPTIMAL:
+                logging.info("Objective value = %d", solver.Objective().Value())
+                filtered_list = [
+                    j for j in range(self.num_vars) if x[j].solution_value() == 1
+                ]
+                logging.info("Problem solved in %d milliseconds", solver.wall_time())
+                logging.info("Problem solved in %d iterations", solver.iterations())
+                logging.info(
+                    "Problem solved in %d branch-and-bound nodes", solver.nodes()
+                )
+
+        # Use custom formatter as a backup
+        if not filtered_list:
+            lp_data = self.format_lp()
+            filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
+            if not filtered_list:
+                logging.error("SCIP fails... trying GLPK")
+                filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
+
+        return filtered_list
 
 
 class AbstractMIPSolver(object):
@@ -377,6 +418,20 @@ class LPInstance(object):
         except AttributeError:  # No solution!
             return None, None
         return selected, obj_val
+
+
+def has_ortools() -> bool:
+    """Do we have an installation of OR-tools?
+
+    Returns:
+        bool: True if installed
+    """
+    try:
+        from ortools.linear_solver import pywraplp
+
+        return True
+    except ImportError:
+        return False
 
 
 def summation(incident_edges):

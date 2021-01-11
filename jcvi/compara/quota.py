@@ -136,20 +136,6 @@ def create_data_model(nodes, constraints_x, qa, constraints_y, qb):
     )
 
 
-def has_ortools() -> bool:
-    """Do we have an installation of OR-tools?
-
-    Returns:
-        bool: True if installed
-    """
-    try:
-        from ortools.linear_solver import pywraplp
-
-        return True
-    except ImportError:
-        return False
-
-
 def solve_lp(
     clusters,
     quota,
@@ -168,32 +154,7 @@ def solve_lp(
         constraints_x = constraints_y = constraints_x | constraints_y
 
     data = create_data_model(nodes, constraints_x, qa, constraints_y, qb)
-    filtered_list = []
-
-    if has_ortools():
-        # Use OR-tools
-        from ortools.linear_solver import pywraplp
-
-        solver, x = data.create_solver()
-        status = solver.Solve()
-        if status == pywraplp.Solver.OPTIMAL:
-            logging.info("Objective value = %d", solver.Objective().Value())
-            filtered_list = [
-                j for j in range(data.num_vars) if x[j].solution_value() == 1
-            ]
-            logging.info("Problem solved in %d milliseconds", solver.wall_time())
-            logging.info("Problem solved in %d iterations", solver.iterations())
-            logging.info("Problem solved in %d branch-and-bound nodes", solver.nodes())
-
-    # Use custom formatter as a backup
-    if not filtered_list:
-        lp_data = data.format_lp()
-        filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
-        if not filtered_list:
-            logging.error("SCIP fails... trying GLPK")
-            filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
-
-    return filtered_list
+    return data.solve(work_dir=work_dir, verbose=verbose)
 
 
 def read_clusters(qa_file, qorder, sorder):

@@ -64,8 +64,13 @@ class TSPDataModel:
         D = D.astype(int)
         return D, nodes
 
-    def solve(self, concorde=False, precision=0) -> list:
+    def solve(self, time_limit=5, concorde=False, precision=0) -> list:
         """Solve the TSP instance.
+
+        Args:
+            time_limit (int, optional): Time limit to run. Default to 5 seconds.
+            concorde (bool, optional): Shall we run concorde? Defaults to False.
+            precision (int, optional): Float precision of distance. Defaults to 0.
 
         Returns:
             list: Ordered list of node indices to visit
@@ -102,7 +107,7 @@ class TSPDataModel:
         search_parameters.local_search_metaheuristic = (
             routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
         )
-        search_parameters.time_limit.seconds = 3
+        search_parameters.time_limit.seconds = time_limit
 
         # Solve the problem
         solution = routing.SolveWithParameters(search_parameters)
@@ -252,7 +257,7 @@ def populate_edge_weights(edges):
     return new_edges
 
 
-def hamiltonian(edges, directed=False, concorde=False, precision=0):
+def hamiltonian(edges, directed=False, time_limit=5, concorde=False, precision=0):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -273,7 +278,9 @@ def hamiltonian(edges, directed=False, concorde=False, precision=0):
         dummy_edges += [(x, DUMMY, 0) for x in nodes]
         dummy_edges = reformulate_atsp_as_tsp(dummy_edges)
 
-    tour = tsp(dummy_edges, concorde=concorde, precision=precision)
+    tour = tsp(
+        dummy_edges, time_limit=time_limit, concorde=concorde, precision=precision
+    )
 
     dummy_index = tour.index(DUMMY)
     tour = tour[dummy_index:] + tour[:dummy_index]
@@ -291,11 +298,12 @@ def hamiltonian(edges, directed=False, concorde=False, precision=0):
     return path
 
 
-def tsp(edges, concorde=False, precision=0) -> list:
+def tsp(edges, time_limit=5, concorde=False, precision=0) -> list:
     """Compute TSP solution
 
     Args:
         edges (list): List of tuple (source, target, weight)
+        time_limit (int, optional): Time limit to run. Default to 5 seconds.
         concorde (bool, optional): Shall we run concorde? Defaults to False.
         precision (int, optional): Float precision of distance. Defaults to 0.
 
@@ -303,7 +311,7 @@ def tsp(edges, concorde=False, precision=0) -> list:
         list: List of nodes to visit
     """
     data = TSPDataModel(edges)
-    return data.solve(concorde=concorde, precision=precision)
+    return data.solve(time_limit=time_limit, concorde=concorde, precision=precision)
 
 
 def reformulate_atsp_as_tsp(edges):

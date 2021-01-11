@@ -7,7 +7,6 @@ Utility script for annotations based on MAKER.
 Many of the routines in this script is to select among a set of conflicting
 models, either through accuracy (batcheval) or simply the length (longest).
 """
-from __future__ import print_function
 
 import os
 import os.path as op
@@ -86,7 +85,7 @@ class CTLFile(LineFile):
         for r in self:
             print(r, file=fw)
         fw.close()
-        logging.debug("File written to `{0}`".format(filename))
+        logging.debug("File written to `%s`.", filename)
 
 
 class DatastoreIndexFile(BaseFile):

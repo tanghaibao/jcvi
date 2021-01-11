@@ -21,6 +21,7 @@ def test_has_ortools():
     "constraint_coeffs,bounds,obj_coeffs,num_vars,num_constraints,expected",
     [
         ([{1: 1, 2: 1}], [1], [5, 3, 2], 3, 1, [0, 1]),
+        ([{0: 5, 1: 7, 2: 4, 3: 3}], [14], [8, 11, 6, 4], 4, 1, [1, 2, 3]),
     ],
 )
 def test_solver(

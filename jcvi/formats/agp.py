@@ -395,7 +395,7 @@ class AGP(LineFile):
         for a in self:
             print(a, file=fw)
         fw.close()
-        logging.debug("AGP file written to `{0}`.".format(filename))
+        logging.debug("AGP file written to `%s`.", filename)
         if index:
             reindex([filename, "--inplace"])
 
@@ -2076,7 +2076,7 @@ def tidy(args):
     tidyagpfile = originalagpfile.replace(".agp", ".tidy.agp")
     shutil.move(agpfile, tidyagpfile)
 
-    logging.debug("File written to `{0}`.".format(tidyagpfile))
+    logging.debug("File written to `%s`.", tidyagpfile)
     return tidyagpfile
 
 
@@ -2119,7 +2119,7 @@ def build(args):
 
     agp = AGP(agpfile, validate=validate, sorted=True)
     agp.build_all(componentfasta=componentfasta, targetfasta=targetfasta, newagp=newagp)
-    logging.debug("Target fasta written to `{0}`.".format(targetfasta))
+    logging.debug("Target fasta written to `%s`.", targetfasta)
 
     return newagpfile
 

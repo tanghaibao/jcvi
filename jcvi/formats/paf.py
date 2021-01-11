@@ -112,7 +112,7 @@ def bed(args):
             else:
                 print(b.sbedline, file=fw)
 
-    logging.debug("File written to `{}`".format(bedfile))
+    logging.debug("File written to `%s`.", bedfile)
     sort_bed([bedfile, "-i"])
     return bedfile
 

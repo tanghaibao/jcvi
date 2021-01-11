@@ -1913,7 +1913,7 @@ def sample(args):
         for b in sub_bed:
             print(b, file=fw)
 
-        logging.debug("File written to `{0}`.".format(samplebed))
+        logging.debug("File written to `%s`.", samplebed)
         return
 
     c = Coverage(bedfile, sizesfile)

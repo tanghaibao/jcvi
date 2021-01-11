@@ -2,8 +2,9 @@
 # -*- coding: UTF-8 -*-
 
 """
-TSP solver using Concorde. This is much faster than the LP-formulation in
-algorithms.lpsolve.tsp().
+TSP solver using Concorde or OR-tools. This is much faster than the LP-formulation in
+algorithms.lpsolve.tsp(). See also:
+https://developers.google.com/optimization/routing/tsp
 """
 from __future__ import print_function
 
@@ -16,6 +17,8 @@ import numpy as np
 from collections import defaultdict
 from itertools import combinations
 
+from dataclasses import dataclass
+
 from jcvi.formats.base import FileShredder, must_open
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import mkdir, which, sh
@@ -26,19 +29,132 @@ NEG_INF = -INF
 Work_dir = "tsp_work"
 
 
+@dataclass
+class TSPDataModel:
+    edges: list  # List of tuple (source, target, weight)
+
+    def distance_matrix(self, precision=0) -> tuple:
+        """Compute the distance matrix
+
+        Returns:
+            np.array: Numpy square matrix with integer entries as distance
+        """
+        _, _, nodes = node_to_edge(self.edges, directed=False)
+        nodes_indices = dict((n, i) for i, n in enumerate(nodes))
+        nnodes = len(nodes)
+
+        # TSPLIB requires explicit weights to be integral, and non-negative
+        weights = [x[-1] for x in self.edges]
+        max_x, min_x = max(weights), min(weights)
+        inf = 2 * max(abs(max_x), abs(min_x))
+        factor = 10 ** precision
+        logging.debug(
+            "TSP rescale: max_x=%d, min_x=%d, inf=%d, factor=%d",
+            max_x,
+            min_x,
+            inf,
+            factor,
+        )
+
+        D = np.ones((nnodes, nnodes), dtype=float) * inf
+        for a, b, w in self.edges:
+            ia, ib = nodes_indices[a], nodes_indices[b]
+            D[ia, ib] = D[ib, ia] = w
+        D = (D - min_x) * factor
+        D = D.astype(int)
+        return D, nodes
+
+    def solve(self, time_limit=5, concorde=False, precision=0) -> list:
+        """Solve the TSP instance.
+
+        Args:
+            time_limit (int, optional): Time limit to run. Default to 5 seconds.
+            concorde (bool, optional): Shall we run concorde? Defaults to False.
+            precision (int, optional): Float precision of distance. Defaults to 0.
+
+        Returns:
+            list: Ordered list of node indices to visit
+        """
+        if concorde:
+            return Concorde(self, precision=precision).tour
+
+        # Use OR-tools
+        from ortools.constraint_solver import routing_enums_pb2
+        from ortools.constraint_solver import pywrapcp
+
+        D, nodes = self.distance_matrix(precision)
+        nnodes = len(nodes)
+
+        # Create the routing index manager
+        manager = pywrapcp.RoutingIndexManager(nnodes, 1, 0)
+
+        # Create routing model
+        routing = pywrapcp.RoutingModel(manager)
+
+        def distance_callback(from_index, to_index):
+            """Returns the distance between the two nodes."""
+            from_node = manager.IndexToNode(from_index)
+            to_node = manager.IndexToNode(to_index)
+            return D[from_node, to_node]
+
+        transit_callback_index = routing.RegisterTransitCallback(distance_callback)
+
+        # Define cost of each arc
+        routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+
+        # Search strategy
+        search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+        search_parameters.local_search_metaheuristic = (
+            routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+        )
+        search_parameters.time_limit.seconds = time_limit
+
+        # Solve the problem
+        solution = routing.SolveWithParameters(search_parameters)
+
+        tour = []
+        logging.info("Objective: %d", solution.ObjectiveValue())
+        index = routing.Start(0)
+        route_distance = 0
+        while not routing.IsEnd(index):
+            tour.append(manager.IndexToNode(index))
+            previous_index = index
+            index = solution.Value(routing.NextVar(index))
+            route_distance = routing.GetArcCostForVehicle(previous_index, index, 0)
+        logging.info("Route distance: %d", route_distance)
+
+        return [nodes[x] for x in tour]
+
+
 class Concorde(object):
     def __init__(
-        self, edges, work_dir=Work_dir, clean=True, verbose=False, precision=0, seed=666
+        self,
+        data: TSPDataModel,
+        work_dir=Work_dir,
+        clean=True,
+        verbose=False,
+        precision=0,
+        seed=666,
     ):
+        """Run concorde on TSP instance
 
+        Args:
+            datamodel (TSPDataModel): TSP instance with edge weights
+            work_dir ([type], optional): Path to the work dir. Defaults to Work_dir.
+            clean (bool, optional): Clean up intermediate results. Defaults to True.
+            verbose (bool, optional): Show verbose messages. Defaults to False.
+            precision (int, optional): Float precision of distance. Defaults to 0.
+            seed (int, optional): Random seed. Defaults to 666.
+        """
+        self.data = data
         self.work_dir = work_dir
         self.clean = clean
         self.verbose = verbose
 
         mkdir(work_dir)
         tspfile = op.join(work_dir, "data.tsp")
-        self.print_to_tsplib(edges, tspfile, precision=precision)
-        retcode, outfile = self.run_concorde(tspfile, seed=seed)
+        self.print_to_tsplib(tspfile, precision=precision)
+        _, outfile = self.run_concorde(tspfile, seed=seed)
         self.tour = self.parse_output(outfile)
 
         if clean:
@@ -46,7 +162,7 @@ class Concorde(object):
             residual_output = ["data.sol", "data.res", "Odata.res"]
             FileShredder(residual_output, verbose=False)
 
-    def print_to_tsplib(self, edges, tspfile, precision=0):
+    def print_to_tsplib(self, tspfile, precision=0):
         """
         See TSPlib format:
         <https://www.iwr.uni-heidelberg.de/groups/comopt/software/TSPLIB95/>
@@ -62,42 +178,23 @@ class Concorde(object):
         (... numbers ...)
         """
         fw = must_open(tspfile, "w")
-        incident, nodes = node_to_edge(edges, directed=False)
+        D, nodes = self.data.distance_matrix(precision)
         self.nodes = nodes
-        nodes_indices = dict((n, i) for i, n in enumerate(nodes))
-        self.nnodes = nnodes = len(nodes)
-
-        # TSPLIB requires explicit weights to be integral, and non-negative
-        weights = [x[-1] for x in edges]
-        max_x, min_x = max(weights), min(weights)
-        inf = 2 * max(abs(max_x), abs(min_x))
-        factor = 10 ** precision
-        logging.debug(
-            "TSP rescale: max_x={0}, min_x={1}, inf={2}, factor={3}".format(
-                max_x, min_x, inf, factor
-            )
-        )
+        self.nnodes = len(nodes)
 
         print("NAME: data", file=fw)
         print("TYPE: TSP", file=fw)
-        print("DIMENSION: {0}".format(nnodes), file=fw)
-
-        D = np.ones((nnodes, nnodes), dtype=float) * inf
-        for a, b, w in edges:
-            ia, ib = nodes_indices[a], nodes_indices[b]
-            D[ia, ib] = D[ib, ia] = w
-        D = (D - min_x) * factor
-        D = D.astype(int)
-
+        print("DIMENSION: {}".format(self.nnodes), file=fw)
         print("EDGE_WEIGHT_TYPE: EXPLICIT", file=fw)
         print("EDGE_WEIGHT_FORMAT: FULL_MATRIX", file=fw)
         print("EDGE_WEIGHT_SECTION", file=fw)
+
         for row in D:  # Dump the full matrix
             print(" " + " ".join(str(x) for x in row), file=fw)
 
         print("EOF", file=fw)
         fw.close()
-        logging.debug("Write TSP instance to `{0}`".format(tspfile))
+        logging.debug("Write TSP instance to `%s`", tspfile)
 
     def run_concorde(self, tspfile, seed=666):
         outfile = op.join(self.work_dir, "data.sol")
@@ -134,15 +231,16 @@ def node_to_edge(edges, directed=True):
     incoming = defaultdict(set) if directed else outgoing
     nodes = set()
     for i, edge in enumerate(edges):
-        a, b, = edge[:2]
+        (
+            a,
+            b,
+        ) = edge[:2]
         outgoing[a].add(i)
         incoming[b].add(i)
         nodes.add(a)
         nodes.add(b)
     nodes = list(nodes)
-    if directed:
-        return outgoing, incoming, nodes
-    return outgoing, nodes
+    return outgoing, incoming, nodes
 
 
 def populate_edge_weights(edges):
@@ -159,7 +257,7 @@ def populate_edge_weights(edges):
     return new_edges
 
 
-def hamiltonian(edges, directed=False, precision=0):
+def hamiltonian(edges, directed=False, time_limit=5, concorde=False, precision=0):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -173,14 +271,16 @@ def hamiltonian(edges, directed=False, precision=0):
     [1, 2, 3]
     """
     edges = populate_edge_weights(edges)
-    incident, nodes = node_to_edge(edges, directed=False)
+    _, _, nodes = node_to_edge(edges, directed=False)
     DUMMY = "DUMMY"
     dummy_edges = edges + [(DUMMY, x, 0) for x in nodes]
     if directed:
         dummy_edges += [(x, DUMMY, 0) for x in nodes]
         dummy_edges = reformulate_atsp_as_tsp(dummy_edges)
 
-    tour = tsp(dummy_edges, precision=precision)
+    tour = tsp(
+        dummy_edges, time_limit=time_limit, concorde=concorde, precision=precision
+    )
 
     dummy_index = tour.index(DUMMY)
     tour = tour[dummy_index:] + tour[:dummy_index]
@@ -198,9 +298,20 @@ def hamiltonian(edges, directed=False, precision=0):
     return path
 
 
-def tsp(edges, precision=0):
-    c = Concorde(edges, precision=precision)
-    return c.tour
+def tsp(edges, time_limit=5, concorde=False, precision=0) -> list:
+    """Compute TSP solution
+
+    Args:
+        edges (list): List of tuple (source, target, weight)
+        time_limit (int, optional): Time limit to run. Default to 5 seconds.
+        concorde (bool, optional): Shall we run concorde? Defaults to False.
+        precision (int, optional): Float precision of distance. Defaults to 0.
+
+    Returns:
+        list: List of nodes to visit
+    """
+    data = TSPDataModel(edges)
+    return data.solve(time_limit=time_limit, concorde=concorde, precision=precision)
 
 
 def reformulate_atsp_as_tsp(edges):
@@ -215,7 +326,7 @@ def reformulate_atsp_as_tsp(edges):
     from the city. The distances between all cities and the distances between
     all dummy cities are set to infeasible.
     """
-    incident, nodes = node_to_edge(edges, directed=False)
+    _, _, nodes = node_to_edge(edges, directed=False)
     new_edges = []
     for a, b, w in edges:
         new_edges.append(((a, "*"), b, w))
@@ -227,7 +338,7 @@ def reformulate_atsp_as_tsp(edges):
 def make_data(N, directed=False):
     x = np.random.randn(N)
     y = np.random.randn(N)
-    xy = zip(x, y)
+    xy = list(zip(x, y))
     M = np.zeros((N, N), dtype=float)
     for ia, ib in combinations(range(N), 2):
         ax, ay = xy[ia]
@@ -273,7 +384,7 @@ def concorde_demo(POINTS=100):
 def compare_lpsolve_to_concorde(POINTS=80, directed=False):
     from jcvi.algorithms.lpsolve import hamiltonian as lhamiltonian
 
-    x, y, M, edges = make_data(POINTS, directed=directed)
+    _, _, M, edges = make_data(POINTS, directed=directed)
     ltour = lhamiltonian(edges, directed=directed)
     print(ltour, evaluate(ltour, M))
 

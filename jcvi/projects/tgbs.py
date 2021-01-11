@@ -4,7 +4,6 @@
 """
 Reference-free tGBS related functions.
 """
-from __future__ import print_function
 
 from six.moves.cPickle import dump, load
 import os
@@ -317,7 +316,7 @@ def count(args):
 
     if csv:
         csv.close()
-        logging.debug("File written to `{0}`".format(opts.csv))
+        logging.debug("File written to `%s`.", opts.csv)
 
     s = SummaryStats(sizes)
     print(s, file=sys.stderr)

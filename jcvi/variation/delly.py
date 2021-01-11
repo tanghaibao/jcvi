@@ -4,7 +4,6 @@
 """
 Convert delly output to BED format.
 """
-from __future__ import print_function
 
 import os.path as op
 import sys
@@ -17,8 +16,7 @@ from jcvi.utils.aws import ls_s3, push_to_s3
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 
-class DelLine (object):
-
+class DelLine(object):
     def __init__(self, line):
         args = line.strip().split("\t")
         self.seqid = args[0]
@@ -32,13 +30,20 @@ class DelLine (object):
 
     @property
     def bedline(self):
-        return "\t".join(str(x) for x in (self.seqid,
-                                          self.start - 1, self.end, self.accn,
-                                          self.supporting_pairs, "+"))
+        return "\t".join(
+            str(x)
+            for x in (
+                self.seqid,
+                self.start - 1,
+                self.end,
+                self.accn,
+                self.supporting_pairs,
+                "+",
+            )
+        )
 
 
-class Delly (BaseFile):
-
+class Delly(BaseFile):
     def __init__(self, filename):
         super(Delly, self).__init__(filename)
 
@@ -57,16 +62,16 @@ class Delly (BaseFile):
         fw = must_open(bedfile, "w")
         for d in self:
             print(d.bedline, file=fw)
-        logging.debug("File written to `{0}`.".format(bedfile))
+        logging.debug("File written to `%s`.", bedfile)
 
 
 def main():
 
     actions = (
-        ('bed', 'Convert del.txt to del.bed'),
-        ('mito', 'Find mito deletions in BAM'),
-        ('mitosomatic', 'Find mito mosaic somatic mutations in piledriver results'),
-        ('mitocompile', 'Compile mito deletions from multiple VCF files'),
+        ("bed", "Convert del.txt to del.bed"),
+        ("mito", "Find mito deletions in BAM"),
+        ("mitosomatic", "Find mito mosaic somatic mutations in piledriver results"),
+        ("mitocompile", "Compile mito deletions from multiple VCF files"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -81,16 +86,14 @@ def mitosomatic(args):
     import pandas as pd
 
     p = OptionParser(mitosomatic.__doc__)
-    p.add_option("--minaf", default=.005, type="float",
-                 help="Minimum allele fraction")
-    p.add_option("--maxaf", default=.1, type="float",
-                 help="Maximum allele fraction")
+    p.add_option("--minaf", default=0.005, type="float", help="Minimum allele fraction")
+    p.add_option("--maxaf", default=0.1, type="float", help="Maximum allele fraction")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    df, = args
+    (df,) = args
     af_file = df.rsplit(".", 1)[0] + ".af"
     fw = open(af_file, "w")
     df = pd.read_csv(df, sep="\t")
@@ -102,9 +105,9 @@ def mitosomatic(args):
         nd = row["num_D"]
         ni = row["num_I"]
         depth = row["depth"]
-        #major, minor = sorted([na, nt, nc, ng], reverse=True)[:2]
-        #af = minor * 1. / (major + minor)
-        af = (nd + ni) * 1. / depth
+        # major, minor = sorted([na, nt, nc, ng], reverse=True)[:2]
+        # af = minor * 1. / (major + minor)
+        af = (nd + ni) * 1.0 / depth
         if not (opts.minaf <= af <= opts.maxaf):
             continue
         print("{}\t{}\t{:.6f}".format(row["chrom"], row["start"], af), file=fw)
@@ -130,7 +133,7 @@ def bed(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    delt, = args
+    (delt,) = args
     dt = Delly(delt)
     dt.write_bed("del.bed")
 
@@ -154,8 +157,7 @@ def mitocompile(args):
     print("\t".join("vcf samplekey depth seqid pos alt svlen pe sr".split()))
     for i, vcf in enumerate(vcfs):
         if (i + 1) % 100 == 0:
-            logging.debug("Process `{}` [{}]".
-                          format(vcf, percentage(i + 1, len(vcfs))))
+            logging.debug("Process `{}` [{}]".format(vcf, percentage(i + 1, len(vcfs))))
         depthfile = vcf.replace(".sv.vcf.gz", ".depth")
         fp = must_open(depthfile)
         chrm, depth = fp.next().split()
@@ -164,14 +166,26 @@ def mitocompile(args):
 
         fp = must_open(vcf)
         for row in fp:
-            if row[0] == '#':
+            if row[0] == "#":
                 continue
             v = VcfLine(row)
             info = dict(parse_qsl(v.info))
-            print("\t".join(str(x) for x in (vcf,
-                                             samplekey, depth,
-                                             v.seqid, v.pos, v.alt,
-                                             info.get("SVLEN"), info["PE"], info["SR"])))
+            print(
+                "\t".join(
+                    str(x)
+                    for x in (
+                        vcf,
+                        samplekey,
+                        depth,
+                        v.seqid,
+                        v.pos,
+                        v.alt,
+                        info.get("SVLEN"),
+                        info["PE"],
+                        info["SR"],
+                    )
+                )
+            )
 
 
 def mito(args):
@@ -182,12 +196,18 @@ def mito(args):
     """
     p = OptionParser(mito.__doc__)
     p.set_aws_opts(store="hli-mv-data-science/htang/mito-deletions")
-    p.add_option("--realignonly", default=False, action="store_true",
-                 help="Realign only")
-    p.add_option("--svonly", default=False, action="store_true",
-                 help="Run Realign => SV calls only")
-    p.add_option("--support", default=1, type="int",
-                 help="Minimum number of supporting reads")
+    p.add_option(
+        "--realignonly", default=False, action="store_true", help="Realign only"
+    )
+    p.add_option(
+        "--svonly",
+        default=False,
+        action="store_true",
+        help="Run Realign => SV calls only",
+    )
+    p.add_option(
+        "--support", default=1, type="int", help="Minimum number of supporting reads"
+    )
     p.set_home("speedseq", default="/mnt/software/speedseq/bin")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -215,27 +235,39 @@ def mito(args):
 
     if store:
         computed = ls_s3(store)
-        computed = [op.basename(x).split('.')[0] for x in computed if
-                    x.endswith(".depth")]
-        remaining_samples = [x for x in bamfiles
-                             if op.basename(x).split(".")[0] not in computed]
+        computed = [
+            op.basename(x).split(".")[0] for x in computed if x.endswith(".depth")
+        ]
+        remaining_samples = [
+            x for x in bamfiles if op.basename(x).split(".")[0] not in computed
+        ]
 
-        logging.debug("Already computed on `{}`: {}".
-                      format(store, len(bamfiles) - len(remaining_samples)))
+        logging.debug(
+            "Already computed on `{}`: {}".format(
+                store, len(bamfiles) - len(remaining_samples)
+            )
+        )
         bamfiles = remaining_samples
 
     logging.debug("Total samples: {}".format(len(bamfiles)))
 
     for bamfile in bamfiles:
-        run_mito(chrMfa, bamfile, opts,
-                 realignonly=opts.realignonly,
-                 svonly=opts.svonly,
-                 store=store, cleanup=cleanup)
+        run_mito(
+            chrMfa,
+            bamfile,
+            opts,
+            realignonly=opts.realignonly,
+            svonly=opts.svonly,
+            store=store,
+            cleanup=cleanup,
+        )
 
 
-def run_mito(chrMfa, bamfile, opts, realignonly=False, svonly=False,
-             store=None, cleanup=False):
+def run_mito(
+    chrMfa, bamfile, opts, realignonly=False, svonly=False, store=None, cleanup=False
+):
     from jcvi.formats.sam import get_minibam
+
     region = "chrM"
     minibam = op.basename(bamfile).replace(".bam", ".{}.bam".format(region))
     if not op.exists(minibam):
@@ -261,8 +293,15 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False, svonly=False,
 
     depthfile = realign + ".depth"
     if need_update(realignbam, depthfile):
-        coverage([chrMfa, realignbam, "--nosort", "--format=coverage",
-                  "--outfile={}".format(depthfile)])
+        coverage(
+            [
+                chrMfa,
+                realignbam,
+                "--nosort",
+                "--format=coverage",
+                "--outfile={}".format(depthfile),
+            ]
+        )
 
     if store:
         push_to_s3(store, depthfile)
@@ -273,8 +312,9 @@ def run_mito(chrMfa, bamfile, opts, realignonly=False, svonly=False,
         cmd += margs
         cmd += " -R {}".format(chrMfa)
         cmd += " -m {}".format(opts.support)
-        cmd += " -B {} -D {} -S {}".format(realignbam,
-                                           realign + ".discordants.bam", realign + ".splitters.bam")
+        cmd += " -B {} -D {} -S {}".format(
+            realignbam, realign + ".discordants.bam", realign + ".splitters.bam"
+        )
         sh(cmd)
     else:
         logging.debug("{} found. Skipped.".format(vcffile))
@@ -304,5 +344,5 @@ def do_cleanup(minibam, realignbam):
     sh("rm -f {}* {}*".format(minibam, realignbam))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

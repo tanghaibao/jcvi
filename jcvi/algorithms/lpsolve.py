@@ -473,7 +473,7 @@ def hamiltonian(edges, directed=False, constraint_generation=True):
     >>> hamiltonian(g)
     """
     edges = populate_edge_weights(edges)
-    incident, nodes = node_to_edge(edges, directed=False)
+    _, _, nodes = node_to_edge(edges, directed=False)
     if not directed:  # Make graph symmetric
         dual_edges = edges[:]
         for a, b, w in edges:

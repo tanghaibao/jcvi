@@ -1,7 +1,6 @@
 """
 parses tabular BLAST -m8 (-format 6 in BLAST+) format
 """
-from __future__ import print_function
 
 import os.path as op
 import sys
@@ -453,7 +452,10 @@ def rbbh(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    abfile, bafile, = args
+    (
+        abfile,
+        bafile,
+    ) = args
     ab = Blast(abfile)
     ba = Blast(bafile)
 
@@ -654,10 +656,15 @@ def top10(args):
 
     p = OptionParser(top10.__doc__)
     p.add_option(
-        "--top", default=10, type="int", help="Top N taxa to extract",
+        "--top",
+        default=10,
+        type="int",
+        help="Top N taxa to extract",
     )
     p.add_option(
-        "--ids", default=None, help="Two column ids file to query seqid",
+        "--ids",
+        default=None,
+        help="Two column ids file to query seqid",
     )
     opts, args = p.parse_args(args)
 
@@ -685,10 +692,16 @@ def sort(args):
     """
     p = OptionParser(sort.__doc__)
     p.add_option(
-        "--query", default=False, action="store_true", help="Sort by query position",
+        "--query",
+        default=False,
+        action="store_true",
+        help="Sort by query position",
     )
     p.add_option(
-        "--ref", default=False, action="store_true", help="Sort by reference position",
+        "--ref",
+        default=False,
+        action="store_true",
+        help="Sort by reference position",
     )
     p.add_option(
         "--refscore",
@@ -752,7 +765,10 @@ def cscore(args):
 
     p = OptionParser(cscore.__doc__)
     p.add_option(
-        "--cutoff", default=0.9999, type="float", help="Minimum C-score to report",
+        "--cutoff",
+        default=0.9999,
+        type="float",
+        help="Minimum C-score to report",
     )
     p.add_option(
         "--pct",
@@ -1027,7 +1043,10 @@ def covfilter(args):
         "--supermap", action="store_true", help="Use supermap instead of union"
     )
     p.add_option(
-        "--ids", dest="ids", default=None, help="Print out the ids that satisfy",
+        "--ids",
+        dest="ids",
+        default=None,
+        help="Print out the ids that satisfy",
     )
     p.add_option(
         "--list",
@@ -1237,7 +1256,10 @@ def bed(args):
 
     p = OptionParser(bed.__doc__)
     p.add_option(
-        "--swap", default=False, action="store_true", help="Write query positions",
+        "--swap",
+        default=False,
+        action="store_true",
+        help="Write query positions",
     )
     p.add_option(
         "--both",
@@ -1269,7 +1291,7 @@ def bed(args):
         if negative:
             print(b.swapped.bedline, file=fw)
 
-    logging.debug("File written to `{0}`.".format(bedfile))
+    logging.debug("File written to `%s`.", bedfile)
     fw.close()
     bed_sort([bedfile, "-i"])
 
@@ -1405,10 +1427,14 @@ def subset(args):
     """
     p = OptionParser(subset.__doc__)
     p.add_option(
-        "--qchrs", default=None, help="query chrs to extract, comma sep",
+        "--qchrs",
+        default=None,
+        help="query chrs to extract, comma sep",
     )
     p.add_option(
-        "--schrs", default=None, help="subject chrs to extract, comma sep",
+        "--schrs",
+        default=None,
+        help="subject chrs to extract, comma sep",
     )
     p.add_option(
         "--convert",

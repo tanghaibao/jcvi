@@ -284,9 +284,9 @@ class ScaffoldOO(object):
                 continue
             G.add_edge(b, a, weight=d)
 
-        logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
+        logging.debug("Graph size: |V|=%d, |E|=%d", len(G), G.size())
 
-        L = nx.all_pairs_dijkstra_path_length(G)
+        L = dict(nx.all_pairs_dijkstra_path_length(G))
         for a, b in combinations(scaffolds, 2):
             if G.has_edge(a, b):
                 continue
@@ -1121,7 +1121,7 @@ def movie(args):
             fwagp = must_open(agpfile, "w")
             order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
             fwagp.close()
-            logging.debug("{0} written to `{1}`".format(header, agpfile))
+            logging.debug("%s written to `%s`.", header, agpfile)
             build([inputbed, scaffoldsfasta, "--cleanup"])
             pdf_name = plot([inputbed, seqid, "--title={0}".format(label)])
             sh("mv {0} {1}".format(pdf_name, image_name))
@@ -1279,7 +1279,7 @@ def merge(args):
             continue
 
     b.print_to_file(filename=outfile, sorted=True)
-    logging.debug("A total of {0} markers written to `{1}`.".format(len(b), outfile))
+    logging.debug("A total of %d markers written to `%s`.", len(b), outfile)
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     write_weightsfile(mapnames, weightsfile=opts.weightsfile)
@@ -1318,7 +1318,7 @@ def mergebed(args):
             continue
 
     b.print_to_file(filename=outfile, sorted=True)
-    logging.debug("A total of {0} markers written to `{1}`.".format(len(b), outfile))
+    logging.debug("A total of %d markers written to `%s`.", len(b), outfile)
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     write_weightsfile(mapnames, weightsfile=opts.weightsfile)
@@ -1335,7 +1335,7 @@ def write_weightsfile(mapnames, weightsfile="weights.txt"):
     for mapname in sorted(mapnames):
         weight = 1
         print(mapname, weight, file=fw)
-    logging.debug("Weights file written to `{0}`.".format(weightsfile))
+    logging.debug("Weights file written to `%s`.", weightsfile)
 
 
 def best_no_ambiguous(d, label):
@@ -1626,8 +1626,8 @@ def path(args):
         order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
     fwagp.close()
 
-    logging.debug("AGP file written to `{0}`.".format(agpfile))
-    logging.debug("Tour file written to `{0}`.".format(tourfile))
+    logging.debug("AGP file written to `%s`.", agpfile)
+    logging.debug("Tour file written to `%s`.", tourfile)
 
     build([inputbed, fastafile])
 
@@ -1653,7 +1653,7 @@ def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):
         if s in scaffolds_seen:
             continue
         order_to_agp(s, [(s, "?")], sizes, fwagp)
-    logging.debug("Write unplaced AGP to `{0}`.".format(unplaced_agp))
+    logging.debug("Write unplaced AGP to `%s`", unplaced_agp)
 
 
 def summary(args):

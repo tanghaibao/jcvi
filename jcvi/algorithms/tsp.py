@@ -16,6 +16,8 @@ import numpy as np
 from collections import defaultdict
 from itertools import combinations
 
+from dataclasses import dataclass
+
 from jcvi.formats.base import FileShredder, must_open
 from jcvi.utils.iter import pairwise
 from jcvi.apps.base import mkdir, which, sh
@@ -24,6 +26,42 @@ from jcvi.apps.base import mkdir, which, sh
 INF = 10000
 NEG_INF = -INF
 Work_dir = "tsp_work"
+
+
+@dataclass
+class TSPDataModel:
+    edges: list  # List of tuple (source, target, weight)
+
+    def distance_matrix(self, precision=0) -> np.array:
+        """Compute the distance matrix
+
+        Returns:
+            np.array: Numpy square matrix with integer entries as distance
+        """
+        _, _, nodes = node_to_edge(self.edges, directed=False)
+        nodes_indices = dict((n, i) for i, n in enumerate(nodes))
+        nnodes = len(nodes)
+
+        # TSPLIB requires explicit weights to be integral, and non-negative
+        weights = [x[-1] for x in self.edges]
+        max_x, min_x = max(weights), min(weights)
+        inf = 2 * max(abs(max_x), abs(min_x))
+        factor = 10 ** precision
+        logging.debug(
+            "TSP rescale: max_x=%d, min_x=%d, inf=%d, factor=%d",
+            max_x,
+            min_x,
+            inf,
+            factor,
+        )
+
+        D = np.ones((nnodes, nnodes), dtype=float) * inf
+        for a, b, w in self.edges:
+            ia, ib = nodes_indices[a], nodes_indices[b]
+            D[ia, ib] = D[ib, ia] = w
+        D = (D - min_x) * factor
+        D = D.astype(int)
+        return D
 
 
 class Concorde(object):
@@ -64,40 +102,23 @@ class Concorde(object):
         fw = must_open(tspfile, "w")
         _, _, nodes = node_to_edge(edges, directed=False)
         self.nodes = nodes
-        nodes_indices = dict((n, i) for i, n in enumerate(nodes))
         self.nnodes = nnodes = len(nodes)
-
-        # TSPLIB requires explicit weights to be integral, and non-negative
-        weights = [x[-1] for x in edges]
-        max_x, min_x = max(weights), min(weights)
-        inf = 2 * max(abs(max_x), abs(min_x))
-        factor = 10 ** precision
-        logging.debug(
-            "TSP rescale: max_x={0}, min_x={1}, inf={2}, factor={3}".format(
-                max_x, min_x, inf, factor
-            )
-        )
 
         print("NAME: data", file=fw)
         print("TYPE: TSP", file=fw)
         print("DIMENSION: {0}".format(nnodes), file=fw)
-
-        D = np.ones((nnodes, nnodes), dtype=float) * inf
-        for a, b, w in edges:
-            ia, ib = nodes_indices[a], nodes_indices[b]
-            D[ia, ib] = D[ib, ia] = w
-        D = (D - min_x) * factor
-        D = D.astype(int)
-
         print("EDGE_WEIGHT_TYPE: EXPLICIT", file=fw)
         print("EDGE_WEIGHT_FORMAT: FULL_MATRIX", file=fw)
         print("EDGE_WEIGHT_SECTION", file=fw)
+
+        data = TSPDataModel(edges)
+        D = data.distance_matrix(precision)
         for row in D:  # Dump the full matrix
             print(" " + " ".join(str(x) for x in row), file=fw)
 
         print("EOF", file=fw)
         fw.close()
-        logging.debug("Write TSP instance to `{0}`".format(tspfile))
+        logging.debug("Write TSP instance to `%s`", tspfile)
 
     def run_concorde(self, tspfile, seed=666):
         outfile = op.join(self.work_dir, "data.sol")
@@ -205,8 +226,7 @@ def tsp(edges, concorde=False, precision=0):
     Args:
         edges (list): List of tuple (source, target, weight)
         concorde (bool, optional): Shall we run concorde? Defaults to False.
-        precision (int, optional): Float precision of distance, only applicable
-        when running concorde. Defaults to 0.
+        precision (int, optional): Float precision of distance. Defaults to 0.
 
     Returns:
         list: List of nodes to visit

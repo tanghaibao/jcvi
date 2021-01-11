@@ -62,7 +62,7 @@ class Concorde(object):
         (... numbers ...)
         """
         fw = must_open(tspfile, "w")
-        _, nodes = node_to_edge(edges, directed=False)
+        _, _, nodes = node_to_edge(edges, directed=False)
         self.nodes = nodes
         nodes_indices = dict((n, i) for i, n in enumerate(nodes))
         self.nnodes = nnodes = len(nodes)
@@ -143,9 +143,7 @@ def node_to_edge(edges, directed=True):
         nodes.add(a)
         nodes.add(b)
     nodes = list(nodes)
-    if directed:
-        return outgoing, incoming, nodes
-    return outgoing, nodes
+    return outgoing, incoming, nodes
 
 
 def populate_edge_weights(edges):
@@ -162,7 +160,7 @@ def populate_edge_weights(edges):
     return new_edges
 
 
-def hamiltonian(edges, directed=False, precision=0):
+def hamiltonian(edges, directed=False, concorde=False, precision=0):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -176,14 +174,14 @@ def hamiltonian(edges, directed=False, precision=0):
     [1, 2, 3]
     """
     edges = populate_edge_weights(edges)
-    incident, nodes = node_to_edge(edges, directed=False)
+    _, _, nodes = node_to_edge(edges, directed=False)
     DUMMY = "DUMMY"
     dummy_edges = edges + [(DUMMY, x, 0) for x in nodes]
     if directed:
         dummy_edges += [(x, DUMMY, 0) for x in nodes]
         dummy_edges = reformulate_atsp_as_tsp(dummy_edges)
 
-    tour = tsp(dummy_edges, precision=precision)
+    tour = tsp(dummy_edges, concorde=concorde, precision=precision)
 
     dummy_index = tour.index(DUMMY)
     tour = tour[dummy_index:] + tour[:dummy_index]
@@ -229,7 +227,7 @@ def reformulate_atsp_as_tsp(edges):
     from the city. The distances between all cities and the distances between
     all dummy cities are set to infeasible.
     """
-    _, nodes = node_to_edge(edges, directed=False)
+    _, _, nodes = node_to_edge(edges, directed=False)
     new_edges = []
     for a, b, w in edges:
         new_edges.append(((a, "*"), b, w))

@@ -2,8 +2,9 @@
 # -*- coding: UTF-8 -*-
 
 """
-TSP solver using Concorde. This is much faster than the LP-formulation in
-algorithms.lpsolve.tsp().
+TSP solver using Concorde or OR-tools. This is much faster than the LP-formulation in
+algorithms.lpsolve.tsp(). See also:
+https://developers.google.com/optimization/routing/tsp
 """
 from __future__ import print_function
 
@@ -32,7 +33,7 @@ Work_dir = "tsp_work"
 class TSPDataModel:
     edges: list  # List of tuple (source, target, weight)
 
-    def distance_matrix(self, precision=0) -> np.array:
+    def distance_matrix(self, precision=0) -> tuple:
         """Compute the distance matrix
 
         Returns:
@@ -61,14 +62,65 @@ class TSPDataModel:
             D[ia, ib] = D[ib, ia] = w
         D = (D - min_x) * factor
         D = D.astype(int)
-        return D
+        return D, nodes
 
-    def solve(self) -> list:
+    def solve(self, concorde=False, precision=0) -> list:
         """Solve the TSP instance.
 
         Returns:
             list: Ordered list of node indices to visit
         """
+        if concorde:
+            return Concorde(self, precision=precision).tour
+
+        # Use OR-tools
+        from ortools.constraint_solver import routing_enums_pb2
+        from ortools.constraint_solver import pywrapcp
+
+        D, nodes = self.distance_matrix(precision)
+        nnodes = len(nodes)
+
+        # Create the routing index manager
+        manager = pywrapcp.RoutingIndexManager(nnodes, 1, 0)
+
+        # Create routing model
+        routing = pywrapcp.RoutingModel(manager)
+
+        def distance_callback(from_index, to_index):
+            """Returns the distance between the two nodes."""
+            from_node = manager.IndexToNode(from_index)
+            to_node = manager.IndexToNode(to_index)
+            return D[from_node, to_node]
+
+        transit_callback_index = routing.RegisterTransitCallback(distance_callback)
+
+        # Define cost of each arc
+        routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
+
+        # Search strategy
+        search_parameters = pywrapcp.DefaultRoutingSearchParameters()
+        search_parameters.local_search_metaheuristic = (
+            routing_enums_pb2.LocalSearchMetaheuristic.GUIDED_LOCAL_SEARCH
+        )
+        search_parameters.time_limit.seconds = 10
+        search_parameters.log_search = True
+
+        # Solve the problem
+        solution = routing.SolveWithParameters(search_parameters)
+
+        tour = []
+        logging.info("Objective: %d", solution.ObjectiveValue())
+        index = routing.Start(0)
+        route_distance = 0
+        while not routing.IsEnd(index):
+            tour.append(manager.IndexToNode(index))
+            previous_index = index
+            index = solution.Value(routing.NextVar(index))
+            route_distance = routing.GetArcCostForVehicle(previous_index, index, 0)
+        tour.append(manager.IndexToNode(index))
+        logging.info("Route distance: %d", route_distance)
+
+        return tour
 
 
 class Concorde(object):
@@ -123,18 +175,17 @@ class Concorde(object):
         (... numbers ...)
         """
         fw = must_open(tspfile, "w")
-        _, _, nodes = node_to_edge(self.data.edges, directed=False)
+        D, nodes = self.data.distance_matrix(precision)
         self.nodes = nodes
-        self.nnodes = nnodes = len(nodes)
+        self.nnodes = len(nodes)
 
         print("NAME: data", file=fw)
         print("TYPE: TSP", file=fw)
-        print("DIMENSION: {0}".format(nnodes), file=fw)
+        print("DIMENSION: {}".format(self.nnodes), file=fw)
         print("EDGE_WEIGHT_TYPE: EXPLICIT", file=fw)
         print("EDGE_WEIGHT_FORMAT: FULL_MATRIX", file=fw)
         print("EDGE_WEIGHT_SECTION", file=fw)
 
-        D = self.data.distance_matrix(precision)
         for row in D:  # Dump the full matrix
             print(" " + " ".join(str(x) for x in row), file=fw)
 
@@ -242,7 +293,7 @@ def hamiltonian(edges, directed=False, concorde=False, precision=0):
     return path
 
 
-def tsp(edges, concorde=False, precision=0):
+def tsp(edges, concorde=False, precision=0) -> list:
     """Compute TSP solution
 
     Args:
@@ -254,8 +305,7 @@ def tsp(edges, concorde=False, precision=0):
         list: List of nodes to visit
     """
     data = TSPDataModel(edges)
-    if concorde:
-        return Concorde(data, precision=precision).tour
+    return data.solve(concorde=concorde, precision=precision)
 
 
 def reformulate_atsp_as_tsp(edges):

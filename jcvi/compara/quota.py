@@ -23,6 +23,8 @@ import sys
 from dataclasses import dataclass
 from io import StringIO
 
+from rich import print
+
 from jcvi.algorithms.lpsolve import GLPKSolver, SCIPSolver
 from jcvi.compara.synteny import AnchorFile, _score, check_beds
 from jcvi.formats.base import must_open
@@ -31,6 +33,8 @@ from jcvi.apps.base import OptionParser
 
 @dataclass
 class DataModel:
+    """Data model for use with OR-tools. Modeled after the tutorial."""
+
     constraint_coeffs: list
     bounds: list
     obj_coeffs: list
@@ -159,8 +163,7 @@ def format_lp(data: DataModel):
     """Format data dictionary into MIP formatted string.
 
     Args:
-        data (DataModel): Data model that contains "constraint_coeffs", "bounds",
-        "obj_coeffs", "num_vars" and "num_constraints"
+        data (DataModel): Data model that contains vars and constraints
 
     Returns:
         str: MIP formatted string
@@ -201,12 +204,13 @@ def format_lp(data: DataModel):
     return lp_data
 
 
-def create_solver(backend="SCIP"):
+def create_solver(data: DataModel, backend: str = "SCIP"):
     """
     Create OR-tools solver instance. See also:
     https://developers.google.com/optimization/mip/mip_var_array
 
     Args:
+        data (DataModel): Data model that contains vars and constraints
         backend (str, optional): Backend for the MIP solver. Defaults to "SCIP".
 
     Returns:
@@ -215,7 +219,38 @@ def create_solver(backend="SCIP"):
     from ortools.linear_solver import pywraplp
 
     solver = pywraplp.Solver.CreateSolver(backend)
-    return solver
+    x = {}
+    for j in range(data.num_vars):
+        x[j] = solver.IntVar(0, 1, "x[%i]" % j)
+    print("Number of variables = ", solver.NumVariables())
+
+    for bound, constraint_coeff in zip(data.bounds, data.constraint_coeffs):
+        constraint = solver.RowConstraint(0, bound, "")
+        for j, coeff in enumerate(constraint_coeff):
+            if coeff:
+                constraint.SetCoefficient(x[j], coeff)
+    print("Number of constraints = ", solver.NumConstraints())
+
+    objective = solver.Objective()
+    for j, score in enumerate(data.obj_coeffs):
+        objective.SetCoefficient(x[j], score)
+    objective.SetMaximization()
+
+    return solver, x
+
+
+def has_ortools() -> bool:
+    """Do we have an installation of OR-tools?
+
+    Returns:
+        bool: True if installed
+    """
+    try:
+        from ortools.linear_solver import pywraplp
+
+        return True
+    except ImportError:
+        return False
 
 
 def solve_lp(
@@ -224,7 +259,6 @@ def solve_lp(
     work_dir="work",
     Nmax=0,
     self_match=False,
-    solver="SCIP",
     verbose=False,
 ):
     """
@@ -236,22 +270,30 @@ def solve_lp(
     if self_match:
         constraints_x = constraints_y = constraints_x | constraints_y
 
-    # solver = create_solver("SCIP")
-
     data = create_data_model(nodes, constraints_x, qa, constraints_y, qb)
-    lp_data = format_lp(data)
+    filtered_list = []
 
-    if solver == "SCIP":
+    if has_ortools():
+        # Use OR-tools
+        from ortools.linear_solver import pywraplp
+
+        solver, x = create_solver(data)
+        status = solver.Solve()
+        if status == pywraplp.Solver.OPTIMAL:
+            print("Objective value = ", solver.Objective().Value())
+            filtered_list = [
+                j for j in range(data.num_vars) if x[j].solution_value() == 1
+            ]
+            print("Problem solved in %f milliseconds" % solver.wall_time())
+            print("Problem solved in %d iterations" % solver.iterations())
+            print("Problem solved in %d branch-and-bound nodes" % solver.nodes())
+    else:
+        # Use custom formatter
+        lp_data = format_lp(data)
         filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
         if not filtered_list:
             print("SCIP fails... trying GLPK", file=sys.stderr)
             filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
-
-    elif solver == "GLPK":
-        filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
-        if not filtered_list:
-            print("GLPK fails... trying SCIP", file=sys.stderr)
-            filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
 
     return filtered_list
 
@@ -304,7 +346,6 @@ def main(args):
         "[default: %default units (gene or bp dist)]",
     )
 
-    supported_solvers = ("SCIP", "GLPK")
     p.add_option(
         "--self",
         dest="self_match",
@@ -312,12 +353,6 @@ def main(args):
         default=False,
         help="you might turn this on when screening paralogous blocks, "
         "esp. if you have reduced mirrored blocks into non-redundant set",
-    )
-    p.add_option(
-        "--solver",
-        default="SCIP",
-        choices=supported_solvers,
-        help="use MIP solver",
     )
     p.set_verbose(help="Show verbose solver output")
 
@@ -370,13 +405,12 @@ def main(args):
         work_dir=work_dir,
         Nmax=opts.Nmax,
         self_match=self_match,
-        solver=opts.solver,
         verbose=opts.verbose,
     )
 
     logging.debug("Selected %d blocks", len(selected_ids))
     prefix = qa_file.rsplit(".", 1)[0]
-    suffix = "{0}x{1}".format(qa, qb)
+    suffix = "{}x{}".format(qa, qb)
     outfile = ".".join((prefix, suffix))
     fw = must_open(outfile, "w")
     print(",".join(str(x) for x in selected_ids), file=fw)

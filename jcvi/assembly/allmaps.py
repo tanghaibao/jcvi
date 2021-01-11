@@ -284,9 +284,9 @@ class ScaffoldOO(object):
                 continue
             G.add_edge(b, a, weight=d)
 
-        logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
+        logging.debug("Graph size: |V|=%d, |E|=%d", len(G), G.size())
 
-        L = nx.all_pairs_dijkstra_path_length(G)
+        L = dict(nx.all_pairs_dijkstra_path_length(G))
         for a, b in combinations(scaffolds, 2):
             if G.has_edge(a, b):
                 continue

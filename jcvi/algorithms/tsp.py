@@ -134,7 +134,10 @@ def node_to_edge(edges, directed=True):
     incoming = defaultdict(set) if directed else outgoing
     nodes = set()
     for i, edge in enumerate(edges):
-        a, b, = edge[:2]
+        (
+            a,
+            b,
+        ) = edge[:2]
         outgoing[a].add(i)
         incoming[b].add(i)
         nodes.add(a)
@@ -227,7 +230,7 @@ def reformulate_atsp_as_tsp(edges):
 def make_data(N, directed=False):
     x = np.random.randn(N)
     y = np.random.randn(N)
-    xy = zip(x, y)
+    xy = list(zip(x, y))
     M = np.zeros((N, N), dtype=float)
     for ia, ib in combinations(range(N), 2):
         ax, ay = xy[ia]

@@ -34,9 +34,9 @@ from jcvi.apps.base import OptionParser
 class MIPDataModel:
     """Data model for use with OR-tools. Modeled after the tutorial."""
 
-    constraint_coeffs: list
-    bounds: list
-    obj_coeffs: list
+    constraint_coeffs: list  # List of dict of coefficients
+    bounds: list  # Maximum value for each constraint clause
+    obj_coeffs: list  # Coefficient in the objective function
     num_vars: int
     num_constraints: int
 
@@ -109,8 +109,7 @@ def get_constraints(clusters, quota=(1, 1), Nmax=0):
     """
     qa, qb = quota
     eclusters = make_range(clusters, extend=-Nmax)
-    # (1-based index, cluster score)
-    nodes = [(i + 1, c[-1]) for i, c in enumerate(eclusters)]
+    nodes = [c[-1] for c in eclusters]
 
     eclusters_x, eclusters_y, _ = zip(*eclusters)
 
@@ -130,28 +129,19 @@ def create_data_model(nodes, constraints_x, qa, constraints_y, qb):
     End
     """
     num_vars = len(nodes)
-    obj_coeffs = [0] * num_vars
-    for i, score in nodes:
-        obj_coeffs[i - 1] = score
-
+    obj_coeffs = nodes[:]
     num_constraints = 0
     constraint_coeffs = []
     bounds = []
     for c in constraints_x:
-        constraint = [0] * num_vars
-        for x in c:
-            constraint[x] = 1
-        constraint_coeffs.append(constraint)
+        constraint_coeffs.append({x: 1 for x in c})
         bounds.append(qa)
     num_constraints = len(constraints_x)
 
     # non-self
     if not (constraints_x is constraints_y):
         for c in constraints_y:
-            constraint = [0] * num_vars
-            for x in c:
-                constraint[x] = 1
-            constraint_coeffs.append(constraint)
+            constraint_coeffs.append({x: 1 for x in c})
             bounds.append(qb)
         num_constraints += len(constraints_y)
 
@@ -164,7 +154,7 @@ def format_lp(data: MIPDataModel):
     """Format data dictionary into MIP formatted string.
 
     Args:
-        data (DataModel): Data model that contains vars and constraints
+        data (MIPDataModel): Data model that contains vars and constraints
 
     Returns:
         str: MIP formatted string
@@ -183,14 +173,13 @@ def format_lp(data: MIPDataModel):
 
     lp_handle.write("Subject To\n")
     for constraint, bound in zip(data.constraint_coeffs, data.bounds):
-        additions = " + ".join("x{}".format(i) for (i, x) in enumerate(constraint) if x)
+        additions = " + ".join("x{}".format(i) for (i, x) in constraint.items())
         lp_handle.write(" %s <= %d\n" % (additions, bound))
 
-    printf(
+    logging.info(
         "number of variables ({}), number of constraints ({})".format(
             data.num_vars, data.num_constraints
         ),
-        file=sys.stderr,
     )
 
     lp_handle.write("Binary\n")
@@ -227,9 +216,8 @@ def create_solver(data: MIPDataModel, backend: str = "SCIP"):
 
     for bound, constraint_coeff in zip(data.bounds, data.constraint_coeffs):
         constraint = solver.RowConstraint(0, bound, "")
-        for j, coeff in enumerate(constraint_coeff):
-            if coeff:
-                constraint.SetCoefficient(x[j], coeff)
+        for j, coeff in constraint_coeff.items():
+            constraint.SetCoefficient(x[j], coeff)
     printf("Number of constraints =", solver.NumConstraints())
 
     objective = solver.Objective()
@@ -293,7 +281,7 @@ def solve_lp(
         lp_data = format_lp(data)
         filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
         if not filtered_list:
-            printf("SCIP fails... trying GLPK", file=sys.stderr)
+            logging.error("SCIP fails... trying GLPK")
             filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
 
     return filtered_list
@@ -378,9 +366,7 @@ def main(args):
             qa, qb = opts.quota.split(":")
             qa, qb = int(qa), int(qb)
         except ValueError:
-            printf(
-                "quota string should be the form x:x (2:4, 1:3, etc.)", file=sys.stderr
-            )
+            logging.error("quota string should be the form x:x (2:4, 1:3, etc.)")
             sys.exit(1)
 
         if opts.self_match and qa != qb:

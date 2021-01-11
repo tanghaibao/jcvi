@@ -161,7 +161,6 @@ def eaSimpleConverge(
         if gen % 20 == 0 and verbose:
             printf(
                 "Current iteration {0}: max_score={1}".format(gen, current_best),
-                file=sys.stderr,
             )
 
         if current_best > best:

@@ -327,7 +327,6 @@ def overlap(args):
     xsize = -xmin + size + xmax
     ratio = xsize / canvas
 
-    fw = sys.stdout
     for f in frags:
         fsize = -f.ahang + size + f.bhang
         a = (f.ahang - xmin) / ratio
@@ -344,7 +343,6 @@ def overlap(args):
             "{}{}{}{} ({})".format(
                 " " * a, t, " " * c, str(f.bid).rjust(10), f.erate_adj
             ),
-            file=fw,
         )
 
 

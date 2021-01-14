@@ -4,6 +4,7 @@
 [![Latest PyPI
 version](https://img.shields.io/pypi/v/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
 [![Github Actions](https://github.com/tanghaibao/jcvi/workflows/build/badge.svg)](https://github.com/tanghaibao/jcvi/actions)
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftanghaibao%2Fjcvi.svg?type=shield)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftanghaibao%2Fjcvi?ref=badge_shield)
 
 Collection of Python libraries to parse bioinformatics files, or perform
 computation related to assembly, annotation, and comparative genomics.
@@ -202,3 +203,7 @@ This will tell you the options and arguments it expects.
 
 **Feel free to check out other scripts in the package, it is not just
 for FASTA.**
+
+
+## License
+[![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Ftanghaibao%2Fjcvi.svg?type=large)](https://app.fossa.com/projects/git%2Bgithub.com%2Ftanghaibao%2Fjcvi?ref=badge_large)

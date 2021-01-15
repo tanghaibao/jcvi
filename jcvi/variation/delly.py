@@ -144,8 +144,8 @@ def mitocompile(args):
 
     Extract information about deletions in vcf file.
     """
+    from urllib.parse import parse_qsl
     from jcvi.formats.vcf import VcfLine
-    from six.moves.urllib.parse import parse_qsl
 
     p = OptionParser(mitocompile.__doc__)
     opts, args = p.parse_args(args)

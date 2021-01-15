@@ -1,18 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from __future__ import print_function
-
 import logging
-import os.path as op
 import sys
 
 from collections import defaultdict
-from ete3 import Tree
 from itertools import groupby
 
+from ete3 import Tree
+
 from jcvi.apps.base import OptionParser, glob
-from jcvi.formats.base import DictFile, LineFile
+from jcvi.formats.base import LineFile
 from jcvi.formats.sizes import Sizes
 from jcvi.graphics.base import (
     FancyBboxPatch,
@@ -134,7 +132,7 @@ def draw_wgd_xy(ax, xx, yy, wgdline):
 
 
 def draw_wgd(ax, y, rescale, name, wgdcache):
-    """ Draw WGD given a name and the WGDInfo cache.
+    """Draw WGD given a name and the WGDInfo cache.
 
     Args:
         ax (matplotlib.axes): matplotlib axes
@@ -415,7 +413,7 @@ def draw_tree(
 
 
 def read_trees(tree):
-    from six.moves.urllib.parse import parse_qs
+    from urllib.parse import parse_qs
     from jcvi.formats.base import read_block
 
     trees = []
@@ -511,7 +509,7 @@ def draw_geoscale(
 
 
 def parse_tree(infile):
-    """ Parse newick formatted tree file and returns a tuple consisted of a
+    """Parse newick formatted tree file and returns a tuple consisted of a
     Tree object, and a HPD dictionary if 95%HPD is found in the newick string,
     otherwise None
 
@@ -605,7 +603,10 @@ def main(args):
 
     group = p.add_option_group("Additional annotations")
     group.add_option(
-        "--geoscale", default=False, action="store_true", help="Plot geological scale",
+        "--geoscale",
+        default=False,
+        action="store_true",
+        help="Plot geological scale",
     )
     group.add_option(
         "--wgdinfo", help="CSV specifying the position and style of WGD events"

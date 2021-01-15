@@ -4,13 +4,12 @@
 """
 Parse html pages.
 """
-
 import os.path as op
 import sys
 import logging
 
 from BeautifulSoup import BeautifulSoup
-from urlparse import urljoin
+from urllib.parse import urljoin
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, download
 
@@ -104,7 +103,7 @@ def unescape(s, unicode_action="replace"):
     """
     Unescape HTML strings, and convert &amp; etc.
     """
-    import HTMLParser
+    from html.parser import HTMLParser
 
     hp = HTMLParser.HTMLParser()
     s = hp.unescape(s)

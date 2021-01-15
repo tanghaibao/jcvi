@@ -11,7 +11,7 @@ import re
 
 from collections import defaultdict
 from more_itertools import flatten
-from six.moves.urllib.parse import quote, unquote
+from urllib.parse import quote, unquote
 
 from jcvi.utils.cbook import AutoVivification
 from jcvi.formats.base import DictFile, LineFile, must_open, is_number

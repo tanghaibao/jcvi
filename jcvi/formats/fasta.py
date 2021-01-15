@@ -12,9 +12,8 @@ import logging
 import string
 import hashlib
 
-from itertools import groupby
+from itertools import groupby, zip_longest
 from more_itertools import grouper, pairwise
-from six.moves import zip_longest
 
 from Bio import SeqIO
 from Bio.Seq import Seq

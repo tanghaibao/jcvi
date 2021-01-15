@@ -16,3 +16,5 @@ def test_get_cookies(mock_username, mock_password):
         assert get_cookies() == PHYTOZOME_COOKIES
     else:
         assert get_cookies() is None  # errored out with "curl not found"
+    if os.path.exists(PHYTOZOME_COOKIES):
+        os.remove(PHYTOZOME_COOKIES)

@@ -26,15 +26,14 @@ Example:
 
                \-Populus_trichocarpa
 """
-from __future__ import print_function
 import sys
 import time
 import logging
 
-from six.moves.urllib.request import urlopen
-from six.moves.urllib.error import HTTPError, URLError
-
 from functools import lru_cache
+
+from urllib.request import urlopen
+from urllib.error import HTTPError, URLError
 
 from ete3 import Tree
 

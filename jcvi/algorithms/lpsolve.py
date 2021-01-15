@@ -28,12 +28,12 @@ import logging
 import os
 import os.path as op
 import shutil
-from six.moves import cStringIO
-import networkx as nx
 
 from dataclasses import dataclass
 from io import StringIO
 from more_itertools import pairwise
+
+import networkx as nx
 
 from jcvi.utils.cbook import fill
 from jcvi.formats.base import flexible_cast
@@ -371,7 +371,7 @@ class LPInstance(object):
         self.generalvars = []
 
     def print_instance(self):
-        self.handle = fw = cStringIO()
+        self.handle = fw = StringIO()
         print(self.objective, file=fw)
         print(self.sum, file=fw)
         print(SUBJECTTO, file=fw)

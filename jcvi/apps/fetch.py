@@ -8,8 +8,8 @@ import re
 import sys
 import time
 
-from six.moves.urllib.error import HTTPError, URLError
 from os.path import join as urljoin
+from urllib.error import HTTPError, URLError
 
 from Bio import Entrez, SeqIO
 from more_itertools import grouper

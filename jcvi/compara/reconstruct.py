@@ -9,9 +9,9 @@ and in Tang (2010), to reconstruct pre-alpha and pre-rho order, respectively.
 import sys
 import logging
 
+from itertools import zip_longest
 from math import sqrt
 from more_itertools import pairwise
-from six.moves import zip_longest
 
 from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.formats.base import get_number

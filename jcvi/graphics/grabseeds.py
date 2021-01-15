@@ -4,8 +4,6 @@
 """
 Image processing pipelines for phenotyping projects.
 """
-from __future__ import print_function
-
 import json
 import os.path as op
 import sys
@@ -26,7 +24,9 @@ from jcvi.graphics.base import (
 )
 
 from PIL.Image import open as iopen
+from pytesseract import image_to_string
 from wand.image import Image
+from webcolors import rgb_to_hex, normalize_integer_triplet
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
@@ -35,10 +35,10 @@ from skimage.feature import canny, peak_local_max
 from skimage.measure import regionprops, label
 from skimage.morphology import disk, closing, watershed
 from skimage.segmentation import clear_border
-from jcvi.utils.webcolors import rgb_to_hex, closest_color, normalize_integer_triplet
+
+from jcvi.utils.webcolors import closest_color
 from jcvi.formats.base import must_open
 from jcvi.algorithms.formula import reject_outliers, get_kmeans
-from jcvi.apps.tesseract import image_to_string
 from jcvi.apps.base import (
     OptionParser,
     OptionGroup,

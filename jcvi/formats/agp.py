@@ -15,9 +15,8 @@ import logging
 
 from copy import deepcopy
 from collections import defaultdict
-from itertools import groupby
+from itertools import groupby, zip_longest
 from more_itertools import pairwise, flatten
-from six.moves import zip_longest
 
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord

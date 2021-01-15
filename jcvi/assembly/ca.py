@@ -8,10 +8,10 @@ Prepare input files for Celera Assembler, dispatch based on file suffix::
 *.sff: sffToCA
 *.fastq: fastqToCA
 """
+import logging
 import os.path as op
 import sys
-import logging
-from six.moves.cPickle import dump, load
+from pickle import dump, load
 
 import networkx as nx
 from collections import Counter

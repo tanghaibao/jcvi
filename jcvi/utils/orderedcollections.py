@@ -20,10 +20,9 @@
 #     FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
 #     OTHER DEALINGS IN THE SOFTWARE.
 
-
-from six.moves.urllib.parse import parse_qsl
 from bisect import bisect_left, bisect_right
 from collections import defaultdict, OrderedDict
+from urllib.parse import parse_qsl
 
 try:
     from collections.abc import Callable
@@ -292,4 +291,3 @@ class SortedCollection(object):
         if i != len(self):
             return self._items[i]
         raise ValueError("No item found with key above: %r" % (k,))
-

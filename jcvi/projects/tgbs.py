@@ -5,13 +5,13 @@
 Reference-free tGBS related functions.
 """
 
-from six.moves.cPickle import dump, load
+import logging
 import os
 import os.path as op
-import logging
 import sys
 
 from collections import Counter
+from pickle import dump, load
 
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.fastq import iter_fastq

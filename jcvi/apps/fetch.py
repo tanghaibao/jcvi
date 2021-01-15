@@ -8,17 +8,17 @@ import re
 import sys
 import time
 
-from six.moves.urllib.error import HTTPError, URLError
 from os.path import join as urljoin
+from urllib.error import HTTPError, URLError
 
 from Bio import Entrez, SeqIO
+from more_itertools import grouper
 
 from jcvi.formats.base import FileShredder, must_open
 from jcvi.formats.fasta import print_first_difference
 from jcvi.formats.fastq import fromsra
 from jcvi.utils.cbook import tile
 from jcvi.utils.console import printf
-from jcvi.utils.iter import grouper
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,

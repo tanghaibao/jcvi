@@ -4,8 +4,6 @@
 """
 AWS-related methods.
 """
-from __future__ import print_function
-
 import os
 import os.path as op
 import sys
@@ -15,10 +13,9 @@ import json
 import logging
 import time
 import getpass
-import six
 
+from configparser import NoOptionError, NoSectionError
 from datetime import datetime
-from six.moves.configparser import NoOptionError, NoSectionError
 from multiprocessing import Pool
 from botocore.exceptions import ClientError, ParamValidationError
 
@@ -384,7 +381,7 @@ def cp(args):
 
     tasks = []
     for c in contents:
-        if isinstance(c, six.string_types):
+        if isinstance(c, str):
             oc = op.basename(c)
             tc = op.join(folder, oc)
         else:

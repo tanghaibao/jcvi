@@ -46,8 +46,7 @@ class AnchorFile(BaseFile):
                 yield a, b, block_id
 
     def make_ranges(self, order, clip=10):
-        """ Prepare anchors information into a set of ranges for chaining
-        """
+        """Prepare anchors information into a set of ranges for chaining"""
         ranges = []
         block_pairs = defaultdict(dict)
         blocks = self.blocks
@@ -128,6 +127,11 @@ class AnchorFile(BaseFile):
         )
 
         return outfile
+
+    @property
+    def is_empty(self):
+        blocks = self.blocks
+        return not blocks or not blocks[0]
 
 
 class BlockFile(BaseFile):
@@ -300,7 +304,7 @@ def _score(cluster):
 
 
 def get_orientation(ia, ib):
-    """ Infer the orientation of a pairwise block.
+    """Infer the orientation of a pairwise block.
 
     Args:
         ia (List[int]): List a
@@ -333,8 +337,7 @@ def group_hits(blasts):
 
 
 def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
-    """ Read the blast and convert name into coordinates
-    """
+    """Read the blast and convert name into coordinates"""
     filtered_blast = []
     seen = set()
     bl = Blast(blast_file)
@@ -563,7 +566,7 @@ def main():
 
 
 def get_region_size(region, bed, order):
-    """ Get a summary of a syntenic region, how many anchors it has and
+    """Get a summary of a syntenic region, how many anchors it has and
     how many genes it spans.
 
     Args:
@@ -1195,7 +1198,9 @@ def simple(args):
 
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
     pf = "-".join(anchorfile.split(".", 2)[:2])
-    blocks = ac.blocks
+    if ac.is_empty:
+        logging.error("No blocks found in `%s`. Aborting ..", anchorfile)
+        return
 
     if coords:
         h = "Block|Chr|Start|End|Span|StartGene|EndGene|GeneSpan|Orientation"
@@ -1208,9 +1213,9 @@ def simple(args):
     if header:
         print("\t".join(h.split("|")), file=fws)
 
+    blocks = ac.blocks
     atotalbase = btotalbase = 0
     for i, block in enumerate(blocks):
-
         a, b, scores = zip(*block)
         a = [qorder[x] for x in a]
         b = [sorder[x] for x in b]

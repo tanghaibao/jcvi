@@ -14,9 +14,9 @@ Illustrate three different types of alignments.
 import sys
 
 from bisect import bisect
+from more_itertools import pairwise
 from random import choice, randint
 
-from jcvi.utils.iter import pairwise
 from jcvi.utils.range import range_overlap
 from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
 from jcvi.graphics.glyph import BaseGlyph, GeneGlyph

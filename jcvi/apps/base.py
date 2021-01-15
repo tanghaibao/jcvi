@@ -1,8 +1,6 @@
 """
-basic support for running library as script
+Basic support for running library as script
 """
-from __future__ import print_function
-
 import errno
 import os
 import time
@@ -14,10 +12,10 @@ import logging
 import fnmatch
 import six
 
-from six.moves import input
-from six.moves.http_client import HTTPSConnection
-from six.moves.urllib.parse import urlencode
-from six.moves.configparser import (
+from more_itertools import flatten
+from http.client import HTTPSConnection
+from urllib.parse import urlencode
+from configparser import (
     ConfigParser,
     RawConfigParser,
     NoOptionError,
@@ -1070,7 +1068,7 @@ def splitall(path):
 def get_module_docstring(filepath):
     "Get module-level docstring of Python module at filepath, e.g. 'path/to/file.py'."
     co = compile(open(filepath).read(), filepath, "exec")
-    if co.co_consts and isinstance(co.co_consts[0], six.string_types):
+    if co.co_consts and isinstance(co.co_consts[0], str):
         docstring = co.co_consts[0]
     else:
         docstring = None
@@ -1365,7 +1363,7 @@ def ls_ftp(dir):
     Returns:
         [str]: List of remote paths available, analogous to `ls`.
     """
-    from six.moves.urllib.parse import urlparse
+    from urllib.parse import urlparse
     from ftpretty import ftpretty
 
     o = urlparse(dir)
@@ -1392,7 +1390,7 @@ def download(
     Returns:
         str: Local file name.
     """
-    from six.moves.urllib.parse import urlsplit
+    from urllib.parse import urlsplit
     from subprocess import CalledProcessError
     from jcvi.formats.base import FileShredder
 
@@ -1910,8 +1908,6 @@ def notify(args):
 
     Push notify: Uses available API
     """
-    from jcvi.utils.iter import flatten
-
     valid_notif_methods.extend(available_push_api.keys())
 
     fromaddr = get_email_address(whoami="notifier")
@@ -2073,7 +2069,6 @@ def waitpid(args):
     Specify `--grid` option to send the new process to the grid after waiting for PID
     """
     import shlex
-    from jcvi.utils.iter import flatten
 
     valid_notif_methods.extend(list(flatten(available_push_api.values())))
 

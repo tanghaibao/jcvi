@@ -10,14 +10,14 @@ import logging
 import re
 
 from collections import defaultdict
-from six.moves.urllib.parse import quote, unquote
+from more_itertools import flatten
+from urllib.parse import quote, unquote
 
 from jcvi.utils.cbook import AutoVivification
 from jcvi.formats.base import DictFile, LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine, natsorted
 from jcvi.annotation.reformat import atg_name
-from jcvi.utils.iter import flatten
 from jcvi.utils.range import range_minmax
 from jcvi.utils.orderedcollections import DefaultOrderedDict, OrderedDict, parse_qs
 from jcvi.apps.base import (
@@ -1629,9 +1629,7 @@ def format(args):
         "--multiparents",
         default=None,
         choices=valid_multiparent_ops,
-        help="Split/merge identical features (same `seqid`, `source`, `type` "
-        + "`coord-range`, `strand`, `phase`) mapping to multiple parents "
-        + "[default: %default]",
+        help="Split/merge identical features (same `seqid`, `source`, `type`, `coord-range`, `strand`, `phase`) mapping to multiple parents",
     )
     g3.add_option(
         "--remove_feats", help="Comma separated list of features to remove by type"
@@ -3148,21 +3146,18 @@ def load(args):
     p.add_option(
         "--id_attribute",
         choices=valid_id_attributes,
-        help="The attribute field to extract and use as FASTA sequence ID "
-        + "[default: %default]",
+        help="The attribute field to extract and use as FASTA sequence ID",
     )
     p.add_option(
         "--desc_attribute",
         default="Note",
-        help="The attribute field to extract and use as FASTA sequence "
-        + "description",
+        help="The attribute field to extract and use as FASTA sequence description",
     )
     p.add_option(
         "--full_header",
         default=None,
         choices=["default", "tair"],
-        help="Specify if full FASTA header (with seqid, coordinates and datestamp)"
-        + " should be generated",
+        help="Specify if full FASTA header (with seqid, coordinates and datestamp) should be generated",
     )
 
     g1 = OptionGroup(p, "Optional parameters (if generating full header)")

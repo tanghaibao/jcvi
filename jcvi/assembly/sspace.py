@@ -11,22 +11,25 @@ import sys
 import logging
 
 from copy import deepcopy
+from more_itertools import pairwise
 
 from jcvi.formats.fasta import gaps
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import BaseFile, read_block, write_file
 from jcvi.formats.agp import AGP, AGPLine, reindex, tidy
-from jcvi.utils.iter import pairwise
 from jcvi.algorithms.graph import BiGraph
 from jcvi.apps.base import OptionParser, ActionDispatcher, download
 
 
-NO_UPDATE, INSERT_BEFORE, INSERT_AFTER, INSERT_BETWEEN = \
-    "NO_UPDATE", "INSERT_BEFORE", "INSERT_AFTER", "INSERT_BETWEEN"
+NO_UPDATE, INSERT_BEFORE, INSERT_AFTER, INSERT_BETWEEN = (
+    "NO_UPDATE",
+    "INSERT_BEFORE",
+    "INSERT_AFTER",
+    "INSERT_BETWEEN",
+)
 
 
-class EvidenceLine (object):
-
+class EvidenceLine(object):
     def __init__(self, row, sizes):
         # f_tig3222|size7922|links348|gaps-109|merged16
         args = row.strip().split("|")
@@ -35,15 +38,14 @@ class EvidenceLine (object):
         tig = args[0]
         o, mtig = tig.split("_")
         tig = int(mtig.replace("tig", ""))
-        assert o in ('f', 'r')
-        self.o = '>' if o == 'f' else '<'
-        self.oo = '+' if o == 'f' else '-'
+        assert o in ("f", "r")
+        self.o = ">" if o == "f" else "<"
+        self.oo = "+" if o == "f" else "-"
 
         name, size = sizes[tig]
         self.tig = name
         self.size = int(args[1].replace("size", ""))
-        assert self.size == size, "{0} and {1} size mismatch".\
-                format(mtig, name)
+        assert self.size == size, "{0} and {1} size mismatch".format(mtig, name)
 
         if nargs > 2:
             self.links = int(args[2].replace("links", ""))
@@ -52,8 +54,7 @@ class EvidenceLine (object):
             self.merged = int(args[4].replace("merged", ""))
 
 
-class EvidenceFile (BaseFile):
-
+class EvidenceFile(BaseFile):
     def __init__(self, filename, fastafile):
         super(EvidenceFile, self).__init__(filename)
         sz = Sizes(fastafile)
@@ -113,17 +114,18 @@ class EvidenceFile (BaseFile):
 def main():
 
     actions = (
-        ('scaffold', 'run SSPACE scaffolding'),
-        ('close', 'run GapFiller to fill gaps'),
-        ('agp', 'convert SSPACE scaffold structure to AGP format'),
-        ('embed', 'embed contigs to upgrade existing structure'),
-            )
+        ("scaffold", "run SSPACE scaffolding"),
+        ("close", "run GapFiller to fill gaps"),
+        ("agp", "convert SSPACE scaffold structure to AGP format"),
+        ("embed", "embed contigs to upgrade existing structure"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
 def write_libraries(fastqs, aligner=None):
     from jcvi.assembly.base import get_libs
+
     libs = get_libs(fastqs)
     assert libs
 
@@ -222,9 +224,9 @@ def get_target(p, name):
 
 
 def get_orientation(o, status):
-    o = '+' if o == '<' else '-'
+    o = "+" if o == "<" else "-"
     if status == INSERT_BEFORE:  # Flip orientation for backward traversal
-        o = '+' if o == '-' else '-'
+        o = "+" if o == "-" else "-"
     return o
 
 
@@ -260,8 +262,12 @@ def embed(args):
     """
     p = OptionParser(embed.__doc__)
     p.set_mingap(default=10)
-    p.add_option("--min_length", default=200, type="int",
-                 help="Minimum length to consider [default: %default]")
+    p.add_option(
+        "--min_length",
+        default=200,
+        type="int",
+        help="Minimum length to consider",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -269,8 +275,9 @@ def embed(args):
 
     evidencefile, scaffolds, contigs = args
     min_length = opts.min_length
-    splitfasta, oagp, cagp = gaps([scaffolds, "--split",
-                                   "--mingap={0}".format(opts.mingap)])
+    splitfasta, oagp, cagp = gaps(
+        [scaffolds, "--split", "--mingap={0}".format(opts.mingap)]
+    )
 
     agp = AGP(cagp)
     p = agp.graph
@@ -314,8 +321,10 @@ def embed(args):
         backward = False
         for x, t in path:
             if x.v in seen:
-                print("* Does not allow backward" \
-                                     " patch on {0}".format(x.v), file=sys.stderr)
+                print(
+                    "* Does not allow backward" " patch on {0}".format(x.v),
+                    file=sys.stderr,
+                )
                 backward = True
                 break
 
@@ -341,16 +350,15 @@ def embed(args):
         lines = path_to_agp(q, path, object, sizes, status)
         if status == INSERT_BEFORE:
             lines = lines[:-1]
-            td = newagp.insert_lines(name, lines, \
-                                 delete=True, verbose=True)
+            td = newagp.insert_lines(name, lines, delete=True, verbose=True)
         elif status == INSERT_AFTER:
             lines = lines[1:]
-            td = newagp.insert_lines(name, lines, after=True, \
-                                 delete=True, verbose=True)
+            td = newagp.insert_lines(name, lines, after=True, delete=True, verbose=True)
         else:
             lines = lines[1:-1]
-            td = newagp.update_between(name, target_name, lines, \
-                                 delete=True, verbose=True)
+            td = newagp.update_between(
+                name, target_name, lines, delete=True, verbose=True
+            )
         deleted |= td
         seen |= td
 
@@ -369,5 +377,5 @@ def embed(args):
     tidy([newagpfile, contigs])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

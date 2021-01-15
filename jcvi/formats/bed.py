@@ -1,8 +1,6 @@
 """
 Classes to handle the .bed files
 """
-from __future__ import print_function
-
 import os
 import os.path as op
 import sys
@@ -13,11 +11,11 @@ import numpy as np
 from collections import defaultdict, OrderedDict
 from itertools import groupby
 
+from more_itertools import pairwise
 from natsort import natsorted, natsort_key
 
 from jcvi.formats.base import DictFile, LineFile, must_open, is_number, get_number
 from jcvi.formats.sizes import Sizes
-from jcvi.utils.iter import pairwise
 from jcvi.utils.cbook import SummaryStats, thousands, percentage
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.range import (
@@ -1803,8 +1801,6 @@ def distance(args):
     Calculate distance between bed features. The output file is a list of
     distances, which can be used to plot histogram, etc.
     """
-    from jcvi.utils.iter import pairwise
-
     p = OptionParser(distance.__doc__)
     p.add_option(
         "--distmode",

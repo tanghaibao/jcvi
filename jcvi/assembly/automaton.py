@@ -11,15 +11,23 @@ import os.path as op
 import sys
 import logging
 
-from jcvi.utils.iter import grouper
+from more_itertools import grouper
+
 from jcvi.formats.base import LineFile, write_file
 from jcvi.formats.fastq import first, pairspf
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, \
-            mkdir, sh, glob, iglob, get_abs_path
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    need_update,
+    mkdir,
+    sh,
+    glob,
+    iglob,
+    get_abs_path,
+)
 
 
-class Meta (object):
-
+class Meta(object):
     def __init__(self, fastq, guess=True):
         # Note the guesswork is largely based on JIRA LIMS naming convention
         self.fastq = fastq.strip()
@@ -65,8 +73,7 @@ class Meta (object):
             self.tag = "-".join((self.tag, bp))  # 500BP
 
 
-class MetaFile (LineFile):
-
+class MetaFile(LineFile):
     def __init__(self, filename):
         super(MetaFile, self).__init__(filename)
         fp = open(filename)
@@ -82,15 +89,15 @@ class MetaFile (LineFile):
 def main():
 
     actions = (
-        ('prepare', 'parse list of FASTQ files and prepare input'),
-        ('pairs', 'estimate insert sizes for input files'),
-        ('contamination', 'remove contaminated reads'),
-        ('allpaths', 'run automated ALLPATHS'),
-        ('spades', 'run automated SPADES assembly'),
-        ('allpathsX', 'run automated ALLPATHS on list of files'),
-        ('soapX', 'run automated SOAP on list of files'),
-        ('correctX', 'run automated ALLPATHS correction on list of files'),
-            )
+        ("prepare", "parse list of FASTQ files and prepare input"),
+        ("pairs", "estimate insert sizes for input files"),
+        ("contamination", "remove contaminated reads"),
+        ("allpaths", "run automated ALLPATHS"),
+        ("spades", "run automated SPADES assembly"),
+        ("allpathsX", "run automated ALLPATHS on list of files"),
+        ("soapX", "run automated SOAP on list of files"),
+        ("correctX", "run automated ALLPATHS correction on list of files"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -109,7 +116,7 @@ def spades(args):
     if len(args) == 0:
         sys.exit(not p.print_help())
 
-    folder, = args
+    (folder,) = args
     for p, pf in iter_project(folder):
         rl = readlen([p[0], "--silent"])
 
@@ -139,8 +146,12 @@ def contamination(args):
     from jcvi.apps.bowtie import align
 
     p = OptionParser(contamination.__doc__)
-    p.add_option("--mapped", default=False, action="store_true",
-                 help="Retain contaminated reads instead [default: %default]")
+    p.add_option(
+        "--mapped",
+        default=False,
+        action="store_true",
+        help="Retain contaminated reads instead",
+    )
     p.set_cutoff(cutoff=800)
     p.set_mateorientation(mateorientation="+-")
     opts, args = p.parse_args(args)
@@ -181,6 +192,7 @@ def pairs(args):
     mkdir(work)
 
     from jcvi.formats.sam import pairs as ps
+
     if aligner == "bowtie":
         from jcvi.apps.bowtie import align
     elif aligner == "bwa":
@@ -192,7 +204,7 @@ def pairs(args):
     for p, prefix in iter_project(folder):
         samplefq = []
         for i in range(2):
-            samplefq.append(op.join(work, prefix + "_{0}.first.fastq".format(i+1)))
+            samplefq.append(op.join(work, prefix + "_{0}.first.fastq".format(i + 1)))
             first([str(opts.firstN)] + [p[i]] + ["-o", samplefq[i]])
 
         os.chdir(work)
@@ -207,11 +219,10 @@ def pairs(args):
         pf, sf = median[:2], median[2:]
         if sf and int(sf) != 0:
             pf = str(int(pf) + 1)  # Get the first two effective digits
-        lib = "{0}-{1}".format(tag, pf + '0' * len(sf))
+        lib = "{0}-{1}".format(tag, pf + "0" * len(sf))
         for i, xp in enumerate(p):
             suffix = "fastq.gz" if xp.endswith(".gz") else "fastq"
-            link = "{0}-{1}.{2}.{3}".format(lib, prefix.replace("-", ""),
-                                            i + 1, suffix)
+            link = "{0}-{1}.{2}.{3}".format(lib, prefix.replace("-", ""), i + 1, suffix)
             m = "\t".join(str(x) for x in (xp, link))
             messages.append(m)
 
@@ -226,8 +237,7 @@ def allpaths(args):
     Run automated ALLPATHS on list of dirs.
     """
     p = OptionParser(allpaths.__doc__)
-    p.add_option("--ploidy", default="1", choices=("1", "2"),
-                 help="Ploidy [default: %default]")
+    p.add_option("--ploidy", default="1", choices=("1", "2"), help="Ploidy")
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -237,8 +247,11 @@ def allpaths(args):
     for pf in folders:
         if not op.isdir(pf):
             continue
-        assemble_dir(pf, target=["final.contigs.fasta", "final.assembly.fasta"],
-                     ploidy=opts.ploidy)
+        assemble_dir(
+            pf,
+            target=["final.contigs.fasta", "final.assembly.fasta"],
+            ploidy=opts.ploidy,
+        )
 
 
 def prepare(args):
@@ -252,14 +265,18 @@ def prepare(args):
     Note that JIRA report can also be a list of FASTQ files.
     """
     p = OptionParser(prepare.__doc__)
-    p.add_option("--first", default=0, type="int",
-                 help="Use only first N reads [default: %default]")
+    p.add_option(
+        "--first",
+        default=0,
+        type="int",
+        help="Use only first N reads",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    jfile, = args
+    (jfile,) = args
     metafile = jfile + ".meta"
 
     if need_update(jfile, metafile):
@@ -269,8 +286,10 @@ def prepare(args):
 
         fw = open(metafile, "w")
         print("\n".join(str(x) for x in metas), file=fw)
-        print("Now modify `{0}`, and restart this script.".\
-                            format(metafile), file=sys.stderr)
+        print(
+            "Now modify `{0}`, and restart this script.".format(metafile),
+            file=sys.stderr,
+        )
         print("Each line is : genome library fastqfile", file=sys.stderr)
         fw.close()
         return
@@ -323,8 +342,11 @@ def assemble_dir(pf, target, ploidy="1"):
 
     cwd = os.getcwd()
     os.chdir(pf)
-    prepare([pf] + sorted(glob("*.fastq") + glob("*.fastq.gz")) + \
-            ["--ploidy={0}".format(ploidy)])
+    prepare(
+        [pf]
+        + sorted(glob("*.fastq") + glob("*.fastq.gz"))
+        + ["--ploidy={0}".format(ploidy)]
+    )
     sh("./run.sh")
 
     for a, t in zip(asm, target):
@@ -340,11 +362,10 @@ def correct_pairs(p, pf, tag):
     """
     from jcvi.assembly.preprocess import correct as cr
 
-    logging.debug("Work on {0} ({1})".format(pf, ','.join(p)))
+    logging.debug("Work on {0} ({1})".format(pf, ",".join(p)))
     itag = tag[0]
     cm = ".".join((pf, itag))
-    targets = (cm + ".1.corr.fastq", cm + ".2.corr.fastq", \
-                pf + ".PE-0.corr.fastq")
+    targets = (cm + ".1.corr.fastq", cm + ".2.corr.fastq", pf + ".PE-0.corr.fastq")
     if not need_update(p, targets):
         logging.debug("Corrected reads found: {0}. Skipped.".format(targets))
         return
@@ -368,7 +389,7 @@ def soap_trios(p, pf, tag, extra):
     """
     from jcvi.assembly.soap import prepare
 
-    logging.debug("Work on {0} ({1})".format(pf, ','.join(p)))
+    logging.debug("Work on {0} ({1})".format(pf, ",".join(p)))
     asm = "{0}.closed.scafSeq".format(pf)
     if not need_update(p, asm):
         logging.debug("Assembly found: {0}. Skipped.".format(asm))
@@ -378,8 +399,10 @@ def soap_trios(p, pf, tag, extra):
 
     cwd = os.getcwd()
     os.chdir(pf)
-    prepare(sorted(glob("*.fastq") + glob("*.fastq.gz")) + \
-            ["--assemble_1st_rank_only", "-K 31"])
+    prepare(
+        sorted(glob("*.fastq") + glob("*.fastq.gz"))
+        + ["--assemble_1st_rank_only", "-K 31"]
+    )
     sh("./run.sh")
     sh("cp asm31.closed.scafSeq ../{0}".format(asm))
 
@@ -387,8 +410,9 @@ def soap_trios(p, pf, tag, extra):
     os.chdir(cwd)
 
 
-def iter_project(folder, pattern="*.fq,*.fq.gz,*.fastq,*.fastq.gz", n=2,
-                 commonprefix=True):
+def iter_project(
+    folder, pattern="*.fq,*.fq.gz,*.fastq,*.fastq.gz", n=2, commonprefix=True
+):
     # Check for paired reads and extract project id
     filelist = [x for x in iglob(folder, pattern)]
     for p in grouper(filelist, n):
@@ -459,5 +483,5 @@ def allpathsX(args):
         assemble_pairs(p, pf, tag)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

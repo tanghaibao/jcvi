@@ -4,14 +4,12 @@
 """
 Parse html pages.
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
 
 from BeautifulSoup import BeautifulSoup
-from urlparse import urljoin
+from urllib.parse import urljoin
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, download
 
@@ -19,10 +17,10 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, download
 def main():
 
     actions = (
-        ('table', 'convert HTML tables to csv'),
-        ('links', 'extract all links from web page'),
-        ('gallery', 'convert a folder of figures to a HTML table'),
-            )
+        ("table", "convert HTML tables to csv"),
+        ("links", "extract all links from web page"),
+        ("gallery", "convert a folder of figures to a HTML table"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -38,14 +36,12 @@ def gallery(args):
 
     Maps the images from local to remote.
     """
+    from more_itertools import grouper
     from jcvi.apps.base import iglob
-    from jcvi.utils.iter import grouper
 
     p = OptionParser(gallery.__doc__)
-    p.add_option("--columns", default=3, type="int",
-                 help="How many cells per row")
-    p.add_option("--width", default=200, type="int",
-                 help="Image width")
+    p.add_option("--columns", default=3, type="int", help="How many cells per row")
+    p.add_option("--width", default=200, type="int", help="Image width")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -62,7 +58,7 @@ def gallery(args):
             if not im:
                 continue
             im = op.basename(im)
-            pf = im.split('.')[0].replace('_', '-')
+            pf = im.split(".")[0].replace("_", "-")
             link = link_prefix.rstrip("/") + "/" + im
             print(td.format(pf, link, width))
         print("</tr>")
@@ -76,22 +72,26 @@ def links(args):
     Extract all the links "<a href=''>" from web page.
     """
     p = OptionParser(links.__doc__)
-    p.add_option("--img", default=False, action="store_true",
-                 help="Extract <img> tags [default: %default]")
+    p.add_option(
+        "--img",
+        default=False,
+        action="store_true",
+        help="Extract <img> tags [default: %default]",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    url, = args
+    (url,) = args
     img = opts.img
 
     htmlfile = download(url)
     page = open(htmlfile).read()
     soup = BeautifulSoup(page)
 
-    tag = 'img' if img else 'a'
-    src = 'src' if img else 'href'
+    tag = "img" if img else "a"
+    src = "src" if img else "href"
     aa = soup.findAll(tag)
     for a in aa:
         link = a.get(src)
@@ -103,10 +103,11 @@ def unescape(s, unicode_action="replace"):
     """
     Unescape HTML strings, and convert &amp; etc.
     """
-    import HTMLParser
+    from html.parser import HTMLParser
+
     hp = HTMLParser.HTMLParser()
     s = hp.unescape(s)
-    s = s.encode('ascii', unicode_action)
+    s = s.encode("ascii", unicode_action)
     s = s.replace("\n", "").strip()
     return s
 
@@ -126,19 +127,19 @@ def table(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    htmlfile, = args
+    (htmlfile,) = args
     page = open(htmlfile).read()
     soup = BeautifulSoup(page)
 
-    for i, tabl in enumerate(soup.findAll('table')):
+    for i, tabl in enumerate(soup.findAll("table")):
         nrows = 0
         csvfile = htmlfile.rsplit(".", 1)[0] + ".{0}.csv".format(i)
         writer = csv.writer(open(csvfile, "w"), delimiter=opts.sep)
-        rows = tabl.findAll('tr')
+        rows = tabl.findAll("tr")
         for tr in rows:
-            cols = tr.findAll('td')
+            cols = tr.findAll("td")
             if not cols:
-                cols = tr.findAll('th')
+                cols = tr.findAll("th")
 
             row = []
             for td in cols:
@@ -153,5 +154,5 @@ def table(args):
         logging.debug("Table with {0} rows written to `{1}`.".format(nrows, csvfile))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

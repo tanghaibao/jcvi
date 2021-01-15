@@ -5,8 +5,6 @@
 Perform DNA-DNA alignment using BLAST, NUCMER and BLAT. Keep the interface the
 same and does parallelization both in core and on grid.
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import shutil
@@ -249,8 +247,8 @@ def blasr(args):
     Run blasr on a set of PacBio reads. This is based on a divide-and-conquer
     strategy described below.
     """
+    from more_itertools import grouper
     from jcvi.apps.grid import MakeManager
-    from jcvi.utils.iter import grouper
 
     p = OptionParser(blasr.__doc__)
     p.set_cpus(cpus=8)

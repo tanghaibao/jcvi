@@ -7,8 +7,6 @@ The VCLUST implementation borrows ideas and code from PyRAD. PyRAD link:
 
 <https://github.com/dereneaton/pyrad>
 """
-from __future__ import print_function
-
 import os.path as op
 import shutil
 import sys
@@ -22,6 +20,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from itertools import groupby
+from more_itertools import grouper
 from subprocess import Popen, PIPE, STDOUT
 from tempfile import mkdtemp
 
@@ -29,7 +28,6 @@ from jcvi.formats.base import BaseFile, FileMerger, must_open, split
 from jcvi.formats.fasta import parse_fasta
 from jcvi.formats.fastq import fasta
 from jcvi.utils.orderedcollections import DefaultOrderedDict
-from jcvi.utils.iter import grouper
 from jcvi.utils.table import write_csv
 from jcvi.apps.base import (
     OptionParser,

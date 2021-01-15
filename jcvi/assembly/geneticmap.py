@@ -681,7 +681,7 @@ def breakpoint(args):
     Find scaffold breakpoints using genetic map. Use variation.vcf.mstmap() to
     generate the input for this routine.
     """
-    from jcvi.utils.iter import pairwise
+    from more_itertools import pairwise
 
     p = OptionParser(breakpoint.__doc__)
     p.add_option(

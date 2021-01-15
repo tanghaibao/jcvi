@@ -4,8 +4,6 @@
 """
 Scaffold Ordering with Weighted Maps.
 """
-from __future__ import print_function
-
 import os.path as op
 import os
 import sys
@@ -14,9 +12,10 @@ import logging
 import numpy as np
 import networkx as nx
 
-from itertools import combinations, product
 from collections import Counter, defaultdict
 from functools import partial
+from itertools import combinations, product
+from more_itertools import flatten, pairwise
 
 from jcvi import __version__ as version
 from jcvi.algorithms.formula import reject_outliers, spearmanr
@@ -35,7 +34,6 @@ from jcvi.formats.sizes import Sizes
 from jcvi.graphics.landscape import draw_gauge
 from jcvi.utils.cbook import human_size, percentage
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.iter import flatten, pairwise
 from jcvi.utils.table import tabulate
 from jcvi.apps.base import (
     OptionParser,

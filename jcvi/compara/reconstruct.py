@@ -6,13 +6,12 @@ From synteny blocks, reconstruct ancestral order by interleaving the genes in
 between the anchors. This is the bottom-up method used first in Bowers (2003),
 and in Tang (2010), to reconstruct pre-alpha and pre-rho order, respectively.
 """
-from __future__ import print_function
-
 import sys
 import logging
 
+from itertools import zip_longest
 from math import sqrt
-from six.moves import zip_longest
+from more_itertools import pairwise
 
 from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.formats.base import get_number
@@ -127,7 +126,7 @@ def adjgraph(args):
     138 6133 -5387 144 -6132 -139 140 141 146 -147 6134 145 -170 -142 -143
     """
     import pygraphviz as pgv
-    from jcvi.utils.iter import pairwise
+
     from jcvi.formats.base import SetFile
 
     p = OptionParser(adjgraph.__doc__)
@@ -355,7 +354,7 @@ def collinear(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    anchorfile, = args
+    (anchorfile,) = args
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
 
     af = AnchorFile(anchorfile)

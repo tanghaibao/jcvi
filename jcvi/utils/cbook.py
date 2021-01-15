@@ -435,7 +435,7 @@ def tile(lt, width=70, gap=1):
     """
     Pretty print list of items.
     """
-    from jcvi.utils.iter import grouper
+    from more_itertools import grouper
 
     max_len = max(len(x) for x in lt) + gap
     items_per_line = max(width // max_len, 1)

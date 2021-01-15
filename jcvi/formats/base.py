@@ -719,7 +719,7 @@ def flatten(args):
                              | 1,4
                              | 3,na
     """
-    from six.moves import zip_longest
+    from itertools import zip_longest
 
     p = OptionParser(flatten.__doc__)
     p.set_sep(sep=",")

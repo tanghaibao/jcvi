@@ -4,15 +4,13 @@
 """
 Wrapper for the common graph algorithms.
 """
-from __future__ import print_function
-
 import sys
 import logging
 
 import networkx as nx
 from collections import deque
+from more_itertools import pairwise
 
-from jcvi.utils.iter import pairwise
 from jcvi.formats.base import must_open
 
 
@@ -49,7 +47,7 @@ class BiNode(object):
         L = self.outs if tag == "<" else self.ins
 
         if len(L) == 1:
-            e, = L
+            (e,) = L
             if e.v1.v == self.v:
                 next, ntag = e.v2, e.o2
                 ntag = "<" if ntag == ">" else ">"  # Flip tag if on other end
@@ -512,4 +510,3 @@ if __name__ == "__main__":
 
     doctest.testmod()
     # bigraph_test()
-

@@ -4,15 +4,14 @@
 """
 Programatically accessing UniprotKB to get data from a list of queries
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import time
 import logging
-from six.moves.urllib.parse import urlencode
-from six.moves.urllib.request import Request, urlopen
-from six.moves.urllib.error import HTTPError, URLError
+
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError, URLError
 
 from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher
@@ -20,13 +19,54 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 
 uniprot_url = "http://www.uniprot.org/uniprot/"
 
-valid_formats = ["html", "tab", "xls", "fasta",
-                 "gff", "txt", "xml", "rdf", "list", "rss"]
-valid_columns = ["citation", "clusters", "comments", "database", "domains", "domain", "ec",
-                 "id", "entry name", "existence", "families", "features", "genes", "go", "go-id",
-                 "interpro", "interactor", "keywords", "keyword-id", "last-modified", "length",
-                 "organism", "organism-id", "pathway", "protein names", "reviewed", "score",
-                 "sequence", "3d", "subcellular locations", "taxon", "tools", "version", "virus hosts"]
+valid_formats = [
+    "html",
+    "tab",
+    "xls",
+    "fasta",
+    "gff",
+    "txt",
+    "xml",
+    "rdf",
+    "list",
+    "rss",
+]
+valid_columns = [
+    "citation",
+    "clusters",
+    "comments",
+    "database",
+    "domains",
+    "domain",
+    "ec",
+    "id",
+    "entry name",
+    "existence",
+    "families",
+    "features",
+    "genes",
+    "go",
+    "go-id",
+    "interpro",
+    "interactor",
+    "keywords",
+    "keyword-id",
+    "last-modified",
+    "length",
+    "organism",
+    "organism-id",
+    "pathway",
+    "protein names",
+    "reviewed",
+    "score",
+    "sequence",
+    "3d",
+    "subcellular locations",
+    "taxon",
+    "tools",
+    "version",
+    "virus hosts",
+]
 
 valid_column_formats = ["tab", "xls"]
 valid_include_formats = ["fasta", "rdf"]
@@ -34,9 +74,7 @@ valid_include_formats = ["fasta", "rdf"]
 
 def main():
 
-    actions = (
-        ('fetch', 'fetch records from uniprot. input is a list of query terms'),
-    )
+    actions = (("fetch", "fetch records from uniprot. input is a list of query terms"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -57,63 +95,85 @@ def fetch(args):
     """
     import re
     import csv
+
     p = OptionParser(fetch.__doc__)
 
-    p.add_option("--format", default="tab", choices=valid_formats,
-                 help="download format [default: %default]")
-    p.add_option("--columns", default="entry name, protein names, genes,organism",
-                 help="columns to download, if --format is `tab` or `xls`." +
-                 " [default: %default]")
-    p.add_option("--include", default=False, action="store_true",
-                 help="Include isoforms when --format is `fasta` or include `description` when" +
-                 " --format is `rdf`. [default: %default]")
-    p.add_option("--limit", default=10, type="int",
-                 help="Max number of results to retrieve [default: %default]")
-    p.add_option("--offset", default=0, type="int",
-                 help="Offset of first result, used with --limit [default: %default]")
-    p.add_option("--skipcheck", default=False, action="store_true",
-                 help="turn off prompt to check file existence [default: %default]")
+    p.add_option(
+        "--format",
+        default="tab",
+        choices=valid_formats,
+        help="download format",
+    )
+    p.add_option(
+        "--columns",
+        default="entry name, protein names, genes,organism",
+        help="columns to download, if --format is `tab` or `xls`",
+    )
+    p.add_option(
+        "--include",
+        default=False,
+        action="store_true",
+        help="Include isoforms when --format is `fasta` or include `description` when --format is `rdf`.",
+    )
+    p.add_option(
+        "--limit",
+        default=10,
+        type="int",
+        help="Max number of results to retrieve",
+    )
+    p.add_option(
+        "--offset",
+        default=0,
+        type="int",
+        help="Offset of first result, used with --limit",
+    )
+    p.add_option(
+        "--skipcheck",
+        default=False,
+        action="store_true",
+        help="Turn off prompt to check file existence",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    query, = args
+    (query,) = args
     url_params = {}
     if op.exists(query):
         pf = query.rsplit(".", 1)[0]
         list_of_queries = [row.strip() for row in open(query)]
     else:
         # the query is the search term
-        pf = query.strip().strip('\"')
+        pf = query.strip().strip('"')
         list_of_queries = [pf]
-        pf = re.sub(r"\s+", '_', pf)
+        pf = re.sub(r"\s+", "_", pf)
 
-    assert len(list_of_queries) > 0, \
-        "Please provide atleast one input query"
+    assert len(list_of_queries) > 0, "Please provide atleast one input query"
 
-    url_params['format'] = opts.format
+    url_params["format"] = opts.format
 
     if opts.columns and opts.format in valid_column_formats:
         reader = csv.reader([opts.columns], skipinitialspace=True)
         cols = [col for r in reader for col in r]
         for col in cols:
-            assert col in valid_columns, \
-                "Column '{0}' is not a valid. Allowed options are {1}".\
-                format(col, valid_columns)
-        url_params['columns'] = ",".join(cols)
+            assert (
+                col in valid_columns
+            ), "Column '{0}' is not a valid. Allowed options are {1}".format(
+                col, valid_columns
+            )
+        url_params["columns"] = ",".join(cols)
 
     if opts.include and opts.format in valid_include_formats:
-        url_params['include'] = "yes"
+        url_params["include"] = "yes"
 
-    url_params['limit'] = opts.limit
-    url_params['offset'] = opts.offset
+    url_params["limit"] = opts.limit
+    url_params["offset"] = opts.offset
 
     outfile = "{0}.{1}".format(pf, opts.format)
 
     # If noprompt, will not check file existence
-    fw = must_open(outfile, "w", checkexists=True,
-                   skipcheck=opts.skipcheck)
+    fw = must_open(outfile, "w", checkexists=True, skipcheck=opts.skipcheck)
     if fw is None:
         return
 
@@ -123,14 +183,13 @@ def fetch(args):
             logging.error("Duplicate query ({0}) found".format(query))
             continue
 
-        url_params['query'] = query
+        url_params["query"] = query
 
         data = urlencode(url_params)
         try:
             request = Request(uniprot_url, data)
             response = urlopen(request)
-        except (HTTPError, URLError,
-                RuntimeError, KeyError) as e:
+        except (HTTPError, URLError, RuntimeError, KeyError) as e:
             logging.error(e)
             logging.debug("wait 5 seconds to reconnect...")
             time.sleep(5)
@@ -145,9 +204,13 @@ def fetch(args):
         seen.add(query)
 
     if seen:
-        print("A total of {0} out of {1} queries returned results.".
-              format(len(seen), len(list_of_queries)), file=sys.stderr)
+        print(
+            "A total of {0} out of {1} queries returned results.".format(
+                len(seen), len(list_of_queries)
+            ),
+            file=sys.stderr,
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

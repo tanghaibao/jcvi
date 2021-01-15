@@ -8,8 +8,6 @@ http://www.simplistix.co.uk/presentations/python-excel.pdf
 
 Library dependency: xlutils
 """
-
-import six
 import os.path as op
 import sys
 import logging
@@ -117,7 +115,7 @@ class ColorMatcher(object):
         if isinstance(color, int):
             return color
         if color:
-            if isinstance(color, six.string_types):
+            if isinstance(color, str):
                 rgb = map(int, color.split(","))
             else:
                 rgb = color.Get()

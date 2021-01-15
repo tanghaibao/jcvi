@@ -22,7 +22,6 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
 class VcfLine:
-
     def __init__(self, row):
         args = row.strip().split("\t")
         self.seqid = args[0]
@@ -37,15 +36,24 @@ class VcfLine:
         self.genotype = args[9]
 
     def __str__(self):
-        return "\t".join(str(x) for x in (
-            self.seqid, self.pos, self.rsid, self.ref,
-            self.alt, self.qual, self.filter, self.info,
-            self.format, self.genotype
-            ))
+        return "\t".join(
+            str(x)
+            for x in (
+                self.seqid,
+                self.pos,
+                self.rsid,
+                self.ref,
+                self.alt,
+                self.qual,
+                self.filter,
+                self.info,
+                self.format,
+                self.genotype,
+            )
+        )
 
 
 class UniqueLiftover(object):
-
     def __init__(self, chainfile):
         """
         This object will perform unique single positional liftovers - it will only lift over chromosome positions that
@@ -90,36 +98,47 @@ class UniqueLiftover(object):
                     new_position = int(new[0][1]) + 1
                     return new_chromosome, new_position
                 else:
-                    exception_string = "{},{} has a flipped strand in liftover: {}".format(chromosome, position, new)
+                    exception_string = (
+                        "{},{} has a flipped strand in liftover: {}".format(
+                            chromosome, position, new
+                        )
+                    )
             else:
-                exception_string = "{},{} lifts over to multiple positions: {}".format(chromosome, position, new)
+                exception_string = "{},{} lifts over to multiple positions: {}".format(
+                    chromosome, position, new
+                )
         elif new is None:
-            exception_string = "Chromosome '{}' provided not in chain file".format(chromosome)
+            exception_string = "Chromosome '{}' provided not in chain file".format(
+                chromosome
+            )
 
         if verbose:
             logging.error(exception_string)
         return None, None
 
 
-CM = dict(list(zip([str(x) for x in range(1, 23)],
-          ["chr{0}".format(x) for x in range(1, 23)])) + \
-          [("X", "chrX"), ("Y", "chrY"), ("MT", "chrM")])
+CM = dict(
+    list(
+        zip([str(x) for x in range(1, 23)], ["chr{0}".format(x) for x in range(1, 23)])
+    )
+    + [("X", "chrX"), ("Y", "chrY"), ("MT", "chrM")]
+)
 
 
 def main():
 
     actions = (
-        ('from23andme', 'convert 23andme file to vcf file'),
-        ('fromimpute2', 'convert impute2 output to vcf file'),
-        ('liftover', 'lift over coordinates in vcf file'),
-        ('location', 'given SNP locations characterize the locations'),
-        ('mstmap', 'convert vcf format to mstmap input'),
-        ('refallele', 'make refAllele file'),
-        ('sample', 'sample subset of vcf file'),
-        ('summary', 'summarize the genotype calls in table'),
-        ('uniq', 'retain only the first entry in vcf file'),
-        ('validate', 'fast validation of vcf file'),
-            )
+        ("from23andme", "convert 23andme file to vcf file"),
+        ("fromimpute2", "convert impute2 output to vcf file"),
+        ("liftover", "lift over coordinates in vcf file"),
+        ("location", "given SNP locations characterize the locations"),
+        ("mstmap", "convert vcf format to mstmap input"),
+        ("refallele", "make refAllele file"),
+        ("sample", "sample subset of vcf file"),
+        ("summary", "summarize the genotype calls in table"),
+        ("uniq", "retain only the first entry in vcf file"),
+        ("validate", "fast validation of vcf file"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -142,7 +161,7 @@ def validate(args):
     fp = must_open(vcffile)
     match_ref = match_alt = total = 0
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         seqid, pos, id, ref, alt = row.split()[:5]
         total += 1
@@ -169,7 +188,7 @@ def uniq(args):
 
     Retain only the first entry in vcf file.
     """
-    from six.moves.urllib.parse import parse_qs
+    from urllib.parse import parse_qs
 
     p = OptionParser(uniq.__doc__)
     opts, args = p.parse_args(args)
@@ -177,11 +196,11 @@ def uniq(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    vcffile, = args
+    (vcffile,) = args
     fp = must_open(vcffile)
     data = []
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             print(row.strip())
             continue
         v = VcfLine(row)
@@ -220,7 +239,7 @@ def sample(args):
     fww = open(withheld, "w")
     nkept = nwithheld = 0
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             print(row.strip(), file=fwk)
             continue
         if random() < ratio:
@@ -235,6 +254,7 @@ def sample(args):
 
 def get_vcfstanza(fastafile, fasta, sampleid="SAMP_001"):
     from jcvi.formats.base import timestamp
+
     # VCF spec
     m = "##fileformat=VCFv4.1\n"
     m += "##fileDate={0}\n".format(timestamp())
@@ -276,9 +296,23 @@ def fromimpute2(args):
         seen.add(pos)
         code = max((float(aa), "0/0"), (float(ab), "0/1"), (float(bb), "1/1"))[-1]
         tag = "PR" if snp_id == chr else "IM"
-        print("\t".join(str(x) for x in \
-                (chr, pos, rsid, ref, alt, ".", ".", tag, \
-                "GT:GP", code + ":" + ",".join((aa, ab, bb)))))
+        print(
+            "\t".join(
+                str(x)
+                for x in (
+                    chr,
+                    pos,
+                    rsid,
+                    ref,
+                    alt,
+                    ".",
+                    ".",
+                    tag,
+                    "GT:GP",
+                    code + ":" + ",".join((aa, ab, bb)),
+                )
+            )
+        )
 
 
 def read_rsid(seqid, legend):
@@ -304,8 +338,9 @@ def read_rsid(seqid, legend):
                     register[rsid][-1].append(alt)
             else:
                 register[rsid] = (pos, ref, [alt])
-    logging.debug("A total of {0} sites imported from `{1}`".\
-                    format(len(register), legend))
+    logging.debug(
+        "A total of {0} sites imported from `{1}`".format(len(register), legend)
+    )
     return register
 
 
@@ -345,7 +380,7 @@ def from23andme(args):
     seen = set()
     duplicates = skipped = missing = 0
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         rsid, chr, pos, genotype = row.split()
         if chr != seqid:
@@ -370,8 +405,13 @@ def from23andme(args):
             genotype = genotype[0]
             code = "0/0" if ref == genotype else "1/1"
             alt = "." if ref == genotype else genotype
-            print("\t".join(str(x) for x in \
-                    (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code)), file=fw)
+            print(
+                "\t".join(
+                    str(x)
+                    for x in (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code)
+                ),
+                file=fw,
+            )
             continue
 
         # If rsid is seen in the db, use that
@@ -383,7 +423,7 @@ def from23andme(args):
             skipped += 1  # Not in reference panel
             continue
 
-        assert fasta[chr][pos - 1:pos + len(ref) - 1].seq.upper() == ref
+        assert fasta[chr][pos - 1 : pos + len(ref) - 1].seq.upper() == ref
         # Keep it bi-allelic
         not_seen = [x for x in alt if x not in genotype]
         while len(alt) > 1 and not_seen:
@@ -404,17 +444,23 @@ def from23andme(args):
         try:
             ia, ib = alleles.index(a), alleles.index(b)
         except ValueError:  # alleles not seen
-            logging.error("{0}: alleles={1}, genotype={2}".\
-                            format(rsid, alleles, genotype))
+            logging.error(
+                "{0}: alleles={1}, genotype={2}".format(rsid, alleles, genotype)
+            )
             skipped += 1
             continue
         code = "/".join(str(x) for x in sorted((ia, ib)))
 
-        print("\t".join(str(x) for x in \
-                (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code)), file=fw)
+        print(
+            "\t".join(
+                str(x) for x in (chr, pos, rsid, ref, alt, ".", ".", "PR", "GT", code)
+            ),
+            file=fw,
+        )
 
-    logging.debug("duplicates={0} skipped={1} missing={2}".\
-                    format(duplicates, skipped, missing))
+    logging.debug(
+        "duplicates={0} skipped={1} missing={2}".format(duplicates, skipped, missing)
+    )
 
 
 def refallele(args):
@@ -429,10 +475,10 @@ def refallele(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    vcffile, = args
+    (vcffile,) = args
     fp = open(vcffile)
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         atoms = row.split()
         marker = "{0}:{1}".format(*atoms[:2])
@@ -451,8 +497,12 @@ def location(args):
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(location.__doc__)
-    p.add_option("--dist", default=100, type="int",
-                 help="Distance cutoff to call 5` and 3` [default: %default]")
+    p.add_option(
+        "--dist",
+        default=100,
+        type="int",
+        help="Distance cutoff to call 5` and 3` [default: %default]",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -502,10 +552,8 @@ def summary(args):
     from jcvi.utils.table import tabulate
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--counts",
-                 help="Print SNP counts in a txt file [default: %default]")
-    p.add_option("--bed",
-                 help="Print SNPs locations in a bed file [default: %default]")
+    p.add_option("--counts", help="Print SNP counts in a txt file [default: %default]")
+    p.add_option("--bed", help="Print SNPs locations in a bed file [default: %default]")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -524,19 +572,18 @@ def summary(args):
     snpcounts, goodsnpcounts = defaultdict(int), defaultdict(int)
     for row in fp:
         atoms = row.split()
-        assert len(atoms) == 3, \
-                "Only three-column file is supported"
+        assert len(atoms) == 3, "Only three-column file is supported"
         locus, intra, inter = atoms
         ctg, pos = locus.rsplit(".", 1)
         pos = int(pos)
         snps[ctg].append(pos)
         snpcounts[ctg] += 1
 
-        if intra == 'X':
+        if intra == "X":
             intraSNPs += 1
-        if inter in ('B', 'X'):
+        if inter in ("B", "X"):
             interSNPs += 1
-        if intra == 'A' and inter == 'B':
+        if intra == "A" and inter == "B":
             distinctSet.add(ctg)
             goodsnpcounts[ctg] += 1
         # Tabulate all possible combinations
@@ -545,8 +592,7 @@ def summary(args):
         combinations[(intra, inter)] += 1
 
         if bedfw:
-            print("\t".join(str(x) for x in \
-                        (ctg, pos - 1, pos, locus)), file=bedfw)
+            print("\t".join(str(x) for x in (ctg, pos - 1, pos, locus)), file=bedfw)
 
     if bedfw:
         logging.debug("SNP locations written to `{0}`.".format(opts.bed))
@@ -555,15 +601,17 @@ def summary(args):
     nsites = sum(len(x) for x in snps.values())
     sizes = Sizes(fastafile)
     bpsize = sizes.totalsize
-    snprate = lambda a: a * 1000. / bpsize
-    m = "Dataset `{0}` contains {1} contigs ({2} bp).\n".\
-                format(fastafile, len(sizes), thousands(bpsize))
-    m += "A total of {0} SNPs within {1} contigs ({2} bp).\n".\
-                format(nsites, len(snps),
-                       thousands(sum(sizes.mapping[x] for x in snps.keys())))
+    snprate = lambda a: a * 1000.0 / bpsize
+    m = "Dataset `{0}` contains {1} contigs ({2} bp).\n".format(
+        fastafile, len(sizes), thousands(bpsize)
+    )
+    m += "A total of {0} SNPs within {1} contigs ({2} bp).\n".format(
+        nsites, len(snps), thousands(sum(sizes.mapping[x] for x in snps.keys()))
+    )
     m += "SNP rate: {0:.1f}/Kb, ".format(snprate(nsites))
-    m += "IntraSNPs: {0} ({1:.1f}/Kb), InterSNPs: {2} ({3:.1f}/Kb)".\
-                format(intraSNPs, snprate(intraSNPs), interSNPs, snprate(interSNPs))
+    m += "IntraSNPs: {0} ({1:.1f}/Kb), InterSNPs: {2} ({3:.1f}/Kb)".format(
+        intraSNPs, snprate(intraSNPs), interSNPs, snprate(interSNPs)
+    )
     print(m, file=sys.stderr)
     print(tabulate(combinations), file=sys.stderr)
 
@@ -573,8 +621,12 @@ def summary(args):
     tag = (ref + "-A", alt + "-B")
     distinctSNPs = combinations[tag]
     tag = str(tag).replace("'", "")
-    print("A total of {0} disparate {1} SNPs in {2} contigs.".\
-                format(distinctSNPs, tag, len(distinctSet)), file=sys.stderr)
+    print(
+        "A total of {0} disparate {1} SNPs in {2} contigs.".format(
+            distinctSNPs, tag, len(distinctSet)
+        ),
+        file=sys.stderr,
+    )
 
     if not opts.counts:
         return
@@ -593,11 +645,10 @@ def summary(args):
         print("\t".join(str(x) for x in (ctg, snpcount, goodsnpcount)), file=fw)
 
     fw.close()
-    logging.debug("SNP counts per contig is written to `{0}`.".\
-                  format(snpcountsfile))
+    logging.debug("SNP counts per contig is written to `{0}`.".format(snpcountsfile))
 
 
-g2x = {"0/0": 'A', "0/1": 'X', "1/1": 'B', "./.": '-', ".": '-'}
+g2x = {"0/0": "A", "0/1": "X", "1/1": "B", "./.": "-", ".": "-"}
 
 
 def encode_genotype(s, mindepth=3, depth_index=2, nohet=False):
@@ -616,14 +667,14 @@ def encode_genotype(s, mindepth=3, depth_index=2, nohet=False):
     inferred = atoms[0]
     depth = int(atoms[depth_index])
     if depth < mindepth:
-        return '-'
-    if inferred == '0/0':
-        return 'A'
-    if inferred == '0/1':
-        return '-' if nohet else 'X'
-    if inferred == '1/1':
-        return 'B'
-    return '-'
+        return "-"
+    if inferred == "0/0":
+        return "A"
+    if inferred == "0/1":
+        return "-" if nohet else "X"
+    if inferred == "1/1":
+        return "B"
+    return "-"
 
 
 def mstmap(args):
@@ -635,21 +686,49 @@ def mstmap(args):
     from jcvi.assembly.geneticmap import MSTMatrix
 
     p = OptionParser(mstmap.__doc__)
-    p.add_option("--dh", default=False, action="store_true",
-                 help="Double haploid population, no het [default: %default]")
-    p.add_option("--freq", default=.2, type="float",
-                 help="Allele must be above frequency [default: %default]")
-    p.add_option("--mindepth", default=3, type="int",
-                 help="Only trust genotype calls with depth [default: %default]")
-    p.add_option("--missing_threshold", default=.25, type="float",
-                 help="Fraction missing must be below")
-    p.add_option("--noheader", default=False, action="store_true",
-                 help="Do not print MSTmap run parameters [default: %default]")
-    p.add_option("--pv4", default=False, action="store_true",
-                 help="Enable filtering strand-bias, tail distance bias, etc. "
-                 "[default: %default]")
-    p.add_option("--freebayes", default=False, action="store_true",
-                 help="VCF output from freebayes")
+    p.add_option(
+        "--dh",
+        default=False,
+        action="store_true",
+        help="Double haploid population, no het [default: %default]",
+    )
+    p.add_option(
+        "--freq",
+        default=0.2,
+        type="float",
+        help="Allele must be above frequency [default: %default]",
+    )
+    p.add_option(
+        "--mindepth",
+        default=3,
+        type="int",
+        help="Only trust genotype calls with depth [default: %default]",
+    )
+    p.add_option(
+        "--missing_threshold",
+        default=0.25,
+        type="float",
+        help="Fraction missing must be below",
+    )
+    p.add_option(
+        "--noheader",
+        default=False,
+        action="store_true",
+        help="Do not print MSTmap run parameters [default: %default]",
+    )
+    p.add_option(
+        "--pv4",
+        default=False,
+        action="store_true",
+        help="Enable filtering strand-bias, tail distance bias, etc. "
+        "[default: %default]",
+    )
+    p.add_option(
+        "--freebayes",
+        default=False,
+        action="store_true",
+        help="VCF output from freebayes",
+    )
     p.set_sep(sep=".", help="Use separator to simplify individual names")
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -657,7 +736,7 @@ def mstmap(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    vcffile, = args
+    (vcffile,) = args
     if vcffile.endswith(".bcf"):
         bcffile = vcffile
         vcffile = bcffile.rsplit(".", 1)[0] + ".vcf"
@@ -680,7 +759,7 @@ def mstmap(args):
         if row[:2] == "##":
             continue
         atoms = row.split()
-        if row[0] == '#':
+        if row[0] == "#":
             ind = [x.split(sep)[0] for x in atoms[9:]]
             nind = len(ind)
             mh = ["locus_name"] + ind
@@ -689,11 +768,14 @@ def mstmap(args):
         marker = "{0}.{1}".format(*atoms[:2])
 
         geno = atoms[9:]
-        geno = [encode_genotype(x, mindepth=opts.mindepth,
-                                depth_index=depth_index,
-                                nohet=nohet) for x in geno]
+        geno = [
+            encode_genotype(
+                x, mindepth=opts.mindepth, depth_index=depth_index, nohet=nohet
+            )
+            for x in geno
+        ]
         assert len(geno) == nind
-        f = 1. / nind
+        f = 1.0 / nind
 
         if geno.count("A") * f < freq:
             continue
@@ -716,8 +798,9 @@ def liftover(args):
     Lift over coordinates in vcf file.
     """
     p = OptionParser(liftover.__doc__)
-    p.add_option("--newid", default=False, action="store_true",
-                 help="Make new identifiers")
+    p.add_option(
+        "--newid", default=False, action="store_true", help="Make new identifiers"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -730,7 +813,7 @@ def liftover(args):
     fw = open(newvcf, "w")
     for row in fp:
         row = row.strip()
-        if row[0] == '#':
+        if row[0] == "#":
             if row.startswith("##source="):
                 row = "##source={0}".format(__file__)
             elif row.startswith("##reference="):
@@ -750,7 +833,7 @@ def liftover(args):
         try:
             new_chrom, new_pos = ul.liftover_cpra(CM[v.seqid], v.pos)
         except:
-            num_excluded +=1
+            num_excluded += 1
             continue
 
         if new_chrom != None and new_pos != None:
@@ -759,10 +842,10 @@ def liftover(args):
                 v.rsid = "{0}:{1}".format(new_chrom.replace("chr", ""), new_pos)
             print(v, file=fw)
         else:
-            num_excluded +=1
+            num_excluded += 1
 
     logging.debug("Excluded {0}".format(num_excluded))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

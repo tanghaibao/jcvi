@@ -13,6 +13,7 @@ import string
 import hashlib
 
 from itertools import groupby
+from more_itertools import grouper, pairwise
 from six.moves import zip_longest
 
 from Bio import SeqIO
@@ -691,8 +692,6 @@ def ispcr(args):
     Reformat paired primers into isPcr query format, which is three column
     format: name, forward, reverse
     """
-    from jcvi.utils.iter import grouper
-
     p = OptionParser(ispcr.__doc__)
     p.add_option(
         "-r",
@@ -770,8 +769,6 @@ def iter_canonical_fasta(fastafile):
 
 
 def fancyprint(fw, seq, width=60, chunk=10):
-    from jcvi.utils.iter import grouper
-
     assert width % chunk == 0
     nchunks = width / chunk
     seqlen = len(seq)
@@ -2011,8 +2008,6 @@ def pairinplace(args):
     records. If they match, print to bulk.pairs.fasta, else print to
     bulk.frags.fasta.
     """
-    from jcvi.utils.iter import pairwise
-
     p = OptionParser(pairinplace.__doc__)
     p.add_option(
         "-r",

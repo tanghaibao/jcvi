@@ -13,6 +13,7 @@ goatools
 graphviz
 jinja2
 matplotlib
+more-itertools
 natsort
 networkx
 numpy

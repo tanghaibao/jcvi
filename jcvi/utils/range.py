@@ -11,8 +11,9 @@ from __future__ import print_function
 
 import sys
 
-from itertools import groupby
 from collections import namedtuple, defaultdict
+from itertools import groupby
+from more_itertools import pairwise
 
 
 LEFT, RIGHT = 0, 1
@@ -113,7 +114,7 @@ def range_overlap(a, b, ratio=False):
     return ov
 
 
-def range_distance(a, b, distmode='ss'):
+def range_distance(a, b, distmode="ss"):
     """
     Returns the distance between two ranges.
 
@@ -129,14 +130,14 @@ def range_distance(a, b, distmode='ss'):
     >>> range_distance(("1", 30, 42, '+'), ("1", 45, 55, '-'), distmode='ee')
     (2, '+-')
     """
-    assert distmode in ('ss', 'ee')
+    assert distmode in ("ss", "ee")
 
     a_chr, a_min, a_max, a_strand = a
     b_chr, b_min, b_max, b_strand = b
     # must be on the same chromosome
     if a_chr != b_chr:
         dist = -1
-    #elif range_overlap(a[:3], b[:3]):
+    # elif range_overlap(a[:3], b[:3]):
     #    dist = 0
     else:
         # If the two ranges do not overlap, check stranded-ness and distance
@@ -185,6 +186,7 @@ def range_closest(ranges, b, left=True):
     >>> range_closest(ranges, b)
     """
     from jcvi.utils.orderedcollections import SortedCollection
+
     key = (lambda x: x) if left else (lambda x: (x[0], x[2], x[1]))
     rr = SortedCollection(ranges, key=key)
     try:
@@ -213,7 +215,6 @@ def range_interleave(ranges, sizes={}, empty=False):
     >>> range_interleave(ranges, sizes={"1": 70})
     [('1', 1, 29), ('1', 41, 41), ('1', 51, 70)]
     """
-    from jcvi.utils.iter import pairwise
     ranges = range_merge(ranges)
     interleaved_ranges = []
 
@@ -479,7 +480,6 @@ def range_depth(ranges, size, verbose=True):
     """
     Overlay ranges on [start, end], and summarize the ploidy of the intervals.
     """
-    from jcvi.utils.iter import pairwise
     from jcvi.utils.cbook import percentage
 
     # Make endpoints
@@ -516,13 +516,15 @@ def range_depth(ranges, size, verbose=True):
     assert sum(depthstore.values()) == size
     if verbose:
         for depth, count in sorted(depthstore.items()):
-            print("Depth {0}: {1}".\
-                    format(depth, percentage(count, size)), file=sys.stderr)
+            print(
+                "Depth {0}: {1}".format(depth, percentage(count, size)), file=sys.stderr
+            )
 
     return depthstore, depthdetails
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     import doctest
+
     doctest.testmod()

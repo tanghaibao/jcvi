@@ -6,8 +6,6 @@ TSP solver using Concorde or OR-tools. This is much faster than the LP-formulati
 algorithms.lpsolve.tsp(). See also:
 https://developers.google.com/optimization/routing/tsp
 """
-from __future__ import print_function
-
 import os.path as op
 import os
 import logging
@@ -15,12 +13,11 @@ import shutil
 import numpy as np
 
 from collections import defaultdict
-from itertools import combinations
-
 from dataclasses import dataclass
+from itertools import combinations
+from more_itertools import pairwise
 
 from jcvi.formats.base import FileShredder, must_open
-from jcvi.utils.iter import pairwise
 from jcvi.apps.base import mkdir, which, sh
 
 

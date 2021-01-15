@@ -12,16 +12,14 @@ format (use compara.synteny.scan()), then segment the chromosomes and cluster
 segments according to the matching patterns. Finally the putative ancestral
 regions (PAR) are identified and visualized.
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
-
-import numpy as np
 from math import log
 
-from jcvi.utils.iter import pairwise
+import numpy as np
+from more_itertools import pairwise
+
 from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine

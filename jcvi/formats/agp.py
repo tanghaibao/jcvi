@@ -16,6 +16,7 @@ import logging
 from copy import deepcopy
 from collections import defaultdict
 from itertools import groupby
+from more_itertools import pairwise, flatten
 from six.moves import zip_longest
 
 from Bio.Seq import Seq
@@ -27,7 +28,6 @@ from jcvi.formats.fasta import Fasta
 from jcvi.formats.bed import Bed
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
-from jcvi.utils.iter import pairwise, flatten
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, need_update
 
 

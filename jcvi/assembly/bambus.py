@@ -12,9 +12,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
 
 def main():
 
-    actions = (
-        ('scaffold', 'run bambus on set of contigs, reads and read mappings'),
-            )
+    actions = (("scaffold", "run bambus on set of contigs, reads and read mappings"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -26,18 +24,22 @@ def scaffold(args):
 
     Run BAMBUS on set of contigs, reads and read mappings.
     """
+    from more_itertools import grouper
 
     from jcvi.formats.base import FileMerger
     from jcvi.formats.bed import mates
     from jcvi.formats.contig import frombed
     from jcvi.formats.fasta import join
-    from jcvi.utils.iter import grouper
 
     p = OptionParser(scaffold.__doc__)
     p.set_rclip(rclip=1)
     p.add_option("--conf", help="BAMBUS configuration file [default: %default]")
-    p.add_option("--prefix", default=False, action="store_true",
-            help="Only keep links between IDs with same prefix [default: %default]")
+    p.add_option(
+        "--prefix",
+        default=False,
+        action="store_true",
+        help="Only keep links between IDs with same prefix [default: %default]",
+    )
     opts, args = p.parse_args(args)
 
     nargs = len(args)
@@ -53,9 +55,13 @@ def scaffold(args):
         matefile = prefix + ".mates"
         matebedfile = matefile + ".bed"
         if need_update(bedfile, [matefile, matebedfile]):
-            matesopt = [bedfile, "--lib", "--nointra",
-                        "--rclip={0}".format(rclip),
-                        "--cutoff={0}".format(opts.cutoff)]
+            matesopt = [
+                bedfile,
+                "--lib",
+                "--nointra",
+                "--rclip={0}".format(rclip),
+                "--cutoff={0}".format(opts.cutoff),
+            ]
             if opts.prefix:
                 matesopt += ["--prefix"]
             matefile, matebedfile = mates(matesopt)
@@ -86,18 +92,21 @@ def scaffold(args):
         cmd += " -C {0}".format(opts.conf)
     sh(cmd)
 
-    cmd = "untangle -e {0}.evidence.xml -s {0}.out.xml -o {0}.untangle.xml".\
-            format(prefix)
+    cmd = "untangle -e {0}.evidence.xml -s {0}.out.xml -o {0}.untangle.xml".format(
+        prefix
+    )
     sh(cmd)
 
     final = "final"
-    cmd = "printScaff -e {0}.evidence.xml -s {0}.untangle.xml -l {0}.lib " \
-          "-merge -detail -oo -sum -o {1}".format(prefix, final)
+    cmd = (
+        "printScaff -e {0}.evidence.xml -s {0}.untangle.xml -l {0}.lib "
+        "-merge -detail -oo -sum -o {1}".format(prefix, final)
+    )
     sh(cmd)
 
     oofile = final + ".oo"
     join([inputfasta, "--oo={0}".format(oofile)])
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

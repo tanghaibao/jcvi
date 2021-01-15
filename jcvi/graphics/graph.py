@@ -12,8 +12,7 @@ from random import choice, sample
 from brewer2mpl import get_map
 from graphviz import Graph
 from matplotlib.colors import to_hex
-
-from jcvi.utils.iter import pairwise
+from more_itertools import pairwise
 
 
 def make_sequence(seq, name="S"):

@@ -4,8 +4,6 @@
 """
 Related scripts for the HLI-STR (TREDPARSE) paper.
 """
-from __future__ import print_function
-
 import os.path as op
 import os
 import csv
@@ -452,7 +450,7 @@ def alts(args):
     Build alternative loci based on simulation data.
     """
     import pysam
-    from jcvi.utils.iter import pairwise
+    from more_itertools import pairwise
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(alts.__doc__)

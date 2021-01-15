@@ -4,20 +4,18 @@
 """
 Deconvolute fastq files according to barcodes.
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
 
+from collections import namedtuple
 from itertools import product, groupby, islice
 from multiprocessing import Pool
-from collections import namedtuple
+from more_itertools import flatten
 
 from Bio.Data.IUPACData import ambiguous_dna_values
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
-from jcvi.utils.iter import flatten
 from jcvi.formats.base import FileMerger, must_open
 from jcvi.formats.fastq import FastqPairedIterator
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob

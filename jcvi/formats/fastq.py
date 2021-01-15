@@ -990,7 +990,7 @@ def pairinplace(args):
     records. If they match, print to bulk.pairs.fastq, else print to
     bulk.frags.fastq.
     """
-    from jcvi.utils.iter import pairwise
+    from more_itertools import pairwise
 
     p = OptionParser(pairinplace.__doc__)
     p.set_rclip()

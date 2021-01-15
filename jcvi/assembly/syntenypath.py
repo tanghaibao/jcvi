@@ -4,18 +4,16 @@
 """
 Syntenic path assembly.
 """
-from __future__ import print_function
-
 import sys
 import logging
 
-from itertools import groupby, combinations
 from collections import defaultdict
+from itertools import groupby, combinations
+from more_itertools import pairwise
 
 from jcvi.formats.blast import BlastSlow, Blast
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import LineFile, must_open
-from jcvi.utils.iter import pairwise
 from jcvi.utils.range import range_intersect
 from jcvi.algorithms.graph import BiGraph
 from jcvi.apps.base import OptionParser, ActionDispatcher
@@ -151,7 +149,7 @@ def bed(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    anchorsfile, = args
+    (anchorsfile,) = args
     switch = opts.switch
     scale = opts.scale
     ac = AnchorFile(anchorsfile)
@@ -346,7 +344,7 @@ def happy(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    happyfile, = args
+    (happyfile,) = args
 
     certain = "certain.graph"
     uncertain = "uncertain.graph"

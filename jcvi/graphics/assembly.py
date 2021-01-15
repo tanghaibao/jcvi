@@ -5,8 +5,6 @@
 Assembly QC plots, including general statistics, base and mate coverages, and
 scaffolding consistencies.
 """
-from __future__ import print_function
-
 import sys
 import logging
 import os.path as op
@@ -259,7 +257,7 @@ def scaffold(args):
     This script will plot a dot in the dot plot in the corresponding location
     the plots are one contig/scaffold per plot.
     """
-    from jcvi.utils.iter import grouper
+    from more_itertools import grouper
 
     p = OptionParser(scaffold.__doc__)
     p.add_option(
@@ -269,7 +267,8 @@ def scaffold(args):
         help="Plot scaffolds with size larger than",
     )
     p.add_option(
-        "--highlights", help="A set of regions in BED format to highlight",
+        "--highlights",
+        help="A set of regions in BED format to highlight",
     )
     opts, args, iopts = p.set_image_options(args, figsize="14x8", dpi=150)
 

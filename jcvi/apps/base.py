@@ -1,8 +1,6 @@
 """
-basic support for running library as script
+Basic support for running library as script
 """
-from __future__ import print_function
-
 import errno
 import os
 import time
@@ -14,6 +12,7 @@ import logging
 import fnmatch
 import six
 
+from more_itertools import flatten
 from six.moves import input
 from six.moves.http_client import HTTPSConnection
 from six.moves.urllib.parse import urlencode
@@ -1910,8 +1909,6 @@ def notify(args):
 
     Push notify: Uses available API
     """
-    from jcvi.utils.iter import flatten
-
     valid_notif_methods.extend(available_push_api.keys())
 
     fromaddr = get_email_address(whoami="notifier")
@@ -2073,7 +2070,6 @@ def waitpid(args):
     Specify `--grid` option to send the new process to the grid after waiting for PID
     """
     import shlex
-    from jcvi.utils.iter import flatten
 
     valid_notif_methods.extend(list(flatten(available_push_api.values())))
 

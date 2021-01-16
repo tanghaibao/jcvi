@@ -34,14 +34,14 @@ def tabulate(d, transpose=False, thousands=True, key_fun=None, sep=",", align=Tr
     Goal is to put A in rows, B in columns, report data in table form.
 
     >>> d = {(1,'a'):3, (1,'b'):4, (2,'a'):5, (2,'b'):0}
-    >>> print tabulate(d)
+    >>> print(tabulate(d))
     ===========
     o    a    b
     -----------
     1    3    4
     2    5    0
     -----------
-    >>> print tabulate(d, transpose=True)
+    >>> print(tabulate(d, transpose=True))
     ===========
     o    1    2
     -----------
@@ -133,8 +133,8 @@ def write_csv(
     if comment:
         formatted[0] = "#" + formatted[0][1:]
     formatted = "\n".join(formatted)
-    fw = must_open(filename, "w")
-    print(formatted, file=fw)
+    output = must_open(filename, "w")
+    print(formatted, file=output)
     if tee and filename != "stdout":
         print(formatted)
 

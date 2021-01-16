@@ -23,9 +23,7 @@ class SetupHelper(object):
 
     def check_version(self, name, majorv=2, minorv=7):
         """Make sure the package runs on the supported Python version"""
-        if sys.version_info.major < majorv or (
-            sys.version_info.major == majorv and sys.version_info.minor < minorv
-        ):
+        if sys.version_info < (majorv, minorv):
             sys.stderr.write(
                 "ERROR: %s is only for >= Python %d.%d but you are running %d.%d\n"
                 % (name, majorv, minorv, sys.version_info.major, sys.version_info.minor)

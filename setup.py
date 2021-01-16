@@ -44,7 +44,7 @@ classifiers = [
 
 # Use the helper
 h = SetupHelper(initfile="jcvi/__init__.py", readmefile="README.md")
-h.check_version(NAME, majorv=3, minorv=7)
+h.check_version(NAME, majorv=3, minorv=6)
 cmdclass = versioneer.get_cmdclass()
 include_dirs = []
 setup_dir = op.abspath(op.dirname(__file__))

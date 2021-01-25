@@ -167,7 +167,6 @@ class Region(object):
         layout,
         bed,
         scale,
-        glyphcolor: BasePalette,
         switch=None,
         chr_label=True,
         loc_label=True,
@@ -176,6 +175,7 @@ class Region(object):
         vpad=0.015,
         extra_features=None,
         glyphstyle="box",
+        glyphcolor: BasePalette = OrientationPalette(),
     ):
         x, y = layout.x, layout.y
         ratio = layout.ratio
@@ -350,7 +350,6 @@ class Synteny(object):
         datafile,
         bedfile,
         layoutfile,
-        glyphcolor: BasePalette,
         switch=None,
         tree=None,
         extra_features=None,
@@ -362,6 +361,7 @@ class Synteny(object):
         scalebar=False,
         shadestyle="curve",
         glyphstyle="arrow",
+        glyphcolor: BasePalette = OrientationPalette(),
     ):
         w, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
@@ -397,7 +397,6 @@ class Synteny(object):
         self.gg = gg = {}
         self.rr = []
         ymids = []
-        # vpad = .012 * w / h
         for i in range(bf.ncols):
             ext = exts[i]
             ef = extras[i] if extras else None
@@ -407,7 +406,6 @@ class Synteny(object):
                 lo[i],
                 bed,
                 scale,
-                glyphcolor,
                 switch,
                 genelabelsize=genelabelsize,
                 chr_label=chr_label,
@@ -415,6 +413,7 @@ class Synteny(object):
                 vpad=vpad,
                 extra_features=ef,
                 glyphstyle=glyphstyle,
+                glyphcolor=glyphcolor,
             )
             self.rr.append(r)
             # Use tid and accn to store gene positions
@@ -599,7 +598,6 @@ def main():
         datafile,
         bedfile,
         layoutfile,
-        glyphcolor,
         switch=switch,
         tree=tree,
         extra_features=opts.extra,
@@ -607,6 +605,7 @@ def main():
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
         glyphstyle=opts.glyphstyle,
+        glyphcolor=glyphcolor,
     )
 
     root.set_xlim(0, 1)

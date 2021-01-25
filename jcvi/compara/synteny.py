@@ -314,7 +314,7 @@ def get_orientation(ia, ib):
     if len(ia) != len(ib) or len(ia) < 2:
         return "+"  # Just return a default orientation
 
-    slope, intercept = np.polyfit(ia, ib, 1)
+    slope, _ = np.polyfit(ia, ib, 1)
     return "+" if slope >= 0 else "-"
 
 

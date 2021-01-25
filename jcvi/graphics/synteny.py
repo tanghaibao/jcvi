@@ -13,8 +13,6 @@ the positions of tracks. For example:
 
 With the row ordering corresponding to the column ordering in the MCscan output.
 """
-from __future__ import print_function
-
 
 import sys
 import logging
@@ -26,19 +24,22 @@ from jcvi.formats.base import DictFile
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import OptionParser
 
-from jcvi.graphics.glyph import Glyph, RoundLabel
+from jcvi.graphics.glyph import (
+    BasePalette,
+    Glyph,
+    OrientationPalette,
+    OrthoGroupPalette,
+    RoundLabel,
+)
 from jcvi.graphics.base import (
+    markup,
     mpl,
     plt,
     savefig,
-    markup,
     Path,
     PathPatch,
     AbstractLayout,
 )
-
-
-forward, backward = "b", "g"  # Genes with different orientations
 
 
 class LayoutLine(object):
@@ -174,6 +175,7 @@ class Region(object):
         vpad=0.015,
         extra_features=None,
         glyphstyle="box",
+        glyphcolor: BasePalette = OrientationPalette(),
     ):
         x, y = layout.x, layout.y
         ratio = layout.ratio
@@ -224,9 +226,15 @@ class Region(object):
                 strand = "+" if strand == "-" else "-"
 
             x1, x2, a, b = self.get_coordinates(gstart, gend, y, cv, tr, inv)
-            self.gg[g.accn] = (a, b)
+            gene_name = g.accn
+            self.gg[gene_name] = (a, b)
 
-            color = forward if strand == "+" else backward
+            color, zorder = (
+                glyphcolor.get_color_and_zorder(strand)
+                if isinstance(glyphcolor, OrientationPalette)
+                else glyphcolor.get_color_and_zorder(gene_name)
+            )
+
             if hidden:
                 continue
             gp = Glyph(
@@ -238,14 +246,14 @@ class Region(object):
                 gradient=False,
                 fc=color,
                 style=glyphstyle,
-                zorder=3,
+                zorder=zorder,
             )
             gp.set_transform(tr)
             if genelabelsize:
                 ax.text(
                     (x1 + x2) / 2,
                     y + height / 2 + genelabelsize * vpad / 3,
-                    markup(g.accn),
+                    markup(gene_name),
                     size=genelabelsize,
                     rotation=25,
                     ha="left",
@@ -354,8 +362,9 @@ class Synteny(object):
         scalebar=False,
         shadestyle="curve",
         glyphstyle="arrow",
+        glyphcolor: BasePalette = OrientationPalette(),
     ):
-        w, h = fig.get_figwidth(), fig.get_figheight()
+        _, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
         order = bed.order
         bf = BlockFile(datafile)
@@ -389,7 +398,11 @@ class Synteny(object):
         self.gg = gg = {}
         self.rr = []
         ymids = []
-        # vpad = .012 * w / h
+        glyphcolor = (
+            OrientationPalette()
+            if glyphcolor == "orientation"
+            else OrthoGroupPalette(bf.grouper())
+        )
         for i in range(bf.ncols):
             ext = exts[i]
             ef = extras[i] if extras else None
@@ -406,6 +419,7 @@ class Synteny(object):
                 vpad=vpad,
                 extra_features=ef,
                 glyphstyle=glyphstyle,
+                glyphcolor=glyphcolor,
             )
             self.rr.append(r)
             # Use tid and accn to store gene positions
@@ -505,6 +519,7 @@ def draw_gene_legend(
     repeat=False,
     glyphstyle="box",
 ):
+    forward, backward = OrientationPalette.forward, OrientationPalette.backward
     ax.plot([x1, x1 + d], [ytop, ytop], ":", color=forward, lw=2)
     ax.plot([x1 + d], [ytop], ">", color=forward, mec=forward)
     ax.plot([x2, x2 + d], [ytop, ytop], ":", color=backward, lw=2)
@@ -554,6 +569,12 @@ def main():
         help="Style of feature glyphs",
     )
     p.add_option(
+        "--glyphcolor",
+        default="orientation",
+        choices=Glyph.Palette,
+        help="Glyph coloring based on",
+    )
+    p.add_option(
         "--shadestyle",
         default="curve",
         choices=Shade.Styles,
@@ -571,7 +592,6 @@ def main():
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-
     Synteny(
         fig,
         root,
@@ -585,6 +605,7 @@ def main():
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
         glyphstyle=opts.glyphstyle,
+        glyphcolor=opts.glyphcolor,
     )
 
     root.set_xlim(0, 1)

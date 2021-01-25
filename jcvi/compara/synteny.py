@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from __future__ import print_function
+"""Syntenty inference in comparative genomics
+"""
 
 import os.path as op
 import sys
@@ -133,6 +134,8 @@ class AnchorFile(BaseFile):
 
 
 class BlockFile(BaseFile):
+    """Parse .blocks file which is the mcscan output with multiple columns as 'tracks'"""
+
     def __init__(self, filename, defaultcolor="#fb8072", header=False):
         super(BlockFile, self).__init__(filename)
         fp = must_open(filename)
@@ -254,6 +257,15 @@ class BlockFile(BaseFile):
                 line = color + "*" + line
             yield line
 
+    def grouper(self) -> Grouper:
+        """Build orthogroup based on the gene matches."""
+        grouper = Grouper()
+        for row in self.data:
+            if "." not in row:
+                grouper.join(*row)
+        logging.debug("A total of %d orthogroups formed", len(grouper))
+        return grouper
+
 
 class SimpleFile(object):
     def __init__(self, simplefile, defaultcolor="#fb8072", order=None):
@@ -286,8 +298,7 @@ class SimpleFile(object):
             self.blocks.append((a, b, c, d, score, orientation, hl))
         if check:
             print(
-                """Error: some genes in blocks can't be found,
-please rerun after making sure that bed file agree with simple file.""",
+                "Error: some genes in blocks can't be found, please rerun after making sure that bed file agree with simple file.",
                 file=sys.stderr,
             )
             exit(1)
@@ -373,9 +384,7 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
         filtered_blast.append(b)
 
     logging.debug(
-        "A total of {0} BLAST imported from `{1}`.".format(
-            len(filtered_blast), blast_file
-        )
+        "A total of %d BLAST imported from `%s`.", len(filtered_blast), blast_file
     )
 
     return filtered_blast

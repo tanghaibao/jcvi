@@ -226,13 +226,14 @@ class Region(object):
                 strand = "+" if strand == "-" else "-"
 
             x1, x2, a, b = self.get_coordinates(gstart, gend, y, cv, tr, inv)
-            self.gg[g.accn] = (a, b)
+            gene_name = g.accn
+            self.gg[gene_name] = (a, b)
 
-            color = "k"
-            if isinstance(glyphcolor, OrientationPalette):
-                color = glyphcolor.get_color(strand)
-            elif isinstance(glyphcolor, OrthoGroupPalette):
-                color = glyphcolor.get_color(strand)
+            color = (
+                glyphcolor.get_color(strand)
+                if isinstance(glyphcolor, OrientationPalette)
+                else glyphcolor.get_color(gene_name)
+            )
 
             if hidden:
                 continue
@@ -252,7 +253,7 @@ class Region(object):
                 ax.text(
                     (x1 + x2) / 2,
                     y + height / 2 + genelabelsize * vpad / 3,
-                    markup(g.accn),
+                    markup(gene_name),
                     size=genelabelsize,
                     rotation=25,
                     ha="left",
@@ -363,7 +364,7 @@ class Synteny(object):
         glyphstyle="arrow",
         glyphcolor: BasePalette = OrientationPalette(),
     ):
-        w, h = fig.get_figwidth(), fig.get_figheight()
+        _, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
         order = bed.order
         bf = BlockFile(datafile)
@@ -397,6 +398,11 @@ class Synteny(object):
         self.gg = gg = {}
         self.rr = []
         ymids = []
+        glyphcolor = (
+            OrientationPalette()
+            if glyphcolor == "orientation"
+            else OrthoGroupPalette(bf.grouper())
+        )
         for i in range(bf.ncols):
             ext = exts[i]
             ef = extras[i] if extras else None
@@ -586,12 +592,6 @@ def main():
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    glyphcolor = (
-        OrientationPalette()
-        if opts.glyphcolor == "orientation"
-        else OrthoGroupPalette()
-    )
-
     Synteny(
         fig,
         root,
@@ -605,7 +605,7 @@ def main():
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
         glyphstyle=opts.glyphstyle,
-        glyphcolor=glyphcolor,
+        glyphcolor=opts.glyphcolor,
     )
 
     root.set_xlim(0, 1)

@@ -23,6 +23,7 @@ from jcvi.graphics.base import (
     set3,
     get_map,
 )
+from jcvi.utils.grouper import Grouper
 
 
 tstep = 0.05
@@ -190,6 +191,17 @@ class TextCircle(object):
 class BasePalette(dict):
     """Base class for coloring gene glyphs"""
 
+    def get_color(self, feature: str) -> str:
+        """Get color based on the orientation.
+
+        Args:
+            feature (str): orientation, name etc.
+
+        Returns:
+            str: color for the given orientation
+        """
+        return self.palette.get(feature)
+
 
 class OrientationPalette(BasePalette):
     """Color gene glyphs with forward/reverse"""
@@ -197,33 +209,35 @@ class OrientationPalette(BasePalette):
     forward, backward = "b", "g"  # Genes with different orientations
     palette = {"+": forward, "-": backward}
 
-    def get_color(self, orientation: str) -> str:
-        """Get color based on the orientation.
-
-        Args:
-            orientation (str): +/-
-
-        Returns:
-            str: color for the given orientation
-        """
-        return self.palette.get(orientation)
-
 
 class OrthoGroupPalette(BasePalette):
     """Color gene glyphs with random orthogroup color"""
 
+    grouper: Grouper
     palette = set3
 
-    def get_color(self, orthogroup) -> str:
-        """Get color based on random orthogroup color.
+    def __init__(self, grouper: Grouper):
+        """Initialize with grouper instance indicating orthogroup assignments.
 
         Args:
-            orthogroup (hashable): Anything that implements __hash__
+            grouper (Grouper): Orthogroup assignments
+        """
+        super().__init__()
+        self.grouper = grouper
+
+    def get_color(self, feature: str) -> str:
+        """Get color based on orthogroup assignement of a gene.
+
+        Args:
+            feature (str): Name of the gene
 
         Returns:
-            str: color for the given orthogroup
+            str: Name of the matplotlib color, #aabbcc or magenta etc.
         """
-        return self.palette[hash(orthogroup) % len(self.palette)]
+        if feature not in self.grouper:
+            return "gray"
+        group = self.grouper[feature]
+        return self.palette[hash(group) % len(self.palette)]
 
 
 class BaseGlyph(list):

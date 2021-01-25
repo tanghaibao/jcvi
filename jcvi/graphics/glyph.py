@@ -20,6 +20,7 @@ from jcvi.graphics.base import (
     FancyArrowPatch,
     Polygon,
     savefig,
+    set3,
     get_map,
 )
 
@@ -63,8 +64,7 @@ class Bezier(object):
 
 
 class RoundLabel(object):
-    """Round rectangle around the text label
-    """
+    """Round rectangle around the text label"""
 
     def __init__(self, ax, x1, x2, t, lw=0, fill=False, fc="lavender", **kwargs):
 
@@ -79,8 +79,7 @@ class RoundLabel(object):
 
 
 class RoundRect(object):
-    """Round rectangle directly
-    """
+    """Round rectangle directly"""
 
     def __init__(self, ax, xy, width, height, shrink=0.1, label=None, **kwargs):
 
@@ -118,8 +117,7 @@ class RoundRect(object):
 
 
 class DoubleSquare(object):
-    """Square with a double-line margin
-    """
+    """Square with a double-line margin"""
 
     def __init__(self, ax, x, y, radius=0.01, **kwargs):
 
@@ -130,8 +128,7 @@ class DoubleSquare(object):
 
 
 class DoubleCircle(object):
-    """Circle with a double-line margin
-    """
+    """Circle with a double-line margin"""
 
     def __init__(self, ax, x, y, radius=0.01, **kwargs):
 
@@ -156,8 +153,7 @@ def get_asymmetry(ax, radius):
 
 
 class TextCircle(object):
-    """Circle with a character wrapped in
-    """
+    """Circle with a character wrapped in"""
 
     def __init__(
         self,
@@ -191,8 +187,48 @@ class TextCircle(object):
         )
 
 
+class BasePalette(dict):
+    """Base class for coloring gene glyphs"""
+
+
+class OrientationPalette(BasePalette):
+    """Color gene glyphs with forward/reverse"""
+
+    forward, backward = "b", "g"  # Genes with different orientations
+    palette = {"+": forward, "-": backward}
+
+    def get_color(self, orientation: str) -> str:
+        """Get color based on the orientation.
+
+        Args:
+            orientation (str): +/-
+
+        Returns:
+            str: color for the given orientation
+        """
+        return self.palette.get(orientation)
+
+
+class OrthoGroupPalette(BasePalette):
+    """Color gene glyphs with random orthogroup color"""
+
+    palette = set3
+
+    def get_color(self, orthogroup) -> str:
+        """Get color based on random orthogroup color.
+
+        Args:
+            orthogroup (hashable): Anything that implements __hash__
+
+        Returns:
+            str: color for the given orthogroup
+        """
+        return self.palette[hash(orthogroup) % len(self.palette)]
+
+
 class BaseGlyph(list):
     def __init__(self, ax):
+        super().__init__()
         self.ax = ax
 
     def add_patches(self):
@@ -207,6 +243,7 @@ class BaseGlyph(list):
 class Glyph(BaseGlyph):
 
     Styles = ("box", "arrow")
+    Palette = ("orientation", "orthogroup")
     ArrowStyle = "Simple,head_length=1.5,head_width=7,tail_width=7"
 
     def __init__(
@@ -223,7 +260,7 @@ class Glyph(BaseGlyph):
         style="box",
         **kwargs
     ):
-        """ Draw a region that represent an interval feature, e.g. gene or repeat
+        """Draw a region that represent an interval feature, e.g. gene or repeat
 
         Args:
             ax (matplotlib.axis): matplot axis object
@@ -276,12 +313,9 @@ class Glyph(BaseGlyph):
 
 
 class ExonGlyph(BaseGlyph):
-    """Multiple rectangles linked together.
-    """
+    """Multiple rectangles linked together."""
 
-    def __init__(
-        self, ax, x, y, mrnabed, exonbeds, height=0.03, ratio=1, align="left", **kwargs
-    ):
+    def __init__(self, ax, x, y, mrnabed, exonbeds, height=0.03, ratio=1, align="left"):
 
         super(ExonGlyph, self).__init__(ax)
         start, end = mrnabed.start, mrnabed.end
@@ -296,8 +330,7 @@ class ExonGlyph(BaseGlyph):
 
 
 class GeneGlyph(BaseGlyph):
-    """Draws an oriented gene symbol, with color gradient, to represent genes
-    """
+    """Draws an oriented gene symbol, with color gradient, to represent genes"""
 
     def __init__(
         self,

@@ -13,8 +13,6 @@ the positions of tracks. For example:
 
 With the row ordering corresponding to the column ordering in the MCscan output.
 """
-from __future__ import print_function
-
 
 import sys
 import logging
@@ -26,19 +24,22 @@ from jcvi.formats.base import DictFile
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import OptionParser
 
-from jcvi.graphics.glyph import Glyph, RoundLabel
+from jcvi.graphics.glyph import (
+    BasePalette,
+    Glyph,
+    OrientationPalette,
+    OrthoGroupPalette,
+    RoundLabel,
+)
 from jcvi.graphics.base import (
+    markup,
     mpl,
     plt,
     savefig,
-    markup,
     Path,
     PathPatch,
     AbstractLayout,
 )
-
-
-forward, backward = "b", "g"  # Genes with different orientations
 
 
 class LayoutLine(object):
@@ -166,6 +167,7 @@ class Region(object):
         layout,
         bed,
         scale,
+        glyphcolor: BasePalette,
         switch=None,
         chr_label=True,
         loc_label=True,
@@ -226,7 +228,12 @@ class Region(object):
             x1, x2, a, b = self.get_coordinates(gstart, gend, y, cv, tr, inv)
             self.gg[g.accn] = (a, b)
 
-            color = forward if strand == "+" else backward
+            color = "k"
+            if isinstance(glyphcolor, OrientationPalette):
+                color = glyphcolor.get_color(strand)
+            elif isinstance(glyphcolor, OrthoGroupPalette):
+                color = glyphcolor.get_color(strand)
+
             if hidden:
                 continue
             gp = Glyph(
@@ -343,6 +350,7 @@ class Synteny(object):
         datafile,
         bedfile,
         layoutfile,
+        glyphcolor: BasePalette,
         switch=None,
         tree=None,
         extra_features=None,
@@ -399,6 +407,7 @@ class Synteny(object):
                 lo[i],
                 bed,
                 scale,
+                glyphcolor,
                 switch,
                 genelabelsize=genelabelsize,
                 chr_label=chr_label,
@@ -505,6 +514,7 @@ def draw_gene_legend(
     repeat=False,
     glyphstyle="box",
 ):
+    forward, backward = OrientationPalette.forward, OrientationPalette.backward
     ax.plot([x1, x1 + d], [ytop, ytop], ":", color=forward, lw=2)
     ax.plot([x1 + d], [ytop], ">", color=forward, mec=forward)
     ax.plot([x2, x2 + d], [ytop, ytop], ":", color=backward, lw=2)
@@ -554,6 +564,12 @@ def main():
         help="Style of feature glyphs",
     )
     p.add_option(
+        "--glyphcolor",
+        default="orientation",
+        choices=Glyph.Palette,
+        help="Glyph coloring based on",
+    )
+    p.add_option(
         "--shadestyle",
         default="curve",
         choices=Shade.Styles,
@@ -571,6 +587,11 @@ def main():
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
+    glyphcolor = (
+        OrientationPalette()
+        if opts.glyphcolor == "orientation"
+        else OrthoGroupPalette()
+    )
 
     Synteny(
         fig,
@@ -578,6 +599,7 @@ def main():
         datafile,
         bedfile,
         layoutfile,
+        glyphcolor,
         switch=switch,
         tree=tree,
         extra_features=opts.extra,

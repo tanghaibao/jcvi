@@ -32,7 +32,7 @@ class AnchorFile(BaseFile):
 
     def iter_blocks(self, minsize=0):
         fp = open(self.filename)
-        for header, lines in read_block(fp, "#"):
+        for _, lines in read_block(fp, "#"):
             lines = [x.split() for x in lines]
             if len(lines) >= minsize:
                 yield lines
@@ -89,9 +89,9 @@ class AnchorFile(BaseFile):
                 print("\t".join((a, b, score)), file=fw)
         fw.close()
 
-        logging.debug("Removed {0} existing anchors.".format(nremoved))
-        logging.debug("Corrected scores for {0} anchors.".format(ncorrected))
-        logging.debug("Anchors written to `{0}`.".format(filename))
+        logging.debug("Removed %d existing anchors.", nremoved)
+        logging.debug("Corrected scores for %d anchors.", ncorrected)
+        logging.debug("Anchors written to `%s`.", filename)
 
     def blast(self, blastfile=None, outfile=None):
         """
@@ -109,7 +109,7 @@ class AnchorFile(BaseFile):
 
         fw = must_open(outfile, "w", checkexists=True)
         nlines = 0
-        for a, b, id in self.iter_pairs():
+        for a, b, _ in self.iter_pairs():
             if (a, b) in blasts:
                 bline = blasts[(a, b)]
             elif (b, a) in blasts:
@@ -122,9 +122,7 @@ class AnchorFile(BaseFile):
             nlines += 1
         fw.close()
 
-        logging.debug(
-            "A total of {0} BLAST lines written to `{1}`.".format(nlines, outfile)
-        )
+        logging.debug("A total of %d BLAST lines written to `%s`.", nlines, outfile)
 
         return outfile
 

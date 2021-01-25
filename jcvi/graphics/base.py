@@ -221,7 +221,12 @@ def set3_n(number=12):
     return get_map("Set3", "qualitative", number).hex_colors
 
 
-set1, set2, set3 = set1_n(), set2_n(), set3_n()
+def paired_n(number=12):
+    """See also: https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=12"""
+    return get_map("Paired", "qualitative", number).hex_colors
+
+
+set1, set2, set3, paired = set1_n(), set2_n(), set3_n(), paired_n()
 
 
 def prettyplot():

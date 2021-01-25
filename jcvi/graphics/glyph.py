@@ -191,16 +191,17 @@ class TextCircle(object):
 class BasePalette(dict):
     """Base class for coloring gene glyphs"""
 
-    def get_color(self, feature: str) -> str:
-        """Get color based on the orientation.
+    def get_color_and_zorder(self, feature: str) -> (str, int):
+        """Get color and zorder based on the orientation.
 
         Args:
             feature (str): orientation, name etc.
 
         Returns:
-            str: color for the given orientation
+            (str, int): color and zorder for the given orientation
         """
-        return self.palette.get(feature)
+        color = self.palette.get(feature)
+        return color, 4
 
 
 class OrientationPalette(BasePalette):
@@ -225,7 +226,7 @@ class OrthoGroupPalette(BasePalette):
         super().__init__()
         self.grouper = grouper
 
-    def get_color(self, feature: str) -> str:
+    def get_color_and_zorder(self, feature: str) -> str:
         """Get color based on orthogroup assignement of a gene.
 
         Args:
@@ -235,9 +236,10 @@ class OrthoGroupPalette(BasePalette):
             str: Name of the matplotlib color, #aabbcc or magenta etc.
         """
         if feature not in self.grouper:
-            return "gray"
+            return ("gray", 3)
         group = self.grouper[feature]
-        return self.palette[hash(group) % len(self.palette)]
+        # Any gene part of an orthogroup gets a higher zorder
+        return (self.palette[hash(group) % len(self.palette)], 4)
 
 
 class BaseGlyph(list):

@@ -229,10 +229,10 @@ class Region(object):
             gene_name = g.accn
             self.gg[gene_name] = (a, b)
 
-            color = (
-                glyphcolor.get_color(strand)
+            color, zorder = (
+                glyphcolor.get_color_and_zorder(strand)
                 if isinstance(glyphcolor, OrientationPalette)
-                else glyphcolor.get_color(gene_name)
+                else glyphcolor.get_color_and_zorder(gene_name)
             )
 
             if hidden:
@@ -246,7 +246,7 @@ class Region(object):
                 gradient=False,
                 fc=color,
                 style=glyphstyle,
-                zorder=3,
+                zorder=zorder,
             )
             gp.set_transform(tr)
             if genelabelsize:

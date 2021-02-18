@@ -482,8 +482,9 @@ def format(args):
     Re-format BED file, e.g. switch sequence ids.
     """
     p = OptionParser(format.__doc__)
+    p.add_option("--prefix", help="Add prefix to name column (4th)")
     p.add_option(
-        "--switch", type="string", help="Switch seqids based on two-column file"
+        "--switch", help="Switch seqids based on two-column file"
     )
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -493,9 +494,12 @@ def format(args):
 
     (bedfile,) = args
     switch = DictFile(opts.switch, delimiter="\t") if opts.switch else None
+    prefix = opts.prefix
     bed = Bed(bedfile)
     with must_open(opts.outfile, "w") as fw:
         for b in bed:
+            if prefix:
+                b.accn = prefix + b.accn
             if switch and b.seqid in switch:
                 b.seqid = switch[b.seqid]
             print(b, file=fw)

@@ -3025,7 +3025,7 @@ def bed(args):
         score_attrib=opts.score_attrib,
     )
     b = Bed()
-    seen_parents = {}  # used with --primary_only
+    seen_parents = set()  # used with --primary_only
     skipped_non_primary = 0
 
     for g in gff:

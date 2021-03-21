@@ -440,7 +440,7 @@ def make_attributes(s, gff3=True, keep_attr_order=True):
         replacing the '+' sign with a space
         """
         s = s.replace("+", "PlusSign")
-        d = parse_qs(s, keep_attr_order=keep_attr_order)
+        d = parse_qs(s, separator=";", keep_attr_order=keep_attr_order)
         for key in d:
             d[key][0] = unquote(d[key][0].replace("PlusSign", "+").replace('"', ""))
     else:

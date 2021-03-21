@@ -3037,7 +3037,7 @@ def bed(args):
             if g.parent in seen_parents:
                 skipped_non_primary += 1
                 continue
-            else:
+            elif g.parent:
                 seen_parents.add(g.parent)
 
         bl = g.bedline

@@ -68,10 +68,7 @@ class DefaultOrderedDict(OrderedDict):
         return type(self)(self.default_factory, copy.deepcopy(self.items()))
 
     def __repr__(self):
-        return "OrderedDefaultDict(%s, %s)" % (
-            self.default_factory,
-            OrderedDict.__repr__(self),
-        )
+        return OrderedDict.__repr__(self)
 
 
 def parse_qs(qs, keep_blank_values=0, strict_parsing=0, keep_attr_order=True):

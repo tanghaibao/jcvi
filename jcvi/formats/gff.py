@@ -440,7 +440,7 @@ def make_attributes(s, gff3=True, keep_attr_order=True):
         replacing the '+' sign with a space
         """
         s = s.replace("+", "PlusSign")
-        d = parse_qs(s, keep_attr_order=keep_attr_order)
+        d = parse_qs(s, separator=";", keep_attr_order=keep_attr_order)
         for key in d:
             d[key][0] = unquote(d[key][0].replace("PlusSign", "+").replace('"', ""))
     else:
@@ -2952,8 +2952,6 @@ def bed(args):
     Parses the start, stop locations of the selected features out of GFF and
     generate a bed file
     """
-    from jcvi.utils.cbook import gene_name
-
     p = OptionParser(bed.__doc__)
     p.add_option(
         "--type",
@@ -2994,7 +2992,12 @@ def bed(args):
         action="store_true",
         help="Do not sort the output bed file",
     )
-    p.set_stripnames(default=False)
+    p.add_option(
+        "--primary_only",
+        default=False,
+        action="store_true",
+        help="Only retains a single transcript per gene",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -3006,8 +3009,8 @@ def bed(args):
     type = opts.type or set()
     accn = opts.accn
     source = opts.source or set()
-    strip_names = opts.strip_names
     span = opts.span
+    primary_only = opts.primary_only
 
     if opts.type:
         type = set(x.strip() for x in opts.type.split(","))
@@ -3022,18 +3025,24 @@ def bed(args):
         score_attrib=opts.score_attrib,
     )
     b = Bed()
+    seen_parents = set()  # used with --primary_only
+    skipped_non_primary = 0
 
     for g in gff:
         if type and g.type not in type:
             continue
         if source and g.source not in source:
             continue
+        if primary_only:
+            if g.parent in seen_parents:
+                skipped_non_primary += 1
+                continue
+            else:
+                seen_parents.add(g.parent)
 
         bl = g.bedline
         if accn:
             bl.accn = accn
-        elif strip_names:
-            bl.accn = gene_name(bl.accn)
         if span:
             bl.score = bl.span
         b.append(bl)
@@ -3043,6 +3052,8 @@ def bed(args):
     logging.debug(
         "Extracted {0} features (type={1} id={2})".format(len(b), ",".join(type), key)
     )
+    if primary_only:
+        logging.debug("Skipped non-primary: %d", skipped_non_primary)
 
 
 def make_index(gff_file):

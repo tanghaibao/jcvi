@@ -10,7 +10,6 @@ import signal
 import sys
 import logging
 import fnmatch
-import six
 
 from more_itertools import flatten
 from http.client import HTTPSConnection
@@ -27,7 +26,7 @@ from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
 from natsort import natsorted
-from rich.logging import RichHandler
+from rich.logging import Console, RichHandler
 
 from jcvi import __copyright__, __version__
 
@@ -1489,7 +1488,7 @@ def debug(level=logging.DEBUG):
         level=level,
         format="%(message)s",
         datefmt="[%X]",
-        handlers=[RichHandler()],
+        handlers=[RichHandler(console=Console(stderr=True))],
     )
 
 

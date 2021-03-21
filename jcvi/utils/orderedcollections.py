@@ -68,13 +68,10 @@ class DefaultOrderedDict(OrderedDict):
         return type(self)(self.default_factory, copy.deepcopy(self.items()))
 
     def __repr__(self):
-        return "OrderedDefaultDict(%s, %s)" % (
-            self.default_factory,
-            OrderedDict.__repr__(self),
-        )
+        return OrderedDict.__repr__(self)
 
 
-def parse_qs(qs, keep_blank_values=0, strict_parsing=0, keep_attr_order=True):
+def parse_qs(qs, separator=";", keep_attr_order=True):
     """
     Kind of like urlparse.parse_qs, except returns an ordered dict.
     Also avoids replicating that function's bad habit of overriding the
@@ -84,8 +81,15 @@ def parse_qs(qs, keep_blank_values=0, strict_parsing=0, keep_attr_order=True):
     <https://bitbucket.org/btubbs/thumpy/raw/8cdece404f15/thumpy.py>
     """
     od = DefaultOrderedDict(list) if keep_attr_order else defaultdict(list)
-    for name, value in parse_qsl(qs, keep_blank_values, strict_parsing):
-        od[name].append(value)
+    # Python versions earlier than Python 3.9.2 allowed using both ; and &
+    # as query parameter separator. This has been changed in 3.9.2 to allow
+    # only a single separator key, with & as the default separator.
+    try:
+        for name, value in parse_qsl(qs, separator=separator):
+            od[name].append(value)
+    except TypeError:
+        for name, value in parse_qsl(qs):
+            od[name].append(value)
 
     return od
 

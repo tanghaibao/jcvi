@@ -17,7 +17,7 @@ from jcvi.utils.orderedcollections import DefaultOrderedDict, parse_qs
     "querystr,expected",
     [
         ("a=3;b=4,c=5", DefaultOrderedDict(a=["3"], b=["4,c=5"])),
-        ("tt=bb&zz=4,yy=123", DefaultOrderedDict(tt=["bb"], zz=["4,yy=123"])),
+        ("tt=bb;zz=4,yy=123", DefaultOrderedDict(tt=["bb"], zz=["4,yy=123"])),
     ],
 )
 def test_parse_qs(querystr, expected):

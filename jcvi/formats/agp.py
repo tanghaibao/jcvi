@@ -1460,7 +1460,7 @@ def mask(args):
             if orientation not in ("+", "-"):
                 orientation = "+"
 
-            oid = object + "{0}{1}".format(sep, i / 2 + 1) if splitobject else object
+            oid = object + "{0}{1}".format(sep, i // 2 + 1) if splitobject else object
             aline = [oid, 0, 0, 0]
             if i % 2 == 0:
                 cspan = b - a - 1

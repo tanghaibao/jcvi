@@ -1032,7 +1032,7 @@ def refine(args):
         pbed = Bed()
         bed = Bed(nogapsbed)
         for b in bed:
-            pos = (b.start + b.end) / 2
+            pos = (b.start + b.end) // 2
             b.start, b.end = pos, pos
             pbed.append(b)
         pbed.print_to_file(pointbed)

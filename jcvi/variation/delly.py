@@ -160,7 +160,7 @@ def mitocompile(args):
             logging.debug("Process `{}` [{}]".format(vcf, percentage(i + 1, len(vcfs))))
         depthfile = vcf.replace(".sv.vcf.gz", ".depth")
         fp = must_open(depthfile)
-        chrm, depth = fp.next().split()
+        _, depth = next(fp).split()
         depth = int(float(depth))
         samplekey = op.basename(vcf).split("_")[0]
 

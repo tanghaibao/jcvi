@@ -319,7 +319,7 @@ def overlap(args):
     cmd += " -tabular -dumpfragments ../asm.gkpStore"
     fp = popen(cmd)
     row = next(fp)
-    size = int(fp.next().split()[-1])
+    size = int(next(fp).split()[-1])
 
     # Determine size of canvas
     xmin = min(x.ahang for x in frags)

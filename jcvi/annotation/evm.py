@@ -52,11 +52,11 @@ $EVM/TIGR-only/TIGR_EVM_loader.pl --db {0} \
 def main():
 
     actions = (
-        ('pasa', 'extract terminal exons'),
-        ('tigrprepare', 'run EVM in TIGR-only mode'),
-        ('tigrload', 'load EVM results into TIGR db'),
-        ('maker', 'run EVM based on MAKER output'),
-            )
+        ("pasa", "extract terminal exons"),
+        ("tigrprepare", "run EVM in TIGR-only mode"),
+        ("tigrload", "load EVM results into TIGR db"),
+        ("maker", "run EVM based on MAKER output"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -91,7 +91,7 @@ def maker(args):
 
     A, T, P = "ABINITIO_PREDICTION", "TRANSCRIPT", "PROTEIN"
     # Stores default weights and types
-    Registry = {\
+    Registry = {
         "maker": (A, 5),
         "augustus_masked": (A, 1),
         "snap_masked": (A, 1),
@@ -99,7 +99,7 @@ def maker(args):
         "est2genome": (T, 5),
         "est_gff": (T, 5),
         "protein2genome": (P, 5),
-        "blastx": (P, 1)
+        "blastx": (P, 1),
     }
 
     p = OptionParser(maker.__doc__)
@@ -136,7 +136,9 @@ def maker(args):
 
     for type, tracks in reg.items():
         for t in tracks:
-            cmd = "grep '\t{0}' {1} | grep -v '_match\t' >> {2}.gff".format(t, gffile, type)
+            cmd = "grep '\t{0}' {1} | grep -v '_match\t' >> {2}.gff".format(
+                t, gffile, type
+            )
             sh(cmd)
 
     partition(evs)
@@ -183,7 +185,7 @@ def pasa(args):
     if need_update(fastafile, termexons):
         cmd = "$ANNOT_DEVEL/PASA2/scripts/pasa_asmbls_to_training_set.dbi"
         cmd += ' -M "{0}:mysql.tigr.org" -p "access:access"'.format(pasa_db)
-        cmd += ' -g {0}'.format(fastafile)
+        cmd += " -g {0}".format(fastafile)
         sh(cmd)
 
         cmd = "$EVM/PasaUtils/retrieve_terminal_CDS_exons.pl"
@@ -230,14 +232,14 @@ def tigrprepare(args):
         sys.exit(not p.print_help())
 
     fastafile, asmbl_id, db, pasa_db = args
-    if asmbl_id == 'all':
+    if asmbl_id == "all":
         idsfile = fastafile + ".ids"
         if need_update(fastafile, idsfile):
             ids([fastafile, "-o", idsfile])
     else:
         idsfile = asmbl_id
 
-    oneid = open(idsfile).next().strip()
+    oneid = next(open(idsfile)).strip()
 
     weightsfile = "weights.txt"
     if need_update(idsfile, weightsfile):
@@ -245,12 +247,14 @@ def tigrprepare(args):
         cmd += " {0} {1} | tee weights.txt".format(db, oneid)
         sh(cmd)
 
-    evs = ["gene_predictions.gff3", "transcript_alignments.gff3",
-           "protein_alignments.gff3"]
+    evs = [
+        "gene_predictions.gff3",
+        "transcript_alignments.gff3",
+        "protein_alignments.gff3",
+    ]
     if need_update(weightsfile, evs):
         cmd = "$EVM/TIGR-only/write_GFF3_files.dbi"
-        cmd += " --db {0} --asmbl_id {1} --weights {2}".\
-                format(db, idsfile, weightsfile)
+        cmd += " --db {0} --asmbl_id {1} --weights {2}".format(db, idsfile, weightsfile)
         sh(cmd)
 
     evs[1] = fix_transcript()
@@ -261,5 +265,5 @@ def tigrprepare(args):
     write_file(runfile, contents)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

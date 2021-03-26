@@ -989,8 +989,8 @@ def refine(args):
         sys.exit(not p.print_help())
 
     breakpointsbed, gapsbed = args
-    ncols = len(open(breakpointsbed).next().split())
-    logging.debug("File {0} contains {1} columns.".format(breakpointsbed, ncols))
+    ncols = len(next(open(breakpointsbed)).split())
+    logging.debug("File %s contains %d columns.", breakpointsbed, ncols)
     cmd = "intersectBed -wao -a {0} -b {1}".format(breakpointsbed, gapsbed)
 
     pf = "{0}.{1}".format(breakpointsbed.split(".")[0], gapsbed.split(".")[0])

@@ -29,27 +29,30 @@ ggsave('$outfile')
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option("--levels",
-                help="Reorder factors, comma-delimited [default: alphabetical]")
-    p.add_option("--notch", default=False, action="store_true",
-                 help="notched box plot [default: %default]")
-    p.add_option("--title", default=" ",
-                help="Title of the figure [default: %default]")
-    p.add_option("--xlabel", help="X-axis label [default: %default]")
-    p.add_option("--ylabel", help="Y-axis label [default: %default]")
-    p.add_option("--fontsize", default=16,
-                 help="Font size [default: %default]")
+    p.add_option(
+        "--levels", help="Reorder factors, comma-delimited [default: alphabetical]"
+    )
+    p.add_option(
+        "--notch",
+        default=False,
+        action="store_true",
+        help="notched box plot",
+    )
+    p.add_option("--title", default=" ", help="Title of the figure")
+    p.add_option("--xlabel", help="X-axis label")
+    p.add_option("--ylabel", help="Y-axis label")
+    p.add_option("--fontsize", default=16, help="Font size")
     opts, args = p.parse_args()
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    datafile, = args
+    (datafile,) = args
     header = open(datafile)
     levels = opts.levels
     xlabel = opts.xlabel
     ylabel = opts.ylabel
-    lx, ly = header.next().rstrip().split('\t')
+    lx, ly = next(header).rstrip().split("\t")
 
     lx = xlabel or lx
     ly = ylabel or ly
@@ -61,5 +64,5 @@ def main():
     rtemplate.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

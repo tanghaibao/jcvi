@@ -7,8 +7,17 @@ import os.path as op
 import sys
 import re
 import logging
+import platform
 
-from multiprocessing import Pool, Process, Queue, cpu_count
+from multiprocessing import (
+    Pool,
+    Process,
+    Value,
+    cpu_count,
+    get_context,
+    set_start_method,
+)
+from multiprocessing.queues import Queue
 
 from jcvi.formats.base import write_file, must_open
 from jcvi.apps.base import (
@@ -20,6 +29,68 @@ from jcvi.apps.base import (
     sh,
     listify,
 )
+
+
+class SharedCounter(object):
+    """A synchronized shared counter.
+
+    The locking done by multiprocessing.Value ensures that only a single
+    process or thread may read or write the in-memory ctypes object. However,
+    in order to do n += 1, Python performs a read followed by a write, so a
+    second process may read the old value before the new one is written by the
+    first process. The solution is to use a multiprocessing.Lock to guarantee
+    the atomicity of the modifications to Value.
+
+    This class comes almost entirely from Eli Bendersky's blog:
+    http://eli.thegreenplace.net/2012/01/04/shared-counter-with-pythons-multiprocessing/
+    """
+
+    def __init__(self, n=0):
+        self.count = Value("i", n)
+
+    def increment(self, n=1):
+        """ Increment the counter by n (default = 1) """
+        with self.count.get_lock():
+            self.count.value += n
+
+    @property
+    def value(self):
+        """ Return the value of the counter """
+        return self.count.value
+
+
+class Queue(Queue):
+    """A portable implementation of multiprocessing.Queue.
+
+    Because of multithreading / multiprocessing semantics, Queue.qsize() may
+    raise the NotImplementedError exception on Unix platforms like Mac OS X
+    where sem_getvalue() is not implemented. This subclass addresses this
+    problem by using a synchronized shared counter (initialized to zero) and
+    increasing / decreasing its value every time the put() and get() methods
+    are called, respectively. This not only prevents NotImplementedError from
+    being raised, but also allows us to implement a reliable version of both
+    qsize() and empty().
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(Queue, self).__init__(*args, **kwargs, ctx=get_context())
+        self.size = SharedCounter(0)
+
+    def put(self, *args, **kwargs):
+        self.size.increment(1)
+        super(Queue, self).put(*args, **kwargs)
+
+    def get(self, *args, **kwargs):
+        self.size.increment(-1)
+        return super(Queue, self).get(*args, **kwargs)
+
+    def qsize(self):
+        """ Reliable implementation of multiprocessing.Queue.qsize() """
+        return self.size.value
+
+    def empty(self):
+        """ Reliable implementation of multiprocessing.Queue.empty() """
+        return not self.qsize()
 
 
 class Parallel(object):
@@ -145,6 +216,10 @@ class WriteJobs(object):
     """
 
     def __init__(self, target, args, filename, cpus=cpu_count()):
+        # macOS starts process with fork by default: https://zhuanlan.zhihu.com/p/144771768
+        if platform.system() == "Darwin":
+            set_start_method("fork")
+
         workerq = Queue()
         writerq = Queue()
 
@@ -188,7 +263,7 @@ def write(queue_in, queue_out, filename, cpus):
         while True:
             res = queue_out.get()
             qsize = queue_in.qsize()
-            progress.update(task, advance=qsize)
+            progress.update(task, completed=isize - qsize)
             if isinstance(res, Poison):
                 poisons += 1
                 if poisons == cpus:  # wait all workers finish

@@ -220,7 +220,7 @@ class OpticalMapAlign(BaseAlign):
     def from_silico(self, filename="Ecoli.silico", nfrags=25):
         fp = open(filename)
         next(fp)
-        ar = [0] + [int(x) for x in fp.next().split()]
+        ar = [0] + [int(x) for x in next(fp).split()]
         sizes = []  # Only retain frags beyond certain size
         for a, b in pairwise(ar):
             size = b - a

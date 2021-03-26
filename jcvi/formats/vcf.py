@@ -563,7 +563,7 @@ def summary(args):
     bedfw = open(opts.bed, "w") if opts.bed else None
 
     fp = open(txtfile)
-    header = fp.next().split()  # Header
+    header = next(fp).split()  # Header
     snps = defaultdict(list)  # contig => list of loci
     combinations = defaultdict(int)
     intraSNPs = interSNPs = 0

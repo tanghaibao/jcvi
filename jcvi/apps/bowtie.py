@@ -15,14 +15,13 @@ import logging
 from jcvi.formats.base import BaseFile
 from jcvi.utils.cbook import percentage
 from jcvi.formats.sam import output_bam, get_prefix, get_samfile
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
-            get_abs_path
+from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, get_abs_path
 
 
-first_tag = lambda fp: fp.next().split()[0]
+first_tag = lambda fp: next(fp).split()[0]
 
 
-class BowtieLogFile (BaseFile):
+class BowtieLogFile(BaseFile):
     """
     Simple file that contains mapping rate:
 
@@ -33,6 +32,7 @@ class BowtieLogFile (BaseFile):
         1775 (1.77%) aligned >1 times
     11.55% overall alignment rate
     """
+
     def __init__(self, filename):
 
         super(BowtieLogFile, self).__init__(filename)
@@ -47,8 +47,7 @@ class BowtieLogFile (BaseFile):
         fp.close()
 
     def __str__(self):
-        return "Total mapped: {0}".format(\
-                percentage(self.mapped, self.total))
+        return "Total mapped: {0}".format(percentage(self.mapped, self.total))
 
     __repr__ = __str__
 
@@ -56,9 +55,9 @@ class BowtieLogFile (BaseFile):
 def main():
 
     actions = (
-        ('index', 'wraps bowtie2-build'),
-        ('align', 'wraps bowtie2'),
-            )
+        ("index", "wraps bowtie2-build"),
+        ("align", "wraps bowtie2"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -87,7 +86,7 @@ def index(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    dbfile, = args
+    (dbfile,) = args
     check_index(dbfile)
 
 
@@ -101,14 +100,27 @@ def align(args):
 
     p = OptionParser(align.__doc__)
     p.set_firstN(firstN=0)
-    p.add_option("--full", default=False, action="store_true",
-                 help="Enforce end-to-end alignment [default: local]")
-    p.add_option("--reorder", default=False, action="store_true",
-                 help="Keep the input read order [default: %default]")
-    p.add_option("--null", default=False, action="store_true",
-                 help="Do not write to SAM/BAM output")
-    p.add_option("--fasta", default=False, action="store_true",
-                 help="Query reads are FASTA")
+    p.add_option(
+        "--full",
+        default=False,
+        action="store_true",
+        help="Enforce end-to-end alignment [default: local]",
+    )
+    p.add_option(
+        "--reorder",
+        default=False,
+        action="store_true",
+        help="Keep the input read order",
+    )
+    p.add_option(
+        "--null",
+        default=False,
+        action="store_true",
+        help="Do not write to SAM/BAM output",
+    )
+    p.add_option(
+        "--fasta", default=False, action="store_true", help="Query reads are FASTA"
+    )
     p.set_cutoff(cutoff=800)
     p.set_mateorientation(mateorientation="+-")
     p.set_sam_options(bowtie=True)
@@ -116,9 +128,9 @@ def align(args):
     opts, args = p.parse_args(args)
     extra = opts.extra
     mo = opts.mateorientation
-    if mo == '+-':
+    if mo == "+-":
         extra += ""
-    elif mo == '-+':
+    elif mo == "-+":
         extra += "--rf"
     else:
         extra += "--ff"
@@ -141,9 +153,9 @@ def align(args):
     dbfile, readfile = args[0:2]
     dbfile = check_index(dbfile)
     prefix = get_prefix(readfile, dbfile)
-    samfile, mapped, unmapped = get_samfile(readfile, dbfile, bowtie=True,
-                                            mapped=mapped, unmapped=unmapped,
-                                            bam=opts.bam)
+    samfile, mapped, unmapped = get_samfile(
+        readfile, dbfile, bowtie=True, mapped=mapped, unmapped=unmapped, bam=opts.bam
+    )
     logfile = prefix + ".log"
     if not fasta:
         offset = guessoffset([readfile])
@@ -192,5 +204,5 @@ def align(args):
     return samfile, logfile
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

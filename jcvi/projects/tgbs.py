@@ -184,7 +184,7 @@ def mstmap(args):
     fp = open(lmd)
     next(fp)  # Header
     table = {"0": "-", "1": "A", "2": "B", "3": "X"}
-    mh = ["locus_name"] + fp.next().split()[4:]
+    mh = ["locus_name"] + next(fp).split()[4:]
     genotypes = []
     for row in fp:
         atoms = row.split()

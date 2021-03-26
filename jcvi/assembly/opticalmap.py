@@ -218,7 +218,7 @@ def silicosoma(args):
     fp = must_open(silicofile)
     fw = must_open(opts.outfile, "w")
     next(fp)
-    positions = [int(x) for x in fp.next().split()]
+    positions = [int(x) for x in next(fp).split()]
     for a, b in pairwise(positions):
         assert a <= b
         fragsize = int(round((b - a) / 1000.0))  # kb

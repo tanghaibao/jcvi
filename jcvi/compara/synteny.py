@@ -1717,6 +1717,7 @@ def depth(args):
     multiplicity will be summarized to stderr.
     """
     from jcvi.utils.range import range_depth
+    from jcvi.graphics.base import latex
 
     p = OptionParser(depth.__doc__)
     p.add_option("--depthfile", help="Generate file with gene and depth")
@@ -1805,7 +1806,7 @@ def depth(args):
         qgenome, sgenome, speak, qpeak
     )
     root = f.add_axes([0, 0, 1, 1])
-    vs, pattern = title.split("\n")
+    vs, pattern = latex(title).split("\n")
     root.text(0.5, 0.97, vs, ha="center", va="center", color="darkslategray")
     root.text(0.5, 0.925, pattern, ha="center", va="center", color="tomato", size=16)
     print(title, file=sys.stderr)

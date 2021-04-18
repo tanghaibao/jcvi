@@ -19,3 +19,15 @@ def test_shorten(s, expected):
     from jcvi.graphics.base import shorten
 
     assert shorten(s) == expected, "Expect {}".format(expected)
+
+
+@pytest.mark.parametrize(
+    "s,expected",
+    [
+        ("grape_grape vs peach_peach", "grape\_grape vs peach\_peach"),
+    ],
+)
+def test_latex(s, expected):
+    from jcvi.graphics.base import latex
+
+    assert latex(s) == expected, "Expect {}".format(expected)

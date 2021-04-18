@@ -194,6 +194,16 @@ def load_image(filename):
 
 
 def latex(s):
+    """Latex doesn't work well with certain characters, like '_', in plain text.
+    These characters would be interpreted as control characters, so we sanitize
+    these strings.
+
+    Args:
+        s (str): Input string
+
+    Returns:
+        str: Output string sanitized
+    """
     return "".join([CHARS.get(char, char) for char in s])
 
 

@@ -38,7 +38,7 @@ def validate_term(term, so=None, method="verify"):
 
     oterm = term
     valid_names = set(x.name for x in so.values())
-    if term not in so.valid_names:
+    if term not in valid_names:
         if "resolve" in method:
             if "_" in term:
                 tparts = deque(term.split("_"))
@@ -87,4 +87,4 @@ if __name__ == "__main__":
     # run a test case
     if opts.term:
         rec = g.query_term(opts.term, verbose=True)
-        g.draw_lineage([rec], verbose=True)
+        g.draw_lineage([rec])

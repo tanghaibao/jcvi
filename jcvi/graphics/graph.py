@@ -35,7 +35,7 @@ def sequence_to_graph(G, seq, color="black"):
         G.edge(a, b, color=color)
 
 
-def zip_sequences(G, allseqs, color="white"):
+def zip_sequences(G, allseqs):
     """
     Fuse certain nodes together, if they contain same data except for the
     sequence name.

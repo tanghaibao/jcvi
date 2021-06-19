@@ -450,9 +450,7 @@ def consolidate(args):
                 if (gene.id, dbn) not in loci:
                     loci.join((gene.id, dbn))
                     gene_cds = list(
-                        gffdbx[dbn].children(
-                            gene, featuretype="CDS", order_by=("start")
-                        )
+                        gffdbx[dbn].children(gene, featuretype="CDS", order_by="start")
                     )
                     gene_cds_start, gene_cds_stop = gene_cds[0].start, gene_cds[-1].stop
                     for odbn in odbns:
@@ -542,7 +540,7 @@ def consolidate(args):
                                 )
                             )
 
-                        if all(r == True for r in res):
+                        if all(res):
                             g.join((dbn1, mrna1.id, mrna1s), (dbn2, mrna2.id, mrna2s))
         else:
             for dbn1 in mrna[gene]:

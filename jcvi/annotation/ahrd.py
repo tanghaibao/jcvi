@@ -36,7 +36,7 @@ ddb_pat = re.compile(r"\s+DDB_G\d+", re.I)
 atg_pat = re.compile(r"\bAT[1-5M]G\d{5}-like protein", re.I)
 
 # remove 'arabidopsis thaliana'
-atg_id_pat = re.compile(r"[_]*AT\d{1}G\d+[/]*", re.I)
+atg_id_pat = re.compile(r"[_]*AT\dG\d+[/]*", re.I)
 athila_pat1 = re.compile(r"Belongs to|^Encodes|^Expression|^highly", re.I)
 athila_pat2 = re.compile(r"^Arabidopsis thaliana ", re.I)
 athila_pat3 = re.compile(r"^Arabidopsis ", re.I)
@@ -70,20 +70,20 @@ related_pat = re.compile(r"[,\s+]*[\s+|-]*related$", re.I)
 homolog_pat1 = re.compile(r"(?<!type)\s+\d+\s+homolog.*$", re.I)
 
 # 'Protein\s+(.*)\s+homolog' to '$1-like protein'
-homolog_pat2 = re.compile(r"^Protein([\s+\S+]+)\s+homolog.*", re.I)
+homolog_pat2 = re.compile(r"^Protein([\s\S]+)\s+homolog.*", re.I)
 
 # 'homolog protein' to '-like protein'
 homolog_pat3 = re.compile(r"\s+homolog\s+protein.*", re.I)
 # 'homolog \S+' to '-like protein'
 homolog_pat4 = re.compile(r"\s+homolog\s+\d+$", re.I)
 # 'homologue$' to '-like protein'
-homolog_pat5 = re.compile(r"\s+homologue[\s+\S+]$", re.I)
+homolog_pat5 = re.compile(r"\s+homologue[\s\S]+$", re.I)
 # 'homolog$' to '-like protein'
 homolog_pat6 = re.compile(r"\s+homolog$", re.I)
 
 # 'Agenet domain-containing protein / bromo-adjacent homology (BAH) domain-containing protein'
 # to 'Agenet and bromo-adjacent homology (BAH) domain-containing protein'
-agenet_pat = re.compile(r"Agenet domain-containing protein \/ ", re.I)
+agenet_pat = re.compile(r"Agenet domain-containing protein / ", re.I)
 
 # plural to singular
 plural_pat = re.compile(r"[deinr]s$", re.I)
@@ -103,7 +103,7 @@ put_pat = re.compile(
 dimer_pat = re.compile(r"dimerisation", re.I)
 
 # '\s+LENGTH=\d+' to ''
-length_pat = re.compile(r"\s+LENGTH\=\d+", re.I)
+length_pat = re.compile(r"\s+LENGTH=\d+", re.I)
 
 # disallowed words
 disallow = ("genome", "annotation", "project")
@@ -114,16 +114,16 @@ organism = ("thaliana", "rickettsia", "rice", "yeast")
 organism_pat = re.compile("|".join("^.*{0}".format(str(x)) for x in organism))
 
 # consolidate glycosidic links
-glycosidic_link_pat = re.compile("\d+,\d+")
+glycosidic_link_pat = re.compile(r"\d+,\d+")
 
 # Kevin Silverstein suggested names (exclude list)
 spada = ("LCR", "RALF", "SCR")
 spada_pat = re.compile("|".join("^{0}$".format(str(x)) for x in spada))
 
 # names with all capital letters (maybe followed by numbers)
-sym_pat = re.compile(r"^[A-Z]+[A-Z0-9\-]{0,}$")
-lc_sym_pat = re.compile(r"^[A-z]{1}[a-z]+[0-9]{1,}$")
-eol_sym_pat = re.compile(r"\([A-Z]+[A-Z0-9\-]{0,}\)$")
+sym_pat = re.compile(r"^[A-Z]+[A-Z0-9\-]*$")
+lc_sym_pat = re.compile(r"^[A-z][a-z]+[0-9]+$")
+eol_sym_pat = re.compile(r"\([A-Z]+[A-Z0-9\-]*\)$")
 
 # sulfer -> sulfur
 # sulph -> sulf
@@ -265,16 +265,16 @@ def fix_text(s, ignore_sym_pat=False):
 
     if not ignore_sym_pat:
         # Fix descriptions like D7TDB1 (
-        s = re.sub("([A-Z0-9]){6} \(", "", s)
+        s = re.sub(r"([A-Z0-9]){6} \(", "", s)
         s = s.split(";")[0]
 
     # Fix parantheses containing names
-    s = s.translate(None, "[]")
+    s = s.strip("[]")
     s = s.replace("(-)", "[-]")
     s = s.replace("(+)", "[+]")
     s = s.replace("(Uncharacterized protein)", "")
     if not ignore_sym_pat:
-        s = s.translate(None, "()")
+        s = s.strip("()")
 
     # fix minor typos, seen in `autonaming` output
     # change 'protei ' to 'protein '
@@ -292,7 +292,7 @@ def fix_text(s, ignore_sym_pat=False):
     # linkages are separated by ";". If so, replace ";" by "-"
     m = re.findall(glycosidic_link_pat, s)
     if m and ";" in s:
-        s = re.sub(";\s*", "-", s)
+        s = re.sub(r";\s*", "-", s)
 
     # remove underscore from description
     s = re.sub("_", " ", s)
@@ -444,8 +444,8 @@ def fix_text(s, ignore_sym_pat=False):
             s = re.sub(eol_sym_pat, "", s)
 
         # if name terminates at a symbol([^A-Za-z0-9_]), trim it off
-        if re.search(r"\W{1,}$", s) and not re.search(r"\)$", s):
-            s = re.sub("\W{1,}$", "", s)
+        if re.search(r"\W+$", s) and not re.search(r"\)$", s):
+            s = re.sub(r"\W+$", "", s)
 
         if "uncharacterized" in s:
             s = "uncharacterized protein"
@@ -517,9 +517,6 @@ def fix_text(s, ignore_sym_pat=False):
             if re.search(put_pat, s):
                 s = re.sub(put_pat, "Putative", s)
 
-    """
-    case (qr/^Histone-lysine/) { $ahrd =~ s/,\s+H\d{1}\s+lysine\-\d+//gs; }
-    """
     sl = s.lower()
 
     # Any mention of `clone` or `contig` is not informative

@@ -27,7 +27,7 @@ class PslLine(object):
         self.tNumInsert = int(args[6])
         self.tBaseInsert = int(args[7])
         self.qstrand, self.strand = args[8], None
-        m = re.match(r"(?P<qs>[\+\-]?)(?P<gs>[\+\-])", self.qstrand)
+        m = re.match(r"(?P<qs>[+-]?)(?P<gs>[+-])", self.qstrand)
         if m:
             self.qstrand, self.strand = m.group("qs"), m.group("gs")
         self.qName = args[9]
@@ -42,9 +42,6 @@ class PslLine(object):
         self.blockSizes = [int(x) for x in args[18].strip().split(",")[:-1]]
         self.qStarts = [int(x) for x in args[19].strip().split(",")[:-1]]
         self.tStarts = [int(x) for x in args[20].strip().split(",")[:-1]]
-
-    ##        self.tStarts = [self.tSize - int(x) if self.strand == "-" \
-    ##                else int(x) for x in args[20].strip().split(',')[:-1]]
 
     def __str__(self):
         args = [

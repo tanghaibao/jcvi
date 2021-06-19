@@ -310,7 +310,6 @@ def nmd(args):
     http://www.nature.com/horizon/rna/highlights/figures/s2_spec1_f3.html
     http://www.biomedcentral.com/1741-7007/7/23/figure/F1
     """
-    import __builtin__
     from jcvi.utils.cbook import enumerate_reversed
 
     p = OptionParser(nmd.__doc__)
@@ -326,7 +325,7 @@ def nmd(args):
 
     fw = must_open(opts.outfile, "w")
     for gene in gff.features_of_type("gene", order_by=("seqid", "start")):
-        _enumerate = __builtin__.enumerate if gene.strand == "-" else enumerate_reversed
+        _enumerate = enumerate if gene.strand == "-" else enumerate_reversed
         for mrna in gff.children(gene, featuretype="mRNA", order_by=("start")):
             tracker = dict()
             tracker["exon"] = list(

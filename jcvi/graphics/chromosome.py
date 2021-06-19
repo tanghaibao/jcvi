@@ -245,6 +245,7 @@ class GeneticMap(BaseGlyph):
     def __init__(
         self, ax, x, y1, y2, markers, unit="cM", tip=0.008, fc="k", flip=False
     ):
+        super(GeneticMap, self).__init__()
         # tip = length of the ticks
         y1, y2 = sorted((y1, y2))
         ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
@@ -284,6 +285,7 @@ class Gauge(BaseGlyph):
     ):
         # tip = length of the ticks
         # extra = offset for the unit label
+        super(Gauge, self).__init__()
         ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
         r = y2 - y1
         yy = y2

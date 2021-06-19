@@ -26,7 +26,7 @@ class BinFile(BaseFile):
     system.
     """
 
-    def __init__(self, binfile, fastafile=None, dtype=np.uint8):
+    def __init__(self, binfile, dtype=np.uint8):
         super(BinFile, self).__init__(binfile)
         assert op.exists(
             binfile
@@ -168,7 +168,7 @@ def query(args):
         sys.exit(not p.print_help())
 
     binfile, fastafile, ctgID, baseID = args
-    b = BinFile(binfile, fastafile)
+    b = BinFile(binfile)
     ar = b.mmarray
 
     fastasize, sizes, offsets = get_offsets(fastafile)
@@ -176,7 +176,7 @@ def query(args):
     print("\t".join((ctgID, baseID, str(ar[oi]))))
 
 
-def update_array(ar, coveragefile, sizes, offsets):
+def update_array(ar, coveragefile, offsets):
     fp = open(coveragefile)
     logging.debug("Parse file `{0}`".format(coveragefile))
     for k, rows in groupby(fp, key=(lambda x: x.split()[0])):
@@ -232,7 +232,7 @@ def count(args):
     logging.debug("Initialize array of uint8 with size {0}".format(fastasize))
     ar = np.zeros(fastasize, dtype=np.uint8)
 
-    update_array(ar, coveragefile, sizes, offsets)
+    update_array(ar, coveragefile, offsets)
 
     ar.tofile(countsfile)
     logging.debug("Array written to `{0}`".format(countsfile))

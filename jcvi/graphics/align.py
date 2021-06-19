@@ -197,7 +197,7 @@ class ReadAlign(BaseAlign):
             r.breakpoint(b, "lightgrey", "g")
         self.highlight(a, b)
 
-    def duplicate(self, a, b):
+    def duplicate(self, a, b, gap=0):
         self.layout(1, self.amax, maxtracks=4)
         self.remove(1, a, maxtracks=6)
         self.remove(b, self.amax, maxtracks=6)
@@ -249,7 +249,7 @@ class OpticalMapAlign(BaseAlign):
         self.om1.highlight(ai, bi, "lightslategrey")
         self.om2.highlight(ai, bi, None)
 
-    def duplicate(self, a, b):
+    def duplicate(self, a, b, gap=0):
         (ai, bi), (ci, di) = self.om1.duplicate(a, b)
         (ai, bi), (ci, di) = self.om2.duplicate(a, b)
         self.om1.highlight(ai, bi, None)

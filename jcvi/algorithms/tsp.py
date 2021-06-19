@@ -136,7 +136,7 @@ class Concorde(object):
         """Run concorde on TSP instance
 
         Args:
-            datamodel (TSPDataModel): TSP instance with edge weights
+            data (TSPDataModel): TSP instance with edge weights
             work_dir ([type], optional): Path to the work dir. Defaults to Work_dir.
             clean (bool, optional): Clean up intermediate results. Defaults to True.
             verbose (bool, optional): Show verbose messages. Defaults to False.

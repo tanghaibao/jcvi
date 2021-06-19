@@ -115,7 +115,6 @@ def star(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    folder, reference = args
     cpus = opts.cpus
     mm = MakeManager()
 

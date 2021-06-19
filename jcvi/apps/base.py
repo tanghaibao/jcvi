@@ -775,7 +775,7 @@ class OptionParser(OptionP):
             help="Insert mean size, stdev assumed to be 20% around mean",
         )
 
-    def set_trinity_opts(self, gg=False):
+    def set_trinity_opts(self):
         self.set_home("trinity")
         self.set_home("hpcgridrunner")
         self.set_cpus()
@@ -1428,7 +1428,7 @@ def download(
             except (CalledProcessError, KeyboardInterrupt) as e:
                 print(e, file=sys.stderr)
         else:
-            print("Cannot find a suitable downloader", outfile=sys.stderr)
+            print("Cannot find a suitable downloader", file=sys.stderr)
 
         if success and handle_gzip:
             if need_gunzip:
@@ -1475,7 +1475,7 @@ def getfilesize(filename, ratio=None):
     while size < heuristicsize:
         size += 2 ** 32
     if size > 2 ** 32:
-        logging.warn("Gzip file estimated uncompressed size: {0}.".format(size))
+        logging.warning("Gzip file estimated uncompressed size: {0}.".format(size))
 
     return size
 
@@ -1764,7 +1764,7 @@ def pushbullet(body, apikey, device, title="JCVI: Job Monitor", type="note"):
     import base64
 
     headers = {}
-    auth = base64.encodestring("{0}:".format(apikey)).strip()
+    auth = base64.encodestring("{0}:".format(apikey).encode("utf-8")).strip()
     headers["Authorization"] = "Basic {0}".format(auth)
     headers["Content-type"] = "application/x-www-form-urlencoded"
 
@@ -1800,8 +1800,6 @@ def pushnotify(subject, message, api="pushover", priority=0, timestamp=None):
         apikey: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
         iden: dddddddddddddddddddddddddddddddddddd
     """
-    import types
-
     assert (
         type(priority) is int and -1 <= priority <= 2
     ), "Priority should be and int() between -1 and 2"

@@ -4,8 +4,6 @@
 """
 Scripts for the pineapple genome paper.
 """
-from __future__ import print_function
-
 import sys
 import logging
 

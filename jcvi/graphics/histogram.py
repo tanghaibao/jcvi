@@ -5,8 +5,6 @@
 Use R ggplot2 library to plot histogram, also contains an ASCII histogram (use
 --text) when invoking histogram().
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
@@ -85,7 +83,7 @@ ggsave('$outfile')
 )
 
 
-def loghistogram(data, base=2, ascii=True, title="Counts", summary=False):
+def loghistogram(data, base=2, title="Counts", summary=False):
     """
     bins is a dictionary with key: log(x, base), value: counts.
     """

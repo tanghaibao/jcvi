@@ -4,8 +4,6 @@
 """
 Deals with K-mers and K-mer distribution from reads or genome
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging

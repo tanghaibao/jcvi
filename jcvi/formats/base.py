@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from __future__ import print_function
 import os
 import os.path as op
 import math
@@ -21,8 +20,6 @@ from jcvi.apps.base import (
     mkdir,
     popen,
 )
-
-debug()
 
 
 FastaExt = ("fasta", "fa", "fna", "cds", "pep", "faa", "fsa", "seq", "nt", "aa")

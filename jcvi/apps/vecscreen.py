@@ -4,8 +4,6 @@
 """
 Run through NCBI vecscreen on a local machine.
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 

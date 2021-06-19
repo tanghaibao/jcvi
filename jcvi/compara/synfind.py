@@ -20,8 +20,6 @@ itself is used to represent the region.  The number in the 4th column is the
 synteny score. For the same query, it is ordered with decreasing synteny score.
 The last column means orientation. "+" is same direction.
 """
-from __future__ import print_function
-
 import os.path as op
 import logging
 import sys

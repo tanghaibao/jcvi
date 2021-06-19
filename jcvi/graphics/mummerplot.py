@@ -5,8 +5,6 @@
 Wrapper for mummerplot. Selecting a subset of queries and references to plot
 main features in the dot plot.
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
@@ -17,10 +15,10 @@ from jcvi.formats.base import SetFile
 from jcvi.apps.base import OptionParser, sh
 
 
-def writeXfile(ids, dict, filename):
+def writeXfile(ids, sizes_dict, filename):
     fw = open(filename, "w")
     for q in ids:
-        print("\t".join(str(x) for x in (q, dict[q], "+")), file=fw)
+        print("\t".join(str(x) for x in (q, sizes_dict[q], "+")), file=fw)
 
     logging.debug("{0} ids written to `{1}`.".format(len(ids), filename))
     fw.close()

@@ -177,7 +177,6 @@ def align(args):
 
     sh(cmd)
     if unmapped:
-        dbfile, readfile = args[:2]
         mopts = [samfile, "--unmapped"]
         if not bam:
             mopts += ["--sam"]

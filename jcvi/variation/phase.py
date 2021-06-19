@@ -4,8 +4,6 @@
 """
 Read-based phasing.
 """
-from __future__ import print_function
-
 import sys
 import logging
 import vcf

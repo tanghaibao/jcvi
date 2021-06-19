@@ -22,8 +22,6 @@ Optional steps:
 
 The external software needs be installed first.
 """
-from __future__ import print_function
-
 import sys
 import os
 import os.path as op

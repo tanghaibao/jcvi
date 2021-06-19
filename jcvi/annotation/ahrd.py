@@ -6,8 +6,6 @@ Utility to run Automated Human Readable Description (AHRD) pipeline.
 
 <https://github.com/groupschoof/AHRD>
 """
-from __future__ import print_function
-
 import os.path as op
 from os import symlink
 import sys
@@ -18,7 +16,7 @@ from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob
 
 
-##### Compiled RegExps #####
+# --- Compiled RegExps ----
 # Cellular locations
 loc_pat = re.compile(r",\s*(chloroplastic|cytoplasmic|mitochondrial).*?\s$", re.I)
 # Any word that matches e.g. Os02g0234800

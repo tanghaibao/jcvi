@@ -4,12 +4,9 @@
 """
 Connect to databases (Sybase, MySQL and PostgreSQL database backends)
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
-
 import re
 
 from jcvi.formats.base import must_open
@@ -284,7 +281,7 @@ def query(args):
             for row in fp:
                 for qry in qrys:
                     qry = qry.strip()
-                    m = re.findall(r"\{\d+\}", qry)
+                    m = re.findall(r"{\d+}", qry)
                     if m:
                         mi = [int(x.strip("{}")) for x in m]
                         atoms = row.strip().split("\t")
@@ -301,7 +298,7 @@ def query(args):
                     queries.add(qry)
     else:
         for qry in qrys:
-            if re.search(r"\{\d+\}", qry):
+            if re.search(r"{\d+}", qry):
                 logging.error(
                     "Query `{0}` contains placeholders, no datafile(s) specified".format(
                         qry

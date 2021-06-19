@@ -5,8 +5,6 @@
 parses JCVI software NUCMER (http://mummer.sourceforge.net/manual/)
 output - mostly as *.coords file.
 """
-from __future__ import print_function
-
 import sys
 import logging
 import os.path as op
@@ -131,7 +129,7 @@ class CoordsLine(object):
         )
 
     def overlap(self, max_hang=100):
-        """
+        r"""
         Determine the type of overlap given query, ref alignment coordinates
         Consider the following alignment between sequence a and b:
 

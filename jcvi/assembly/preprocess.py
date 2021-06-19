@@ -4,8 +4,6 @@
 """
 Wrapper to trim and correct sequence data.
 """
-from __future__ import print_function
-
 import os
 import os.path as op
 import sys
@@ -595,7 +593,6 @@ def trim(args):
 def run_RemoveDodgyReads(
     infile=None,
     outfile=None,
-    workdir=None,
     removeDuplicates=True,
     rc=False,
     nthreads=32,

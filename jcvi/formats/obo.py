@@ -6,8 +6,6 @@
 
 Parses obo_file and plot GO lineage
 """
-from __future__ import print_function
-
 import sys
 import logging
 

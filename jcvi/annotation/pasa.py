@@ -4,8 +4,6 @@
 """
 Utilities for submitting PASA jobs and processing PASA results.
 """
-from __future__ import print_function
-
 import os
 import os.path as op
 import sys

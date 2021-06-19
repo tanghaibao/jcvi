@@ -4,8 +4,6 @@
 """
 Wheel plot that shows continuous data in radial axes.
 """
-from __future__ import print_function
-
 import numpy as np
 import sys
 
@@ -13,7 +11,7 @@ from math import degrees
 from collections import OrderedDict
 from itertools import groupby
 
-from jcvi.graphics.base import Rectangle, plt, savefig, normalize_axes
+from jcvi.graphics.base import plt, savefig, normalize_axes
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
@@ -146,8 +144,8 @@ def wheel(args):
         collapsed_groups.append(group)
         gg.append(c)
 
-    sector = False
-    if sector:
+    show_sector = False
+    if show_sector:
         theta_interval = 2 * np.pi / categories
         theta_pad = theta_interval / 2 * 0.9
         for color, group in zip(brewer, gg):
@@ -158,7 +156,7 @@ def wheel(args):
                 theta[tmax],
                 theta_pad,
                 R * 0.95,
-                "-",
+                ls="-",
                 color=color,
                 lw=2,
             )
@@ -166,11 +164,9 @@ def wheel(args):
     # Data
     r = df
     closed_plot(ax, theta, r, color="lightslategray", alpha=0.25)
-    all_data = []
     for color, group in zip(brewer, gg):
         hidden_data = [(theta[x], r[x]) for x in group if (ci[0] <= r[x] <= ci[1])]
         shown_data = [(theta[x], r[x]) for x in group if (r[x] < ci[0] or r[x] > ci[1])]
-        all_data.append((theta[x], labels[x], r[x]))
         for alpha, data in zip((1, 1), (hidden_data, shown_data)):
             if not data:
                 continue

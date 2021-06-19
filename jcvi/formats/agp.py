@@ -5,8 +5,6 @@
 Genbank AGP file format, see spec here
 http://www.ncbi.nlm.nih.gov/projects/genome/assembly/agp
 """
-from __future__ import print_function
-
 import os
 import re
 import sys

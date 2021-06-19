@@ -4,8 +4,6 @@
 """
 Calculates gap statistics and manipulate gaps in assembly.
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging

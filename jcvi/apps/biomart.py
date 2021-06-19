@@ -6,8 +6,6 @@ Builds the queries for Globus and BioMart servie, usefu for extraction of
 phytozome data sets.  Certain portion of the codes are ported from R package
 `biomaRt` (thanks).
 """
-from __future__ import print_function
-
 import sys
 import urllib
 import logging

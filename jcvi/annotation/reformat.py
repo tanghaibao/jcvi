@@ -2,13 +2,11 @@
 # -*- coding: UTF-8 -*-
 
 """
-Convert common output files from gene prediction softwares into gff3 format.
+Convert common output files from gene prediction software into gff3 format.
 
 Similar to the utilities in DAWGPAWS.
 <http://dawgpaws.sourceforge.net/man.html>
 """
-from __future__ import print_function
-
 import os
 import sys
 import logging
@@ -77,7 +75,7 @@ class Stride(object):
 
 
 class NameRegister(object):
-    def __init__(self, prefix="Medtr", pad0="6", uc=False):
+    def __init__(self, prefix="Medtr", pad0=6, uc=False):
         self.black = set()
         self.gaps = []
         self.prefix = prefix
@@ -414,7 +412,7 @@ def atg_name(name, retval="chr,rank", trimpad0=True):
 
             return (x for x in retvals) if len(retvals) > 1 else retvals[0]
 
-    return (None for x in retval.split(","))
+    return (None for _ in retval.split(","))
 
 
 def gene_name(current_chr, x, prefix="Medtr", sep="g", pad0=6, uc=False):
@@ -722,9 +720,7 @@ def annotate(args):
 
     splits = set()
     for chr, chrbed in nbed.sub_beds():
-        abedline, splits = annotate_chr(
-            chr, chrbed, g, scores, nbedline, abedline, opts, splits
-        )
+        abedline, splits = annotate_chr(chr, chrbed, g, scores, abedline, opts, splits)
 
     if splits is not None:
         abedline = process_splits(splits, scores, nbedline, abedline)
@@ -753,7 +749,7 @@ def read_scores(scoresfile, opts=None, sort=False, trimsuffix=True):
     scores = {}
     _pid, _score, resolve = (
         (0.0, 0.0, "alignment")
-        if opts == None
+        if opts is None
         else (opts.pid, opts.score, opts.resolve)
     )
 
@@ -764,7 +760,7 @@ def read_scores(scoresfile, opts=None, sort=False, trimsuffix=True):
         if trimsuffix:
             old = re.sub(r"\.\d+$", "", old)
         if resolve == "alignment":
-            match = re.search(r"\d+\/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
+            match = re.search(r"\d+/\d+\s+\(\s*(\d+\.\d+)%\)", identity)
             pid = match.group(1)
             if float(pid) < _pid or float(score) < _score:
                 continue
@@ -783,7 +779,7 @@ def read_scores(scoresfile, opts=None, sort=False, trimsuffix=True):
     return scores
 
 
-def annotate_chr(chr, chrbed, g, scores, nbedline, abedline, opts, splits):
+def annotate_chr(chr, chrbed, g, scores, abedline, opts, splits):
     current_chr = chr_number(chr)
 
     for line in chrbed:
@@ -1167,7 +1163,6 @@ def reindex(args):
                     for mrna in conflict[geneid][isoform]:
                         print("\t".join(str(x) for x in (mrnaid, mrna[0])), file=fw)
 
-    scoresfile = None
     if not opts.scores:
         fw.close()
         needle([pairsfile, refpep, pep])
@@ -1221,7 +1216,7 @@ def reindex(args):
                 _mrna["ID"], _mrna["_old_ID"] = [_mrnaid], [_mrna.id]
 
                 print(_mrna, file=fw)
-                for c in gffdb.children(_mrna, order_by=("start")):
+                for c in gffdb.children(_mrna, order_by="start"):
                     c["Parent"] = [_mrnaid]
                     print(c, file=fw)
         else:

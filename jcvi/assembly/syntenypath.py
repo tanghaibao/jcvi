@@ -229,18 +229,18 @@ def partition(args):
     """
     allowed_format = ("png", "ps")
     p = OptionParser(partition.__doc__)
-    p.add_option("--prefix", help="Add prefix to the name [default: %default]")
+    p.add_option("--prefix", help="Add prefix to the name")
     p.add_option(
         "--namestart",
         default=0,
         type="int",
-        help="Use a shorter name, starting index [default: %default]",
+        help="Use a shorter name, starting index",
     )
     p.add_option(
         "--format",
         default="png",
         choices=allowed_format,
-        help="Generate image of format [default: %default]",
+        help="Generate image of format",
     )
     opts, args = p.parse_args(args)
 
@@ -280,12 +280,14 @@ def partition(args):
             pngfile, namestart=opts.namestart, nodehighlight=telomeres, dpi=72
         )
 
-    legend = ["Edge colors:"]
-    legend.append("[BLUE] Experimental + Synteny")
-    legend.append("[BLACK] Experimental certain")
-    legend.append("[GRAY] Experimental uncertain")
-    legend.append("[RED] Synteny only")
-    legend.append("Rectangle nodes are telomeres.")
+    legend = [
+        "Edge colors:",
+        "[BLUE] Experimental + Synteny",
+        "[BLACK] Experimental certain",
+        "[GRAY] Experimental uncertain",
+        "[RED] Synteny only",
+        "Rectangle nodes are telomeres.",
+    ]
     print("\n".join(legend), file=sys.stderr)
 
 
@@ -299,7 +301,7 @@ def merge(args):
     p.add_option(
         "--colorlist",
         default="black,red,pink,blue,green",
-        help="The color palette [default: %default]",
+        help="The color palette",
     )
     opts, args = p.parse_args(args)
 
@@ -338,7 +340,7 @@ def happy(args):
     +-8254707:8254647:-8254690:{[8254694]:[8254713]:[8254531]:[8254797]}:8254802:8254788+
     """
     p = OptionParser(happy.__doc__)
-    p.add_option("--prefix", help="Add prefix to the name [default: %default]")
+    p.add_option("--prefix", help="Add prefix to the name")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -377,13 +379,13 @@ def fromblast(args):
         "--clique",
         default=False,
         action="store_true",
-        help="Populate clique instead of linear path [default: %default]",
+        help="Populate clique instead of linear path",
     )
     p.add_option(
         "--maxdist",
         default=100000,
         type="int",
-        help="Create edge within certain distance [default: %default]",
+        help="Create edge within certain distance",
     )
     p.set_verbose(help="Print verbose reports to stdout")
     opts, args = p.parse_args(args)
@@ -487,7 +489,7 @@ def connect(args):
         "--clip",
         default=2000,
         type="int",
-        help="Only consider end of contigs [default: %default]",
+        help="Only consider end of contigs",
     )
     opts, args = p.parse_args(args)
 

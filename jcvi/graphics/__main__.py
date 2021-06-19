@@ -7,5 +7,5 @@ Suite of visualization tools for dot-plots, histograms, karytotypes, macro-/micr
 from jcvi.apps.base import dmain
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dmain(__file__)

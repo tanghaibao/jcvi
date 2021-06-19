@@ -89,7 +89,7 @@ class BedLine(object):
     @property
     def range(self):
         strand = self.strand or "+"
-        return (self.seqid, self.start, self.end, strand)
+        return self.seqid, self.start, self.end, strand
 
     @property
     def tag(self):
@@ -483,9 +483,7 @@ def format(args):
     """
     p = OptionParser(format.__doc__)
     p.add_option("--prefix", help="Add prefix to name column (4th)")
-    p.add_option(
-        "--switch", help="Switch seqids based on two-column file"
-    )
+    p.add_option("--switch", help="Switch seqids based on two-column file")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -909,7 +907,7 @@ def seqids(args):
     if pf:
         s = [x for x in s if x.startswith(pf)]
     if exclude:
-        s = [x for x in s if not exclude in x]
+        s = [x for x in s if exclude not in x]
     s = s[: opts.maxn]
     print(",".join(s))
 
@@ -2475,7 +2473,7 @@ def flanking(args):
     for atom in flankingbed:
         print(str(atom), file=fw)
 
-    return (position, flankingbed)
+    return position, flankingbed
 
 
 if __name__ == "__main__":

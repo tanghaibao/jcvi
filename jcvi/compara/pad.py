@@ -85,7 +85,6 @@ def make_arrays(blastfile, qpadbed, spadbed, qpadnames, spadnames):
     # Calculate the statistical significance for each cell
     from scipy.stats.distributions import poisson
 
-    M = m * n  # multiple testing
     logmp = np.zeros((m, n))
     for i in range(m):
         for j in range(n):

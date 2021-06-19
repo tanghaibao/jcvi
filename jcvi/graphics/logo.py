@@ -20,24 +20,26 @@ from jcvi.apps.base import OptionParser
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option("--customfont", default="Airswing.ttf", choices=available_fonts,
-                 help="Custom font name")
-    p.add_option("--color", default="limegreen",
-                 help="Font color [default: %default]")
-    p.add_option("--size", default=36, type="int",
-                 help="Font size [default: %default]")
-    opts, args, iopts = p.set_image_options(figsize='2x1', dpi=60, format='png')
+    p.add_option(
+        "--customfont",
+        default="Airswing.ttf",
+        choices=available_fonts,
+        help="Custom font name",
+    )
+    p.add_option("--color", default="limegreen", help="Font color")
+    p.add_option("--size", default=36, type="int", help="Font size")
+    opts, args, iopts = p.set_image_options(figsize="2x1", dpi=60, format="png")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    text, = args
+    (text,) = args
 
     plt.rcdefaults()
     fig = plt.figure(1, (iopts.w, iopts.h))
     ax = fig.add_axes([0, 0, 1, 1])
 
-    ax.text(.5, .5, text, color=opts.color, ha="center", va="center")
+    ax.text(0.5, 0.5, text, color=opts.color, ha="center", va="center")
     fontprop(ax, opts.customfont, size=opts.size)
 
     ax.set_xlim(0, 1)
@@ -48,5 +50,5 @@ def main():
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

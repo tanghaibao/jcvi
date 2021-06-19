@@ -335,7 +335,6 @@ def qc(args):
     scf = prefix
 
     # All these files *must* be present in the current folder
-    bedpefile = prefix + ".bedpe"
     fastafile = prefix + ".fasta"
     sizesfile = prefix + ".sizes"
     gapsbedfile = prefix + ".gaps.bed"

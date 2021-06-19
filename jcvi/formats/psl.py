@@ -34,9 +34,6 @@ class PslLine(object):
         self.qSize = int(args[10])
         self.qStart = int(args[11])
         self.qEnd = int(args[12])
-        ##        if self.qstrand == "-":
-        ##            self.qStart, self.qEnd = self.qSize - self.qEnd, \
-        ##                    self.qSize - self.qStart
         self.tName = args[13]
         self.tSize = int(args[14])
         self.tStart = int(args[15])
@@ -107,7 +104,6 @@ class PslLine(object):
             / self.qSize
         )
 
-    @property
     def swap(self):
         self.qName, self.qSize, self.tName, self.tSize = (
             self.tName,
@@ -323,7 +319,9 @@ def gff(args):
     p = OptionParser(gff.__doc__)
     p.add_option("--source", default="GMAP", help="specify GFF source")
     p.add_option(
-        "--type", default="EST_match", help="specify GFF feature type",
+        "--type",
+        default="EST_match",
+        help="specify GFF feature type",
     )
     p.add_option("--suffix", default=".match", help="match ID suffix")
     p.add_option(
@@ -352,7 +350,7 @@ def gff(args):
     psl = Psl(pslfile)
     for p in psl:
         if opts.swap:
-            p.swap
+            p.swap()
 
         psl.trackMatches(p.qName)
         # switch from 0-origin to 1-origin

@@ -7,5 +7,5 @@ Set of scripts relating to variation studies such as imputation, phasing, SNP/CN
 from jcvi.apps.base import dmain
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dmain(__file__)

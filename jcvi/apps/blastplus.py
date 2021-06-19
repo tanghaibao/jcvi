@@ -19,7 +19,7 @@ def blastplus(out_fh, cmd, query, lock):
 
     logging.debug("job <%d> started: %s" % (proc.pid, cmd))
     for row in proc.stdout:
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         lock.acquire()
         out_fh.write(row)
@@ -36,23 +36,41 @@ def main():
     """
     p = OptionParser(main.__doc__)
 
-    p.add_option("--format", default=" \'6 qseqid sseqid pident length " \
-            "mismatch gapopen qstart qend sstart send evalue bitscore\' ",
-            help="0-11, learn more with \"blastp -help\". [default: %default]")
-    p.add_option("--path", dest="blast_path", default=None,
-            help="specify BLAST+ path including the program name")
-    p.add_option("--prog", dest="blast_program", default="blastp",
-            help="specify BLAST+ program to use. See complete list here: " \
-            "http://www.ncbi.nlm.nih.gov/books/NBK52640/#chapter1.Installation"
-            " [default: %default]")
-    p.set_align(evalue=.01)
-    p.add_option("--best", default=1, type="int",
-            help="Only look for best N hits [default: %default]")
+    p.add_option(
+        "--format",
+        default=" '6 qseqid sseqid pident length "
+        "mismatch gapopen qstart qend sstart send evalue bitscore' ",
+        help='0-11, learn more with "blastp -help"',
+    )
+    p.add_option(
+        "--path",
+        dest="blast_path",
+        default=None,
+        help="specify BLAST+ path including the program name",
+    )
+    p.add_option(
+        "--prog",
+        dest="blast_program",
+        default="blastp",
+        help="specify BLAST+ program to use. See complete list here: "
+        "http://www.ncbi.nlm.nih.gov/books/NBK52640/#chapter1.Installation",
+    )
+    p.set_align(evalue=0.01)
+    p.add_option(
+        "--best",
+        default=1,
+        type="int",
+        help="Only look for best N hits",
+    )
     p.set_cpus()
-    p.add_option("--nprocs", default=1, type="int",
-            help="number of BLAST processes to run in parallel. " + \
-            "split query.fa into `nprocs` chunks, " + \
-            "each chunk uses -num_threads=`cpus`")
+    p.add_option(
+        "--nprocs",
+        default=1,
+        type="int",
+        help="number of BLAST processes to run in parallel. "
+        + "split query.fa into `nprocs` chunks, "
+        + "each chunk uses -num_threads=`cpus`",
+    )
     p.set_params()
     p.set_outfile()
     opts, args = p.parse_args()
@@ -85,8 +103,7 @@ def main():
     else:
         queries = [afasta_fn]
 
-    dbtype = "prot" if op.basename(blast_bin) in ("blastp", "blastx") \
-        else "nucl"
+    dbtype = "prot" if op.basename(blast_bin) in ("blastp", "blastx") else "nucl"
 
     db = bfasta_fn
     if dbtype == "prot":
@@ -102,8 +119,7 @@ def main():
 
     blastplus_template = "{0} -db {1} -outfmt {2}"
     blast_cmd = blastplus_template.format(blast_bin, bfasta_fn, opts.format)
-    blast_cmd += " -evalue {0} -max_target_seqs {1}".\
-        format(opts.evalue, opts.best)
+    blast_cmd += " -evalue {0} -max_target_seqs {1}".format(opts.evalue, opts.best)
     blast_cmd += " -num_threads {0}".format(cpus)
     if extra:
         blast_cmd += " " + extra.strip()
@@ -113,5 +129,5 @@ def main():
     g.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -23,7 +23,6 @@ import sys
 from jcvi.algorithms.lpsolve import MIPDataModel
 from jcvi.compara.synteny import AnchorFile, _score, check_beds
 from jcvi.formats.base import must_open
-from jcvi.utils.console import printf
 from jcvi.apps.base import OptionParser
 
 

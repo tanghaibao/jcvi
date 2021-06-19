@@ -53,7 +53,9 @@ def prepare(args):
 
     p = OptionParser(prepare.__doc__)
     p.add_option(
-        "--rearray_lib", default=None, help="name of the rearrayed library",
+        "--rearray_lib",
+        default=None,
+        help="name of the rearrayed library",
     )
     p.add_option(
         "--orig_lib_file",

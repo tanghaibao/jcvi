@@ -12,18 +12,23 @@ import sys
 import logging
 
 from jcvi.formats.sam import get_prefix
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
-            get_abs_path, backup
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    need_update,
+    sh,
+    backup,
+)
 
 
 def main():
 
     actions = (
-        ('index', 'wraps gmap_build'),
-        ('align', 'wraps gsnap'),
-        ('gmap', 'wraps gmap'),
-        ('bam', 'convert GSNAP output to BAM'),
-            )
+        ("index", "wraps gmap_build"),
+        ("align", "wraps gsnap"),
+        ("gmap", "wraps gmap"),
+        ("bam", "convert GSNAP output to BAM"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -77,7 +82,7 @@ def check_index(dbfile, supercat=False, go=True):
             updated = True
         dbfile = supercatfile + ".fasta"
 
-    #dbfile = get_abs_path(dbfile)
+    # dbfile = get_abs_path(dbfile)
     dbdir, filename = op.split(dbfile)
     if not dbdir:
         dbdir = "."
@@ -103,19 +108,23 @@ def check_index(dbfile, supercat=False, go=True):
 
 def index(args):
     """
-    %prog index database.fasta
-`
-    Wrapper for `gmap_build`. Same interface.
+        %prog index database.fasta
+    `
+        Wrapper for `gmap_build`. Same interface.
     """
     p = OptionParser(index.__doc__)
-    p.add_option("--supercat", default=False, action="store_true",
-                 help="Concatenate reference to speed up alignment")
+    p.add_option(
+        "--supercat",
+        default=False,
+        action="store_true",
+        help="Concatenate reference to speed up alignment",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    dbfile, = args
+    (dbfile,) = args
     check_index(dbfile, supercat=opts.supercat)
 
 
@@ -126,12 +135,17 @@ def gmap(args):
     Wrapper for `gmap`.
     """
     p = OptionParser(gmap.__doc__)
-    p.add_option("--cross", default=False, action="store_true",
-                 help="Cross-species alignment")
-    p.add_option("--npaths", default=0, type="int",
-                 help="Maximum number of paths to show."
-                 " If set to 0, prints two paths if chimera"
-                 " detected, else one.")
+    p.add_option(
+        "--cross", default=False, action="store_true", help="Cross-species alignment"
+    )
+    p.add_option(
+        "--npaths",
+        default=0,
+        type="int",
+        help="Maximum number of paths to show."
+        " If set to 0, prints two paths if chimera"
+        " detected, else one.",
+    )
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -171,10 +185,18 @@ def align(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(align.__doc__)
-    p.add_option("--rnaseq", default=False, action="store_true",
-                 help="Input is RNA-seq reads, turn splicing on")
-    p.add_option("--native", default=False, action="store_true",
-                 help="Convert GSNAP output to NATIVE format")
+    p.add_option(
+        "--rnaseq",
+        default=False,
+        action="store_true",
+        help="Input is RNA-seq reads, turn splicing on",
+    )
+    p.add_option(
+        "--native",
+        default=False,
+        action="store_true",
+        help="Convert GSNAP output to NATIVE format",
+    )
     p.set_home("eddyyeh")
     p.set_outdir()
     p.set_cpus()
@@ -226,5 +248,5 @@ def align(args):
     return gsnapfile, logfile
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

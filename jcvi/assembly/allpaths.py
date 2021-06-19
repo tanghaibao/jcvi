@@ -226,7 +226,10 @@ def fill(args):
     """
     p = OptionParser(fill.__doc__)
     p.add_option(
-        "--stretch", default=3, type="int", help="MAX_STRETCH to pass to FillFragments",
+        "--stretch",
+        default=3,
+        type="int",
+        help="MAX_STRETCH to pass to FillFragments",
     )
     p.set_cpus()
 
@@ -328,7 +331,10 @@ def pairs(args):
 
     p = OptionParser(pairs.__doc__)
     p.add_option(
-        "--header", default=False, action="store_true", help="Print header only",
+        "--header",
+        default=False,
+        action="store_true",
+        help="Print header only",
     )
     p.add_option(
         "--suffix",

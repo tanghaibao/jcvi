@@ -19,9 +19,9 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 def main():
 
     actions = (
-        ('fragment', 'extract upstream and downstream seq of particular RE'),
-        ('digest', 'digest FASTA file to map restriction site positions'),
-            )
+        ("fragment", "extract upstream and downstream seq of particular RE"),
+        ("digest", "digest FASTA file to map restriction site positions"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -127,10 +127,18 @@ def fragment(args):
     ends are NOT extracted, as in the first fragment.
     """
     p = OptionParser(fragment.__doc__)
-    p.add_option("--flank", default=150, type="int",
-            help="Extract flanking bases of the cut sites [default: %default]")
-    p.add_option("--full", default=False, action="store_true",
-            help="The full extraction mode [default: %default]")
+    p.add_option(
+        "--flank",
+        default=150,
+        type="int",
+        help="Extract flanking bases of the cut sites",
+    )
+    p.add_option(
+        "--full",
+        default=False,
+        action="store_true",
+        help="The full extraction mode",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -143,8 +151,9 @@ def fragment(args):
     tag = "full" if opts.full else "ends"
 
     assert enzyme in set(str(x) for x in AllEnzymes)
-    fragfastafile = fastafile.split(".")[0] + \
-        ".{0}.flank{1}.{2}.fasta".format(enzyme, flank, tag)
+    fragfastafile = fastafile.split(".")[0] + ".{0}.flank{1}.{2}.fasta".format(
+        enzyme, flank, tag
+    )
     enzyme = [x for x in AllEnzymes if str(x) == enzyme][0]
 
     f = Fasta(fastafile, lazy=True)
@@ -157,5 +166,5 @@ def fragment(args):
     logging.debug("Fragments written to `{0}`.".format(fragfastafile))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

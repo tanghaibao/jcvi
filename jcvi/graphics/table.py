@@ -67,7 +67,7 @@ class CsvTable(list):
 
 
 def draw_multiple_images_in_rectangle(ax, images, rect, box_width, yinflation=1):
-    """ Draw multiple images in given rectangle. Used by draw_table().
+    """Draw multiple images in given rectangle. Used by draw_table().
 
     Args:
         ax (matplotlib axes): matplotlib axes
@@ -87,7 +87,7 @@ def draw_multiple_images_in_rectangle(ax, images, rect, box_width, yinflation=1)
 
 
 def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige", yinflation=1):
-    """ Draw table on canvas.
+    """Draw table on canvas.
 
     Args:
         ax (matplotlib axes): matplotlib axes
@@ -129,7 +129,11 @@ def draw_table(ax, csv_table, extent=(0, 1, 0, 1), stripe_color="beige", yinflat
                 should_stripe = False
             else:
                 ax.text(
-                    xmid, ymid, cell, ha="center", va="center",
+                    xmid,
+                    ymid,
+                    cell,
+                    ha="center",
+                    va="center",
                 )
 
             xstart += column_widths[j]

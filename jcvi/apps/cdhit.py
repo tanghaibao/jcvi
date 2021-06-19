@@ -18,24 +18,24 @@ from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
-class ClstrLine (object):
+class ClstrLine(object):
     """
     Lines like these:
     0       12067nt, >LAP012517... at -/99.85%
     1       15532nt, >MOL158919... *
     2       15515nt, >SES069071... at +/99.85%
     """
+
     def __init__(self, row):
-        a, b = row.split('>', 1)
+        a, b = row.split(">", 1)
         a = a.split("nt")[0]
         sid, size = a.split()
         self.size = int(size)
         self.name = b.split("...")[0]
-        self.rep = (row.rstrip()[-1] == '*')
+        self.rep = row.rstrip()[-1] == "*"
 
 
-class ClstrFile (LineFile):
-
+class ClstrFile(LineFile):
     def __init__(self, filename):
         super(ClstrFile, self).__init__(filename)
         assert filename.endswith(".clstr")
@@ -62,18 +62,17 @@ class ClstrFile (LineFile):
                 d[pp].append(b)
 
             for pp, members_with_same_pp in sorted(d.items()):
-                yield i, max(members_with_same_pp, \
-                             key=lambda x: x.size).name
+                yield i, max(members_with_same_pp, key=lambda x: x.size).name
 
 
 def main():
 
     actions = (
-        ('ids', 'get the representative ids from clstr file'),
-        ('deduplicate', 'use `cd-hit-est` to remove duplicate reads'),
-        ('filter', 'filter consensus sequence with min cluster size'),
-        ('summary', 'parse cdhit.clstr file to get distribution of cluster sizes'),
-            )
+        ("ids", "get the representative ids from clstr file"),
+        ("deduplicate", "use `cd-hit-est` to remove duplicate reads"),
+        ("filter", "filter consensus sequence with min cluster size"),
+        ("summary", "parse cdhit.clstr file to get distribution of cluster sizes"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -87,8 +86,7 @@ def filter(args):
     from jcvi.formats.fasta import Fasta, SeqIO
 
     p = OptionParser(filter.__doc__)
-    p.add_option("--minsize", default=2, type="int",
-                 help="Minimum cluster size")
+    p.add_option("--minsize", default=2, type="int", help="Minimum cluster size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -119,15 +117,18 @@ def filter(args):
             rec.description = rec.description.split(None, 1)[-1]
             rec.id = pf + "_" + rec.id
             SeqIO.write(rec, fw, "fasta")
-        logging.debug("Scanned {0} clusters with {1} reads ..".\
-                       format(nclusters, nreads))
+        logging.debug(
+            "Scanned {0} clusters with {1} reads ..".format(nclusters, nreads)
+        )
         cclusters, creads = nclusters - nsingletons, nreads - nsingletons
-        logging.debug("Saved {0} clusters (min={1}) with {2} reads (avg:{3}) [{4}]".\
-                       format(cclusters, minsize, creads, creads / cclusters, pf))
+        logging.debug(
+            "Saved {0} clusters (min={1}) with {2} reads (avg:{3}) [{4}]".format(
+                cclusters, minsize, creads, creads / cclusters, pf
+            )
+        )
         totalreads += nreads
         totalassembled += nreads - nsingletons
-    logging.debug("Total assembled: {0}".\
-                  format(percentage(totalassembled, totalreads)))
+    logging.debug("Total assembled: {0}".format(percentage(totalassembled, totalreads)))
 
 
 def ids(args):
@@ -137,14 +138,13 @@ def ids(args):
     Get the representative ids from clstr file.
     """
     p = OptionParser(ids.__doc__)
-    p.add_option("--prefix", type="int",
-                 help="Find rep id for prefix of len [default: %default]")
+    p.add_option("--prefix", type="int", help="Find rep id for prefix of len")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clstrfile, = args
+    (clstrfile,) = args
     cf = ClstrFile(clstrfile)
     prefix = opts.prefix
     if prefix:
@@ -158,8 +158,9 @@ def ids(args):
     for i, name in reads:
         print("\t".join(str(x) for x in (i, name)), file=fw)
 
-    logging.debug("A total of {0} unique reads written to `{1}`.".\
-            format(nreads, idsfile))
+    logging.debug(
+        "A total of {0} unique reads written to `{1}`.".format(nreads, idsfile)
+    )
     fw.close()
 
     return idsfile
@@ -179,7 +180,7 @@ def summary(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    clstrfile, = args
+    (clstrfile,) = args
     cf = ClstrFile(clstrfile)
     data = list(cf.iter_sizes())
     loghistogram(data, summary=True)
@@ -193,14 +194,30 @@ def deduplicate(args):
     """
     p = OptionParser(deduplicate.__doc__)
     p.set_align(pctid=96, pctcov=0)
-    p.add_option("--fast", default=False, action="store_true",
-                 help="Place sequence in the first cluster")
-    p.add_option("--consensus", default=False, action="store_true",
-                 help="Compute consensus sequences")
-    p.add_option("--reads", default=False, action="store_true",
-                 help="Use `cd-hit-454` to deduplicate [default: %default]")
-    p.add_option("--samestrand", default=False, action="store_true",
-                 help="Enforce same strand alignment")
+    p.add_option(
+        "--fast",
+        default=False,
+        action="store_true",
+        help="Place sequence in the first cluster",
+    )
+    p.add_option(
+        "--consensus",
+        default=False,
+        action="store_true",
+        help="Compute consensus sequences",
+    )
+    p.add_option(
+        "--reads",
+        default=False,
+        action="store_true",
+        help="Use `cd-hit-454` to deduplicate",
+    )
+    p.add_option(
+        "--samestrand",
+        default=False,
+        action="store_true",
+        help="Enforce same strand alignment",
+    )
     p.set_home("cdhit")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -208,8 +225,8 @@ def deduplicate(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
-    identity = opts.pctid / 100.
+    (fastafile,) = args
+    identity = opts.pctid / 100.0
     fastafile, qualfile = fasta([fastafile, "--seqtk"])
 
     ocmd = "cd-hit-454" if opts.reads else "cd-hit-est"
@@ -222,7 +239,7 @@ def deduplicate(args):
     if not opts.fast:
         cmd += " -g 1"
     if opts.pctcov != 0:
-        cmd += " -aL {0} -aS {0}".format(opts.pctcov / 100.)
+        cmd += " -aL {0} -aS {0}".format(opts.pctcov / 100.0)
 
     dd = fastafile + ".P{0}.cdhit".format(opts.pctid)
     clstr = dd + ".clstr"
@@ -234,13 +251,14 @@ def deduplicate(args):
     if opts.consensus:
         cons = dd + ".consensus"
         cmd = op.join(opts.cdhit_home, "cdhit-cluster-consensus")
-        cmd += " clustfile={0} fastafile={1} output={2} maxlen=1".\
-                    format(clstr, fastafile, cons)
+        cmd += " clustfile={0} fastafile={1} output={2} maxlen=1".format(
+            clstr, fastafile, cons
+        )
         if need_update((clstr, fastafile), cons):
             sh(cmd)
 
     return dd
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

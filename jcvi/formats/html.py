@@ -76,7 +76,7 @@ def links(args):
         "--img",
         default=False,
         action="store_true",
-        help="Extract <img> tags [default: %default]",
+        help="Extract <img> tags",
     )
     opts, args = p.parse_args(args)
 

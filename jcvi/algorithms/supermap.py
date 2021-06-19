@@ -38,7 +38,7 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast", clip=0):
 
     fp = open(filename)
     for i, row in enumerate(fp):
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         if dialect == BLAST:
             b = BlastLine(row)
@@ -63,7 +63,7 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast", clip=0):
         if clip:
             # clip cannot be more than 5% of the range
             r = end - start + 1
-            cc = min(.05 * r, clip)
+            cc = min(0.05 * r, clip)
             start = start + cc
             end = end - cc
 
@@ -74,8 +74,9 @@ def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
     # filter by query
     if filter != "ref":
         logging.debug("filter by query")
-        ranges = list(BlastOrCoordsLine(blast_file, filter="query",
-            dialect=dialect, clip=clip))
+        ranges = list(
+            BlastOrCoordsLine(blast_file, filter="query", dialect=dialect, clip=clip)
+        )
 
         query_selected, query_score = range_chain(ranges)
         query_idx = set(x.id for x in query_selected)
@@ -83,8 +84,9 @@ def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
     # filter by ref
     if filter != "query":
         logging.debug("filter by ref")
-        ranges = list(BlastOrCoordsLine(blast_file, filter="ref",
-            dialect=dialect, clip=clip))
+        ranges = list(
+            BlastOrCoordsLine(blast_file, filter="ref", dialect=dialect, clip=clip)
+        )
 
         ref_selected, ref_score = range_chain(ranges)
         ref_idx = set(x.id for x in ref_selected)
@@ -130,6 +132,7 @@ def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
     fw.close()
 
     from jcvi.formats.blast import sort
+
     ofilter = "ref" if filter == "ref" else "query"
     args = [supermapfile, "--" + ofilter]
     if dialect == "coords":
@@ -140,25 +143,32 @@ def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
     return supermapfile
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     p = OptionParser(__doc__)
 
     filter_choices = ("ref", "query", "intersection", "union")
     dialect_choices = ("blast", "coords")
-    p.add_option("--filter", choices=filter_choices, default="intersection",
-            help="Available filters [default: %default]")
-    p.add_option("--dialect", choices=dialect_choices,
-            help="Input format [default: guess]")
-    p.add_option("--clip", default=0, type="int",
-            help="Clip ranges so that to allow minor overlaps [default: %default]")
+    p.add_option(
+        "--filter",
+        choices=filter_choices,
+        default="intersection",
+        help="Available filters",
+    )
+    p.add_option("--dialect", choices=dialect_choices, help="Input format")
+    p.add_option(
+        "--clip",
+        default=0,
+        type="int",
+        help="Clip ranges so that to allow minor overlaps",
+    )
 
     opts, args = p.parse_args()
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    blast_file, = args
+    (blast_file,) = args
 
     dialect = opts.dialect
     if not dialect:

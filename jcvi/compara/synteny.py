@@ -677,7 +677,6 @@ def assemble(args):
 
     from jcvi.apps.align import last
     from jcvi.formats.fasta import some
-    from jcvi.formats.base import FileShredder
 
     p = OptionParser(assemble.__doc__)
     p.add_option(

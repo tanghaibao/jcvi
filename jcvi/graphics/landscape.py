@@ -137,7 +137,7 @@ def main():
 
 
 def parse_distfile(filename):
-    """ Parse mosdepth dist.txt file. The file has contents like:
+    """Parse mosdepth dist.txt file. The file has contents like:
 
     #chr    start   end     depth   (header added here for clarity)
     chr01A  0       50000   31.00
@@ -161,7 +161,7 @@ def parse_distfile(filename):
 
 
 def parse_groupsfile(filename):
-    """ Parse groupsfile, which contains the tracks to be plotted
+    """Parse groupsfile, which contains the tracks to be plotted
     in the vertically stacked mosdepth plot.
 
     chr01A,chr01B g,m
@@ -181,7 +181,7 @@ def parse_groupsfile(filename):
 
 
 def cumarray_to_array(ar):
-    """ Convert cumulative array to normal array.
+    """Convert cumulative array to normal array.
 
     Args:
         ar (List): List of numbers
@@ -280,7 +280,7 @@ def draw_depth(
     title=None,
     subtitle=None,
 ):
-    """ Draw depth plot on the given axes, using data from bed
+    """Draw depth plot on the given axes, using data from bed
 
     Args:
         root (matplotlib.Axes): Canvas axes
@@ -327,7 +327,12 @@ def draw_depth(
 
     x, y, c = zip(*data)
     ax.scatter(
-        x, y, c=c, edgecolors="none", s=8, lw=0,
+        x,
+        y,
+        c=c,
+        edgecolors="none",
+        s=8,
+        lw=0,
     )
     logging.debug("Obtained {} data points with depth data".format(len(data)))
 
@@ -437,7 +442,8 @@ def depth(args):
         "--chrinfo", help="Comma-separated mappings between seqid, color, new_name"
     )
     p.add_option(
-        "--titleinfo", help="Comma-separated titles mappings between filename, title",
+        "--titleinfo",
+        help="Comma-separated titles mappings between filename, title",
     )
     p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to show")
     p.add_option(

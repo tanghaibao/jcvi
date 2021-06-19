@@ -13,9 +13,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 
 def main():
 
-    actions = (
-        ('libsvm', 'convert csv file to LIBSVM format'),
-            )
+    actions = (("libsvm", "convert csv file to LIBSVM format"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -54,5 +52,5 @@ def libsvm(args):
         print(" ".join([klass] + feats))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

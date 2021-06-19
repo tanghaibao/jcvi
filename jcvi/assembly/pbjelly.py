@@ -20,14 +20,15 @@ from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which
 
 
-class Protocol (object):
-
+class Protocol(object):
     def __init__(self, outputDir, reference, reads, highqual=False):
         self.outputDir = outputDir
         self.reference = reference
         self.reads = reads
         oblasr = (16, 98) if highqual else (8, 75)
-        self.blasr = "-minMatch {0} -sdpTupleSize 8 -minPctSimilarity {1}".format(*oblasr)
+        self.blasr = "-minMatch {0} -sdpTupleSize 8 -minPctSimilarity {1}".format(
+            *oblasr
+        )
         self.blasr += " -bestn 1 -nCandidates 10 -maxScore -500"
         self.blasr += " -nproc 64 -noSplitSubreads"
 
@@ -58,12 +59,13 @@ class Protocol (object):
         fw.close()
 
 
-class M4Line (object):
+class M4Line(object):
     """
     See doc:
 
     https://github.com/mchaisso/blasr
     """
+
     def __init__(self, sline):
         args = sline.split()
         self.query = args[0]
@@ -84,10 +86,10 @@ class M4Line (object):
 def main():
 
     actions = (
-        ('patch', 'run PBJelly with reference and reads'),
-        ('spancount', 'count support for each gap'),
-        ('filterm4', 'filter .m4 file after blasr is run'),
-            )
+        ("patch", "run PBJelly with reference and reads"),
+        ("spancount", "count support for each gap"),
+        ("filterm4", "filter .m4 file after blasr is run"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -107,7 +109,7 @@ def filterm4(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    m4file, = args
+    (m4file,) = args
     best = opts.best
     fp = open(m4file)
     fw = must_open(opts.outfile, "w")
@@ -117,8 +119,7 @@ def filterm4(args):
         r = M4Line(row)
         total += 1
         if total % 100000 == 0:
-            logging.debug("Retained {0} lines".\
-                            format(percentage(retained, total)))
+            logging.debug("Retained {0} lines".format(percentage(retained, total)))
         if seen.get(r.query, 0) < best:
             fw.write(row)
             seen[r.query] += 1
@@ -144,7 +145,7 @@ def spancount(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fof, = args
+    (fof,) = args
     fp = open(fof)
     flist = [row.strip() for row in fp]
     spanCount = "spanCount"
@@ -179,10 +180,18 @@ def patch(args):
     from jcvi.formats.fasta import format
 
     p = OptionParser(patch.__doc__)
-    p.add_option("--cleanfasta", default=False, action="store_true",
-                 help="Clean FASTA to remove description [default: %default]")
-    p.add_option("--highqual", default=False, action="store_true",
-                 help="Reads are of high quality [default: %default]")
+    p.add_option(
+        "--cleanfasta",
+        default=False,
+        action="store_true",
+        help="Clean FASTA to remove description",
+    )
+    p.add_option(
+        "--highqual",
+        default=False,
+        action="store_true",
+        help="Reads are of high quality",
+    )
     p.set_home("pbjelly")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -245,5 +254,5 @@ def patch(args):
     write_file(runfile, contents)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

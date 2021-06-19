@@ -73,8 +73,7 @@ class Genome:
 
     @property
     def gamete(self):
-        """ Randomly generate a gamete from current genome that
-        """
+        """Randomly generate a gamete from current genome that"""
         self.chromosomes.sort()
         gamete_chromosomes = []
 
@@ -284,7 +283,7 @@ def simulate_BCn(n, SO, SS, verbose=False):
 
 
 def plot_summary(ax, samples):
-    """ Plot the distribution of chromosome numbers given simulated samples.
+    """Plot the distribution of chromosome numbers given simulated samples.
 
     Args:
         ax (Axes): Matplotlib axes.
@@ -323,7 +322,12 @@ def plot_summary(ax, samples):
     summary = GenomeSummary(SO_data, SS_data, percent_SO_data)
 
     # Write the stats summary within the plot
-    summary_style = dict(size=9, ha="center", va="center", transform=ax.transAxes,)
+    summary_style = dict(
+        size=9,
+        ha="center",
+        va="center",
+        transform=ax.transAxes,
+    )
     ax.text(0.75, 0.85, summary.SS_summary, color=SsColor, **summary_style)
     ax.text(0.75, 0.65, summary.percent_SS_summary, color=SsColor, **summary_style)
     ax.text(0.25, 0.85, summary.SO_summary, color=SoColor, **summary_style)
@@ -333,7 +337,7 @@ def plot_summary(ax, samples):
 
 
 def write_chromosomes(genomes, filename):
-    """ Write simulated chromosomes to file
+    """Write simulated chromosomes to file
 
     Args:
         genomes (List[Genome]): List of simulated genomes.
@@ -462,7 +466,7 @@ def simulate(args):
 
 
 def _get_sizes(filename, prefix_length, tag, target_size=None):
-    """ Returns a dictionary of chromome lengths from a given file.
+    """Returns a dictionary of chromome lengths from a given file.
 
     Args:
         filename ([str]): Path to the input file. Input file is 2-column file

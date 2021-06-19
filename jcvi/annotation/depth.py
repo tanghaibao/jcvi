@@ -20,15 +20,17 @@ from jcvi.formats.base import BaseFile, must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
-class BinFile (BaseFile):
+class BinFile(BaseFile):
     """
     The binfile contains per base count, fastafile provides the coordinate
     system.
     """
+
     def __init__(self, binfile, fastafile=None, dtype=np.uint8):
         super(BinFile, self).__init__(binfile)
-        assert op.exists(binfile), \
-            "Binary file `{0}` not found. Rerun depth.count().".format(binfile)
+        assert op.exists(
+            binfile
+        ), "Binary file `{0}` not found. Rerun depth.count().".format(binfile)
         self.dtype = dtype
 
     @property
@@ -45,11 +47,14 @@ class BinFile (BaseFile):
 def main():
 
     actions = (
-        ('count', 'initialize the count array'),
-        ('query', 'query the count array to get depth at particular site'),
-        ('merge', 'merge several count arrays into one'),
-        ('bed', 'write bed files where the bases have at least certain depth',)
-            )
+        ("count", "initialize the count array"),
+        ("query", "query the count array to get depth at particular site"),
+        ("merge", "merge several count arrays into one"),
+        (
+            "bed",
+            "write bed files where the bases have at least certain depth",
+        ),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -61,10 +66,19 @@ def bed(args):
     Write bed files where the bases have at least certain depth.
     """
     p = OptionParser(bed.__doc__)
-    p.add_option("-o", dest="output", default="stdout",
-            help="Output file name [default: %default]")
-    p.add_option("--cutoff", dest="cutoff", default=10, type="int",
-            help="Minimum read depth to report intervals [default: %default]")
+    p.add_option(
+        "-o",
+        dest="output",
+        default="stdout",
+        help="Output file name",
+    )
+    p.add_option(
+        "--cutoff",
+        dest="cutoff",
+        default=10,
+        type="int",
+        help="Minimum read depth to report intervals",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -82,7 +96,7 @@ def bed(args):
     s = Sizes(fastafile)
     for ctg, ctglen in s.iter_sizes():
         offset = offsets[ctg]
-        subarray = ar[offset:offset + ctglen]
+        subarray = ar[offset : offset + ctglen]
         key = lambda x: x[1] >= cutoff
         for tf, array_elements in groupby(enumerate(subarray), key=key):
             array_elements = list(array_elements)
@@ -93,13 +107,14 @@ def bed(args):
             start = array_elements[0][0] + 1
             end = array_elements[-1][0] + 1
 
-            mean_depth = sum([x[1] for x in array_elements]) / \
-                len(array_elements)
+            mean_depth = sum([x[1] for x in array_elements]) / len(array_elements)
             mean_depth = int(mean_depth)
 
             name = "na"
-            print("\t".join(str(x) for x in (ctg, \
-                    start - 1, end, name, mean_depth)), file=fw)
+            print(
+                "\t".join(str(x) for x in (ctg, start - 1, end, name, mean_depth)),
+                file=fw,
+            )
 
 
 def merge(args):
@@ -118,13 +133,12 @@ def merge(args):
     binfiles = args[:-1]
     mergedbin = args[-1]
     if op.exists(mergedbin):
-        logging.error("`{0}` file exists. Remove before proceed."\
-                .format(mergedbin))
+        logging.error("`{0}` file exists. Remove before proceed.".format(mergedbin))
         return
 
     b = BinFile(binfiles[0])
     ar = b.mmarray
-    fastasize, = ar.shape
+    (fastasize,) = ar.shape
     logging.debug("Initialize array of uint16 with size {0}".format(fastasize))
 
     merged_ar = np.zeros(fastasize, dtype=np.uint16)
@@ -175,7 +189,7 @@ def update_array(ar, coveragefile, sizes, offsets):
         else:
             print(k, offset)
 
-        #assert ctglen == sizes[k]
+        # assert ctglen == sizes[k]
         for i, row in enumerate(rows):
             ctgID, baseID, count = row.split()
             oi = offset + i
@@ -211,8 +225,7 @@ def count(args):
 
     countsfile = coveragefile.split(".")[0] + ".bin"
     if op.exists(countsfile):
-        logging.error("`{0}` file exists. Remove before proceed."\
-                .format(countsfile))
+        logging.error("`{0}` file exists. Remove before proceed.".format(countsfile))
         return
 
     fastasize, sizes, offsets = get_offsets(fastafile)
@@ -225,5 +238,5 @@ def count(args):
     logging.debug("Array written to `{0}`".format(countsfile))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

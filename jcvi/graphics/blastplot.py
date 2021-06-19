@@ -252,7 +252,10 @@ if __name__ == "__main__":
     p.add_option("--qh", help="Path to highlight bed for query")
     p.add_option("--sh", help="Path to highlight bed for subject")
     p.add_option(
-        "--dotstyle", default="dot", choices=DotStyles, help="Style of the dots",
+        "--dotstyle",
+        default="dot",
+        choices=DotStyles,
+        help="Style of the dots",
     )
     p.add_option(
         "--proportional",
@@ -267,7 +270,10 @@ if __name__ == "__main__":
         help="Remove trailing .? from gene names",
     )
     p.add_option(
-        "--nmax", default=None, type="int", help="Only plot maximum of N dots",
+        "--nmax",
+        default=None,
+        type="int",
+        help="Only plot maximum of N dots",
     )
     opts, args, iopts = p.set_image_options(figsize="8x8", style="dark", dpi=150)
 

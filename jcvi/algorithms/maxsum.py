@@ -29,8 +29,11 @@ def max_sum(a):
     for current_end_index, x in enumerate(a):
         current_max_sum += x
         if current_max_sum > max_sum:
-            max_sum, max_start_index, max_end_index = current_max_sum, \
-                current_start_index, current_end_index
+            max_sum, max_start_index, max_end_index = (
+                current_max_sum,
+                current_start_index,
+                current_end_index,
+            )
         if current_max_sum < 0:
             current_max_sum = 0
             current_start_index = current_end_index + 1
@@ -38,11 +41,13 @@ def max_sum(a):
     return max_sum, max_start_index, max_end_index
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
 
     import numpy as np
+
     A = np.random.random_integers(-10, 10, 10)
     print("max_sum(%s)" % list(A))
     print(max_sum(A))

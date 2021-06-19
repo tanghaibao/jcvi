@@ -78,6 +78,7 @@ class UniqueLiftover(object):
         and strand maintaining liftover is possible
         :param chromosome: string with the chromosome as it's represented in the from_genome
         :param position: position on chromosome (will be cast to int)
+        :param verbose: print verbose information for debugging
         :return: ((str) chromosome, (int) position) or None if no liftover
         """
 
@@ -252,7 +253,7 @@ def sample(args):
     logging.debug("{0} records withheld to `{1}`".format(nwithheld, withheld))
 
 
-def get_vcfstanza(fastafile, fasta, sampleid="SAMP_001"):
+def get_vcfstanza(fastafile, sampleid="SAMP_001"):
     from jcvi.formats.base import timestamp
 
     # VCF spec
@@ -285,7 +286,7 @@ def fromimpute2(args):
 
     impute2file, fastafile, chr = args
     fasta = Fasta(fastafile)
-    print(get_vcfstanza(fastafile, fasta))
+    print(get_vcfstanza(fastafile))
     fp = open(impute2file)
     seen = set()
     for row in fp:
@@ -374,7 +375,7 @@ def from23andme(args):
     register = read_rsid(seqid, legend)
 
     fw = open(chrvcf, "w")
-    print(get_vcfstanza(fastafile, fasta, txtfile), file=fw)
+    print(get_vcfstanza(fastafile, txtfile), file=fw)
 
     fp = open(txtfile)
     seen = set()
@@ -501,7 +502,7 @@ def location(args):
         "--dist",
         default=100,
         type="int",
-        help="Distance cutoff to call 5` and 3` [default: %default]",
+        help="Distance cutoff to call 5` and 3`",
     )
     opts, args = p.parse_args(args)
 
@@ -552,8 +553,8 @@ def summary(args):
     from jcvi.utils.table import tabulate
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--counts", help="Print SNP counts in a txt file [default: %default]")
-    p.add_option("--bed", help="Print SNPs locations in a bed file [default: %default]")
+    p.add_option("--counts", help="Print SNP counts in a txt file")
+    p.add_option("--bed", help="Print SNPs locations in a bed file")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -690,19 +691,19 @@ def mstmap(args):
         "--dh",
         default=False,
         action="store_true",
-        help="Double haploid population, no het [default: %default]",
+        help="Double haploid population, no het",
     )
     p.add_option(
         "--freq",
         default=0.2,
         type="float",
-        help="Allele must be above frequency [default: %default]",
+        help="Allele must be above frequency",
     )
     p.add_option(
         "--mindepth",
         default=3,
         type="int",
-        help="Only trust genotype calls with depth [default: %default]",
+        help="Only trust genotype calls with depth",
     )
     p.add_option(
         "--missing_threshold",
@@ -714,14 +715,13 @@ def mstmap(args):
         "--noheader",
         default=False,
         action="store_true",
-        help="Do not print MSTmap run parameters [default: %default]",
+        help="Do not print MSTmap run parameters",
     )
     p.add_option(
         "--pv4",
         default=False,
         action="store_true",
-        help="Enable filtering strand-bias, tail distance bias, etc. "
-        "[default: %default]",
+        help="Enable filtering strand-bias, tail distance bias, etc.",
     )
     p.add_option(
         "--freebayes",
@@ -836,7 +836,7 @@ def liftover(args):
             num_excluded += 1
             continue
 
-        if new_chrom != None and new_pos != None:
+        if new_chrom is not None and new_pos is not None:
             v.seqid, v.pos = new_chrom, new_pos
             if opts.newid:
                 v.rsid = "{0}:{1}".format(new_chrom.replace("chr", ""), new_pos)

@@ -210,7 +210,7 @@ def write_new_blast(filtered_blasts, fh=sys.stdout):
 
 
 def filter_exclude(blast_list, exclude=None):
-    """ Filter gene pairs from an excluded list
+    """Filter gene pairs from an excluded list
 
     Args:
         blast_list (List[BlastLine]): List of BlastLines
@@ -324,7 +324,7 @@ def main(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    blastfile, = args
+    (blastfile,) = args
     blastfilter_main(blastfile, p, opts)
 
 

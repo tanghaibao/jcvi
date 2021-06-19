@@ -1850,7 +1850,7 @@ def send_email(fromaddr, toaddr, subject, message):
 
 
 def get_email_address(whoami="user"):
-    """ Auto-generate the FROM and TO email address """
+    """Auto-generate the FROM and TO email address"""
     if whoami == "user":
         username = getusername()
         domain = getdomainname()

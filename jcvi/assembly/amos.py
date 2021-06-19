@@ -23,7 +23,7 @@ from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
-class Message (list):
+class Message(list):
     """
     AMOS Message object
 
@@ -40,15 +40,15 @@ class Message (list):
         self.contents = []
 
     def __str__(self):
-        result = '{' + self.type + '\n'
+        result = "{" + self.type + "\n"
         for key, value, multiline in self.contents:
-            result += key + ':'
+            result += key + ":"
             if multiline:
-                result += '\n{0}.\n'.format(value)
+                result += "\n{0}.\n".format(value)
             else:
-                result += value + '\n'
+                result += value + "\n"
 
-        result += '\n'.join(str(sub_message) for sub_message in self) + '}'
+        result += "\n".join(str(sub_message) for sub_message in self) + "}"
 
         return result
 
@@ -59,9 +59,9 @@ class Message (list):
         assert ValueError("Field `{0}` cannot be found.".format(field))
 
 
-_START = re.compile(r'^{([A-Z][A-Z][A-Z])\n$')
-_MULTILINE_FIELD = re.compile(r'^([a-z][a-z][a-z]):\n$')
-_FIELD = re.compile(r'^([a-z][a-z][a-z]):(.*)\n$')
+_START = re.compile(r"^{([A-Z][A-Z][A-Z])\n$")
+_MULTILINE_FIELD = re.compile(r"^([a-z][a-z][a-z]):\n$")
+_FIELD = re.compile(r"^([a-z][a-z][a-z]):(.*)\n$")
 
 
 def read_record(fp, first_line=None):
@@ -80,7 +80,7 @@ def read_record(fp, first_line=None):
 
     match = _START.match(first_line)
     if not match:
-        raise Exception('Bad start of message', first_line)
+        raise Exception("Bad start of message", first_line)
 
     type = match.group(1)
     message = Message(type)
@@ -95,9 +95,9 @@ def read_record(fp, first_line=None):
             while row:
                 pos = fp.tell()
                 row = fp.readline()
-                if row[0] in '.':
+                if row[0] in ".":
                     break
-                elif row[0] in '{}':
+                elif row[0] in "{}":
                     fp.seek(pos)  # put the line back
                     break
                 val += row
@@ -115,16 +115,16 @@ def read_record(fp, first_line=None):
             message.append(read_record(fp, row))
             continue
 
-        if row[0] == '}':
+        if row[0] == "}":
             break
 
-        raise Exception('Bad line', row)
+        raise Exception("Bad line", row)
 
     return message
 
 
 def iter_records(file):
-    """ Iterate over all the records in a file """
+    """Iterate over all the records in a file"""
 
     while True:
         try:
@@ -136,11 +136,11 @@ def iter_records(file):
 def main():
 
     actions = (
-        ('frg', 'extract fasta sequences from frg'),
-        ('asm', 'extract fasta sequences from asm'),
-        ('filter', 'remove duplicate reads from frg'),
-        ('count', 'count each type of messages'),
-            )
+        ("frg", "extract fasta sequences from frg"),
+        ("asm", "extract fasta sequences from asm"),
+        ("filter", "remove duplicate reads from frg"),
+        ("count", "count each type of messages"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -192,10 +192,14 @@ def filter(args):
     # Print out a summary
     survived_frags = nfrags - discarded_frags
     survived_mates = nmates - discarded_mates
-    print("Survived fragments: {0}".\
-            format(percentage(survived_frags, nfrags)), file=sys.stderr)
-    print("Survived mates: {0}".\
-            format(percentage(survived_mates, nmates)), file=sys.stderr)
+    print(
+        "Survived fragments: {0}".format(percentage(survived_frags, nfrags)),
+        file=sys.stderr,
+    )
+    print(
+        "Survived mates: {0}".format(percentage(survived_mates, nmates)),
+        file=sys.stderr,
+    )
 
 
 def frg(args):
@@ -210,7 +214,7 @@ def frg(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    frgfile, = args
+    (frgfile,) = args
     fastafile = frgfile.rsplit(".", 1)[0] + ".fasta"
     fp = open(frgfile)
     fw = open(fastafile, "w")
@@ -238,7 +242,7 @@ def asm(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    asmfile, = args
+    (asmfile,) = args
     prefix = asmfile.rsplit(".", 1)[0]
     ctgfastafile = prefix + ".ctg.fasta"
     scffastafile = prefix + ".scf.fasta"
@@ -279,7 +283,7 @@ def count(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    frgfile, = args
+    (frgfile,) = args
     fp = open(frgfile)
 
     counts = defaultdict(int)
@@ -287,8 +291,8 @@ def count(args):
         counts[rec.type] += 1
 
     for type, cnt in sorted(counts.items()):
-        print('{0}: {1}'.format(type, cnt), file=sys.stderr)
+        print("{0}: {1}".format(type, cnt), file=sys.stderr)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -19,7 +19,6 @@ from jcvi.utils.cbook import gene_name
 from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.apps.base import (
     OptionParser,
-    OptionGroup,
     glob,
     ActionDispatcher,
     need_update,

@@ -11,7 +11,6 @@ import logging
 import sys
 from itertools import groupby
 from math import ceil
-from optparse import OptionGroup
 
 import numpy as np
 
@@ -431,7 +430,8 @@ def main():
     )
     g = OptionGroup(p, "Display accessories")
     g.add_option(
-        "--title", help="title of the image",
+        "--title",
+        help="title of the image",
     )
     g.add_option(
         "--gauge",
@@ -608,7 +608,6 @@ def draw_chromosomes(
         bac_list = []
         prev_end, prev_klass = 0, None
         for b in bed.sub_bed(chr):
-            clen = chr_lens[chr]
             idx = chr_idxs[chr]
             klass = b.accn
             if klass == "centromere":

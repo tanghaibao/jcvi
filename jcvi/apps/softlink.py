@@ -17,12 +17,12 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, get_abs_path
 def main():
 
     actions = (
-        ('touch', 'touch all the symlinks'),
-        ('cp', 'cp all the symlinks to current folder'),
-        ('clean', 'removes all the symlinks in current folder'),
-        ('size', 'print the file sizes for the files pointed by symlinks'),
-        ('link', 'link source to target based on a tabular file'),
-        )
+        ("touch", "touch all the symlinks"),
+        ("cp", "cp all the symlinks to current folder"),
+        ("clean", "removes all the symlinks in current folder"),
+        ("size", "print the file sizes for the files pointed by symlinks"),
+        ("link", "link source to target based on a tabular file"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -45,14 +45,13 @@ def link(args):
     from jcvi.apps.base import mkdir
 
     p = OptionParser(link.__doc__)
-    p.add_option("--dir",
-                 help="Place links in a subdirectory [default: %default]")
+    p.add_option("--dir", help="Place links in a subdirectory")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    meta, = args
+    (meta,) = args
     d = opts.dir
     if d:
         mkdir(d)
@@ -155,5 +154,5 @@ def size(args):
         print("%10s\t%s" % (filesize, link_name), file=sys.stderr)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

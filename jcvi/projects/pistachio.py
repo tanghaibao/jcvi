@@ -14,9 +14,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 
 def main():
 
-    actions = (
-        ('agp', 'convert from the table file to agp format'),
-            )
+    actions = (("agp", "convert from the table file to agp format"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -54,7 +52,7 @@ def agp(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    tablefile, = args
+    (tablefile,) = args
     fp = open(tablefile)
     for row in fp:
         atoms = row.split()
@@ -66,10 +64,23 @@ def agp(args):
         hr_start = int(atoms[5]) + 1
         hr_end = int(atoms[6])
 
-        print("\t".join(str(x) for x in \
-                (hr, hr_start, hr_end, 1, 'W',
-                 scaf, scaf_start, scaf_end, strand)))
+        print(
+            "\t".join(
+                str(x)
+                for x in (
+                    hr,
+                    hr_start,
+                    hr_end,
+                    1,
+                    "W",
+                    scaf,
+                    scaf_start,
+                    scaf_end,
+                    strand,
+                )
+            )
+        )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

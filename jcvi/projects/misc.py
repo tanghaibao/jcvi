@@ -117,7 +117,11 @@ def waterlilyGOM(args):
     ypos = ystart - 3 * ypad
     draw_wgd_xy(root, xstart, ypos, other_wgdline)
     root.text(
-        xstart + pad, ypos, "Other known WGDs", color=other_wgdline.color, va="center",
+        xstart + pad,
+        ypos,
+        "Other known WGDs",
+        color=other_wgdline.color,
+        va="center",
     )
 
     # Top left draw the comparison table

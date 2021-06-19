@@ -15,17 +15,23 @@ from jcvi.formats.sam import output_bam, get_samfile, mapped
 from jcvi.formats.base import FileShredder
 from jcvi.assembly.automaton import iter_project
 from jcvi.apps.grid import MakeManager
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, \
-            get_abs_path, mkdir
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    need_update,
+    sh,
+    get_abs_path,
+    mkdir,
+)
 
 
 def main():
 
     actions = (
-        ('index', 'wraps bwa index'),
-        ('align', 'wraps bwa aln|mem|bwasw'),
-        ('batch', 'run bwa in batch mode'),
-            )
+        ("index", "wraps bwa index"),
+        ("align", "wraps bwa aln|mem|bwasw"),
+        ("batch", "run bwa in batch mode"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -63,8 +69,7 @@ def batch(args):
         cmds = [cmd1, cmd2]
 
         if s3dir:
-            cmd = "aws s3 cp {} {} --sse".format(nbamfile,
-                                              op.join(s3dir, bamfile))
+            cmd = "aws s3 cp {} {} --sse".format(nbamfile, op.join(s3dir, bamfile))
             cmds.append(cmd)
 
         mm.add(p, nbamfile, cmds)
@@ -113,18 +118,19 @@ def index(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    dbfile, = args
+    (dbfile,) = args
     check_index(dbfile)
 
 
 def set_align_options(p):
-    """ Used in align() and batch()
-    """
+    """Used in align() and batch()"""
     p.add_option("--bwa", default="bwa", help="Run bwa at this path")
     p.add_option("--rg", help="Read group")
-    p.add_option("--readtype",
-                 choices=("pacbio", "pbread", "ont2d", "intractg"),
-                 help="Read type in bwa-mem")
+    p.add_option(
+        "--readtype",
+        choices=("pacbio", "pbread", "ont2d", "intractg"),
+        help="Read type in bwa-mem",
+    )
     p.set_cutoff(cutoff=800)
 
 
@@ -191,8 +197,9 @@ def samse(args, opts):
     dbfile = check_index(dbfile)
     saifile = check_aln(dbfile, readfile, cpus=opts.cpus)
 
-    samfile, _, unmapped = get_samfile(readfile, dbfile,
-                                       bam=opts.bam, unmapped=opts.unmapped)
+    samfile, _, unmapped = get_samfile(
+        readfile, dbfile, bam=opts.bam, unmapped=opts.unmapped
+    )
     if not need_update((dbfile, saifile), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return "", samfile
@@ -216,14 +223,14 @@ def sampe(args, opts):
     sai1file = check_aln(dbfile, read1file, cpus=opts.cpus)
     sai2file = check_aln(dbfile, read2file, cpus=opts.cpus)
 
-    samfile, _, unmapped = get_samfile(read1file, dbfile,
-                                       bam=opts.bam, unmapped=opts.unmapped)
+    samfile, _, unmapped = get_samfile(
+        read1file, dbfile, bam=opts.bam, unmapped=opts.unmapped
+    )
     if not need_update((dbfile, sai1file, sai2file), samfile):
         logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return "", samfile
 
-    cmd = "bwa sampe " + " ".join((dbfile, sai1file, sai2file,
-                                   read1file, read2file))
+    cmd = "bwa sampe " + " ".join((dbfile, sai1file, sai2file, read1file, read2file))
     cmd += " " + opts.extra
     if opts.cutoff:
         cmd += " -a {0}".format(opts.cutoff)
@@ -247,16 +254,17 @@ def mem(args, opts):
     rg = opts.rg or r"@RG\tID:{0}\tSM:sm\tLB:lb\tPL:{1}".format(pf, pl)
     dbfile = check_index(dbfile)
     args[0] = dbfile
-    samfile, _, unmapped = get_samfile(read1file, dbfile,
-                                       bam=opts.bam, unmapped=opts.unmapped)
+    samfile, _, unmapped = get_samfile(
+        read1file, dbfile, bam=opts.bam, unmapped=opts.unmapped
+    )
     if not need_update(read1file, samfile):
         logging.error("`{0}` exists. `bwa mem` already run.".format(samfile))
         return "", samfile
 
     cmd = "{} mem".format(opts.bwa)
-    '''
+    """
     -M Mark shorter split hits as secondary (for Picard compatibility).
-    '''
+    """
     cmd += " -M -t {0}".format(opts.cpus)
     cmd += ' -R "{0}"'.format(rg)
     if readtype:
@@ -276,8 +284,9 @@ def bwasw(args, opts):
     dbfile, readfile = args
     dbfile = check_index(dbfile)
 
-    samfile, _, unmapped = get_samfile(readfile, dbfile,
-                                       bam=opts.bam, unmapped=opts.unmapped)
+    samfile, _, unmapped = get_samfile(
+        readfile, dbfile, bam=opts.bam, unmapped=opts.unmapped
+    )
     if not need_update(dbfile, samfile):
         logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return "", samfile
@@ -288,5 +297,5 @@ def bwasw(args, opts):
     return cmd, samfile
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

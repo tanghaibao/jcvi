@@ -1201,7 +1201,6 @@ def mergecsv(args):
     if op.exists(outfile):
         os.remove(outfile)
 
-    tsvfile = tsvfiles[0]
     fw = must_open(opts.outfile, "w")
     for i, tsvfile in enumerate(tsvfiles):
         fp = open(tsvfile)

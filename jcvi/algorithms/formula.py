@@ -21,7 +21,7 @@ def mean_confidence_interval(data, confidence=0.95):
     a = 1.0 * np.array(data)
     n = len(a)
     m, se = np.mean(a), scipy.stats.sem(a)
-    h = se * scipy.stats.t._ppf((1 + confidence) / 2., n - 1)
+    h = se * scipy.stats.t._ppf((1 + confidence) / 2.0, n - 1)
     return m, m - h, m + h
 
 
@@ -50,15 +50,15 @@ def erf(x):
     x = abs(x)
 
     # constants
-    a1 =  0.254829592
+    a1 = 0.254829592
     a2 = -0.284496736
-    a3 =  1.421413741
+    a3 = 1.421413741
     a4 = -1.453152027
-    a5 =  1.061405429
-    p  =  0.3275911
+    a5 = 1.061405429
+    p = 0.3275911
 
     # A&S formula 7.1.26
-    t = 1.0 / (1.0 + p*x)
+    t = 1.0 / (1.0 + p * x)
     y = 1.0 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * exp(-x * x)
     return sign * y  # erf(-x) = -erf(x)
 
@@ -67,10 +67,10 @@ def gaussian_prob_le(mu, sigma, x):
     if sigma == 0:
         return 1 if mu <= x else 0
     z = (x - mu) / (sigma * sqrt(2))
-    return .5 + .5 * erf(z)
+    return 0.5 + 0.5 * erf(z)
 
 
-def choose_insertsize(readlen=150, step=20, cutoff=.01):
+def choose_insertsize(readlen=150, step=20, cutoff=0.01):
     """
     Calculate ratio of overlap for a range of insert sizes. Idea borrowed from
     ALLPATHS code (`allpaths_cache/CacheToAllPathsInputs.pl`).
@@ -143,7 +143,7 @@ def outlier_cutoff(a, threshold=3.5):
     M = np.median(A)
     D = np.absolute(A - M)
     MAD = np.median(D)
-    C = threshold / .67449 * MAD
+    C = threshold / 0.67449 * MAD
     return M - C, M + C
 
 
@@ -159,7 +159,7 @@ def recomb_probability(cM, method="kosambi"):
     0.5
     """
     assert method in ("kosambi", "haldane")
-    d = cM / 100.
+    d = cM / 100.0
     if method == "kosambi":
         e4d = exp(4 * d)
         return (e4d - 1) / (e4d + 1) / 2
@@ -174,10 +174,10 @@ def jukesCantorD(p, L=100):
     >>> jukesCantorD(.7)
     (2.0310376508266565, 0.47249999999999864)
     """
-    assert 0 <= p < .75
+    assert 0 <= p < 0.75
 
-    rD = 1 - 4. / 3 * p
-    D = -.75 * log(rD)
+    rD = 1 - 4.0 / 3 * p
+    D = -0.75 * log(rD)
     varD = p * (1 - p) / (rD ** 2 * L)
 
     return D, varD
@@ -190,8 +190,8 @@ def jukesCantorP(D):
     >>> jukesCantorP(2)
     0.6978874115828988
     """
-    rD = exp(-4. / 3 * D)
-    p = .75 * (1 - rD)
+    rD = exp(-4.0 / 3 * D)
+    p = 0.75 * (1 - rD)
     return p
 
 
@@ -208,8 +208,9 @@ def velvet(readsize, genomesize, numreads, K):
     Number of reads is in millions
     K is the kmer hash value used in velveth
     """
-    ram = -109635 + 18977 * readsize + 86326 * genomesize + \
-            233353 * numreads - 51092 * K
+    ram = (
+        -109635 + 18977 * readsize + 86326 * genomesize + 233353 * numreads - 51092 * K
+    )
     print("ReadSize: {0}".format(readsize), file=sys.stderr)
     print("GenomeSize: {0}Mb".format(genomesize), file=sys.stderr)
     print("NumReads: {0}M".format(numreads), file=sys.stderr)
@@ -219,7 +220,8 @@ def velvet(readsize, genomesize, numreads, K):
     print("RAM usage: {0} (MAXKMERLENGTH=31)".format(ram), file=sys.stderr)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     import doctest
+
     doctest.testmod()

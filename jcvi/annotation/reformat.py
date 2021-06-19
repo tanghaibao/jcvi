@@ -47,18 +47,18 @@ atg_name_pat = re.compile(
 
 class Stride(object):
     """
-    Allows four basic strides and three extended strides:
-                    __.
-        0 10          |
-       0 5 10         | basic set of strides
-      0 3 7 10        |
-     0 2 5 8 10     __|
-    0 2 4 6 8 10      |
-   0 1 3 5 7 9 10     | extended set of strides
-  01 23 45 67 89 10 __|
+      Allows four basic strides and three extended strides:
+                      __.
+          0 10          |
+         0 5 10         | basic set of strides
+        0 3 7 10        |
+       0 2 5 8 10     __|
+      0 2 4 6 8 10      |
+     0 1 3 5 7 9 10     | extended set of strides
+    01 23 45 67 89 10 __|
 
-    We have main parameters, # we need, # available go through all possible
-    numbers excluding everything in black.
+      We have main parameters, # we need, # available go through all possible
+      numbers excluding everything in black.
     """
 
     def __init__(self, needed, available, extended=False):
@@ -615,7 +615,11 @@ def annotate(args):
         + "Use if resolving ambiguities based on sequence `alignment`",
     )
     g1.add_option(
-        "--pid", dest="pid", default=35.0, type="float", help="Percent identity cutoff",
+        "--pid",
+        dest="pid",
+        default=35.0,
+        type="float",
+        help="Percent identity cutoff",
     )
     g1.add_option(
         "--score",
@@ -956,10 +960,17 @@ def rename(args):
         help="Increment for continuous genes",
     )
     p.add_option(
-        "-b", dest="gap_increment", default=1000, type="int", help="Increment for gaps",
+        "-b",
+        dest="gap_increment",
+        default=1000,
+        type="int",
+        help="Increment for gaps",
     )
     p.add_option(
-        "--pad0", default=6, type="int", help="Pad gene identifiers with 0",
+        "--pad0",
+        default=6,
+        type="int",
+        help="Pad gene identifiers with 0",
     )
     p.add_option(
         "--spad0",
@@ -1079,7 +1090,11 @@ def reindex(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    gffile, pep, refpep, = args
+    (
+        gffile,
+        pep,
+        refpep,
+    ) = args
     gffdb = make_index(gffile)
     reffasta = Fasta(refpep)
 

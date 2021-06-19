@@ -14,12 +14,10 @@ from bx.align import maf
 
 from jcvi.formats.base import BaseFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
-from jcvi.apps.lastz import blastz_score_to_ncbi_expectation, \
-            blastz_score_to_ncbi_bits
+from jcvi.apps.lastz import blastz_score_to_ncbi_expectation, blastz_score_to_ncbi_bits
 
 
-class Maf (BaseFile, dict):
-
+class Maf(BaseFile, dict):
     def __init__(self, filename, index=False):
         super(Maf, self).__init__(filename)
 
@@ -48,8 +46,13 @@ class Maf (BaseFile, dict):
             if rec is None:
                 break
             for c in rec.components:
-                indexes.add(c.src, c.forward_strand_start,
-                        c.forward_strand_end, pos, max=c.src_size )
+                indexes.add(
+                    c.src,
+                    c.forward_strand_start,
+                    c.forward_strand_end,
+                    pos,
+                    max=c.src_size,
+                )
 
         index_handle = open(indexfile, "w")
         indexes.write(index_handle)
@@ -59,9 +62,9 @@ class Maf (BaseFile, dict):
 def main():
 
     actions = (
-        ('bed', 'convert MAF to BED format'),
-        ('blast', 'convert MAF to BLAST tabular format'),
-            )
+        ("bed", "convert MAF to BED format"),
+        ("blast", "convert MAF to BLAST tabular format"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -91,8 +94,17 @@ def bed(args):
 
             for a, tag in zip((a, b), "ab"):
                 name = "{0}_{1:07d}{2}".format(prefix, j, tag)
-                print("\t".join(str(x) for x in (a.src, a.forward_strand_start, \
-                        a.forward_strand_end, name)))
+                print(
+                    "\t".join(
+                        str(x)
+                        for x in (
+                            a.src,
+                            a.forward_strand_start,
+                            a.forward_strand_end,
+                            name,
+                        )
+                    )
+                )
 
             j += 1
 
@@ -113,7 +125,7 @@ def alignment_details(a, b):
         else:
             nmismatch += 1
 
-    pctid = 100. * nmatch / l
+    pctid = 100.0 * nmatch / l
     return pctid, nmismatch, ngaps
 
 
@@ -135,17 +147,33 @@ def maf_to_blast8(f):
         hitlen = len(a.text)
 
         pctid, nmismatch, ngaps = alignment_details(a.text, b.text)
-        print("\t".join(str(x) for x in (query, subject, pctid, hitlen,
-            nmismatch, ngaps, qstart, qstop, sstart, sstop,
-            evalue, score)))
+        print(
+            "\t".join(
+                str(x)
+                for x in (
+                    query,
+                    subject,
+                    pctid,
+                    hitlen,
+                    nmismatch,
+                    ngaps,
+                    qstart,
+                    qstop,
+                    sstart,
+                    sstop,
+                    evalue,
+                    score,
+                )
+            )
+        )
 
 
 def blast(args):
-    '''
+    """
     %prog blast maffiles > out.blast
 
     From a folder of .maf files, generate .blast file with tabular format.
-    '''
+    """
     p = OptionParser(blast.__doc__)
     opts, args = p.parse_args(args)
 
@@ -158,5 +186,5 @@ def blast(args):
         maf_to_blast8(f)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

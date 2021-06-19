@@ -23,8 +23,8 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which, mkdir, nee
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
 allowed_dialect_conversions = {
-    ">=1.8": ("<1.8"),
-    "sra": ("<1.8"),
+    ">=1.8": "<1.8",
+    "sra": "<1.8",
 }
 
 
@@ -80,7 +80,7 @@ class FastqHeader(object):
         if len(header) == 3 and "length" in header[2]:
             self.dialect = "sra"
             self.readId = header[0].lstrip("@")
-            m = re.search(r"length\=(\d+)", header[2])
+            m = re.search(r"length=(\d+)", header[2])
             if m:
                 self.readLen = m.group(1)
             h = header[1].split(":")
@@ -121,7 +121,7 @@ class FastqHeader(object):
                 self.tileNum = int(h[2])
                 self.xPos = int(h[3])
                 self.yPos = h[4]
-                m = re.search(r"(\d+)(#\S+)\/(\d+)", self.yPos)
+                m = re.search(r"(\d+)(#\S+)/(\d+)", self.yPos)
                 if m:
                     self.paired = True
                     self.yPos, self.multiplexId, self.readNum = (

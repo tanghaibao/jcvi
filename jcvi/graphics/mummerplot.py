@@ -35,22 +35,37 @@ def main(args):
     """
     p = OptionParser(main.__doc__)
     p.add_option("--refids", help="Use subset of contigs in the ref")
-    p.add_option("--refcov", default=.01, type="float",
-                 help="Minimum reference coverage [default: %default]")
-    p.add_option("--all", default=False, action="store_true",
-                 help="Plot one pdf file per ref in refidsfile [default: %default]")
-    p.add_option("--color", default="similarity",
-                 choices=("similarity", "direction", "none"),
-                 help="Color the dots based on")
-    p.add_option("--nolayout", default=False, action="store_true",
-                 help="Do not rearrange contigs")
+    p.add_option(
+        "--refcov",
+        default=0.01,
+        type="float",
+        help="Minimum reference coverage",
+    )
+    p.add_option(
+        "--all",
+        default=False,
+        action="store_true",
+        help="Plot one pdf file per ref in refidsfile",
+    )
+    p.add_option(
+        "--color",
+        default="similarity",
+        choices=("similarity", "direction", "none"),
+        help="Color the dots based on",
+    )
+    p.add_option(
+        "--nolayout",
+        default=False,
+        action="store_true",
+        help="Do not rearrange contigs",
+    )
     p.set_align(pctid=0, hitlen=0)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    deltafile, = args
+    (deltafile,) = args
     reffasta, queryfasta = open(deltafile).readline().split()
     color = opts.color
     layout = not opts.nolayout
@@ -62,24 +77,47 @@ def main(args):
     refcov = opts.refcov
     pctid = opts.pctid
     hitlen = opts.hitlen
-    deltafile = filter([deltafile, "--pctid={0}".format(pctid),
-                        "--hitlen={0}".format(hitlen)])
+    deltafile = filter(
+        [deltafile, "--pctid={0}".format(pctid), "--hitlen={0}".format(hitlen)]
+    )
 
     if opts.all:
         for r in refs:
-            pdffile = plot_some_queries([r], qsizes, rsizes, deltafile, refcov,
-                                        prefix=prefix, color=color,
-                                        layout=layout)
+            pdffile = plot_some_queries(
+                [r],
+                qsizes,
+                rsizes,
+                deltafile,
+                refcov,
+                prefix=prefix,
+                color=color,
+                layout=layout,
+            )
             if pdffile:
                 sh("mv {0} {1}.pdf".format(pdffile, r))
     else:
-        plot_some_queries(refs, qsizes, rsizes,
-                          deltafile, refcov,
-                          prefix=prefix, color=color, layout=layout)
+        plot_some_queries(
+            refs,
+            qsizes,
+            rsizes,
+            deltafile,
+            refcov,
+            prefix=prefix,
+            color=color,
+            layout=layout,
+        )
 
 
-def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov,
-                      prefix="out", color="similarity", layout=True):
+def plot_some_queries(
+    refs,
+    qsizes,
+    rsizes,
+    deltafile,
+    refcov,
+    prefix="out",
+    color="similarity",
+    layout=True,
+):
 
     Qfile, Rfile = "Qfile", "Rfile"
     coords = Coords(deltafile)
@@ -119,5 +157,5 @@ def plot_some_queries(refs, qsizes, rsizes, deltafile, refcov,
     return prefix + ".pdf"
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main(sys.argv[1:])

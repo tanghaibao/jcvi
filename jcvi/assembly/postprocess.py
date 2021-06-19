@@ -20,8 +20,16 @@ from collections import defaultdict
 from itertools import groupby
 
 from jcvi.formats.contig import ContigFile
-from jcvi.formats.fasta import Fasta, Seq, SeqIO, SeqRecord, gaps, format, \
-            parse_fasta, tidy
+from jcvi.formats.fasta import (
+    Fasta,
+    Seq,
+    SeqIO,
+    SeqRecord,
+    gaps,
+    format,
+    parse_fasta,
+    tidy,
+)
 from jcvi.formats.sizes import Sizes
 from jcvi.formats.base import must_open
 from jcvi.utils.cbook import depends
@@ -33,16 +41,16 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, need_updat
 def main():
 
     actions = (
-        ('screen', 'screen sequences against library'),
-        ('circular', 'make circular genome'),
-        ('dedup', 'remove duplicate contigs within assembly'),
-        ('dust', 'remove low-complexity contigs within assembly'),
-        ('dust2bed', 'extract low-complexity regions as bed file'),
-        ('build', 'build assembly files after a set of clean-ups'),
-        ('overlap', 'build larger contig set by fishing additional seqs'),
-        ('overlapbatch', 'call overlap on a set of sequences'),
-        ('scaffold', 'build scaffolds based on the ordering in the AGP file'),
-            )
+        ("screen", "screen sequences against library"),
+        ("circular", "make circular genome"),
+        ("dedup", "remove duplicate contigs within assembly"),
+        ("dust", "remove low-complexity contigs within assembly"),
+        ("dust2bed", "extract low-complexity regions as bed file"),
+        ("build", "build assembly files after a set of clean-ups"),
+        ("overlap", "build larger contig set by fishing additional seqs"),
+        ("overlapbatch", "call overlap on a set of sequences"),
+        ("scaffold", "build scaffolds based on the ordering in the AGP file"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -61,7 +69,7 @@ def dust2bed(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     interval = fastafile + ".iv"
     if need_update(fastafile, interval):
         cmd = "dustmasker -in {0}".format(fastafile)
@@ -80,8 +88,11 @@ def dust2bed(args):
             print("\t".join(str(x) for x in (header, start, end)), file=fw)
             nlines += 1
             nbases += end - start
-    logging.debug("A total of {0} DUST intervals ({1} bp) exported to `{2}`".\
-                    format(nlines, nbases, bedfile))
+    logging.debug(
+        "A total of {0} DUST intervals ({1} bp) exported to `{2}`".format(
+            nlines, nbases, bedfile
+        )
+    )
 
 
 def fasta2bed(fastafile):
@@ -110,8 +121,12 @@ def circular(args):
     from jcvi.assembly.goldenpath import overlap
 
     p = OptionParser(circular.__doc__)
-    p.add_option("--flip", default=False, action="store_true",
-                 help="Reverse complement the sequence")
+    p.add_option(
+        "--flip",
+        default=False,
+        action="store_true",
+        help="Reverse complement the sequence",
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -131,7 +146,7 @@ def circular(args):
         fw.close()
 
     o = overlap([aseqfile, bseqfile])
-    seq = aseq[:o.qstop] + bseq[o.sstop:]
+    seq = aseq[: o.qstop] + bseq[o.sstop :]
     seq = Seq(seq)
 
     if opts.flip:
@@ -158,7 +173,7 @@ def dust(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     dustfastafile = fastafile.rsplit(".", 1)[0] + ".dust.fasta"
     if need_update(fastafile, dustfastafile):
         cmd = "dustmasker -in {0}".format(fastafile)
@@ -167,10 +182,10 @@ def dust(args):
 
     for name, seq in parse_fasta(dustfastafile):
         nlow = sum(1 for x in seq if x in "acgtnN")
-        pctlow = nlow * 100. / len(seq)
+        pctlow = nlow * 100.0 / len(seq)
         if pctlow < 98:
             continue
-        #print "{0}\t{1:.1f}".format(name, pctlow)
+        # print "{0}\t{1:.1f}".format(name, pctlow)
         print(name)
 
 
@@ -190,7 +205,7 @@ def dedup(args):
         sys.exit(not p.print_help())
 
     blastfile, fastafile = args
-    cov = opts.pctcov / 100.
+    cov = opts.pctcov / 100.0
     sizes = Sizes(fastafile).mapping
     fp = open(blastfile)
     removed = set()
@@ -227,16 +242,19 @@ def build(args):
     from jcvi.formats.fasta import sort
 
     p = OptionParser(build.__doc__)
-    p.add_option("--nodedup", default=False, action="store_true",
-                 help="Do not deduplicate [default: deduplicate]")
+    p.add_option(
+        "--nodedup",
+        default=False,
+        action="store_true",
+        help="Do not deduplicate [default: deduplicate]",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
     fastafile, bacteria, pf = args
-    dd = deduplicate([fastafile, "--pctid=100"]) \
-                if not opts.nodedup else fastafile
+    dd = deduplicate([fastafile, "--pctid=100"]) if not opts.nodedup else fastafile
     screenfasta = screen([dd, bacteria])
     tidyfasta = mask([screenfasta])
     sortedfasta = sort([tidyfasta, "--sizes"])
@@ -261,8 +279,7 @@ def screen(args):
 
     p = OptionParser(screen.__doc__)
     p.set_align(pctid=95, pctcov=50)
-    p.add_option("--best", default=1, type="int",
-            help="Get the best N hit [default: %default]")
+    p.add_option("--best", default=1, type="int", help="Get the best N hit")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -270,12 +287,18 @@ def screen(args):
 
     scaffolds, library = args
     pctidflag = "--pctid={0}".format(opts.pctid)
-    blastfile = blast([library, scaffolds, pctidflag,
-               "--best={0}".format(opts.best)])
+    blastfile = blast([library, scaffolds, pctidflag, "--best={0}".format(opts.best)])
 
     idsfile = blastfile.rsplit(".", 1)[0] + ".ids"
-    covfilter([blastfile, scaffolds, "--ids=" + idsfile,
-               pctidflag, "--pctcov={0}".format(opts.pctcov)])
+    covfilter(
+        [
+            blastfile,
+            scaffolds,
+            "--ids=" + idsfile,
+            pctidflag,
+            "--pctcov={0}".format(opts.pctcov),
+        ]
+    )
 
     pf = scaffolds.rsplit(".", 1)[0]
     nf = pf + ".screen.fasta"
@@ -297,8 +320,12 @@ def scaffold(args):
     from jcvi.formats.bed import Bed
 
     p = OptionParser(scaffold.__doc__)
-    p.add_option("--prefix", default=False, action="store_true",
-            help="Keep IDs with same prefix together [default: %default]")
+    p.add_option(
+        "--prefix",
+        default=False,
+        action="store_true",
+        help="Keep IDs with same prefix together",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -341,8 +368,9 @@ def scaffold(args):
         else:
             phase = 1
 
-        msg = "{0}: Scaffolds={1} Singletons={2} Phase={3}".\
-            format(bname, nscaffolds, nsingletons, phase)
+        msg = "{0}: Scaffolds={1} Singletons={2} Phase={3}".format(
+            bname, nscaffolds, nsingletons, phase
+        )
         print(msg, file=sys.stderr)
         print("\t".join((bname, str(phase))), file=fwphase)
 
@@ -460,8 +488,7 @@ def overlap(args):
         if reads.isdisjoint(originalIDs):
             excludecontigs.add(rec.id)
 
-    logging.debug("Exclude contigs: {0}".\
-            format(", ".join(sorted(excludecontigs))))
+    logging.debug("Exclude contigs: {0}".format(", ".join(sorted(excludecontigs))))
 
     finalfasta = prefix + ".improved.fasta_"
     fw = open(finalfasta, "w")
@@ -476,8 +503,7 @@ def overlap(args):
     singletons = set(x.strip() for x in open(singletonfile))
     leftovers = singletons & originalIDs
 
-    logging.debug("Pull leftover singletons: {0}".\
-            format(", ".join(sorted(leftovers))))
+    logging.debug("Pull leftover singletons: {0}".format(", ".join(sorted(leftovers))))
 
     f = Fasta(ctgfasta)
     for id, rec in f.iteritems_ordered():
@@ -489,8 +515,9 @@ def overlap(args):
 
     fastafile = finalfasta
     finalfasta = fastafile.rstrip("_")
-    format([fastafile, finalfasta, "--sequential", "--pad0=3",
-        "--prefix={0}_".format(rid)])
+    format(
+        [fastafile, finalfasta, "--sequential", "--pad0=3", "--prefix={0}_".format(rid)]
+    )
 
     logging.debug("Improved FASTA written to `{0}`.".format(finalfasta))
 
@@ -503,5 +530,5 @@ def overlap(args):
             os.remove(f)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

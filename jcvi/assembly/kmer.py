@@ -80,7 +80,7 @@ class KmerSpectrum(BaseFile):
         return zip(*self.counts)
 
     def analyze(self, K=23, maxiter=100, method="nbinom"):
-        """ Analyze K-mer histogram.
+        """Analyze K-mer histogram.
 
         Args:
             K (int, optional): K-mer size. Defaults to 23.
@@ -99,7 +99,7 @@ class KmerSpectrum(BaseFile):
         return self.analyze_allpaths(K=K)
 
     def analyze_nbinom(self, K=23, maxiter=100):
-        """ Analyze the K-mer histogram using negative binomial distribution.
+        """Analyze the K-mer histogram using negative binomial distribution.
 
         Args:
             K (int, optional): K-mer size used when generating the histogram. Defaults to 23.
@@ -964,11 +964,17 @@ def jellyfish(args):
     p = OptionParser(jellyfish.__doc__)
     p.add_option("-K", default=23, type="int", help="K-mer size")
     p.add_option(
-        "--coverage", default=40, type="int", help="Expected sequence coverage",
+        "--coverage",
+        default=40,
+        type="int",
+        help="Expected sequence coverage",
     )
     p.add_option("--prefix", default="jf", help="Database prefix")
     p.add_option(
-        "--nohist", default=False, action="store_true", help="Do not print histogram",
+        "--nohist",
+        default=False,
+        action="store_true",
+        help="Do not print histogram",
     )
     p.set_home("jellyfish")
     p.set_cpus()
@@ -1113,10 +1119,18 @@ def histogram(args):
     """
     p = OptionParser(histogram.__doc__)
     p.add_option(
-        "--vmin", dest="vmin", default=1, type="int", help="minimum value, inclusive",
+        "--vmin",
+        dest="vmin",
+        default=1,
+        type="int",
+        help="minimum value, inclusive",
     )
     p.add_option(
-        "--vmax", dest="vmax", default=100, type="int", help="maximum value, inclusive",
+        "--vmax",
+        dest="vmax",
+        default=100,
+        type="int",
+        help="maximum value, inclusive",
     )
     p.add_option(
         "--pdf",
@@ -1196,7 +1210,11 @@ def histogram(args):
         kf_range = method_info["kf_range"]
         stacked = generative_model(GG, ll, rr)
         plt.plot(
-            kf_range, stacked, ":", color="#6a3d9a", lw=2,
+            kf_range,
+            stacked,
+            ":",
+            color="#6a3d9a",
+            lw=2,
         )
 
     ax = plt.gca()

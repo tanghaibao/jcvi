@@ -1870,6 +1870,7 @@ def format(args):
                             remove.add(id)
                     if len(keep) == 0:
                         continue
+                    parent = g.set_attr("Parent", keep)
 
         if remove_attrs:
             for remove_attr in remove_attrs:
@@ -3400,7 +3401,7 @@ def parse_feature_param(feature):
         if upstream_site not in valid_upstream_sites:
             flag, error_msg = (
                 1,
-                f"Error: upstream site `{upstream_site}` not valid. Please choose from {valid_upstream_sites}"
+                f"Error: upstream site `{upstream_site}` not valid. Please choose from {valid_upstream_sites}",
             )
     elif feature == "CDS":
         parents, children = "mRNA", "CDS"

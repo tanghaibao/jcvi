@@ -4,8 +4,6 @@
 """
 Machine learning algorithms.
 """
-from __future__ import print_function
-
 import sys
 
 from jcvi.apps.base import OptionParser, ActionDispatcher

@@ -4,8 +4,6 @@
 """
 Classes to handle the .psl files
 """
-from __future__ import print_function
-
 import sys
 import math
 import re

@@ -4,8 +4,6 @@
 """
 Prepare the data for Genbank submission
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import string

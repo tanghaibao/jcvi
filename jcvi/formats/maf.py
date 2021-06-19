@@ -5,8 +5,6 @@
 MAF format specification:
 <http://genome.ucsc.edu/FAQ/FAQformat#format5>
 """
-from __future__ import print_function
-
 import sys
 
 from bx import interval_index_file

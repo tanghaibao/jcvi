@@ -4,8 +4,6 @@
 """
 Process Hi-C output into AGP for chromosomal-scale scaffolding.
 """
-from __future__ import print_function
-
 import array
 import json
 import logging

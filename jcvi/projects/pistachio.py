@@ -4,10 +4,7 @@
 """
 Functions related to processing of the pistachio genome.
 """
-from __future__ import print_function
-
 import sys
-
 
 from jcvi.apps.base import OptionParser, ActionDispatcher
 

@@ -4,8 +4,6 @@
 """
 Scripts for the Brassica napus genome manuscript (Chalhoub et al. Science 2014).
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
@@ -116,7 +114,6 @@ def make_layout(chrs, chr_sizes, ratio, template, klayout="layout", shift=0):
     for chr, chr_size in zip(chrs, chr_sizes):
         coords.extend(center_panel(chr, chr_size, ratio, shift=shift))
 
-    klayout = "layout"
     fw = open(klayout, "w")
     print(template.format(*coords), file=fw)
     fw.close()
@@ -668,7 +665,6 @@ def deletion(args):
         num, genes = row.split()
         genes = genes.split("|")
         ia, a = order[genes[0]]
-        ib, b = order[genes[-1]]
         mi, mx = a.start, a.end
         mi, mx = scale(mi), scale(mx)
         root.add_patch(Rectangle((mi, 0.475), mx - mi, 0.05, fc="red", ec="red"))
@@ -752,7 +748,7 @@ def ploidy(args):
     root.text(
         0.5,
         0.2 + ot,
-        r"\noindent\textit{Brassica napus}\\" "(A$\mathsf{_n}$C$\mathsf{_n}$ genome)",
+        r"\noindent\textit{Brassica napus}\\(A$\mathsf{_n}$C$\mathsf{_n}$ genome)",
         ha="center",
         size=16,
         color="k",

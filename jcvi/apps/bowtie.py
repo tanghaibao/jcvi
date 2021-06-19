@@ -7,8 +7,6 @@ files. Bowtie2 help:
 
 <http://bowtie-bio.sourceforge.net/bowtie2/index.shtml>
 """
-from __future__ import print_function
-
 import sys
 import logging
 

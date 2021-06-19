@@ -4,8 +4,6 @@
 """
 Procedure to cut genome using restriction enzymes.
 """
-from __future__ import print_function
-
 import sys
 import logging
 

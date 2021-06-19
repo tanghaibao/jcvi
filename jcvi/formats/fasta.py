@@ -1,8 +1,6 @@
 """
 Wrapper for biopython Fasta, add option to parse sequence headers
 """
-from __future__ import print_function
-
 import re
 import sys
 import os
@@ -1621,7 +1619,7 @@ def diff(args):
             )
 
     if problem_ids:
-        print(red("A total of {0} records mismatch.".format(len(problem_ids))))
+        print("A total of {0} records mismatch.".format(len(problem_ids)))
         fw = must_open("Problems.ids", "w")
         print("\n".join(problem_ids), file=fw)
 

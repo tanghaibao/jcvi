@@ -4,8 +4,6 @@
 """
 Run EMBOSS programs.
 """
-from __future__ import print_function
-
 import sys
 import multiprocessing as mp
 

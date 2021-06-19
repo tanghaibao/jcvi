@@ -4,8 +4,6 @@
 """
 Procedure to touch and copy softlinks
 """
-from __future__ import print_function
-
 import os
 import os.path as op
 import logging

@@ -4,8 +4,6 @@
 """
 Identify repeat numbers in STR repeats.
 """
-from __future__ import print_function
-
 import re
 import os
 import os.path as op
@@ -93,7 +91,7 @@ DYS635 DYS643 GATA-H4
 
 class TREDsRepo(dict):
     def __init__(self, ref=REF):
-
+        super(TREDsRepo, self).__init__()
         self.ref = ref
         df = pd.read_csv(REPO, index_col=0)
         self.names = []
@@ -287,6 +285,7 @@ class STRFile(LineFile):
 
 class LobSTRvcf(dict):
     def __init__(self, columnidsfile="STR.ids"):
+        super(LobSTRvcf, self).__init__()
         self.samplekey = None
         self.evidence = {}  # name: (supporting reads, stutter reads)
         if columnidsfile:
@@ -388,6 +387,8 @@ def treds(args):
     Compile allele_frequency for TREDs results. Write data.tsv, meta.tsv and
     mask.tsv in one go.
     """
+    from jcvi.apps.base import datafile
+
     p = OptionParser(treds.__doc__)
     p.add_option(
         "--csv", default=False, action="store_true", help="Also write `meta.csv`"
@@ -552,7 +553,7 @@ def filtervcf(args):
     run_args = [(x, lhome, x.startswith("s3://") and store) for x in vcffiles]
     cpus = min(opts.cpus, len(run_args))
     p = Pool(processes=cpus)
-    for res in p.map_async(run_filter, run_args).get():
+    for _ in p.map_async(run_filter, run_args).get():
         continue
 
 
@@ -748,9 +749,9 @@ def convert_to_percentile(arg):
 
 def write_csv(csvfile, m, index, columns, sep="\t", index_label="SampleKey"):
     fw = open(csvfile, "w")
-    print("\t".join([index_label] + columns), file=fw)
+    print(sep.join([index_label] + columns), file=fw)
     for i, a in enumerate(m):
-        print(index[i] + "\t" + "\t".join(str(x) for x in a), file=fw)
+        print(index[i] + sep + sep.join(str(x) for x in a), file=fw)
     fw.close()
 
 
@@ -1038,7 +1039,7 @@ def compilevcf(args):
     run_args = [(x, filtered, cleanup, store) for x in vcffiles]
     cpus = min(opts.cpus, len(run_args))
     p = Pool(processes=cpus)
-    for res in p.map_async(run_compile, run_args).get():
+    for _ in p.map_async(run_compile, run_args).get():
         continue
 
 

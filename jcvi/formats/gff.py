@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-
-from __future__ import print_function
 import sys
 import os
 import os.path as op
@@ -2720,7 +2718,7 @@ def extract(args):
 
     if opts.children:
         assert types is not None or names is not None, "Must set --names or --types"
-        if names == None:
+        if names is None:
             names = list()
         populate_children(outfile, names, gffile, iter=opts.children, types=types)
         return

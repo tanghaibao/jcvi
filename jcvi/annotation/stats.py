@@ -5,8 +5,6 @@
 Collect gene statistics based on gff file:
 Exon length, Intron length, Gene length, Exon count
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging

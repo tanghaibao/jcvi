@@ -6,8 +6,6 @@ Procedures to validate and update golden path of a genome assembly. This relies
 heavily on formats.agp, and further includes several algorithms, e.g. overlap
 detection.
 """
-from __future__ import print_function
-
 import os
 import os.path as op
 import sys
@@ -1122,7 +1120,7 @@ def neighbor(args):
 
     agp = AGP(agpfile)
     aorder = agp.order
-    if not componentID in aorder:
+    if componentID not in aorder:
         print(
             "Record {0} not present in `{1}`.".format(componentID, agpfile),
             file=sys.stderr,

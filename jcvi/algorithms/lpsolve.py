@@ -186,6 +186,8 @@ class AbstractMIPSolver(object):
     Base class for LP solvers
     """
 
+    obj_val: float
+
     def __init__(self, lp_data, work_dir=Work_dir, clean=True, verbose=False):
 
         self.work_dir = work_dir

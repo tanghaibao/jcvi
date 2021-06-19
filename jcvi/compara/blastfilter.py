@@ -19,8 +19,6 @@ see supplementary info for sea anemone genome paper, formula::
 
 Finally a blast.filtered file is created.
 """
-from __future__ import print_function
-
 import sys
 import logging
 import os.path as op

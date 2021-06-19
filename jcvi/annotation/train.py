@@ -4,8 +4,6 @@
 """
 Train ab initio gene predictors.
 """
-from __future__ import print_function
-
 import os
 import os.path as op
 import sys
@@ -209,7 +207,7 @@ def augustus(args):
         )
     )
     sh("{0}/bin/etraining --species={1} raw.gb 2> train.err".format(mhome, species))
-    sh("cat train.err | perl -pe 's/.*in sequence (\S+): .*/$1/' > badgenes.lst")
+    sh(r"cat train.err | perl -pe 's/.*in sequence (\S+): .*/$1/' > badgenes.lst")
     sh("{0}/scripts/filterGenes.pl badgenes.lst raw.gb > training.gb".format(mhome))
     sh("grep -c LOCUS raw.gb training.gb")
 

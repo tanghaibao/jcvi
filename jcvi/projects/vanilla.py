@@ -4,8 +4,6 @@
 """
 Plotting scripts for the vanilla genome paper.
 """
-from __future__ import print_function
-
 import logging
 import sys
 
@@ -58,7 +56,6 @@ def phylogeny(args):
     ax1 = fig.add_axes([0, 0.4, 1, 0.6])
     ax2 = fig.add_axes([0.12, 0.065, 0.8, 0.3])
 
-    supportcolor = "k"
     margin, rmargin = 0.1, 0.2  # Left and right margin
     leafinfo = LeafInfoFile("leafinfo.csv").cache
     wgdinfo = WGDInfoFile("wgdinfo.csv").cache
@@ -134,7 +131,6 @@ def tree(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     ax1 = fig.add_axes([0, 0, 1, 1])
 
-    supportcolor = "k"
     margin, rmargin = 0.1, 0.2  # Left and right margin
     leafinfo = LeafInfoFile("leafinfo.csv").cache
     wgdinfo = WGDInfoFile("wgdinfo.csv").cache
@@ -327,23 +323,21 @@ def ancestral(args):
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorsfile, p, opts)
 
     # We focus on the following chromosome pairs
-    target_pairs = set(
-        (
-            (1, 1),
-            (1, 6),
-            (1, 8),
-            (1, 13),
-            (2, 4),
-            (3, 12),
-            (3, 14),
-            (5, 6),
-            (5, 8),
-            (7, 9),
-            (7, 11),
-            (9, 10),
-            (10, 11),
-        )
-    )
+    target_pairs = {
+        (1, 1),
+        (1, 6),
+        (1, 8),
+        (1, 13),
+        (2, 4),
+        (3, 12),
+        (3, 14),
+        (5, 6),
+        (5, 8),
+        (7, 9),
+        (7, 11),
+        (9, 10),
+        (10, 11),
+    }
 
     def get_target(achr, bchr):
         if "chr" not in achr and "chr" not in bchr:

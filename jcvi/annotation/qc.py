@@ -8,8 +8,6 @@ testing. Several aspects of annotation QC are implemented in this script.
 - Trim UTRs. MAKER sometimes predict UTRs that extend into other genes.
 - Remove overlapping models.
 """
-from __future__ import print_function
-
 import sys
 
 from jcvi.formats.gff import (
@@ -275,7 +273,7 @@ def trimUTR(args):
                 if not refc:
                     trim(c, start, end, trim5=t5, trim3=t3, both=trim_both)
                 fprint(c, fw)
-                for cc in gff.children(cid, order_by=("start")):
+                for cc in gff.children(cid, order_by="start"):
                     _ctype = cc.featuretype
                     if _ctype not in utr_types:
                         if _ctype != "CDS":
@@ -285,7 +283,7 @@ def trimUTR(args):
                                     for x in extras
                                     if x.featuretype == "exon"
                                 ]
-                                if any(skip for skip in eskip):
+                                if any(eskip):
                                     continue
                             trim(cc, start, end, trim5=t5, trim3=t3, both=trim_both)
                             fprint(cc, fw)
@@ -326,10 +324,10 @@ def nmd(args):
     fw = must_open(opts.outfile, "w")
     for gene in gff.features_of_type("gene", order_by=("seqid", "start")):
         _enumerate = enumerate if gene.strand == "-" else enumerate_reversed
-        for mrna in gff.children(gene, featuretype="mRNA", order_by=("start")):
+        for mrna in gff.children(gene, featuretype="mRNA", order_by="start"):
             tracker = dict()
             tracker["exon"] = list(
-                gff.children(mrna, featuretype="exon", order_by=("start"))
+                gff.children(mrna, featuretype="exon", order_by="start")
             )
             tracker["cds"] = [None] * len(tracker["exon"])
 

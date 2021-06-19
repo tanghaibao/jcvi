@@ -4,8 +4,6 @@
 """
 Automate genome assembly by iterating assembly on a set of files, individually.
 """
-from __future__ import print_function
-
 import os
 import os.path as op
 import sys
@@ -167,7 +165,7 @@ def contamination(args):
         align_opts += ["--cutoff={0}".format(opts.cutoff), "--null"]
         if opts.mateorientation:
             align_opts += ["--mateorientation={0}".format(opts.mateorientation)]
-        samfile, logfile = align(align_opts)
+        align(align_opts)
 
 
 def pairs(args):

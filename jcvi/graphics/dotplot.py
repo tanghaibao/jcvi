@@ -316,8 +316,8 @@ def dotplot(
         if is_self:  # Mirror image
             data.append((si, qi, nv))
 
-    data = downsample(data, sample_number=sample_number)
     npairs = len(data)
+    data = downsample(data, sample_number=sample_number)
     x, y, c = zip(*data)
 
     if palette:

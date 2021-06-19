@@ -9,8 +9,6 @@ include the following components
 + Use minimus2 to combine the contigs through overlaps
 + Map the mates to the contigs and perform scaffolding
 """
-from __future__ import print_function
-
 import os
 import os.path as op
 import sys

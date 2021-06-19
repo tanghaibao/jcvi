@@ -4,8 +4,6 @@
 """
 Scripts related to age prediction model.
 """
-from __future__ import print_function
-
 import logging
 import json
 import os
@@ -180,9 +178,6 @@ def composite_ccn(df, size=(12, 8)):
     ax2 = plt.subplot2grid((2, 2), (0, 1))
     ax3 = plt.subplot2grid((2, 2), (1, 0))
     ax4 = plt.subplot2grid((2, 2), (1, 1))
-    chemistry = ["V1", "V2", "V2.5", float("nan")]
-    colors = sns.color_palette("Set2", 8)
-    color_map = dict(zip(chemistry, colors))
     mf = df[df["hli_calc_gender"] == "Male"]
 
     age_label = "Chronological age (yr)"
@@ -236,10 +231,6 @@ def composite_ccn(df, size=(12, 8)):
 
     from matplotlib.lines import Line2D
 
-    legend_elements = [
-        Line2D([0], [0], marker=".", color="w", label=chem, markerfacecolor=color)
-        for (chem, color) in zip(chemistry, colors)[:3]
-    ]
     for ax in (ax1, ax2, ax3, ax4):
         ax.set_xlabel(age_label)
 
@@ -560,8 +551,8 @@ def plot_paired_values(
     dzx, dzy = zip(*dzValues)
     (mzline,) = ax.plot(mzx, mzy, ".", color=palette[0], alpha=0.75)
     (dzline,) = ax.plot(dzx, dzy, ".", color=palette[-1], alpha=0.75)
-    ax.set_xlabel(label + " in twin \#1")
-    ax.set_ylabel(label + " in twin \#2")
+    ax.set_xlabel(label + r" in twin \#1")
+    ax.set_ylabel(label + r" in twin \#2")
     ax.legend(
         (mzline, dzline),
         (

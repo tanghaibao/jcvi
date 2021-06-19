@@ -4,8 +4,6 @@
 """
 Catalog gene losses, and bites within genes.
 """
-from __future__ import print_function
-
 import sys
 import logging
 

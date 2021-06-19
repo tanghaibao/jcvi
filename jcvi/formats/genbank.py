@@ -5,8 +5,6 @@
 Genbank record operations based on biopython Bio.SeqIO
 https://github.com/biopython/biopython/blob/master/Bio/SeqIO/InsdcIO.py
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
@@ -89,7 +87,6 @@ class MultiGenBank(BaseFile):
         g = GffLine(g)
 
         qual = f.qualifiers
-        id = "tmp"
         if MT in qual:
             id = seqid
         elif LT in qual:
@@ -140,6 +137,7 @@ class GenBank(dict):
     """
 
     def __init__(self, filenames=None, accessions=None, idfile=None):
+        super(GenBank, self).__init__()
         self.accessions = accessions
         self.idfile = idfile
 
@@ -295,7 +293,7 @@ class GenBank(dict):
         if not individual:
             fw = must_open(output + ".fasta", "w")
 
-        for recid, rec in self.iteritems():
+        for recid, rec in self.items():
             if individual:
                 mkdir(output)
                 fw = must_open(op.join(output, recid + ".fasta"), "w")

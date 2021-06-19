@@ -2,10 +2,8 @@
 # -*- coding: UTF-8 -*-
 
 """
-Analyze SNPs in resequencing panels.
+Analyze SNPs in re-sequencing panels.
 """
-from __future__ import print_function
-
 import sys
 import logging
 

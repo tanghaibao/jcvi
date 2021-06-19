@@ -4,8 +4,6 @@
 """
 Subroutines to aid ALLPATHS-LG assembly.
 """
-from __future__ import print_function
-
 import os.path as op
 import os
 import sys
@@ -270,12 +268,12 @@ def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p, suffix=False):
     each for one end. p is a Pairs instance.
     """
     fp = open(fastqfile)
-    currentID = 0
+    current_id = 0
     npairs = nfrags = 0
-    for x, lib in izip(p.r1, p.libs):
-        while currentID != x:
+    for x, lib in zip(p.r1, p.libs):
+        while current_id != x:
             fragsfw.writelines(islice(fp, 4))  # Exhaust the iterator
-            currentID += 1
+            current_id += 1
             nfrags += 1
         a = list(islice(fp, 4))
         b = list(islice(fp, 4))
@@ -288,7 +286,7 @@ def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p, suffix=False):
 
         p1fw[lib].writelines(a)
         p2fw[lib].writelines(b)
-        currentID += 2
+        current_id += 2
         npairs += 2
 
     # Write the remaining single reads

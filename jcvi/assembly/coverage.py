@@ -7,8 +7,6 @@ Provide coverage QC for assembled sequences:
 2. plot base coverage and mate coverage
 3. plot gaps in the sequence (if any)
 """
-from __future__ import print_function
-
 import logging
 
 from collections import defaultdict

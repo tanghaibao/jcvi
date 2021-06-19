@@ -109,7 +109,6 @@ def main():
     if dbtype == "prot":
         nin = db + ".pin"
     else:
-        nin = db + ".nin"
         nin00 = db + ".00.nin"
         nin = nin00 if op.exists(nin00) else (db + ".nin")
 

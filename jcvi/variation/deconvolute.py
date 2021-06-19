@@ -24,9 +24,9 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob
 def main():
 
     actions = (
-        ('split', 'split fastqfile into subsets'),
-        ('merge', 'consolidate split contents'),
-            )
+        ("split", "split fastqfile into subsets"),
+        ("merge", "consolidate split contents"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -142,12 +142,24 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     p.set_outdir(outdir="deconv")
-    p.add_option("--nocheckprefix", default=False, action="store_true",
-                 help="Don't check shared prefix [default: %default]")
-    p.add_option("--paired", default=False, action="store_true",
-                 help="Paired-end data [default: %default]")
-    p.add_option("--append", default=False, action="store_true",
-                 help="Append barcode to 2nd read [default: %default]")
+    p.add_option(
+        "--nocheckprefix",
+        default=False,
+        action="store_true",
+        help="Don't check shared prefix",
+    )
+    p.add_option(
+        "--paired",
+        default=False,
+        action="store_true",
+        help="Paired-end data",
+    )
+    p.add_option(
+        "--append",
+        default=False,
+        action="store_true",
+        help="Append barcode to 2nd read",
+    )
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -199,8 +211,9 @@ def split(args):
     pool = Pool(cpus)
 
     if paired:
-        assert nfiles == 2, "You asked for --paired, but sent in {0} files".\
-                            format(nfiles)
+        assert nfiles == 2, "You asked for --paired, but sent in {0} files".format(
+            nfiles
+        )
         split_fun = append_barcode_paired if append else split_barcode_paired
         mode = "paired"
     else:
@@ -209,9 +222,9 @@ def split(args):
 
     logging.debug("Mode: {0}".format(mode))
 
-    pool.map(split_fun, \
-             zip(barcodes, excludebarcodes,
-             nbc * [outdir], nbc * [fastqfile]))
+    pool.map(
+        split_fun, zip(barcodes, excludebarcodes, nbc * [outdir], nbc * [fastqfile])
+    )
 
 
 def merge(args):
@@ -243,5 +256,5 @@ def merge(args):
         FileMerger(fns, outfile=outfile).merge(checkexists=True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

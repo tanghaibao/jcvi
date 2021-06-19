@@ -26,10 +26,11 @@ MT = "mol_type"
 LT = "locus_tag"
 
 
-class MultiGenBank (BaseFile):
+class MultiGenBank(BaseFile):
     """
     Wrapper for parsing concatenated GenBank records.
     """
+
     def __init__(self, filename, source="JCVI"):
         super(MultiGenBank, self).__init__(filename)
         assert op.exists(filename)
@@ -58,12 +59,14 @@ class MultiGenBank (BaseFile):
 
             nrecs += 1
 
-        logging.debug("A total of {0} records written to `{1}`.".\
-                        format(nrecs, fastafile))
+        logging.debug(
+            "A total of {0} records written to `{1}`.".format(nrecs, fastafile)
+        )
         fasta_fw.close()
 
-        logging.debug("A total of {0} features written to `{1}`.".\
-                        format(nfeats, gfffile))
+        logging.debug(
+            "A total of {0} features written to `{1}`.".format(nfeats, gfffile)
+        )
         gff_fw.close()
 
     def print_gffline(self, fw, f, seqid, parent=None):
@@ -78,9 +81,11 @@ class MultiGenBank (BaseFile):
 
         start = get_number(f.location.start) + 1
         end = get_number(f.location.end)
-        strand = '-' if f.strand < 0 else '+'
-        g = "\t".join(str(x) for x in \
-            (seqid, source, type, start, end, score, strand, phase, attr))
+        strand = "-" if f.strand < 0 else "+"
+        g = "\t".join(
+            str(x)
+            for x in (seqid, source, type, start, end, score, strand, phase, attr)
+        )
         g = GffLine(g)
 
         qual = f.qualifiers
@@ -88,15 +93,15 @@ class MultiGenBank (BaseFile):
         if MT in qual:
             id = seqid
         elif LT in qual:
-            id, = qual[LT]
+            (id,) = qual[LT]
         else:
             qual[LT] = [self.current_id]
-            id, = qual[LT]
+            (id,) = qual[LT]
 
         id = id.split()[0]
 
         if parent:
-            id, = parent.qualifiers[LT]
+            (id,) = parent.qualifiers[LT]
             id = id.split()[0]
 
         assert id != "tmp", f
@@ -125,7 +130,7 @@ class MultiGenBank (BaseFile):
 
     def set_attribute(self, gb_tag, gff_tag, qual, g):
         if gb_tag in qual:
-            tag, = qual[gb_tag]
+            (tag,) = qual[gb_tag]
             g.attributes[gff_tag] = [tag]
 
 
@@ -133,27 +138,30 @@ class GenBank(dict):
     """
     Wrapper of the GenBank record object in biopython SeqIO.
     """
+
     def __init__(self, filenames=None, accessions=None, idfile=None):
         self.accessions = accessions
         self.idfile = idfile
 
         if filenames is not None:
             self.accessions = [op.basename(f).split(".")[0] for f in filenames]
-            d = dict(SeqIO.to_dict(SeqIO.parse(f, "gb")).items()[0] \
-                for f in filenames)
+            d = dict(SeqIO.to_dict(SeqIO.parse(f, "gb")).items()[0] for f in filenames)
             for (k, v) in d.iteritems():
                 self[k.split(".")[0]] = v
 
         elif idfile is not None:
             gbdir = self._get_records()
-            d = dict(SeqIO.to_dict(SeqIO.parse(f, "gb")).items()[0] \
-                for f in glob(gbdir+"/*.gb"))
+            d = dict(
+                SeqIO.to_dict(SeqIO.parse(f, "gb")).items()[0]
+                for f in glob(gbdir + "/*.gb")
+            )
             for (k, v) in d.iteritems():
                 self[k.split(".")[0]] = v
 
         else:
-            sys.exit("GenBank object is initiated from either gb files or "\
-                "accession IDs.")
+            sys.exit(
+                "GenBank object is initiated from either gb files or " "accession IDs."
+            )
 
     def __getitem__(self, accession):
         rec = self[accession]
@@ -169,13 +177,23 @@ class GenBank(dict):
         gbdir = "gb"
         dirmade = mkdir(gbdir)
         if not dirmade:
-            sh("rm -rf {0}_old; mv -f {0} {0}_old".format(gbdir,))
+            sh(
+                "rm -rf {0}_old; mv -f {0} {0}_old".format(
+                    gbdir,
+                )
+            )
             assert mkdir(gbdir)
 
-        entrez([self.idfile, "--format=gb", "--database=nuccore", "--outdir={0}"\
-            .format(gbdir)])
+        entrez(
+            [
+                self.idfile,
+                "--format=gb",
+                "--database=nuccore",
+                "--outdir={0}".format(gbdir),
+            ]
+        )
 
-        logging.debug('GenBank records written to {0}.'.format(gbdir))
+        logging.debug("GenBank records written to {0}.".format(gbdir))
         return gbdir
 
     @classmethod
@@ -188,17 +206,18 @@ class GenBank(dict):
         consecutivecds = 0
         for feature in gbrec.features:
             if feature.type == "gene":
-                genecount+=1
+                genecount += 1
                 consecutivecds = 0
                 continue
 
-            if feature.type == 'CDS':
+            if feature.type == "CDS":
                 if consecutivecds:
-                    genecount+=1
+                    genecount += 1
                 consecutivecds = 1
                 start = feature.location.start
                 stop = feature.location.end
-                if start > stop: start, stop = stop, start
+                if start > stop:
+                    start, stop = stop, start
                 if feature.strand < 0:
                     strand = "-"
                 else:
@@ -208,8 +227,9 @@ class GenBank(dict):
 
                 start = str(start).lstrip("><")
                 stop = str(stop).lstrip("><")
-                bedline = "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".\
-                    format(seqid, start, stop, accn, score, strand)
+                bedline = "{0}\t{1}\t{2}\t{3}\t{4}\t{5}\n".format(
+                    seqid, start, stop, accn, score, strand
+                )
                 outfile.write(bedline)
 
     @classmethod
@@ -222,13 +242,13 @@ class GenBank(dict):
         consecutivecds = 0
         for feature in gbrec.features:
             if feature.type == "gene":
-                genecount+=1
+                genecount += 1
                 consecutivecds = 0
                 continue
 
-            if feature.type == 'CDS':
+            if feature.type == "CDS":
                 if consecutivecds:
-                    genecount+=1
+                    genecount += 1
                 consecutivecds = 1
                 accn = "{0}_{1}".format(seqid, genecount)
 
@@ -236,11 +256,13 @@ class GenBank(dict):
                     seq = feature.extract(gbrec.seq)
                 else:
                     seq = []
-                    for subf in sorted(feature.sub_features, \
-                        key=lambda x: x.location.start.position*x.strand):
+                    for subf in sorted(
+                        feature.sub_features,
+                        key=lambda x: x.location.start.position * x.strand,
+                    ):
                         seq.append(str(subf.extract(gbrec.seq)))
                     seq = "".join(seq)
-                    if Seq(seq).translate().count("*")>1:
+                    if Seq(seq).translate().count("*") > 1:
                         seq = []
                         for subf in feature.sub_features:
                             seq.append(str(subf.extract(gbrec.seq)))
@@ -252,16 +274,16 @@ class GenBank(dict):
 
     def write_genes(self, output="gbout", individual=False, pep=True):
         if not individual:
-            fwbed = must_open(output+".bed", "w")
-            fwcds = must_open(output+".cds", "w")
-            fwpep = must_open(output+".pep", "w")
+            fwbed = must_open(output + ".bed", "w")
+            fwcds = must_open(output + ".cds", "w")
+            fwpep = must_open(output + ".pep", "w")
 
         for recid, rec in self.iteritems():
             if individual:
                 mkdir(output)
-                fwbed = must_open(op.join(output, recid+".bed"), "w")
-                fwcds = must_open(op.join(output, recid+".cds"), "w")
-                fwpep = must_open(op.join(output, recid+".pep"), "w")
+                fwbed = must_open(op.join(output, recid + ".bed"), "w")
+                fwcds = must_open(op.join(output, recid + ".cds"), "w")
+                fwpep = must_open(op.join(output, recid + ".pep"), "w")
 
             GenBank.write_genes_bed(rec, fwbed)
             GenBank.write_genes_fasta(rec, fwcds, fwpep)
@@ -271,12 +293,12 @@ class GenBank(dict):
 
     def write_fasta(self, output="gbfasta", individual=False):
         if not individual:
-            fw = must_open(output+".fasta", "w")
+            fw = must_open(output + ".fasta", "w")
 
         for recid, rec in self.iteritems():
             if individual:
                 mkdir(output)
-                fw = must_open(op.join(output, recid+".fasta"), "w")
+                fw = must_open(op.join(output, recid + ".fasta"), "w")
 
             seqid = rec.id.split(".")[0]
             if not seqid:
@@ -288,11 +310,11 @@ class GenBank(dict):
 def main():
 
     actions = (
-        ('tofasta', 'generate fasta file for multiple gb records'),
-        ('getgenes', 'extract protein coding genes from Genbank file'),
-        ('getquals', 'extract qualifiers from Genbank file'),
-        ('gff', 'convert Genbank file to GFF file'),
-              )
+        ("tofasta", "generate fasta file for multiple gb records"),
+        ("getgenes", "extract protein coding genes from Genbank file"),
+        ("getquals", "extract qualifiers from Genbank file"),
+        ("gff", "convert Genbank file to GFF file"),
+    )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -311,21 +333,33 @@ def gff(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    gbkfile, = args
+    (gbkfile,) = args
     MultiGenBank(gbkfile)
 
 
 def preparegb(p, args):
-    p.add_option("--gb_dir", default=None,
-            help="path to dir containing GanBank files (.gb)")
-    p.add_option("--id", default=None,
-            help="GenBank accession IDs in a file. One ID per row, or all IDs" \
-            " in one row comma separated.")
-    p.add_option("--simple", default=None, type="string",
-            help="GenBank accession IDs comma separated " \
-            "(for lots of IDs please use --id instead).")
-    p.add_option("--individual", default=False, action="store_true",
-            help="parse gb accessions individually [default: %default]")
+    p.add_option(
+        "--gb_dir", default=None, help="path to dir containing GanBank files (.gb)"
+    )
+    p.add_option(
+        "--id",
+        default=None,
+        help="GenBank accession IDs in a file. One ID per row, or all IDs"
+        " in one row comma separated.",
+    )
+    p.add_option(
+        "--simple",
+        default=None,
+        type="string",
+        help="GenBank accession IDs comma separated "
+        "(for lots of IDs please use --id instead).",
+    )
+    p.add_option(
+        "--individual",
+        default=False,
+        action="store_true",
+        help="parse gb accessions individually",
+    )
     opts, args = p.parse_args(args)
     accessions = opts.id
     filenames = opts.gb_dir
@@ -334,10 +368,10 @@ def preparegb(p, args):
         sys.exit(not p.print_help())
 
     if opts.gb_dir:
-        filenames = glob(opts.gb_dir+"/*.gb")
+        filenames = glob(opts.gb_dir + "/*.gb")
 
     if opts.id:
-        rows = file(opts.id).readlines()
+        rows = open(opts.id).readlines()
         accessions = []
         for row in rows:
             accessions += map(str.strip, row.strip().split(","))
@@ -352,9 +386,9 @@ def preparegb(p, args):
         fw.close()
         idfile = fw.name
     else:
-        idfile=None
+        idfile = None
 
-    return (filenames, accessions, idfile, opts, args)
+    return filenames, accessions, idfile, opts, args
 
 
 def tofasta(args):
@@ -366,13 +400,13 @@ def tofasta(args):
     or all records in one file
     """
     p = OptionParser(tofasta.__doc__)
-    p.add_option("--prefix", default="gbfasta",
-            help="prefix of output files [default: %default]")
+    p.add_option("--prefix", default="gbfasta", help="prefix of output files")
     filenames, accessions, idfile, opts, args = preparegb(p, args)
     prefix = opts.prefix
 
-    GenBank(filenames=filenames, accessions=accessions, idfile=idfile).\
-        write_fasta(output=prefix, individual=opts.individual)
+    GenBank(filenames=filenames, accessions=accessions, idfile=idfile).write_fasta(
+        output=prefix, individual=opts.individual
+    )
 
     if opts.individual:
         logging.debug("Output written dir {0}".format(prefix))
@@ -389,23 +423,34 @@ def getgenes(args):
     Either --gb_dir or --id/--simple should be provided.
     """
     p = OptionParser(getgenes.__doc__)
-    p.add_option("--prefix", default="gbout",
-            help="prefix of output files [default: %default]")
-    p.add_option("--nopep", default=False, action="store_true",
-            help="Only get cds and bed, no pep [default: %default]")
+    p.add_option("--prefix", default="gbout", help="prefix of output files")
+    p.add_option(
+        "--nopep",
+        default=False,
+        action="store_true",
+        help="Only get cds and bed, no pep",
+    )
     filenames, accessions, idfile, opts, args = preparegb(p, args)
     prefix = opts.prefix
 
-    GenBank(filenames=filenames, accessions=accessions, idfile=idfile).\
-        write_genes(output=prefix, individual=opts.individual, \
-        pep=(not opts.nopep))
+    GenBank(filenames=filenames, accessions=accessions, idfile=idfile).write_genes(
+        output=prefix, individual=opts.individual, pep=(not opts.nopep)
+    )
 
     if opts.individual:
         logging.debug("Output written dir {0}".format(prefix))
     elif opts.nopep:
-        logging.debug("Output written to {0}.bed, {0}.cds".format(prefix,))
+        logging.debug(
+            "Output written to {0}.bed, {0}.cds".format(
+                prefix,
+            )
+        )
     else:
-        logging.debug("Output written to {0}.bed, {0}.cds, {0}.pep".format(prefix,))
+        logging.debug(
+            "Output written to {0}.bed, {0}.cds, {0}.pep".format(
+                prefix,
+            )
+        )
 
 
 def print_locus_quals(locus_tag, locus, quals_ftypes):
@@ -415,14 +460,14 @@ def print_locus_quals(locus_tag, locus, quals_ftypes):
 
     Replace locus_tag with protein_id if processing an "mRNA" or "CDS"
     """
-    prot_id = None
     for ftype in quals_ftypes:
         for i, quals in enumerate(locus[locus_tag][ftype]):
             for elem in quals:
                 elem_id = elem[0]
                 if len(locus[locus_tag]["protein_id"]) > 0 and ftype in ("mRNA", "CDS"):
                     elem_id = locus[locus_tag]["protein_id"][i]
-                if ftype == 'misc_RNA': ftype = 'ncRNA'
+                if ftype == "misc_RNA":
+                    ftype = "ncRNA"
                 print("\t".join(str(x) for x in (elem_id, elem[1], elem[2], ftype)))
 
 
@@ -434,23 +479,30 @@ def getquals(args):
     into a tab-delimited file
     """
     p = OptionParser(getquals.__doc__)
-    p.add_option("--types", default="gene,mRNA,CDS",
-                type="str", dest="quals_ftypes",
-                help="Feature types from which to extract qualifiers")
-    p.add_option("--ignore", default="locus_tag,product,codon_start,translation",
-                type="str", dest="quals_ignore",
-                help="Qualifiers to exclude from parsing")
+    p.add_option(
+        "--types",
+        default="gene,mRNA,CDS",
+        type="str",
+        dest="quals_ftypes",
+        help="Feature types from which to extract qualifiers",
+    )
+    p.add_option(
+        "--ignore",
+        default="locus_tag,product,codon_start,translation",
+        type="str",
+        dest="quals_ignore",
+        help="Qualifiers to exclude from parsing",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    gbkfile, = args
+    (gbkfile,) = args
     quals_ftypes = opts.quals_ftypes.split(",")
     quals_ignore = opts.quals_ignore.split(",")
 
     locus = dict()
-    locus_tag = None
     for rec in SeqIO.parse(gbkfile, "gb"):
         for f in rec.features:
             if f.type in quals_ftypes:
@@ -478,5 +530,5 @@ def getquals(args):
         print_locus_quals(locus_tag, locus, quals_ftypes)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

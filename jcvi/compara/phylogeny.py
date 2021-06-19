@@ -59,7 +59,7 @@ def lcn(args):
         for gene_names, species_name in zip(row[1:], species_names):
             gene_names = gene_names.split(", ")
             if len(gene_names) == 1:
-                selected, = gene_names
+                (selected,) = gene_names
             else:
                 max_length, selected = max((len(fasta[x]), x) for x in gene_names)
             selected_seq = fasta[selected]

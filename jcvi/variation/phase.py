@@ -15,7 +15,6 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 class CPRA:
-
     def __init__(self, vcf_record):
         r = vcf_record
         self.chr = r.CHROM
@@ -26,26 +25,21 @@ class CPRA:
 
     @property
     def is_valid(self):
-        """ Only retain SNPs or single indels, and are bi-allelic
-        """
-        return len(self.ref) == 1 and \
-               len(self.alt) == 1 and \
-               len(self.alt[0]) == 1
+        """Only retain SNPs or single indels, and are bi-allelic"""
+        return len(self.ref) == 1 and len(self.alt) == 1 and len(self.alt[0]) == 1
 
     def __str__(self):
-        return "_".join(str(x) for x in \
-                    (self.chr, self.pos, self.ref, self.alt[0]))
+        return "_".join(str(x) for x in (self.chr, self.pos, self.ref, self.alt[0]))
 
     __repr__ = __str__
-
 
 
 def main():
 
     actions = (
-        ('prepare', 'convert vcf and bam to variant list'),
-        ('counts', 'collect allele counts from RO/AO fields'),
-            )
+        ("prepare", "convert vcf and bam to variant list"),
+        ("counts", "collect allele counts from RO/AO fields"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -62,7 +56,7 @@ def counts(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    vcffile, = args
+    (vcffile,) = args
     vcf_reader = vcf.Reader(open(vcffile))
     for r in vcf_reader:
         v = CPRA(r)
@@ -87,8 +81,7 @@ def prepare(args):
     - variants_to_phase: in format of phased vcf
     """
     p = OptionParser(prepare.__doc__)
-    p.add_option("--accuracy", default=.85,
-                 help="Sequencing per-base accuracy")
+    p.add_option("--accuracy", default=0.85, help="Sequencing per-base accuracy")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -105,8 +98,11 @@ def prepare(args):
             continue
         variants.append(v)
 
-    logging.debug("A total of {} bi-allelic SNVs imported from `{}`".\
-                    format(len(variants), vcffile))
+    logging.debug(
+        "A total of {} bi-allelic SNVs imported from `{}`".format(
+            len(variants), vcffile
+        )
+    )
 
     bamfile = pysam.AlignmentFile(bamfile, "rb")
     for v in variants:
@@ -125,9 +121,13 @@ def prepare(args):
                     other_base = a
                 else:
                     continue
-                print(" ".join(str(x) for x in \
-                           (v, read_name, query_base, right, other_base, wrong)))
+                print(
+                    " ".join(
+                        str(x)
+                        for x in (v, read_name, query_base, right, other_base, wrong)
+                    )
+                )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

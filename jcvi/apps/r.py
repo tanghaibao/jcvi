@@ -72,7 +72,7 @@ def rdotplot(args):
     dev.off()
     """
 
-    rdotplotfile, = args
+    (rdotplotfile,) = args
     assert rdotplotfile.endswith(".rdotplot")
     pngfile = rdotplotfile.replace(".rdotplot", ".png")
 

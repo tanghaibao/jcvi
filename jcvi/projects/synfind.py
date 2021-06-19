@@ -21,8 +21,15 @@ from jcvi.formats.blast import BlastLine
 from jcvi.formats.bed import Bed
 from jcvi.formats.gff import Gff, load
 from jcvi.apps.grid import MakeManager
-from jcvi.graphics.base import FancyArrow, plt, savefig, panel_labels, markup, \
-            normalize_axes, latex
+from jcvi.graphics.base import (
+    FancyArrow,
+    plt,
+    savefig,
+    panel_labels,
+    markup,
+    normalize_axes,
+    latex,
+)
 from jcvi.graphics.glyph import CartoonRegion, RoundRect
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink
 
@@ -30,21 +37,21 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink
 def main():
 
     actions = (
-        ('cartoon', 'generate cartoon illustration of SynFind'),
-        ('ecoli', 'gene presence absence analysis in ecoli'),
-        ('grass', 'validate SynFind pan-grass set against James'),
-        ('coge', 'prepare coge datasets'),
+        ("cartoon", "generate cartoon illustration of SynFind"),
+        ("ecoli", "gene presence absence analysis in ecoli"),
+        ("grass", "validate SynFind pan-grass set against James"),
+        ("coge", "prepare coge datasets"),
         # For benchmarking
-        ('synfind', 'prepare input for SynFind'),
-        ('iadhore', 'prepare input for iADHoRe'),
-        ('mcscanx', 'prepare input for MCScanX'),
-        ('cyntenator', 'prepare input for Cyntenator'),
-        ('athalianatruth', 'prepare truth pairs for At alpha/beta/gamma'),
-        ('yeasttruth', 'prepare truth pairs for 14 yeasts'),
-        ('grasstruth', 'prepare truth pairs for 4 grasses'),
-        ('benchmark', 'compare SynFind, MCScanX, iADHoRe and OrthoFinder'),
-        ('venn', 'display benchmark results as Venn diagram'),
-            )
+        ("synfind", "prepare input for SynFind"),
+        ("iadhore", "prepare input for iADHoRe"),
+        ("mcscanx", "prepare input for MCScanX"),
+        ("cyntenator", "prepare input for Cyntenator"),
+        ("athalianatruth", "prepare truth pairs for At alpha/beta/gamma"),
+        ("yeasttruth", "prepare truth pairs for 14 yeasts"),
+        ("grasstruth", "prepare truth pairs for 4 grasses"),
+        ("benchmark", "compare SynFind, MCScanX, iADHoRe and OrthoFinder"),
+        ("venn", "display benchmark results as Venn diagram"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -61,7 +68,7 @@ def grasstruth(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    james, = args
+    (james,) = args
     fp = open(james)
     pairs = set()
     for row in fp:
@@ -113,7 +120,7 @@ def synfind(args):
     allbed = "all.bed"
     fw = open(allbed, "w")
     for i, bedfile in enumerate(bedfiles):
-        prefix = chr(ord('A') + i)
+        prefix = chr(ord("A") + i)
         bed = Bed(bedfile)
         for b in bed:
             b.seqid = prefix + b.seqid
@@ -192,9 +199,9 @@ def venn(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    pad = .02
+    pad = 0.02
     ystart = 1
-    ywidth = 1. / len(bcs)
+    ywidth = 1.0 / len(bcs)
     tags = ("Bowers", "YGOB", "Schnable")
     for bc, tag in zip(bcs, tags):
         fp = open(bc)
@@ -206,27 +213,48 @@ def venn(args):
             shared = int(shared)
             data.append((prog, pcounts, tcounts, shared))
         xstart = 0
-        xwidth = 1. / len(data)
+        xwidth = 1.0 / len(data)
         for prog, pcounts, tcounts, shared in data:
             a, b, c = pcounts - shared, tcounts - shared, shared
-            ax = fig.add_axes([xstart + pad, ystart - ywidth + pad,
-                               xwidth - 2 * pad, ywidth - 2 * pad])
+            ax = fig.add_axes(
+                [
+                    xstart + pad,
+                    ystart - ywidth + pad,
+                    xwidth - 2 * pad,
+                    ywidth - 2 * pad,
+                ]
+            )
             venn2(subsets=(a, b, c), set_labels=(prog, tag), ax=ax)
-            message = "Sn={0} Pu={1}".\
-                format(percentage(shared, tcounts, precision=0, mode=-1),
-                       percentage(shared, pcounts, precision=0, mode=-1))
+            message = "Sn={0} Pu={1}".format(
+                percentage(shared, tcounts, precision=0, mode=-1),
+                percentage(shared, pcounts, precision=0, mode=-1),
+            )
             print(message, file=sys.stderr)
-            ax.text(.5, .92, latex(message), ha="center", va="center",
-                    transform=ax.transAxes, color='b')
+            ax.text(
+                0.5,
+                0.92,
+                latex(message),
+                ha="center",
+                va="center",
+                transform=ax.transAxes,
+                color="b",
+            )
             ax.set_axis_off()
             xstart += xwidth
         ystart -= ywidth
 
-    panel_labels(root, ((.04, .96, "A"), (.04, .96 - ywidth, "B"),
-                  (.04, .96 - 2 * ywidth, "C")))
-    panel_labels(root, ((.5, .98, "A. thaliana duplicates"),
-                        (.5, .98 - ywidth, "14 Yeast genomes"),
-                        (.5, .98 - 2 * ywidth, "4 Grass genomes")))
+    panel_labels(
+        root,
+        ((0.04, 0.96, "A"), (0.04, 0.96 - ywidth, "B"), (0.04, 0.96 - 2 * ywidth, "C")),
+    )
+    panel_labels(
+        root,
+        (
+            (0.5, 0.98, "A. thaliana duplicates"),
+            (0.5, 0.98 - ywidth, "14 Yeast genomes"),
+            (0.5, 0.98 - 2 * ywidth, "4 Grass genomes"),
+        ),
+    )
     normalize_axes(root)
     savefig("venn.pdf", dpi=opts.dpi)
 
@@ -252,17 +280,26 @@ def coge(args):
         genomefasta = "genome_{0}.faa.fasta".format(gid)
         species = "_".join(atoms[0].split("_")[:2])
         cdsfasta = species + ".cds.fasta"
-        load([gff, genomefasta, "--id_attribute=Parent",
-              "--outfile={0}".format(cdsfasta)])
+        load(
+            [
+                gff,
+                genomefasta,
+                "--id_attribute=Parent",
+                "--outfile={0}".format(cdsfasta),
+            ]
+        )
 
 
 def calc_sensitivity_specificity(a, truth, tag, fw):
     common = a & truth
-    sensitivity = len(common) * 100. / len(truth)
-    specificity = len(common) * 100. / len(a)
+    sensitivity = len(common) * 100.0 / len(truth)
+    specificity = len(common) * 100.0 / len(a)
     logging.debug("{0}: {1} pairs".format(tag, len(a)))
-    logging.debug("{0}: Sensitivity={1:.1f}% Purity={2:.1f}%".\
-                    format(tag, sensitivity, specificity))
+    logging.debug(
+        "{0}: Sensitivity={1:.1f}% Purity={2:.1f}%".format(
+            tag, sensitivity, specificity
+        )
+    )
     print(tag, len(a), len(truth), len(common), file=fw)
 
 
@@ -316,7 +353,7 @@ def benchmark(args):
     fp = open(mcscanx)
     mcscanx = set()
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         atoms = row.strip().split(":")[1].split()
         query, hit = atoms[:2]
@@ -346,7 +383,7 @@ def benchmark(args):
                 if p == g:
                     continue
                 orthofinder.add(tuple(sorted((p, g))))
-    #write_pairs(orthofinder, "orthofinder.pairs")
+    # write_pairs(orthofinder, "orthofinder.pairs")
     calc_sensitivity_specificity(orthofinder, truth, "OrthoFinder", fw)
     fw.close()
 
@@ -373,8 +410,10 @@ def write_txt(bedfile):
     print("#genome", file=fw)
     bed = Bed(bedfile)
     for b in bed:
-        print(" ".join(str(x) for x in \
-                (b.accn, b.seqid, b.start, b.end, b.strand)), file=fw)
+        print(
+            " ".join(str(x) for x in (b.accn, b.seqid, b.start, b.end, b.strand)),
+            file=fw,
+        )
     fw.close()
     return txtfile
 
@@ -419,8 +458,9 @@ def cyntenator(args):
     mm = MakeManager()
     for txtfile in txtfiles:
         outfile = txtfile + ".alignment"
-        cmd = 'cyntenator -t "({0} {1})" -h blast {2} > {3}'\
-                .format(txtfile, db, filteredlastfile, outfile)
+        cmd = 'cyntenator -t "({0} {1})" -h blast {2} > {3}'.format(
+            txtfile, db, filteredlastfile, outfile
+        )
         mm.add((txtfile, db, filteredlastfile), outfile, cmd)
     mm.write()
 
@@ -454,8 +494,9 @@ def iadhore(args):
     for a, b in seen:
         print("\t".join((a, b)), file=fw)
     fw.close()
-    logging.debug("A total of {0} pairs written to `{1}`"\
-            .format(len(seen), blast_table))
+    logging.debug(
+        "A total of {0} pairs written to `{1}`".format(len(seen), blast_table)
+    )
 
     fw = open("config.txt", "w")
     for bedfile in bedfiles:
@@ -485,7 +526,7 @@ def extract_groups(g, pairs, txtfile):
     fp = open(txtfile)
     next(fp)
     for row in fp:
-        if row[0] != '>':
+        if row[0] != ">":
             continue
         track, atg, myname, pairname = row.split()
         pairname = pairname.rstrip("ab").upper()
@@ -532,11 +573,9 @@ def make_gff(bed, prefix, fw):
     nfeats = 0
     for b in bed:
         seqid = prefix + b.seqid
-        print("\t".join(str(x) for x in \
-            (seqid, b.accn, b.start, b.end)), file=fw)
+        print("\t".join(str(x) for x in (seqid, b.accn, b.start, b.end)), file=fw)
         nfeats += 1
-    logging.debug("A total of {0} features converted to `{1}`".\
-                    format(nfeats, fw.name))
+    logging.debug("A total of {0} features converted to `{1}`".format(nfeats, fw.name))
 
 
 def mcscanx(args):
@@ -558,7 +597,7 @@ def mcscanx(args):
     allbedfile = prefix + ".gff"
     fw = open(allbedfile, "w")
     for i, bedfile in enumerate(bedfiles):
-        prefix = chr(ord('A') + i)
+        prefix = chr(ord("A") + i)
         make_gff(bedfile, prefix, fw)
     fw.close()
 
@@ -571,7 +610,7 @@ def grass(args):
 
     https://genomevolution.org/r/fhak
     """
-    p = OptionParser(grass._doc__)
+    p = OptionParser(grass.__doc__)
     p.set_verbose()
     opts, args = p.parse_args(args)
 
@@ -589,8 +628,8 @@ def grass(args):
         for x in atoms[1:6]:
             m = x.split(",")
             s |= set(m)
-        if '-' in s:
-            s.remove('-')
+        if "-" in s:
+            s.remove("-")
 
         a = atoms[1]
         master_store[a] |= set(s)
@@ -628,7 +667,7 @@ def grass(args):
         m = master_store[k]
         jaccard = len(v & m) * 100 / len(v | m)
         jaccards.append(jaccard)
-        diff = (v ^ m ) - tandems
+        diff = (v ^ m) - tandems
         corr_jaccard = 100 - len(diff) * 100 / len(v | m)
         corr_jaccards.append(corr_jaccard)
         if opts.verbose:
@@ -679,7 +718,7 @@ def ecoli(args):
     master, querybed = args
     fp = open(master)
     header = next(fp)
-    assert header[0] == '#'
+    assert header[0] == "#"
     qorg = header.strip().split("\t")[1]
     qorg = qorg.split(":")[-1].strip()
 
@@ -694,7 +733,7 @@ def ecoli(args):
     for i, b in enumerate(bed):
         accn = b.accn
         if accn not in store:
-            logging.warn("missing {0}".format(accn))
+            logging.warning("missing {0}".format(accn))
             continue
         tags.append((store[accn], accn))
 
@@ -714,18 +753,21 @@ def ecoli(args):
     fw = must_open(opts.outfile, "w")
     for a, t in zip((II, II_large), ("", ">=4 ")):
         nmissing = sum(len(x) for x in a)
-        logging.debug("A total of {0} {1}-specific {2}islands found with {3} genes.".\
-                        format(len(a), qorg, t, nmissing))
+        logging.debug(
+            "A total of {0} {1}-specific {2}islands found with {3} genes.".format(
+                len(a), qorg, t, nmissing
+            )
+        )
 
     for x in II:
         print(len(x), ",".join(x), file=fw)
 
 
 def plot_diagram(ax, x, y, A, B, tag, label):
-    ax.text(x, y + .14, "{0}: {1}".format(tag, label), ha="center")
-    strip = tag != 'G'
-    A.draw(ax, x, y + .06, gene_len=.02, strip=strip)
-    B.draw(ax, x, y, gene_len=.02, strip=strip)
+    ax.text(x, y + 0.14, "{0}: {1}".format(tag, label), ha="center")
+    strip = tag != "G"
+    A.draw(ax, x, y + 0.06, gene_len=0.02, strip=strip)
+    B.draw(ax, x, y, gene_len=0.02, strip=strip)
 
 
 def cartoon(args):
@@ -742,14 +784,20 @@ def cartoon(args):
 
     # Panel A
     A = CartoonRegion(41)
-    A.draw(root, .35, .85, strip=False, color=False)
+    A.draw(root, 0.35, 0.85, strip=False, color=False)
     x1, x2 = A.x1, A.x2
     lsg = "lightslategray"
-    pad = .01
-    xc, yc = .35, .88
+    pad = 0.01
+    xc, yc = 0.35, 0.88
     arrowlen = x2 - xc - pad
-    arrowprops = dict(length_includes_head=True, width=.01, fc=lsg, lw=0,
-                      head_length=arrowlen * .15, head_width=.03)
+    arrowprops = dict(
+        length_includes_head=True,
+        width=0.01,
+        fc=lsg,
+        lw=0,
+        head_length=arrowlen * 0.15,
+        head_width=0.03,
+    )
     p = FancyArrow(xc - pad, yc, -arrowlen, 0, shape="left", **arrowprops)
     root.add_patch(p)
     p = FancyArrow(xc + pad, yc, arrowlen, 0, shape="right", **arrowprops)
@@ -758,25 +806,25 @@ def cartoon(args):
     yt = yc + 4 * pad
     root.text((x1 + xc) / 2, yt, "20 genes upstream", ha="center")
     root.text((x2 + xc) / 2, yt, "20 genes downstream", ha="center")
-    root.plot((xc,), (yc,), "o", mfc='w', mec=lsg, mew=2, lw=2, color=lsg)
+    root.plot((xc,), (yc,), "o", mfc="w", mec=lsg, mew=2, lw=2, color=lsg)
     root.text(xc, yt, "Query gene", ha="center")
 
     # Panel B
-    A.draw(root, .35, .7, strip=False)
+    A.draw(root, 0.35, 0.7, strip=False)
 
-    RoundRect(root, (.07, .49), .56, .14, fc='y', alpha=.2)
+    RoundRect(root, (0.07, 0.49), 0.56, 0.14, fc="y", alpha=0.2)
     a = deepcopy(A)
-    a.evolve(mode='S', target=10)
-    a.draw(root, .35, .6)
+    a.evolve(mode="S", target=10)
+    a.draw(root, 0.35, 0.6)
     b = deepcopy(A)
-    b.evolve(mode='F', target=8)
-    b.draw(root, .35, .56)
+    b.evolve(mode="F", target=8)
+    b.draw(root, 0.35, 0.56)
     c = deepcopy(A)
-    c.evolve(mode='G', target=6)
-    c.draw(root, .35, .52)
+    c.evolve(mode="G", target=6)
+    c.draw(root, 0.35, 0.52)
 
     for x in (a, b, c):
-        root.text(.64, x.y, "Score={0}".format(x.nonwhites), va="center")
+        root.text(0.64, x.y, "Score={0}".format(x.nonwhites), va="center")
 
     # Panel C
     A.truncate_between_flankers()
@@ -784,23 +832,24 @@ def cartoon(args):
     b.truncate_between_flankers()
     c.truncate_between_flankers(target=6)
 
-    plot_diagram(root, .14, .2, A, a, "S", "syntenic")
-    plot_diagram(root, .37, .2, A, b, "F", "missing, with both flankers")
-    plot_diagram(root, .6, .2, A, c, "G", "missing, with one flanker")
+    plot_diagram(root, 0.14, 0.2, A, a, "S", "syntenic")
+    plot_diagram(root, 0.37, 0.2, A, b, "F", "missing, with both flankers")
+    plot_diagram(root, 0.6, 0.2, A, c, "G", "missing, with one flanker")
 
-    labels = ((.04, .95, 'A'), (.04, .75, 'B'), (.04, .4, 'C'))
+    labels = ((0.04, 0.95, "A"), (0.04, 0.75, "B"), (0.04, 0.4, "C"))
     panel_labels(root, labels)
 
     # Descriptions
-    xt = .85
-    desc = ("Extract neighborhood",
-            "of *window* size",
-            "Count gene pairs within *window*",
-            "Find regions above *score* cutoff",
-            "Identify flankers",
-            "Annotate syntelog class"
-            )
-    for yt, t in zip((.88, .84, .64, .6, .3, .26), desc):
+    xt = 0.85
+    desc = (
+        "Extract neighborhood",
+        "of *window* size",
+        "Count gene pairs within *window*",
+        "Find regions above *score* cutoff",
+        "Identify flankers",
+        "Annotate syntelog class",
+    )
+    for yt, t in zip((0.88, 0.84, 0.64, 0.6, 0.3, 0.26), desc):
         root.text(xt, yt, markup(t), ha="center", va="center")
 
     root.set_xlim(0, 1)
@@ -812,5 +861,5 @@ def cartoon(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

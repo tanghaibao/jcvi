@@ -56,11 +56,14 @@ ALLOWED_ALIGNERS = ("blat", "gmap")
 def main():
 
     actions = (
-        ('assemble', 'run pasa alignment assembly pipeline'),
-        ('compare', 'run pasa annotation comparison pipeline'),
-        ('longest', 'label longest transcript per gene as full-length'),
-        ('consolidate', 'generate consolidated annotation set from 2 or more annot compare results')
-            )
+        ("assemble", "run pasa alignment assembly pipeline"),
+        ("compare", "run pasa annotation comparison pipeline"),
+        ("longest", "label longest transcript per gene as full-length"),
+        (
+            "consolidate",
+            "generate consolidated annotation set from 2 or more annot compare results",
+        ),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -80,8 +83,12 @@ def assemble(args):
     """
     p = OptionParser(assemble.__doc__)
     p.set_pasa_opts()
-    p.add_option("--prepare", default=False, action="store_true",
-            help="Prepare PASA run script with commands [default: %default]")
+    p.add_option(
+        "--prepare",
+        default=False,
+        action="store_true",
+        help="Prepare PASA run script with commands",
+    )
     p.set_grid()
     p.set_grid_opts()
     opts, args = p.parse_args(args)
@@ -89,7 +96,11 @@ def assemble(args):
     if len(args) not in (3, 4):
         sys.exit(not p.print_help())
 
-    pasa_db, genome, dnfasta, = args[:3]
+    (
+        pasa_db,
+        genome,
+        dnfasta,
+    ) = args[:3]
     ggfasta = args[3] if len(args) == 4 else None
 
     PASA_HOME = opts.pasa_home
@@ -101,19 +112,20 @@ def assemble(args):
     for aligner in aligners:
         if aligner not in ALLOWED_ALIGNERS:
             logging.error("Error: Unknown aligner `{0}`".format(aligner))
-            logging.error("Can be any of {0}, ".format("|".join(ALLOWED_ALIGNERS)) + \
-                    "combine multiple aligners in list separated by comma")
+            logging.error(
+                "Can be any of {0}, ".format("|".join(ALLOWED_ALIGNERS))
+                + "combine multiple aligners in list separated by comma"
+            )
             sys.exit()
 
     clean = opts.clean
     seqclean = op.join(opts.tgi_home, "seqclean")
 
-    accn_extract = which(op.join(PASA_HOME, "misc_utilities", \
-            "accession_extractor.pl"))
-    launch_pasa = which(op.join(PASA_HOME, "scripts", \
-            "Launch_PASA_pipeline.pl"))
-    build_compreh_trans = which(op.join(PASA_HOME, "scripts", \
-            "build_comprehensive_transcriptome.dbi"))
+    accn_extract = which(op.join(PASA_HOME, "misc_utilities", "accession_extractor.pl"))
+    launch_pasa = which(op.join(PASA_HOME, "scripts", "Launch_PASA_pipeline.pl"))
+    build_compreh_trans = which(
+        op.join(PASA_HOME, "scripts", "build_comprehensive_transcriptome.dbi")
+    )
 
     fl_accs = opts.fl_accs
     cpus = opts.cpus
@@ -153,22 +165,28 @@ def assemble(args):
             prjobid = sh(cleancmd, grid=grid, grid_opts=opts)
 
     aafw = must_open(aaconf, "w")
-    print(alignAssembly_conf.format("{0}_pasa".format(pasa_db), \
-            pctcov, pctid, bpsplice), file=aafw)
+    print(
+        alignAssembly_conf.format("{0}_pasa".format(pasa_db), pctcov, pctid, bpsplice),
+        file=aafw,
+    )
     aafw.close()
 
     symlink(genome, gfasta)
 
     aacmd = "{0} -c {1} -C -R -g {2}".format(launch_pasa, aaconf, gfasta)
-    aacmd += " -t {0}.clean -T -u {0}".format(transcripts) if clean else \
-             " -t {0}".format(transcripts)
+    aacmd += (
+        " -t {0}.clean -T -u {0}".format(transcripts)
+        if clean
+        else " -t {0}".format(transcripts)
+    )
     if fl_accs:
         symlink(fl_accs, flaccs)
         aacmd += " -f {0}".format(flaccs)
     if ggfasta:
         aacmd += " --TDN {0}".format(tdn)
-    aacmd += " --ALIGNERS {0} -I {1} --CPU {2}".format(",".join(aligners), \
-            opts.intron, cpus)
+    aacmd += " --ALIGNERS {0} -I {1} --CPU {2}".format(
+        ",".join(aligners), opts.intron, cpus
+    )
 
     if prepare:
         cmds.append(aacmd)
@@ -177,8 +195,12 @@ def assemble(args):
         prjobid = sh(aacmd, grid=grid, grid_opts=opts)
 
     if opts.compreh and ggfasta:
-        comprehcmd = "{0} -c {1} -t {2}".format(build_compreh_trans, aaconf, transcripts)
-        comprehcmd += " --min_per_ID {0} --min_per_aligned {1}".format(compreh_pctid, compreh_pctcov)
+        comprehcmd = "{0} -c {1} -t {2}".format(
+            build_compreh_trans, aaconf, transcripts
+        )
+        comprehcmd += " --min_per_ID {0} --min_per_aligned {1}".format(
+            compreh_pctid, compreh_pctcov
+        )
 
         if prepare:
             cmds.append(comprehcmd)
@@ -208,8 +230,12 @@ def compare(args):
     """
     p = OptionParser(compare.__doc__)
     p.set_pasa_opts(action="compare")
-    p.add_option("--prepare", default=False, action="store_true",
-            help="Prepare PASA run script with commands [default: %default]")
+    p.add_option(
+        "--prepare",
+        default=False,
+        action="store_true",
+        help="Prepare PASA run script with commands",
+    )
     p.set_grid()
     p.set_grid_opts()
     opts, args = p.parse_args(args)
@@ -217,15 +243,14 @@ def compare(args):
     if len(args) < 1:
         sys.exit(not p.print_help())
 
-    pasa_db, = args
+    (pasa_db,) = args
 
     PASA_HOME = opts.pasa_home
     if not op.isdir(PASA_HOME):
         logging.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
         sys.exit()
 
-    launch_pasa = which(op.join(PASA_HOME, "scripts", \
-            "Launch_PASA_pipeline.pl"))
+    launch_pasa = which(op.join(PASA_HOME, "scripts", "Launch_PASA_pipeline.pl"))
 
     annots_gff3 = opts.annots_gff3
     grid = opts.grid
@@ -237,10 +262,23 @@ def compare(args):
         write_file(runfile, "", append=True, skipcheck=True)  # initialize run script
 
     acfw = must_open(acconf, "w")
-    print(annotCompare_conf.format("{0}_pasa".format(pasa_db), \
-            opts.pctovl, opts.pct_coding, opts.pctid_prot, opts.pctlen_FL, \
-            opts.pctlen_nonFL, opts.orf_size, opts.pct_aln, opts.pctovl_gene, \
-            opts.stompovl, opts.trust_FL, opts.utr_exons), file=acfw)
+    print(
+        annotCompare_conf.format(
+            "{0}_pasa".format(pasa_db),
+            opts.pctovl,
+            opts.pct_coding,
+            opts.pctid_prot,
+            opts.pctlen_FL,
+            opts.pctlen_nonFL,
+            opts.orf_size,
+            opts.pct_aln,
+            opts.pctovl_gene,
+            opts.stompovl,
+            opts.trust_FL,
+            opts.utr_exons,
+        ),
+        file=acfw,
+    )
     acfw.close()
 
     if not op.exists(gfasta):
@@ -253,8 +291,9 @@ def compare(args):
     if op.exists("{0}.clean".format(transcripts)):
         transcripts = "{0}.clean".format(transcripts)
 
-    accmd = "{0} -c {1} -A -g {2} -t {3} --GENETIC_CODE {4}".format(launch_pasa, \
-            acconf, gfasta, transcripts, opts.genetic_code)
+    accmd = "{0} -c {1} -A -g {2} -t {3} --GENETIC_CODE {4}".format(
+        launch_pasa, acconf, gfasta, transcripts, opts.genetic_code
+    )
 
     if annots_gff3:
         if not op.exists(annots_gff3):
@@ -283,8 +322,11 @@ def longest(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(longest.__doc__)
-    p.add_option("--prefix", default="pasa",
-                 help="Replace asmbl_ with prefix [default: %default]")
+    p.add_option(
+        "--prefix",
+        default="pasa",
+        help="Replace asmbl_ with prefix",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -353,17 +395,36 @@ def consolidate(args):
 
     supported_modes = ["name", "coords"]
     p = OptionParser(consolidate.__doc__)
-    p.add_option("--slop", default=False, action="store_true",
-            help="allow minor variation in terminal 5'/3' UTR" + \
-                 " start/stop position [default: %default]")
-    p.add_option("--inferUTR", default=False, action="store_true",
-            help="infer presence of UTRs from exon coordinates")
-    p.add_option("--mode", default="name", choices=supported_modes,
-            help="method used to determine overlapping loci")
-    p.add_option("--summary", default=False, action="store_true",
-            help="Generate summary table of consolidation process")
-    p.add_option("--clusters", default=False, action="store_true",
-            help="Generate table of cluster members after consolidation")
+    p.add_option(
+        "--slop",
+        default=False,
+        action="store_true",
+        help="allow minor variation in terminal 5'/3' UTR start/stop position",
+    )
+    p.add_option(
+        "--inferUTR",
+        default=False,
+        action="store_true",
+        help="infer presence of UTRs from exon coordinates",
+    )
+    p.add_option(
+        "--mode",
+        default="name",
+        choices=supported_modes,
+        help="method used to determine overlapping loci",
+    )
+    p.add_option(
+        "--summary",
+        default=False,
+        action="store_true",
+        help="Generate summary table of consolidation process",
+    )
+    p.add_option(
+        "--clusters",
+        default=False,
+        action="store_true",
+        help="Generate table of cluster members after consolidation",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -382,45 +443,53 @@ def consolidate(args):
     loci = Grouper()
     for dbn in gffdbx:
         odbns = [odbn for odbn in gffdbx if dbn != odbn]
-        for gene in gffdbx[dbn].features_of_type('gene', order_by=('seqid', 'start')):
+        for gene in gffdbx[dbn].features_of_type("gene", order_by=("seqid", "start")):
             if mode == "name":
                 loci.join(gene.id, (gene.id, dbn))
             else:
                 if (gene.id, dbn) not in loci:
                     loci.join((gene.id, dbn))
-                    gene_cds = list(gffdbx[dbn].children(gene, \
-                        featuretype='CDS', order_by=('start')))
-                    gene_cds_start, gene_cds_stop = gene_cds[0].start, \
-                        gene_cds[-1].stop
+                    gene_cds = list(
+                        gffdbx[dbn].children(gene, featuretype="CDS", order_by="start")
+                    )
+                    gene_cds_start, gene_cds_stop = gene_cds[0].start, gene_cds[-1].stop
                     for odbn in odbns:
-                        for ogene_cds in gffdbx[odbn].region(seqid=gene.seqid, \
-                                start=gene_cds_start, end=gene_cds_stop, \
-                                strand=gene.strand, featuretype='CDS'):
-                            for ogene in gffdbx[odbn].parents(ogene_cds, featuretype='gene'):
+                        for ogene_cds in gffdbx[odbn].region(
+                            seqid=gene.seqid,
+                            start=gene_cds_start,
+                            end=gene_cds_stop,
+                            strand=gene.strand,
+                            featuretype="CDS",
+                        ):
+                            for ogene in gffdbx[odbn].parents(
+                                ogene_cds, featuretype="gene"
+                            ):
                                 loci.join((gene.id, dbn), (ogene.id, odbn))
 
     gfeats = {}
     mrna = AutoVivification()
     for i, locus in enumerate(loci):
-        gene = "gene_{0:0{pad}}".format(i, pad=6) \
-                if mode == "coords" else None
+        gene = "gene_{0:0{pad}}".format(i, pad=6) if mode == "coords" else None
 
         for elem in locus:
             if type(elem) == tuple:
                 _gene, dbn = elem
-                if gene is None: gene = _gene
+                if gene is None:
+                    gene = _gene
 
                 g = gffdbx[dbn][_gene]
                 if gene not in gfeats:
                     gfeats[gene] = g
-                    gfeats[gene].attributes['ID'] = [gene]
+                    gfeats[gene].attributes["ID"] = [gene]
                 else:
                     if g.start < gfeats[gene].start:
                         gfeats[gene].start = g.start
                     if g.stop > gfeats[gene].stop:
                         gfeats[gene].stop = g.stop
 
-                c = list(gffdbx[dbn].children(_gene, featuretype='mRNA', order_by='start'))
+                c = list(
+                    gffdbx[dbn].children(_gene, featuretype="mRNA", order_by="start")
+                )
                 if len(c) > 0:
                     mrna[gene][dbn] = c
 
@@ -445,18 +514,33 @@ def consolidate(args):
             for dbn1, dbn2 in dbns:
                 dbx1, dbx2 = gffdbx[dbn1], gffdbx[dbn2]
                 for mrna1, mrna2 in product(mrna[gene][dbn1], mrna[gene][dbn2]):
-                    mrna1s, mrna2s = mrna1.stop - mrna1.start + 1, \
-                            mrna2.stop - mrna2.start + 1
+                    mrna1s, mrna2s = (
+                        mrna1.stop - mrna1.start + 1,
+                        mrna2.stop - mrna2.start + 1,
+                    )
                     g.join((dbn1, mrna1.id, mrna1s))
                     g.join((dbn2, mrna2.id, mrna2s))
 
-                    if match_subfeats(mrna1, mrna2, dbx1, dbx2, featuretype='CDS'):
+                    if match_subfeats(mrna1, mrna2, dbx1, dbx2, featuretype="CDS"):
                         res = []
-                        ftypes = ['exon'] if inferUTR else ['five_prime_UTR', 'three_prime_UTR']
+                        ftypes = (
+                            ["exon"]
+                            if inferUTR
+                            else ["five_prime_UTR", "three_prime_UTR"]
+                        )
                         for ftype in ftypes:
-                            res.append(match_subfeats(mrna1, mrna2, dbx1, dbx2, featuretype=ftype, slop=slop))
+                            res.append(
+                                match_subfeats(
+                                    mrna1,
+                                    mrna2,
+                                    dbx1,
+                                    dbx2,
+                                    featuretype=ftype,
+                                    slop=slop,
+                                )
+                            )
 
-                        if all(r == True for r in res):
+                        if all(res):
                             g.join((dbn1, mrna1.id, mrna1s), (dbn2, mrna2.id, mrna2s))
         else:
             for dbn1 in mrna[gene]:
@@ -472,7 +556,8 @@ def consolidate(args):
 
             dbid, _mrnaid = "|".join(str(x) for x in set(dbs)), []
             for x in mrnas:
-                if x not in _mrnaid: _mrnaid.append(x)
+                if x not in _mrnaid:
+                    _mrnaid.append(x)
             mrnaid = "{0}|{1}".format(dbid, "-".join(_mrnaid))
             if mrnaid not in seen:
                 seen[mrnaid] = 0
@@ -481,18 +566,18 @@ def consolidate(args):
                 mrnaid = "{0}-{1}".format(mrnaid, seen[mrnaid])
 
             _mrna = gffdbx[d][m]
-            _mrna.attributes['ID'] = [mrnaid]
-            _mrna.attributes['Parent'] = [gene]
-            children = gffdbx[d].children(m, order_by='start')
+            _mrna.attributes["ID"] = [mrnaid]
+            _mrna.attributes["Parent"] = [gene]
+            children = gffdbx[d].children(m, order_by="start")
             print(_mrna, file=fw)
             for child in children:
-                child.attributes['ID'] = ["{0}|{1}".format(dbid, child.id)]
-                child.attributes['Parent'] = [mrnaid]
+                child.attributes["ID"] = ["{0}|{1}".format(dbid, child.id)]
+                child.attributes["Parent"] = [mrnaid]
                 print(child, file=fw)
 
             if opts.summary:
                 summary = [mrnaid]
-                summary.extend(['Y' if db in set(dbs) else 'N' for db in gffdbx])
+                summary.extend(["Y" if db in set(dbs) else "N" for db in gffdbx])
                 print("\t".join(str(x) for x in summary), file=sfw)
 
             if opts.clusters:
@@ -503,9 +588,11 @@ def consolidate(args):
                 print("\t".join(str(x) for x in clusters), file=cfw)
 
     fw.close()
-    if opts.summary: sfw.close()
-    if opts.clusters: cfw.close()
+    if opts.summary:
+        sfw.close()
+    if opts.clusters:
+        cfw.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -27,16 +27,13 @@ class PslLine(object):
         self.tNumInsert = int(args[6])
         self.tBaseInsert = int(args[7])
         self.qstrand, self.strand = args[8], None
-        m = re.match(r"(?P<qs>[\+\-]?)(?P<gs>[\+\-])", self.qstrand)
+        m = re.match(r"(?P<qs>[+-]?)(?P<gs>[+-])", self.qstrand)
         if m:
             self.qstrand, self.strand = m.group("qs"), m.group("gs")
         self.qName = args[9]
         self.qSize = int(args[10])
         self.qStart = int(args[11])
         self.qEnd = int(args[12])
-        ##        if self.qstrand == "-":
-        ##            self.qStart, self.qEnd = self.qSize - self.qEnd, \
-        ##                    self.qSize - self.qStart
         self.tName = args[13]
         self.tSize = int(args[14])
         self.tStart = int(args[15])
@@ -45,9 +42,6 @@ class PslLine(object):
         self.blockSizes = [int(x) for x in args[18].strip().split(",")[:-1]]
         self.qStarts = [int(x) for x in args[19].strip().split(",")[:-1]]
         self.tStarts = [int(x) for x in args[20].strip().split(",")[:-1]]
-
-    ##        self.tStarts = [self.tSize - int(x) if self.strand == "-" \
-    ##                else int(x) for x in args[20].strip().split(',')[:-1]]
 
     def __str__(self):
         args = [
@@ -107,7 +101,6 @@ class PslLine(object):
             / self.qSize
         )
 
-    @property
     def swap(self):
         self.qName, self.qSize, self.tName, self.tSize = (
             self.tName,
@@ -323,7 +316,9 @@ def gff(args):
     p = OptionParser(gff.__doc__)
     p.add_option("--source", default="GMAP", help="specify GFF source")
     p.add_option(
-        "--type", default="EST_match", help="specify GFF feature type",
+        "--type",
+        default="EST_match",
+        help="specify GFF feature type",
     )
     p.add_option("--suffix", default=".match", help="match ID suffix")
     p.add_option(
@@ -352,7 +347,7 @@ def gff(args):
     psl = Psl(pslfile)
     for p in psl:
         if opts.swap:
-            p.swap
+            p.swap()
 
         psl.trackMatches(p.qName)
         # switch from 0-origin to 1-origin

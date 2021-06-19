@@ -14,15 +14,14 @@ from jcvi.assembly.base import FastqNamings, Library, get_libs
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
 
 
-class FillLine (object):
-
+class FillLine(object):
     def __init__(self, row):
         args = row.split()
         self.start = int(args[0])
         self.end = int(args[1])
         self.leftextend = int(args[2])
         self.rightextend = int(args[3])
-        self.closed = (int(args[4]) == 1)
+        self.closed = int(args[4]) == 1
         self.extendlength = int(args[5])
         self.before = int(args[6])
         self.after = int(args[7])
@@ -39,11 +38,11 @@ class FillLine (object):
 def main():
 
     actions = (
-        ('clean', 'clean and dedup paired FASTQ files'),
-        ('correct', 'correct reads using ErrorCorrection'),
-        ('prepare', 'prepare SOAP config files and run script'),
-        ('fillstats', 'build stats on .fill file from GapCloser'),
-            )
+        ("clean", "clean and dedup paired FASTQ files"),
+        ("correct", "correct reads using ErrorCorrection"),
+        ("prepare", "prepare SOAP config files and run script"),
+        ("fillstats", "build stats on .fill file from GapCloser"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -57,27 +56,34 @@ C={2}
 A=asm$K
 """
 
-GCRUN = "GapCloser_v1.12 -a ${A}.scafSeq -b $G -l 155 -o ${A}.closed.scafSeq -p 31 -t $P"
+GCRUN = (
+    "GapCloser_v1.12 -a ${A}.scafSeq -b $G -l 155 -o ${A}.closed.scafSeq -p 31 -t $P"
+)
 GCRUNG = "GapCloser_v1.12 -a {0} -b $G -l 155 -o {1} -p 31 -t $P"
 
-SOAPRUN = """
+SOAPRUN = (
+    """
 $C pregraph -s $S -d 1 -K $K -o $A -R -p $P
 $C contig -s $S -g $A -M 1 -R -p $P
 $C map -s $S -g $A -p $P
 $C scaff -g $A -F -p $P
-""" + GCRUN
+"""
+    + GCRUN
+)
 
-SCFRUN = """
+SCFRUN = (
+    """
 prepare -K $K -c %s -g $A
 $C map -s $S -g $A -p $P
 $C scaff -z -g $A -F -p $P
-""" + GCRUN
+"""
+    + GCRUN
+)
 
 
 def get_size(filename):
 
-    library_name = lambda x: "-".join(\
-                op.basename(x).split(".")[0].split("-")[:2])
+    library_name = lambda x: "-".join(op.basename(x).split(".")[0].split("-")[:2])
 
     lib = Library(library_name(filename))
     return lib.size
@@ -131,10 +137,8 @@ def clean(args):
     Clean and dedup paired FASTQ files.
     """
     p = OptionParser(clean.__doc__)
-    p.add_option("-a", default=0, type="int",
-                 help="Trim length at 5' end [default: %default]")
-    p.add_option("-b", default=50, type="int",
-                 help="Trim length at 3' end [default: %default]")
+    p.add_option("-a", default=0, type="int", help="Trim length at 5' end")
+    p.add_option("-b", default=50, type="int", help="Trim length at 3' end")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -161,8 +165,7 @@ def clean(args):
         cmd = "SOAPfilter_v2.0 -t {0} -m 2000000 -p -y -z -g".format(cpus)
         cmd += " -q {0} -w 10 -B 50 -f 0".format(offset)
         cmd += " -l {0} -a {1} -b {2} -c {1} -d {2}".format(size, a, b, a, b)
-        cmd += " {0} {1} {2}.clean.stat {3} {4}".\
-                    format(p1, p2, pf, p1_clean, p2_clean)
+        cmd += " {0} {1} {2}.clean.stat {3} {4}".format(p1, p2, pf, p1_clean, p2_clean)
         sh(cmd)
 
 
@@ -180,7 +183,7 @@ def fillstats(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fillfile, = args
+    (fillfile,) = args
     fp = open(fillfile)
     scaffolds = 0
     gaps = []
@@ -200,16 +203,24 @@ def fillstats(args):
 
     totalgaps = len(closed) + len(notClosed)
 
-    print("Closed gaps: {0} size: {1} bp".\
-                        format(percentage(len(closed), totalgaps), thousands(closedbp)), file=sys.stderr)
+    print(
+        "Closed gaps: {0} size: {1} bp".format(
+            percentage(len(closed), totalgaps), thousands(closedbp)
+        ),
+        file=sys.stderr,
+    )
     ss = SummaryStats([x.after for x in closed])
     print(ss, file=sys.stderr)
 
     ss = SummaryStats([x.delta for x in closed])
     print("Delta:", ss, file=sys.stderr)
 
-    print("Remaining gaps: {0} size: {1} bp".\
-                        format(percentage(len(notClosed), totalgaps), thousands(notClosedbp)), file=sys.stderr)
+    print(
+        "Remaining gaps: {0} size: {1} bp".format(
+            percentage(len(notClosed), totalgaps), thousands(notClosedbp)
+        ),
+        file=sys.stderr,
+    )
     ss = SummaryStats([x.after for x in notClosed])
     print(ss, file=sys.stderr)
 
@@ -224,14 +235,15 @@ def prepare(args):
     from jcvi.formats.base import write_file
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
-    p.add_option("-K", default=45, type="int",
-                 help="K-mer size [default: %default]")
-    p.add_option("--assemble_1st_rank_only", default=False, action="store_true",
-                 help="Assemble the first rank only, other libs asm_flags=2 [default: %default]")
-    p.add_option("--scaffold",
-                 help="Only perform scaffolding [default: %default]")
-    p.add_option("--gapclose",
-                 help="Only perform gap closure [default: %default]")
+    p.add_option("-K", default=45, type="int", help="K-mer size")
+    p.add_option(
+        "--assemble_1st_rank_only",
+        default=False,
+        action="store_true",
+        help="Assemble the first rank only, other libs asm_flags=2",
+    )
+    p.add_option("--scaffold", help="Only perform scaffolding")
+    p.add_option("--gapclose", help="Only perform gap closure")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -252,7 +264,6 @@ def prepare(args):
 
     libs = get_libs(fnames)
     rank = 0
-    singletons = []
     max_rd_len = max(readlen([f]) for f in fnames)
 
     block = "max_rd_len={0}\n".format(max_rd_len)
@@ -274,7 +285,6 @@ def prepare(args):
         rank += 1
         block = "[LIB]\n"
         block += "avg_ins={0}\n".format(size)
-        f = fs[0]
         block += "reverse_seq={0}\n".format(lib.reverse_seq)
         asm_flags = 2 if (rank > 1 and a1st) else lib.asm_flags
         block += "asm_flags={0}\n".format(asm_flags)
@@ -319,5 +329,5 @@ def prepare(args):
     fw_gc.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

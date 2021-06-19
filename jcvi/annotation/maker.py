@@ -211,7 +211,7 @@ def parallel(args):
         return
 
     # qsub script
-    outfile = "maker.\$TASK_ID.out"
+    outfile = r"maker.\$TASK_ID.out"
     p = GridProcess(
         runfile, outfile=outfile, errfile=outfile, arr=ncmds, grid_opts=opts
     )
@@ -274,7 +274,7 @@ def merge(args):
     print("\n".join(gffnames), file=fw)
     fw.close()
 
-    nlines = sum(1 for x in open(gfflist))
+    nlines = sum(1 for _ in open(gfflist))
     assert nlines == nfs  # Be extra, extra careful to include all results
     gmerge([gfflist, "-o", outputgff])
     logging.debug("Merged GFF file written to `{0}`".format(outputgff))
@@ -322,7 +322,7 @@ def validate(args):
     print("\n".join(["\t".join((f, x)) for f, x in all_failed]), file=fw)
     fw.close()
 
-    nlines = sum(1 for x in open("FAILED"))
+    nlines = sum(1 for _ in open("FAILED"))
     assert nlines == nfailed
     print("FAILED !! {0} instances.".format(nfailed), file=sys.stderr)
 
@@ -523,8 +523,8 @@ def datastore(args):
         assert op.exists(fn)
         pp, logfile = op.split(fn)
         flog = open(fn)
-        for row in flog:
-            ctg, folder, status = row.split()
+        for inner_row in flog:
+            ctg, folder, status = inner_row.split()
             if status != "FINISHED":
                 continue
 

@@ -487,7 +487,7 @@ def get_rows_cols(nrows=Nrows, ncols=Ncols):
 def get_plate(nrows=Nrows, ncols=Ncols):
 
     rows, cols = get_rows_cols(nrows, ncols)
-    plate = [[""] * ncols for x in range(nrows)]
+    plate = [[""] * ncols for _ in range(nrows)]
     n = 0
     # 384 to (96+quadrant)
     for i in range(0, nrows, 2):
@@ -509,7 +509,7 @@ def get_plate(nrows=Nrows, ncols=Ncols):
     return plate, splate
 
 
-def convert_96_to_384(c96, quad, nrows=Nrows, ncols=Ncols):
+def convert_96_to_384(c96, quad, ncols=Ncols):
     """
     Convert the 96-well number and quad number to 384-well number
 
@@ -521,7 +521,7 @@ def convert_96_to_384(c96, quad, nrows=Nrows, ncols=Ncols):
     rows, cols = get_rows_cols()
     plate, splate = get_plate()
 
-    n96 = rows.index(c96[0]) * ncols / 2 + int(c96[1:])
+    n96 = rows.index(c96[0]) * ncols // 2 + int(c96[1:])
     q = "{0:02d}{1}".format(n96, "ABCD"[quad - 1])
     return splate[q]
 
@@ -533,7 +533,7 @@ def t384(args):
     Print out a table converting between 96 well to 384 well
     """
     p = OptionParser(t384.__doc__)
-    opts, args = p.parse_args(args)
+    p.parse_args(args)
 
     plate, splate = get_plate()
 
@@ -656,7 +656,7 @@ def gss(args):
             logging.error("duplicate key {0} found".format(gssID))
             gssID = "{0}{1}".format(gssID, seen[gssID])
 
-        othergss = clone[cloneID] - set([gssID])
+        othergss = clone[cloneID] - {gssID}
         othergss = ", ".join(sorted(othergss))
         vars.update(locals())
 

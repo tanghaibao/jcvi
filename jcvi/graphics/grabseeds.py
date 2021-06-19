@@ -415,7 +415,7 @@ def convert_background(pngfile, new_background):
         for t in range(3):
             pixel_color = img.getdata(band=t)
             for pixel in pixel_color:
-                if pixel > (stdRGB):
+                if pixel > stdRGB:
                     pixel_values.append(pixel)
             obcolor[t] = sum(pixel_values) / len(pixel_values)
 
@@ -456,9 +456,9 @@ def convert_background(pngfile, new_background):
         nbcolor = tuple(nbcolor)
         for i in range(len(pixels)):
             r, g, b = pixels[i]
-            if r >= (obcolor[0] - stdRGB) and r <= (obcolor[0] + stdRGB):
-                if g >= (obcolor[1] - stdRGB) and g <= (obcolor[1] + stdRGB):
-                    if b >= (obcolor[2] - stdRGB) and b <= (obcolor[2] + stdRGB):
+            if (obcolor[0] - stdRGB) <= r <= (obcolor[0] + stdRGB):
+                if (obcolor[1] - stdRGB) <= g <= (obcolor[1] + stdRGB):
+                    if (obcolor[2] - stdRGB) <= b <= (obcolor[2] + stdRGB):
                         pixels[i] = nbcolor
         img.putdata(pixels)
         img.save(newfile, "PNG")
@@ -629,7 +629,7 @@ def seeds(args):
     ax1.set_title("Original picture")
     ax1.imshow(oimg)
 
-    params = "{0}, $\sigma$={1}, $k$={2}".format(ff, sigma, kernel)
+    params = r"{0}, $\sigma$={1}, $k$={2}".format(ff, sigma, kernel)
     if opts.watershed:
         params += ", watershed"
     ax2.set_title("Edge detection\n({0})".format(params))

@@ -36,7 +36,7 @@ ddb_pat = re.compile(r"\s+DDB_G\d+", re.I)
 atg_pat = re.compile(r"\bAT[1-5M]G\d{5}-like protein", re.I)
 
 # remove 'arabidopsis thaliana'
-atg_id_pat = re.compile(r"[_]*AT\d{1}G\d+[/]*", re.I)
+atg_id_pat = re.compile(r"[_]*AT\dG\d+[/]*", re.I)
 athila_pat1 = re.compile(r"Belongs to|^Encodes|^Expression|^highly", re.I)
 athila_pat2 = re.compile(r"^Arabidopsis thaliana ", re.I)
 athila_pat3 = re.compile(r"^Arabidopsis ", re.I)
@@ -70,20 +70,20 @@ related_pat = re.compile(r"[,\s+]*[\s+|-]*related$", re.I)
 homolog_pat1 = re.compile(r"(?<!type)\s+\d+\s+homolog.*$", re.I)
 
 # 'Protein\s+(.*)\s+homolog' to '$1-like protein'
-homolog_pat2 = re.compile(r"^Protein([\s+\S+]+)\s+homolog.*", re.I)
+homolog_pat2 = re.compile(r"^Protein([\s\S]+)\s+homolog.*", re.I)
 
 # 'homolog protein' to '-like protein'
 homolog_pat3 = re.compile(r"\s+homolog\s+protein.*", re.I)
 # 'homolog \S+' to '-like protein'
 homolog_pat4 = re.compile(r"\s+homolog\s+\d+$", re.I)
 # 'homologue$' to '-like protein'
-homolog_pat5 = re.compile(r"\s+homologue[\s+\S+]$", re.I)
+homolog_pat5 = re.compile(r"\s+homologue[\s\S]+$", re.I)
 # 'homolog$' to '-like protein'
 homolog_pat6 = re.compile(r"\s+homolog$", re.I)
 
 # 'Agenet domain-containing protein / bromo-adjacent homology (BAH) domain-containing protein'
 # to 'Agenet and bromo-adjacent homology (BAH) domain-containing protein'
-agenet_pat = re.compile(r"Agenet domain-containing protein \/ ", re.I)
+agenet_pat = re.compile(r"Agenet domain-containing protein / ", re.I)
 
 # plural to singular
 plural_pat = re.compile(r"[deinr]s$", re.I)
@@ -95,13 +95,15 @@ tbp_pat = re.compile(r"like[_]*TBP", re.I)
 prot_pat = re.compile(r"protein protein", re.I)
 
 # 'Candidate|Hypothetical|Novel|Predicted|Possible' to 'Putative'
-put_pat = re.compile(r"Candidate|Hypothetical|Novel|Predicted|Possible|Probable|Uncharacterized", re.I)
+put_pat = re.compile(
+    r"Candidate|Hypothetical|Novel|Predicted|Possible|Probable|Uncharacterized", re.I
+)
 
 # 'dimerisation' to 'dimerization'
 dimer_pat = re.compile(r"dimerisation", re.I)
 
 # '\s+LENGTH=\d+' to ''
-length_pat = re.compile(r"\s+LENGTH\=\d+", re.I)
+length_pat = re.compile(r"\s+LENGTH=\d+", re.I)
 
 # disallowed words
 disallow = ("genome", "annotation", "project")
@@ -112,16 +114,16 @@ organism = ("thaliana", "rickettsia", "rice", "yeast")
 organism_pat = re.compile("|".join("^.*{0}".format(str(x)) for x in organism))
 
 # consolidate glycosidic links
-glycosidic_link_pat = re.compile("\d+,\d+")
+glycosidic_link_pat = re.compile(r"\d+,\d+")
 
 # Kevin Silverstein suggested names (exclude list)
 spada = ("LCR", "RALF", "SCR")
 spada_pat = re.compile("|".join("^{0}$".format(str(x)) for x in spada))
 
 # names with all capital letters (maybe followed by numbers)
-sym_pat = re.compile(r"^[A-Z]+[A-Z0-9\-]{0,}$")
-lc_sym_pat = re.compile(r"^[A-z]{1}[a-z]+[0-9]{1,}$")
-eol_sym_pat = re.compile(r"\([A-Z]+[A-Z0-9\-]{0,}\)$")
+sym_pat = re.compile(r"^[A-Z]+[A-Z0-9\-]*$")
+lc_sym_pat = re.compile(r"^[A-z][a-z]+[0-9]+$")
+eol_sym_pat = re.compile(r"\([A-Z]+[A-Z0-9\-]*\)$")
 
 # sulfer -> sulfur
 # sulph -> sulf
@@ -213,10 +215,10 @@ iprscan_datadir = "/usr/local/devel/ANNOTATION/iprscan/iprscan_v4.7/data"
 def main():
 
     actions = (
-        ('batch', 'batch run AHRD'),
-        ('merge', 'merge AHRD run results'),
-        ('fix', 'fix AHRD names'),
-            )
+        ("batch", "batch run AHRD"),
+        ("merge", "merge AHRD run results"),
+        ("fix", "fix AHRD names"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -234,9 +236,23 @@ def read_interpro(ipr):
     # palm domain"    GO:0003677|GO:0003887|GO:0006260        KEGG:
     # 00230+2.7.7.7|KEGG: 00240+2.7.7.7
     for row in fp:
-        accession, md5, seqlen, analysis, signature, signature_description, \
-        start, stop, score, status, date, interpro, interpro_description, GO, \
-                        pathway = row.split("\t")
+        (
+            accession,
+            md5,
+            seqlen,
+            analysis,
+            signature,
+            signature_description,
+            start,
+            stop,
+            score,
+            status,
+            date,
+            interpro,
+            interpro_description,
+            GO,
+            pathway,
+        ) = row.split("\t")
         accession = accession.split(".")[0]
         interpro_description = interpro_description.replace('"', "")
         pathway = pathway.strip()
@@ -249,31 +265,34 @@ def fix_text(s, ignore_sym_pat=False):
 
     if not ignore_sym_pat:
         # Fix descriptions like D7TDB1 (
-        s = re.sub("([A-Z0-9]){6} \(", "", s)
+        s = re.sub(r"([A-Z0-9]){6} \(", "", s)
         s = s.split(";")[0]
 
     # Fix parantheses containing names
-    s = s.translate(None, "[]")
+    s = s.strip("[]")
     s = s.replace("(-)", "[-]")
     s = s.replace("(+)", "[+]")
     s = s.replace("(Uncharacterized protein)", "")
     if not ignore_sym_pat:
-        s = s.translate(None, "()")
+        s = s.strip("()")
 
     # fix minor typos, seen in `autonaming` output
     # change 'protei ' to 'protein '
     # change 'hypthetical' to 'hypothetical'
     # fix string starting with 'ytochrome'
-    if 'protei ' in s: s = s.replace('protei ', 'protein ')
-    if 'hypthetical' in s: s = s.replace('hypthetical', 'hypothetical')
-    if s.startswith('ytochrome'): s = s.replace('ytochrome', 'cytochrome')
+    if "protei " in s:
+        s = s.replace("protei ", "protein ")
+    if "hypthetical" in s:
+        s = s.replace("hypthetical", "hypothetical")
+    if s.startswith("ytochrome"):
+        s = s.replace("ytochrome", "cytochrome")
 
     # before trimming off at the first ";", check if name has glycosidic
     # linkage information (e.g 1,3 or 1,4). If so, also check if multiple
     # linkages are separated by ";". If so, replace ";" by "-"
     m = re.findall(glycosidic_link_pat, s)
     if m and ";" in s:
-        s = re.sub(";\s*", "-", s)
+        s = re.sub(r";\s*", "-", s)
 
     # remove underscore from description
     s = re.sub("_", " ", s)
@@ -355,7 +374,9 @@ def fix_text(s, ignore_sym_pat=False):
 
     # plural to singular
     if re.search(plural_pat, s):
-        if (s.find('biogenesis') == -1 and s.find('Topors') == -1) or (not re.search(with_and_pat, s)):
+        if (s.find("biogenesis") == -1 and s.find("Topors") == -1) or (
+            not re.search(with_and_pat, s)
+        ):
             s = re.sub(r"s$", "", s)
 
     # 'like_TBP' or 'likeTBP' to 'like TBP'
@@ -413,8 +434,9 @@ def fix_text(s, ignore_sym_pat=False):
 
         # if name is entirely a gene symbol-like (all capital letters, maybe followed by numbers)
         # add a "-like protein" at the end
-        if (re.search(sym_pat, s) or re.search(lc_sym_pat, s)) \
-                and not re.search(spada_pat, s):
+        if (re.search(sym_pat, s) or re.search(lc_sym_pat, s)) and not re.search(
+            spada_pat, s
+        ):
             s = s + "-like protein"
 
         # if gene symbol in parantheses at EOL, remove symbol
@@ -422,8 +444,8 @@ def fix_text(s, ignore_sym_pat=False):
             s = re.sub(eol_sym_pat, "", s)
 
         # if name terminates at a symbol([^A-Za-z0-9_]), trim it off
-        if re.search(r"\W{1,}$", s) and not re.search(r"\)$", s):
-            s = re.sub("\W{1,}$", "", s)
+        if re.search(r"\W+$", s) and not re.search(r"\)$", s):
+            s = re.sub(r"\W+$", "", s)
 
         if "uncharacterized" in s:
             s = "uncharacterized protein"
@@ -487,15 +509,14 @@ def fix_text(s, ignore_sym_pat=False):
 
     if not s.startswith(Hypothetical):
         # 'Candidate|Hypothetical|Novel|Predicted|Possible|Probable|Uncharacterized' to 'Putative'
-        if s.startswith('Uncharacterized') and any(pat in s for pat in ('UCP', 'UPF', 'protein')):
+        if s.startswith("Uncharacterized") and any(
+            pat in s for pat in ("UCP", "UPF", "protein")
+        ):
             pass
         else:
             if re.search(put_pat, s):
                 s = re.sub(put_pat, "Putative", s)
 
-    """
-    case (qr/^Histone-lysine/) { $ahrd =~ s/,\s+H\d{1}\s+lysine\-\d+//gs; }
-    """
     sl = s.lower()
 
     # Any mention of `clone` or `contig` is not informative
@@ -521,7 +542,7 @@ def fix_text(s, ignore_sym_pat=False):
         s = Hypothetical
 
     # Compact all spaces
-    s = ' '.join(s.split())
+    s = " ".join(s.split())
 
     assert s.strip()
 
@@ -535,29 +556,33 @@ def fix(args):
     Fix ugly names from Uniprot.
     """
     p = OptionParser(fix.__doc__)
-    p.add_option("--ignore_sym_pat", default=False, action="store_true",
-        help="Do not fix names matching symbol patterns i.e." + \
-        " names beginning or ending with gene symbols or a series of numbers." + \
-        " e.g. `ARM repeat superfamily protein`, `beta-hexosaminidase 3`," + \
-        " `CYCLIN A3;4`, `WALL ASSOCIATED KINASE (WAK)-LIKE 10`")
+    p.add_option(
+        "--ignore_sym_pat",
+        default=False,
+        action="store_true",
+        help="Do not fix names matching symbol patterns i.e."
+        + " names beginning or ending with gene symbols or a series of numbers."
+        + " e.g. `ARM repeat superfamily protein`, `beta-hexosaminidase 3`,"
+        + " `CYCLIN A3;4`, `WALL ASSOCIATED KINASE (WAK)-LIKE 10`",
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
         sys.exit(not p.print_help())
 
-    csvfile, = args
+    (csvfile,) = args
     fp = open(csvfile)
     fw = must_open(opts.outfile, "w")
     for row in fp:
-        if row[0] == '#':
+        if row[0] == "#":
             continue
         if row.strip() == "":
             continue
         atoms = row.rstrip("\r\n").split("\t")
-        name, hit, ahrd_code, desc = atoms[:4] \
-                if len(atoms) > 2 else \
-                (atoms[0], None, None, atoms[-1])
+        name, hit, ahrd_code, desc = (
+            atoms[:4] if len(atoms) > 2 else (atoms[0], None, None, atoms[-1])
+        )
 
         newdesc = fix_text(desc, ignore_sym_pat=opts.ignore_sym_pat)
         if hit and hit.strip() != "" and newdesc == Hypothetical:
@@ -592,7 +617,7 @@ def merge(args):
     for cf in csvfiles:
         fp = open(cf)
         for row in fp:
-            if row[0] == '#':
+            if row[0] == "#":
                 continue
             if row.strip() == "":
                 continue
@@ -624,21 +649,28 @@ def batch(args):
     """
     p = OptionParser(batch.__doc__)
 
-    ahrd_weights = { "blastp": [0.5, 0.3, 0.2],
-                     "blastx": [0.6, 0.4, 0.0]
-                   }
+    ahrd_weights = {"blastp": [0.5, 0.3, 0.2], "blastx": [0.6, 0.4, 0.0]}
     blast_progs = tuple(ahrd_weights.keys())
 
-    p.add_option("--path", default="~/code/AHRD/",
-                 help="Path where AHRD is installed [default: %default]")
-    p.add_option("--blastprog", default="blastp", choices=blast_progs,
-                help="Specify the blast program being run. Based on this option," \
-                   + " the AHRD parameters (score_weights) will be modified." \
-                   + " [default: %default]")
-    p.add_option("--iprscan", default=None,
-                help="Specify path to InterProScan results file if available." \
-                   + " If specified, the yml conf file will be modified" \
-                   + " appropriately. [default: %default]")
+    p.add_option(
+        "--path",
+        default="~/code/AHRD/",
+        help="Path where AHRD is installed",
+    )
+    p.add_option(
+        "--blastprog",
+        default="blastp",
+        choices=blast_progs,
+        help="Specify the blast program being run. Based on this option,"
+        + " the AHRD parameters (score_weights) will be modified",
+    )
+    p.add_option(
+        "--iprscan",
+        default=None,
+        help="Specify path to InterProScan results file if available."
+        + " If specified, the yml conf file will be modified"
+        + " appropriately",
+    )
 
     opts, args = p.parse_args(args)
 
@@ -659,7 +691,12 @@ def batch(args):
         outfile = op.join(output, fb + ".csv")
         interpro = iprscanTemplate.format(opts.iprscan) if opts.iprscan else ""
 
-        print(Template.format(dir, fb, f, outfile, bit_score, db_score, ovl_score, interpro), file=fw)
+        print(
+            Template.format(
+                dir, fb, f, outfile, bit_score, db_score, ovl_score, interpro
+            ),
+            file=fw,
+        )
 
     if opts.iprscan:
         if not op.lexists("interpro.xml"):
@@ -668,5 +705,6 @@ def batch(args):
         if not op.lexists("interpro.dtd"):
             symlink(op.join(iprscan_datadir, "interpro.dtd"), "interpro.dtd")
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     main()

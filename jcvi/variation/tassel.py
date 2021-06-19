@@ -15,9 +15,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, get_abs_path
 
 def main():
 
-    actions = (
-        ('prepare', 'prepare TASSEL pipeline'),
-            )
+    actions = (("prepare", "prepare TASSEL pipeline"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -36,13 +34,19 @@ def prepare(args):
 
     Prepare TASSEL pipeline.
     """
-    valid_enzymes = "ApeKI|ApoI|BamHI|EcoT22I|HinP1I|HpaII|MseI|MspI|" \
-                    "NdeI|PasI|PstI|Sau3AI|SbfI|AsiSI-MspI|BssHII-MspI|" \
-                    "FseI-MspI|PaeR7I-HhaI|PstI-ApeKI|PstI-EcoT22I|PstI-MspI" \
-                    "PstI-TaqI|SalI-MspI|SbfI-MspI".split("|")
+    valid_enzymes = (
+        "ApeKI|ApoI|BamHI|EcoT22I|HinP1I|HpaII|MseI|MspI|"
+        "NdeI|PasI|PstI|Sau3AI|SbfI|AsiSI-MspI|BssHII-MspI|"
+        "FseI-MspI|PaeR7I-HhaI|PstI-ApeKI|PstI-EcoT22I|PstI-MspI"
+        "PstI-TaqI|SalI-MspI|SbfI-MspI".split("|")
+    )
     p = OptionParser(prepare.__doc__)
-    p.add_option("--enzyme", default="ApeKI", choices=valid_enzymes,
-                 help="Restriction enzyme used [default: %default]")
+    p.add_option(
+        "--enzyme",
+        default="ApeKI",
+        choices=valid_enzymes,
+        help="Restriction enzyme used",
+    )
     p.set_home("tassel")
     p.set_aligner(aligner="bwa")
     p.set_cpus()
@@ -54,9 +58,19 @@ def prepare(args):
     barcode, reference = args
     thome = opts.tassel_home
     reference = get_abs_path(reference)
-    folders = ("fastq", "tagCounts", "mergedTagCounts", "topm",
-               "tbt", "mergedTBT", "hapmap", "hapmap/raw",
-               "hapmap/mergedSNPs", "hapmap/filt", "hapmap/bpec")
+    folders = (
+        "fastq",
+        "tagCounts",
+        "mergedTagCounts",
+        "topm",
+        "tbt",
+        "mergedTBT",
+        "hapmap",
+        "hapmap/raw",
+        "hapmap/mergedSNPs",
+        "hapmap/filt",
+        "hapmap/bpec",
+    )
     for f in folders:
         mkdir(f)
 
@@ -72,8 +86,7 @@ def prepare(args):
     runsh.append(cmd)
     runsh.append("cd mergedTagCounts")
 
-    cmd = "python -m jcvi.apps.{0} align --cpus {1}".\
-                format(opts.aligner, opts.cpus)
+    cmd = "python -m jcvi.apps.{0} align --cpus {1}".format(opts.aligner, opts.cpus)
     cmd += " {0} myMasterTags.cnt.fq".format(reference)
     runsh.append(cmd)
     runsh.append("cd ..")
@@ -99,7 +112,7 @@ def prepare(args):
     o = "-hmp hapmap/mergedSNPs/myGBSGenos_mergedSNPs_chr+.hmp.txt"
     o += " -o hapmap/filt/myGBSGenos_mergedSNPsFilt_chr+.hmp.txt"
     o += " -mnTCov 0.01 -mnSCov 0.2 -mnMAF 0.01 -sC 1 -eC 10"
-    #o += "-hLD -mnR2 0.2 -mnBonP 0.005"
+    # o += "-hLD -mnR2 0.2 -mnBonP 0.005"
     cmd = run_pipeline(thome, "GBSHapMapFiltersPlugin", o)
     runsh.append(cmd)
 
@@ -107,5 +120,5 @@ def prepare(args):
     write_file(runfile, "\n".join(runsh))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

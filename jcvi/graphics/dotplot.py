@@ -52,12 +52,13 @@ from jcvi.graphics.base import (
 
 class Palette(dict):
     def __init__(self, palettedict=None, palettefile=None):
-        """ Instantiate a palette to map from block_id to color
+        """Instantiate a palette to map from block_id to color
 
         Args:
             palettedict (Dict, optional): Get the mapping from a dict. Defaults to None.
             palettefile (str, optional): Get the mapping from a two-column file. Defaults to None.
         """
+        super(Palette, self).__init__()
         if palettedict is not None:
             self.update(palettedict)
         if palettefile is None:
@@ -89,7 +90,7 @@ class Palette(dict):
     def from_block_orientation(
         cls, anchorfile, qbed, sbed, forward_color="#e7298a", reverse_color="#3690c0"
     ):
-        """ Generate a palette which contains mapping from block_id (1-based) to colors.
+        """Generate a palette which contains mapping from block_id (1-based) to colors.
 
         Args:
             anchorfile (str): Path to the .anchors file
@@ -228,7 +229,7 @@ def downsample(data, sample_number=10000):
             "for clarity.".format(sample_number, npairs)
         )
         data = sample(data, sample_number)
-    return npairs
+    return data
 
 
 def dotplot(
@@ -315,7 +316,8 @@ def dotplot(
         if is_self:  # Mirror image
             data.append((si, qi, nv))
 
-    npairs = downsample(data, sample_number=sample_number)
+    data = downsample(data, sample_number=sample_number)
+    npairs = len(data)
     x, y, c = zip(*data)
 
     if palette:

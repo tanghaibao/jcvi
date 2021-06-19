@@ -24,20 +24,20 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, iglob
 def main():
 
     actions = (
-        ('compile', 'extract telomere length and ccn'),
-        ('traits', 'make HTML page that reports eye and skin color'),
+        ("compile", "extract telomere length and ccn"),
+        ("traits", "make HTML page that reports eye and skin color"),
         # Age paper plots
-        ('qc', 'plot distributions of basic statistics of a sample'),
-        ('correlation', 'plot correlation of age vs. postgenomic features'),
-        ('heritability', 'plot composite on heritability estimates'),
-        ('regression', 'plot chronological vs. predicted age'),
-        ('ccn', 'plot several ccn plots including chr1,chrX,chrY,chrM'),
-            )
+        ("qc", "plot distributions of basic statistics of a sample"),
+        ("correlation", "plot correlation of age vs. postgenomic features"),
+        ("heritability", "plot composite on heritability estimates"),
+        ("regression", "plot chronological vs. predicted age"),
+        ("ccn", "plot several ccn plots including chr1,chrX,chrY,chrM"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
 
-traits_template = '''
+traits_template = """
 <html>
     <head>
         <title>ART traits</title>
@@ -91,7 +91,8 @@ traits_template = '''
     </table>
     </body>
 </html>
-'''
+"""
+
 
 def lab2rgb(L, A, B):
     # Borrowed from:
@@ -145,11 +146,13 @@ def traits(args):
         js["skin_rgb"] = make_rgb(
             js["traits"]["skin-color"]["L"],
             js["traits"]["skin-color"]["A"],
-            js["traits"]["skin-color"]["B"])
+            js["traits"]["skin-color"]["B"],
+        )
         js["eye_rgb"] = make_rgb(
             js["traits"]["eye-color"]["L"],
             js["traits"]["eye-color"]["A"],
-            js["traits"]["eye-color"]["B"])
+            js["traits"]["eye-color"]["B"],
+        )
         samples.append(js)
 
     template = Template(traits_template)
@@ -161,17 +164,17 @@ def traits(args):
 
 def plot_fit_line(ax, x, y):
     from numpy.polynomial.polynomial import polyfit
+
     t = np.arange(100)
     xy = [(a, b) for (a, b) in zip(x, y) if np.isfinite(a) and np.isfinite(b)]
     x, y = zip(*xy)
     b, m = polyfit(x, y, 1)
     print("y = {} + {} * x".format(b, m))
-    ax.plot(t, b + m * t, '-', lw=3, color='k')
+    ax.plot(t, b + m * t, "-", lw=3, color="k")
 
 
 def composite_ccn(df, size=(12, 8)):
-    """ Plot composite ccn figure
-    """
+    """Plot composite ccn figure"""
     fig = plt.figure(1, size)
     ax1 = plt.subplot2grid((2, 2), (0, 0))
     ax2 = plt.subplot2grid((2, 2), (0, 1))
@@ -183,51 +186,66 @@ def composite_ccn(df, size=(12, 8)):
     mf = df[df["hli_calc_gender"] == "Male"]
 
     age_label = "Chronological age (yr)"
-    ax1.scatter(mf["hli_calc_age_sample_taken"], mf["ccn.chrX"],
-                s=10, marker='.',
-                color='lightslategray')
+    ax1.scatter(
+        mf["hli_calc_age_sample_taken"],
+        mf["ccn.chrX"],
+        s=10,
+        marker=".",
+        color="lightslategray",
+    )
     ax1.set_ylim(0.8, 1.1)
     plot_fit_line(ax1, mf["hli_calc_age_sample_taken"], mf["ccn.chrX"])
     ax1.set_ylabel("ChrX copy number")
     ax1.set_title("ChrX copy number in Male")
 
-    ax2.scatter(mf["hli_calc_age_sample_taken"], mf["ccn.chrY"],
-                s=10, marker='.',
-                color='lightslategray')
+    ax2.scatter(
+        mf["hli_calc_age_sample_taken"],
+        mf["ccn.chrY"],
+        s=10,
+        marker=".",
+        color="lightslategray",
+    )
     plot_fit_line(ax2, mf["hli_calc_age_sample_taken"], mf["ccn.chrY"])
     ax2.set_ylim(0.8, 1.1)
     ax2.set_ylabel("ChrY copy number")
     ax2.set_title("ChrY copy number in Male")
 
-    ax3.scatter(df["hli_calc_age_sample_taken"], df["ccn.chr1"],
-                s=10, marker='.',
-                color='lightslategray')
+    ax3.scatter(
+        df["hli_calc_age_sample_taken"],
+        df["ccn.chr1"],
+        s=10,
+        marker=".",
+        color="lightslategray",
+    )
     plot_fit_line(ax3, df["hli_calc_age_sample_taken"], df["ccn.chr1"])
     ax3.set_ylim(1.8, 2.1)
     ax3.set_ylabel("Chr1 copy number")
     ax3.set_title("Chr1 copy number")
 
-    ax4.scatter(df["hli_calc_age_sample_taken"], df["ccn.chrM"],
-                s=10, marker='.',
-                color='lightslategray')
+    ax4.scatter(
+        df["hli_calc_age_sample_taken"],
+        df["ccn.chrM"],
+        s=10,
+        marker=".",
+        color="lightslategray",
+    )
     plot_fit_line(ax4, df["hli_calc_age_sample_taken"], df["ccn.chrM"])
     ax4.set_ylim(0, 400)
     ax4.set_ylabel("Mitochondria copy number")
     ax4.set_title("Mitochondria copy number")
 
     from matplotlib.lines import Line2D
-    legend_elements = [Line2D([0], [0], marker='.', color='w', label=chem,
-                          markerfacecolor=color) \
-                        for (chem, color) in zip(chemistry, colors)[:3]]
+
+    legend_elements = [
+        Line2D([0], [0], marker=".", color="w", label=chem, markerfacecolor=color)
+        for (chem, color) in zip(chemistry, colors)[:3]
+    ]
     for ax in (ax1, ax2, ax3, ax4):
         ax.set_xlabel(age_label)
 
     plt.tight_layout()
     root = fig.add_axes((0, 0, 1, 1))
-    labels = ((.02, .98, "A"),
-              (.52, .98, "B"),
-              (.02, .5, "C"),
-              (.52, .5, "D"))
+    labels = ((0.02, 0.98, "A"), (0.52, 0.98, "B"), (0.02, 0.5, "C"), (0.52, 0.5, "D"))
     panel_labels(root, labels)
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -246,7 +264,7 @@ def ccn(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    tsvfile, = args
+    (tsvfile,) = args
     df = pd.read_csv(tsvfile, sep="\t")
     composite_ccn(df, size=(iopts.w, iopts.h))
     outfile = tsvfile.rsplit(".", 1)[0] + ".ccn.pdf"
@@ -265,13 +283,16 @@ def regression(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    tsvfile, = args
+    (tsvfile,) = args
     df = pd.read_csv(tsvfile, sep="\t")
     chrono = "Chronological age (yr)"
     pred = "Predicted age (yr)"
-    resdf = pd.DataFrame({chrono: df["hli_calc_age_sample_taken"], pred: df["Predicted Age"]})
-    g = sns.jointplot(chrono, pred, resdf, joint_kws={"s": 6},
-                      xlim=(0, 100), ylim=(0, 80))
+    resdf = pd.DataFrame(
+        {chrono: df["hli_calc_age_sample_taken"], pred: df["Predicted Age"]}
+    )
+    g = sns.jointplot(
+        chrono, pred, resdf, joint_kws={"s": 6}, xlim=(0, 100), ylim=(0, 80)
+    )
     g.fig.set_figwidth(iopts.w)
     g.fig.set_figheight(iopts.h)
     outfile = tsvfile.rsplit(".", 1)[0] + ".regression.pdf"
@@ -279,8 +300,7 @@ def regression(args):
 
 
 def composite_correlation(df, size=(12, 8)):
-    """ Plot composite correlation figure
-    """
+    """Plot composite correlation figure"""
     fig = plt.figure(1, size)
     ax1 = plt.subplot2grid((2, 2), (0, 0))
     ax2 = plt.subplot2grid((2, 2), (0, 1))
@@ -291,44 +311,67 @@ def composite_correlation(df, size=(12, 8)):
     color_map = dict(zip(chemistry, colors))
 
     age_label = "Chronological age (yr)"
-    ax1.scatter(df["hli_calc_age_sample_taken"], df["teloLength"],
-                s=10, marker='.',
-                color=df["Chemistry"].map(color_map))
+    ax1.scatter(
+        df["hli_calc_age_sample_taken"],
+        df["teloLength"],
+        s=10,
+        marker=".",
+        color=df["Chemistry"].map(color_map),
+    )
     ax1.set_ylim(0, 15)
     ax1.set_ylabel("Telomere length (Kb)")
 
-    ax2.scatter(df["hli_calc_age_sample_taken"], df["ccn.chrX"],
-                s=10, marker='.',
-                color=df["Chemistry"].map(color_map))
+    ax2.scatter(
+        df["hli_calc_age_sample_taken"],
+        df["ccn.chrX"],
+        s=10,
+        marker=".",
+        color=df["Chemistry"].map(color_map),
+    )
     ax2.set_ylim(1.8, 2.1)
     ax2.set_ylabel("ChrX copy number")
 
-    ax4.scatter(df["hli_calc_age_sample_taken"], df["ccn.chrY"],
-                s=10, marker='.',
-                color=df["Chemistry"].map(color_map))
+    ax4.scatter(
+        df["hli_calc_age_sample_taken"],
+        df["ccn.chrY"],
+        s=10,
+        marker=".",
+        color=df["Chemistry"].map(color_map),
+    )
     ax4.set_ylim(0.8, 1.1)
     ax4.set_ylabel("ChrY copy number")
 
-    ax3.scatter(df["hli_calc_age_sample_taken"], df["TRA.PPM"],
-                s=10, marker='.',
-                color=df["Chemistry"].map(color_map))
+    ax3.scatter(
+        df["hli_calc_age_sample_taken"],
+        df["TRA.PPM"],
+        s=10,
+        marker=".",
+        color=df["Chemistry"].map(color_map),
+    )
     ax3.set_ylim(0, 250)
     ax3.set_ylabel("$TCR-\\alpha$ deletions (count per million reads)")
 
     from matplotlib.lines import Line2D
-    legend_elements = [Line2D([0], [0], marker='.', color='w', label=chem,
-                          markerfacecolor=color, markersize=16) \
-                        for (chem, color) in zip(chemistry, colors)[:3]]
+
+    legend_elements = [
+        Line2D(
+            [0],
+            [0],
+            marker=".",
+            color="w",
+            label=chem,
+            markerfacecolor=color,
+            markersize=16,
+        )
+        for (chem, color) in zip(chemistry, colors)[:3]
+    ]
     for ax in (ax1, ax2, ax3, ax4):
         ax.set_xlabel(age_label)
         ax.legend(handles=legend_elements, loc="upper right")
 
     plt.tight_layout()
     root = fig.add_axes((0, 0, 1, 1))
-    labels = ((.02, .98, "A"),
-              (.52, .98, "B"),
-              (.02, .5, "C"),
-              (.52, .5, "D"))
+    labels = ((0.02, 0.98, "A"), (0.52, 0.98, "B"), (0.02, 0.5, "C"), (0.52, 0.5, "D"))
     panel_labels(root, labels)
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -347,7 +390,7 @@ def correlation(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    tsvfile, = args
+    (tsvfile,) = args
     df = pd.read_csv(tsvfile, sep="\t")
     composite_correlation(df, size=(iopts.w, iopts.h))
     outfile = tsvfile.rsplit(".", 1)[0] + ".correlation.pdf"
@@ -355,16 +398,17 @@ def correlation(args):
 
 
 def composite_qc(df_orig, size=(16, 12)):
-    """ Plot composite QC figures
-    """
-    df = df_orig.rename(columns={"hli_calc_age_sample_taken": "Age",
-                       "hli_calc_gender": "Gender",
-                       "eth7_max": "Ethnicity",
-                       "MeanCoverage": "Mean coverage",
-                       "Chemistry": "Sequencing chemistry",
-                       "Release Client": "Cohort",
-
-                      })
+    """Plot composite QC figures"""
+    df = df_orig.rename(
+        columns={
+            "hli_calc_age_sample_taken": "Age",
+            "hli_calc_gender": "Gender",
+            "eth7_max": "Ethnicity",
+            "MeanCoverage": "Mean coverage",
+            "Chemistry": "Sequencing chemistry",
+            "Release Client": "Cohort",
+        }
+    )
 
     fig = plt.figure(1, size)
     ax1 = plt.subplot2grid((2, 7), (0, 0), rowspan=1, colspan=2)
@@ -376,13 +420,13 @@ def composite_qc(df_orig, size=(16, 12)):
 
     sns.distplot(df["Age"].dropna(), kde=False, ax=ax1)
     sns.countplot(x="Gender", data=df, ax=ax2)
-    sns.countplot(x="Ethnicity", data=df, ax=ax3,
-                    order = df['Ethnicity'].value_counts().index)
+    sns.countplot(
+        x="Ethnicity", data=df, ax=ax3, order=df["Ethnicity"].value_counts().index
+    )
     sns.distplot(df["Mean coverage"].dropna(), kde=False, ax=ax4)
     ax4.set_xlim(0, 100)
     sns.countplot(x="Sequencing chemistry", data=df, ax=ax5)
-    sns.countplot(x="Cohort", data=df, ax=ax6,
-                    order = df['Cohort'].value_counts().index)
+    sns.countplot(x="Cohort", data=df, ax=ax6, order=df["Cohort"].value_counts().index)
     # Anonymize the cohorts
     cohorts = ax6.get_xticklabels()
     newCohorts = []
@@ -404,12 +448,14 @@ def composite_qc(df_orig, size=(16, 12)):
     plt.tight_layout()
 
     root = fig.add_axes((0, 0, 1, 1))
-    labels = ((.02, .96, "A"),
-              (.3, .96, "B"),
-              (.6, .96, "C"),
-              (.02, .52, "D"),
-              (.3, .52, "E"),
-              (.6, .52, "F"))
+    labels = (
+        (0.02, 0.96, "A"),
+        (0.3, 0.96, "B"),
+        (0.6, 0.96, "C"),
+        (0.02, 0.52, "D"),
+        (0.3, 0.52, "E"),
+        (0.6, 0.52, "F"),
+    )
     panel_labels(root, labels)
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -429,7 +475,7 @@ def qc(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    tsvfile, = args
+    (tsvfile,) = args
     df = pd.read_csv(tsvfile, sep="\t")
     composite_qc(df, size=(iopts.w, iopts.h))
     outfile = tsvfile.rsplit(".", 1)[0] + ".qc.pdf"
@@ -456,7 +502,7 @@ def filter_same_gender(pairs, gender):
         if gender[a] != gender[b]:
             diffGender += 1
             continue
-        yield (a, b, gender[a])
+        yield a, b, gender[a]
     print(notPresent, "not found")
     print(diffGender, "different gender")
 
@@ -469,6 +515,7 @@ def extract_twin_values(triples, traits, gender=None):
     triples: (a, b, "Female/Male") triples. The sample IDs are then used to query
              the traits dictionary.
     traits: sample_id => value dictionary
+    gender:
 
     Returns
     =======
@@ -491,28 +538,50 @@ def extract_twin_values(triples, traits, gender=None):
             continue
         twinValues.append((traits[a], traits[b]))
 
-    print("A total of {} pairs extracted ({} absent; {} nan; {} genderSkipped)"\
-        .format(len(twinValues), traitValuesAbsent, nanValues, genderSkipped))
+    print(
+        "A total of {} pairs extracted ({} absent; {} nan; {} genderSkipped)".format(
+            len(twinValues), traitValuesAbsent, nanValues, genderSkipped
+        )
+    )
     return twinValues
 
 
-def plot_paired_values(ax, mzValues, dzValues, label=None, gender=None,
-                       palette=sns.color_palette("PRGn", 10)):
+def plot_paired_values(
+    ax,
+    mzValues,
+    dzValues,
+    label=None,
+    gender=None,
+    palette=sns.color_palette("PRGn", 10),
+):
     from scipy.stats import pearsonr
+
     mzx, mzy = zip(*mzValues)
     dzx, dzy = zip(*dzValues)
-    mzline, = ax.plot(mzx, mzy, '.', color=palette[0], alpha=.75)
-    dzline, = ax.plot(dzx, dzy, '.', color=palette[-1], alpha=.75)
+    (mzline,) = ax.plot(mzx, mzy, ".", color=palette[0], alpha=0.75)
+    (dzline,) = ax.plot(dzx, dzy, ".", color=palette[-1], alpha=0.75)
     ax.set_xlabel(label + " in twin \#1")
     ax.set_ylabel(label + " in twin \#2")
-    ax.legend((mzline, dzline), ("Monozygotic twins ($N$={}{})".format(len(mzValues), ((" " + gender) if gender else "")),
-                                "Dizygotic twins ($N$={}{})".format(len(dzValues), (" " + gender) if gender else "")),
-              loc="upper left")
+    ax.legend(
+        (mzline, dzline),
+        (
+            "Monozygotic twins ($N$={}{})".format(
+                len(mzValues), ((" " + gender) if gender else "")
+            ),
+            "Dizygotic twins ($N$={}{})".format(
+                len(dzValues), (" " + gender) if gender else ""
+            ),
+        ),
+        loc="upper left",
+    )
     rho_mz, p_mz = pearsonr(mzx, mzy)
     rho_dz, p_dz = pearsonr(dzx, dzy)
     heritability = 2 * (rho_mz - rho_dz)
-    ax.set_title("{} ($\\rho_{{MZ}}$={:.2f}, $\\rho_{{DZ}}$={:.2f}, $heritability$={:.2f})".\
-                format(label, rho_mz, rho_dz, heritability))
+    ax.set_title(
+        "{} ($\\rho_{{MZ}}$={:.2f}, $\\rho_{{DZ}}$={:.2f}, $heritability$={:.2f})".format(
+            label, rho_mz, rho_dz, heritability
+        )
+    )
 
 
 def plot_abs_diff(ax, mzValues, dzValues, label=None, palette="PRGn"):
@@ -524,15 +593,15 @@ def plot_abs_diff(ax, mzValues, dzValues, label=None, palette="PRGn"):
     sns.boxplot(x, y, palette=palette, ax=ax)
     ax.set_ylabel("Absolute difference in {}".format(label))
 
+
 def filter_low_values(data, cutoff):
     newData = [(a, b) for a, b in data if a > cutoff and b > cutoff]
-    print("Removed {} outliers (<= {})"\
-        .format(len(data) - len(newData), cutoff))
+    print("Removed {} outliers (<= {})".format(len(data) - len(newData), cutoff))
     return newData
 
+
 def composite(df, sameGenderMZ, sameGenderDZ, size=(16, 24)):
-    """Embed both absdiff figures and heritability figures.
-    """
+    """Embed both absdiff figures and heritability figures."""
     fig = plt.figure(1, size)
 
     ax1a = plt.subplot2grid((6, 4), (0, 0), rowspan=2, colspan=1)
@@ -556,16 +625,20 @@ def composite(df, sameGenderMZ, sameGenderDZ, size=(16, 24)):
     mzCCNX = extract_twin_values(sameGenderMZ, CCNX, gender="Female")
     dzCCNX = extract_twin_values(sameGenderDZ, CCNX, gender="Female")
     dzCCNX = filter_low_values(dzCCNX, 1.75)
-    plot_paired_values(ax2b, mzCCNX, dzCCNX, gender="Female only", label="ChrX copy number")
+    plot_paired_values(
+        ax2b, mzCCNX, dzCCNX, gender="Female only", label="ChrX copy number"
+    )
     plot_abs_diff(ax2a, mzCCNX, dzCCNX, label="ChrX copy number")
 
     # CCNY
     CCNY = extract_trait(df, "Sample name", "ccn.chrY")
     mzCCNY = extract_twin_values(sameGenderMZ, CCNY, gender="Male")
     dzCCNY = extract_twin_values(sameGenderDZ, CCNY, gender="Male")
-    dzCCNY = filter_low_values(dzCCNY, .75)
+    dzCCNY = filter_low_values(dzCCNY, 0.75)
 
-    plot_paired_values(ax3b, mzCCNY, dzCCNY, gender="Male only", label="ChrY copy number")
+    plot_paired_values(
+        ax3b, mzCCNY, dzCCNY, gender="Male only", label="ChrY copy number"
+    )
     plot_abs_diff(ax3a, mzCCNY, dzCCNY, label="ChrY copy number")
 
     # CCNY
@@ -579,13 +652,21 @@ def composite(df, sameGenderMZ, sameGenderDZ, size=(16, 24)):
 
     root = fig.add_axes((0, 0, 1, 1))
     # ABCD absdiff, EFGH heritability
-    labels = ((.03, .99, 'A'), (.27, .99, 'B'), (.53, .99, 'C'), (.77, .99, 'D'),
-              (.03, .67, 'E'), (.53, .67, 'F'),
-              (.03, .34, 'G'), (.53, .34, 'H'))
+    labels = (
+        (0.03, 0.99, "A"),
+        (0.27, 0.99, "B"),
+        (0.53, 0.99, "C"),
+        (0.77, 0.99, "D"),
+        (0.03, 0.67, "E"),
+        (0.53, 0.67, "F"),
+        (0.03, 0.34, "G"),
+        (0.53, 0.34, "H"),
+    )
     panel_labels(root, labels)
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
+
 
 def heritability(args):
     """
@@ -663,5 +744,5 @@ def compile(args):
     df.to_csv(opts.outfile, sep="\t", index=False)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

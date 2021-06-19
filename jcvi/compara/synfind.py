@@ -30,8 +30,10 @@ import sqlite3
 from bisect import bisect_left
 from itertools import groupby, tee
 
-from jcvi.algorithms.lis import longest_increasing_subsequence, \
-    longest_decreasing_subsequence
+from jcvi.algorithms.lis import (
+    longest_increasing_subsequence,
+    longest_decreasing_subsequence,
+)
 from jcvi.compara.synteny import check_beds, read_blast
 from jcvi.utils.grouper import Grouper
 from jcvi.formats.base import must_open
@@ -53,7 +55,7 @@ def get_flanker(group, query):
     """
     group.sort()
     pos = bisect_left(group, (query, 0))
-    left_flanker = group[0] if pos == 0 else group[pos-1]
+    left_flanker = group[0] if pos == 0 else group[pos - 1]
     right_flanker = group[-1] if pos == len(group) else group[pos]
     # pick the closest flanker
     if abs(query - left_flanker[0]) < abs(query - right_flanker[0]):
@@ -87,8 +89,9 @@ def find_synteny_region(query, sbed, data, window, cutoff, colinear=False):
             g.join(ia, ib)
 
     for group in sorted(g):
-        (qflanker, syntelog), (far_flanker, far_syntelog), flanked = \
-            get_flanker(group, query)
+        (qflanker, syntelog), (far_flanker, far_syntelog), flanked = get_flanker(
+            group, query
+        )
 
         # run a mini-dagchainer here, take the direction that gives us most anchors
         if colinear:
@@ -121,8 +124,7 @@ def find_synteny_region(query, sbed, data, window, cutoff, colinear=False):
         left, right = group[0][1], group[-1][1]
         # this characterizes a syntenic region (left, right).
         # syntelog is -1 if it's a gray gene
-        syn_region = (syntelog, far_syntelog, left,
-                      right, gray, orientation, score)
+        syn_region = (syntelog, far_syntelog, left, right, gray, orientation, score)
         regions.append(syn_region)
 
     return sorted(regions, key=lambda x: -x[-1])  # decreasing synteny score
@@ -145,7 +147,10 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
         qnote, snote = snote, qnote
 
     all_data.sort()
-    def simple_bed(x): return (sbed[x].seqid, sbed[x].start)
+
+    def simple_bed(x):
+        return sbed[x].seqid, sbed[x].start
+
     qsimplebed = qbed.simple_bed
 
     for seqid, ranks in groupby(qsimplebed, key=lambda x: x[0]):
@@ -156,9 +161,18 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
             rmin_pos = bisect_left(all_data, (rmin, 0))
             rmax_pos = bisect_left(all_data, (rmax, 0))
             data = all_data[rmin_pos:rmax_pos]
-            regions = find_synteny_region(r, sbed, data, window,
-                                          cutoff, colinear=colinear)
-            for syntelog, far_syntelog, left, right, gray, orientation, score in regions:
+            regions = find_synteny_region(
+                r, sbed, data, window, cutoff, colinear=colinear
+            )
+            for (
+                syntelog,
+                far_syntelog,
+                left,
+                right,
+                gray,
+                orientation,
+                score,
+            ) in regions:
                 query = qbed[r].accn
 
                 left_chr, left_pos = simple_bed(left)
@@ -167,17 +181,23 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
                 anchor = sbed[syntelog].accn
                 anchor_chr, anchor_pos = simple_bed(syntelog)
                 # below is useful for generating the syntenic region in the coge url
-                left_dist = abs(anchor_pos - left_pos) \
-                    if anchor_chr == left_chr else 0
-                right_dist = abs(anchor_pos - right_pos) \
-                    if anchor_chr == right_chr else 0
+                left_dist = abs(anchor_pos - left_pos) if anchor_chr == left_chr else 0
+                right_dist = (
+                    abs(anchor_pos - right_pos) if anchor_chr == right_chr else 0
+                )
                 flank_dist = (max(left_dist, right_dist) / 10000 + 1) * 10000
 
                 far_syntelog = sbed[far_syntelog].accn
 
-                left_pos, right_pos = sorted((left_pos, right_pos))
-                data = [query, anchor, gray, score,
-                        flank_dist, orientation, far_syntelog]
+                data = [
+                    query,
+                    anchor,
+                    gray,
+                    score,
+                    flank_dist,
+                    orientation,
+                    far_syntelog,
+                ]
                 pdata = data[:6] + [qnote, snote]
                 if fw:
                     print("\t".join(str(x) for x in pdata), file=fw)
@@ -189,8 +209,9 @@ def main(blastfile, p, opts):
 
     sqlite = opts.sqlite
     qbed, sbed, qorder, sorder, is_self = check_beds(blastfile, p, opts)
-    filtered_blast = read_blast(blastfile, qorder, sorder,
-                                is_self=is_self, ostrip=opts.strip_names)
+    filtered_blast = read_blast(
+        blastfile, qorder, sorder, is_self=is_self, ostrip=opts.strip_names
+    )
     all_data = [(b.qi, b.si) for b in filtered_blast]
 
     c = None
@@ -198,9 +219,11 @@ def main(blastfile, p, opts):
         conn = sqlite3.connect(sqlite)
         c = conn.cursor()
         c.execute("drop table if exists synteny")
-        c.execute("create table synteny (query text, anchor text, "
-                  "gray varchar(1), score integer, dr integer, "
-                  "orientation varchar(1), qnote text, snote text)")
+        c.execute(
+            "create table synteny (query text, anchor text, "
+            "gray varchar(1), score integer, dr integer, "
+            "orientation varchar(1), qnote text, snote text)"
+        )
         fw = None
     else:
         fw = must_open(opts.outfile, "w")
@@ -219,7 +242,7 @@ def main(blastfile, p, opts):
         fw.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     p = OptionParser(__doc__)
     p.set_beds()
@@ -228,19 +251,26 @@ if __name__ == '__main__':
 
     coge_group = OptionGroup(p, "CoGe-specific options")
     coge_group.add_option("--sqlite", help="Write sqlite database")
-    coge_group.add_option("--qnote", default="null",
-                          help="Query dataset group id")
-    coge_group.add_option("--snote", default="null",
-                          help="Subject dataset group id")
+    coge_group.add_option("--qnote", default="null", help="Query dataset group id")
+    coge_group.add_option("--snote", default="null", help="Subject dataset group id")
 
     params_group = OptionGroup(p, "Synteny parameters")
-    params_group.add_option("--window", type="int", default=40,
-                            help="Synteny window size")
-    params_group.add_option("--cutoff", type="float", default=.1,
-                            help="Minimum number of anchors to call synteny")
+    params_group.add_option(
+        "--window", type="int", default=40, help="Synteny window size"
+    )
+    params_group.add_option(
+        "--cutoff",
+        type="float",
+        default=0.1,
+        help="Minimum number of anchors to call synteny",
+    )
     supported_scoring = ("collinear", "density")
-    params_group.add_option("--scoring", choices=supported_scoring,
-                            default="collinear", help="Scoring scheme")
+    params_group.add_option(
+        "--scoring",
+        choices=supported_scoring,
+        default="collinear",
+        help="Scoring scheme",
+    )
 
     p.add_option_group(coge_group)
     p.add_option_group(params_group)
@@ -250,5 +280,5 @@ if __name__ == '__main__':
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    blastfile, = args
+    (blastfile,) = args
     main(blastfile, p, opts)

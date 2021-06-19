@@ -473,9 +473,9 @@ def to_range(obj, score=None, id=None, strand=None):
             seqid=obj.seqid, start=obj.start, end=obj.end, score=_score, id=_id
         )
     elif strand:
-        return (obj.seqid, obj.start, obj.end, obj.strand)
+        return obj.seqid, obj.start, obj.end, obj.strand
 
-    return (obj.seqid, obj.start, obj.end)
+    return obj.seqid, obj.start, obj.end
 
 
 def main():
@@ -634,19 +634,19 @@ def scan_for_valid_codon(codon_span, strand, seqid, genome, type="start"):
         is_valid = is_valid_codon(codon, type=type)
         if not is_valid:
             if type == "start":
-                ## if we are scanning upstream for a valid start codon,
-                ## stop scanning when we encounter a stop
+                # if we are scanning upstream for a valid start codon,
+                # stop scanning when we encounter a stop
                 if is_valid_codon(codon, type="stop"):
-                    return (None, None)
+                    return None, None
             elif type == "stop":
-                ## if we are scanning downstream for a valid stop codon,
-                ## stop scanning when we encounter a start
+                # if we are scanning downstream for a valid stop codon,
+                # stop scanning when we encounter a start
                 if is_valid_codon(codon, type="start"):
-                    return (None, None)
+                    return None, None
             continue
         break
 
-    return (s, e)
+    return s, e
 
 
 def fixpartials(args):
@@ -680,11 +680,11 @@ def fixpartials(args):
     for gene in gff.features_of_type("gene", order_by=("seqid", "start")):
         children = AutoVivification()
         cflag = False
-        transcripts = list(gff.children(gene, level=1, order_by=("start")))
+        transcripts = list(gff.children(gene, level=1, order_by="start"))
         for transcript in transcripts:
             trid, seqid, strand = transcript.id, transcript.seqid, transcript.strand
 
-            for child in gff.children(transcript, order_by=("start")):
+            for child in gff.children(transcript, order_by="start"):
                 ftype = child.featuretype
                 if ftype not in children[trid]:
                     children[trid][ftype] = []
@@ -880,9 +880,7 @@ def cluster(args):
             combinations(
                 [
                     mrna
-                    for mrna in gff.children(
-                        gene, featuretype="mRNA", order_by=("start")
-                    )
+                    for mrna in gff.children(gene, featuretype="mRNA", order_by="start")
                 ],
                 2,
             )
@@ -908,10 +906,10 @@ def cluster(args):
                             )
                         )
 
-                    if all(r == True for r in res):
+                    if all(res):
                         g.join((mrna1.id, mrna1s), (mrna2.id, mrna2s))
         else:
-            for mrna1 in gff.children(gene, featuretype="mRNA", order_by=("start")):
+            for mrna1 in gff.children(gene, featuretype="mRNA", order_by="start"):
                 mrna1s = gff.children_bp(mrna1, child_featuretype="exon")
                 g.join((mrna1.id, mrna1s))
 
@@ -1216,7 +1214,7 @@ def filter(args):
     fw = must_open(opts.outfile, "w")
     for g in gffdb.features_of_type(ptype, order_by=("seqid", "start")):
         if ptype != otype:
-            feats = list(gffdb.children(g, featuretype=otype, order_by=("start")))
+            feats = list(gffdb.children(g, featuretype=otype, order_by="start"))
             ok_feats = [f for f in feats if f.id not in bad]
             if len(ok_feats) > 0:
                 g.keep_order = True
@@ -1224,13 +1222,13 @@ def filter(args):
                 for feat in ok_feats:
                     feat.keep_order = True
                     print(feat, file=fw)
-                    for child in gffdb.children(feat, order_by=("start")):
+                    for child in gffdb.children(feat, order_by="start"):
                         child.keep_order = True
                         print(child, file=fw)
         else:
             if g.id not in bad:
                 print(g, file=fw)
-                for child in gffdb.children(g, order_by=("start")):
+                for child in gffdb.children(g, order_by="start"):
                     print(child, file=fw)
     fw.close()
 
@@ -2082,7 +2080,7 @@ def fixboundaries(args):
         if f.featuretype == opts.type:
             child_coords = []
             for cftype in opts.child_ftype.split(","):
-                for c in gffdb.children(f, featuretype=cftype, order_by=("start")):
+                for c in gffdb.children(f, featuretype=cftype, order_by="start"):
                     child_coords.append((c.start, c.stop))
             f.start, f.stop = range_minmax(child_coords)
 
@@ -3400,14 +3398,10 @@ def parse_feature_param(feature):
                 "Error: upstream len `" + str(upstream_len) + "` should be > 0",
             )
 
-        if not upstream_site in valid_upstream_sites:
+        if upstream_site not in valid_upstream_sites:
             flag, error_msg = (
                 1,
-                "Error: upstream site `"
-                + upstream_site
-                + "` not valid."
-                + " Please choose from "
-                + valid_upstream_sites,
+                f"Error: upstream site `{upstream_site}` not valid. Please choose from {valid_upstream_sites}",
             )
     elif feature == "CDS":
         parents, children = "mRNA", "CDS"

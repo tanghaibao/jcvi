@@ -299,7 +299,8 @@ def dotplot(args):
         for x in raw_data
         if (x.seqid in qstarts)
     ]
-    npairs = downsample(data)
+    data = downsample(data)
+    npairs = len(data)
 
     x, y, c = zip(*data)
     ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0)

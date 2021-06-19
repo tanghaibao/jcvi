@@ -89,7 +89,7 @@ class BedLine(object):
     @property
     def range(self):
         strand = self.strand or "+"
-        return (self.seqid, self.start, self.end, strand)
+        return self.seqid, self.start, self.end, strand
 
     @property
     def tag(self):
@@ -345,11 +345,12 @@ class BedEvaluate(object):
     def __str__(self):
         from jcvi.utils.table import tabulate
 
-        table = {}
-        table[("Prediction-True", "Reality-True")] = self.TP
-        table[("Prediction-True", "Reality-False")] = self.FP
-        table[("Prediction-False", "Reality-True")] = self.FN
-        table[("Prediction-False", "Reality-False")] = self.TN
+        table = {
+            ("Prediction-True", "Reality-True"): self.TP,
+            ("Prediction-True", "Reality-False"): self.FP,
+            ("Prediction-False", "Reality-True"): self.FN,
+            ("Prediction-False", "Reality-False"): self.TN,
+        }
         msg = str(tabulate(table))
 
         msg += "\nSensitivity [TP / (TP + FN)]: {0:.1f} %\n".format(
@@ -483,9 +484,7 @@ def format(args):
     """
     p = OptionParser(format.__doc__)
     p.add_option("--prefix", help="Add prefix to name column (4th)")
-    p.add_option(
-        "--switch", help="Switch seqids based on two-column file"
-    )
+    p.add_option("--switch", help="Switch seqids based on two-column file")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -909,7 +908,7 @@ def seqids(args):
     if pf:
         s = [x for x in s if x.startswith(pf)]
     if exclude:
-        s = [x for x in s if not exclude in x]
+        s = [x for x in s if exclude not in x]
     s = s[: opts.maxn]
     print(",".join(s))
 
@@ -1077,7 +1076,7 @@ def mergebydepth(args):
 
     bedfile, fastafile = args
     mindepth = opts.mindepth
-    bedgraph = make_bedgraph(bedfile)
+    bedgraph = make_bedgraph(bedfile, fastafile)
 
     bedgraphfiltered = bedgraph + ".d{0}".format(mindepth)
     if need_update(bedgraph, bedgraphfiltered):
@@ -1617,7 +1616,7 @@ def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=
             "antimode",
             "collapse",
         )
-        if not scores in valid_opts:
+        if scores not in valid_opts:
             scores = "mean"
         cmd += " -scores {0}".format(scores)
 
@@ -2475,7 +2474,7 @@ def flanking(args):
     for atom in flankingbed:
         print(str(atom), file=fw)
 
-    return (position, flankingbed)
+    return position, flankingbed
 
 
 if __name__ == "__main__":

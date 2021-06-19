@@ -244,8 +244,10 @@ def minimac_autosome(mm, chr, vcffile, opts, phasing=True):
     minimac_cmd = op.join(opts.minimac_home, "Minimac3")
 
     cmd = minimac_cmd + " --chr {0}".format(chr)
-    cmd += " --refHaps {0}/{1}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz".format(
-        kg, chrtag
+    cmd += (
+        " --refHaps {0}/{1}.1000g.Phase3.v5.With.Parameter.Estimates.m3vcf.gz".format(
+            kg, chrtag
+        )
     )
     cmd += " --haps {0} --prefix {1}".format(phasedfile, opf)
     cmd += " --format GT,GP --nobgzip"

@@ -21,9 +21,9 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 def main():
 
     actions = (
-        ('wgsim', 'sample paired end reads using dwgsim'),
-        ('eagle', 'simulate Illumina reads using EAGLE'),
-            )
+        ("wgsim", "sample paired end reads using dwgsim"),
+        ("eagle", "simulate Illumina reads using EAGLE"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -32,10 +32,13 @@ def add_sim_options(p):
     """
     Add options shared by eagle or wgsim.
     """
-    p.add_option("--distance", default=500, type="int",
-                 help="Outer distance between the two ends [default: %default]")
-    p.add_option("--readlen", default=150, type="int",
-                 help="Length of the read")
+    p.add_option(
+        "--distance",
+        default=500,
+        type="int",
+        help="Outer distance between the two ends",
+    )
+    p.add_option("--readlen", default=150, type="int", help="Length of the read")
     p.set_depth(depth=10)
     p.set_outfile(outfile=None)
 
@@ -46,15 +49,16 @@ def eagle(args):
 
     """
     p = OptionParser(eagle.__doc__)
-    p.add_option("--share", default="/usr/local/share/EAGLE/",
-                 help="Default EAGLE share path")
+    p.add_option(
+        "--share", default="/usr/local/share/EAGLE/", help="Default EAGLE share path"
+    )
     add_sim_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     share = opts.share
     depth = opts.depth
     readlen = opts.readlen
@@ -70,9 +74,11 @@ def eagle(args):
     if not op.exists(runinfo_readlen):
         runinfo = op.join(share, "RunInfo/RunInfo_PairedReads2x251Cycles1x1Tiles.xml")
         runinfo_xml = open(runinfo).read()
-        runinfo_xml = runinfo_xml.replace("251", str(readlen))\
-                                 .replace("252", str(readlen + 1))\
-                                 .replace("502", str(2 * readlen))
+        runinfo_xml = (
+            runinfo_xml.replace("251", str(readlen))
+            .replace("252", str(readlen + 1))
+            .replace("502", str(2 * readlen))
+        )
         fw = open(runinfo_readlen, "w")
         print(runinfo_xml.strip(), file=fw)
         fw.close()
@@ -82,17 +88,24 @@ def eagle(args):
     quality_file2 = "QualityTable.read2.length{}.qval".format(readlen)
     if not (op.exists(quality_file1) and op.exists(quality_file2)):
         for i, qq in enumerate([quality_file1, quality_file2]):
-            cmd  = "/usr/local/libexec/EAGLE/scaleQualityTable.pl"
-            cmd += " --input {}".format(op.join(share,
-                "QualityTables/DefaultQualityTable.read{}.length101.qval".format(i + 1)))
+            cmd = "/usr/local/libexec/EAGLE/scaleQualityTable.pl"
+            cmd += " --input {}".format(
+                op.join(
+                    share,
+                    "QualityTables/DefaultQualityTable.read{}.length101.qval".format(
+                        i + 1
+                    ),
+                )
+            )
             cmd += " --cycles {}".format(readlen)
             cmd += " --output {}".format(qq)
             sh(cmd, silent=True)
 
     # Since distance is different from the default distribution which is
     # centered around 319, we shift our peak to the new peak
-    template_lengths = op.join(share,
-                "TemplateLengthTables/DefaultTemplateLengthTable.tsv")
+    template_lengths = op.join(
+        share, "TemplateLengthTables/DefaultTemplateLengthTable.tsv"
+    )
     template_distance = "TemplateLengthTable{}.tsv".format(distance)
     shift = distance - 319
     if not op.exists(template_distance):
@@ -109,11 +122,12 @@ def eagle(args):
         fw.close()
 
     # All done, let's simulate!
-    cmd  = "configureEAGLE.pl"
+    cmd = "configureEAGLE.pl"
     cmd += " --reference-genome {}".format(fastafile)
     cmd += " --coverage-depth {}".format(depth)
-    cmd += " --gc-coverage-fit-table {}".format(op.join(share,
-                "GcCoverageFitTables/Homo_sapiens.example1.tsv"))
+    cmd += " --gc-coverage-fit-table {}".format(
+        op.join(share, "GcCoverageFitTables/Homo_sapiens.example1.tsv")
+    )
     cmd += " --run-info {}".format(runinfo_readlen)
     cmd += " --quality-table {}".format(quality_file1)
     cmd += " --quality-table {}".format(quality_file2)
@@ -131,6 +145,7 @@ def eagle(args):
 
     # Convert BAM to FASTQ
     from jcvi.formats.sam import fastq
+
     a, b = fastq(["eagle.bam", outpf])
     sh("mv {} {} ../".format(a, b))
     os.chdir(cwd)
@@ -146,19 +161,30 @@ def wgsim(args):
     Run dwgsim on fastafile.
     """
     p = OptionParser(wgsim.__doc__)
-    p.add_option("--erate", default=.01, type="float",
-                 help="Base error rate of the read [default: %default]")
-    p.add_option("--noerrors", default=False, action="store_true",
-                 help="Simulate reads with no errors [default: %default]")
-    p.add_option("--genomesize", type="int",
-                 help="Genome size in Mb [default: estimate from data]")
+    p.add_option(
+        "--erate",
+        default=0.01,
+        type="float",
+        help="Base error rate of the read",
+    )
+    p.add_option(
+        "--noerrors",
+        default=False,
+        action="store_true",
+        help="Simulate reads with no errors",
+    )
+    p.add_option(
+        "--genomesize",
+        type="int",
+        help="Genome size in Mb [default: estimate from data]",
+    )
     add_sim_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     pf = op.basename(fastafile).split(".")[0]
 
     genomesize = opts.genomesize
@@ -189,5 +215,5 @@ def wgsim(args):
     sh(cmd)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -24,7 +24,7 @@ def wm_mk_counts(infile=None, outfile=None):
 @depends
 def wm_mk_masks(infile=None, outfile=None, genomefile=None):
     cmd = "windowmasker -in {0} -ustat {1}".format(genomefile, infile)
-    cmd +=  " -outfmt fasta -dust T -out {0}".format(outfile)
+    cmd += " -outfmt fasta -dust T -out {0}".format(outfile)
     sh(cmd)
 
 
@@ -36,9 +36,9 @@ def hardmask(fastafile):
 def main():
 
     actions = (
-        ('mask', 'use windowmasker to mask low-complexity bases'),
-        ('summary', 'report the number of bases and sequences masked'),
-            )
+        ("mask", "use windowmasker to mask low-complexity bases"),
+        ("summary", "report the number of bases and sequences masked"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -56,7 +56,7 @@ def summary(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     f = Fasta(fastafile, index=False)
 
     halfmaskedseqs = set()
@@ -69,7 +69,7 @@ def summary(args):
             if base not in "AGCT":
                 masked += 1
         seqlen = len(seq)
-        if masked * 100. / seqlen > cutoff:
+        if masked * 100.0 / seqlen > cutoff:
             halfmaskedseqs.add(key)
         allmasked += masked
         allbases += seqlen
@@ -77,10 +77,16 @@ def summary(args):
     seqnum = len(f)
     maskedseqnum = len(halfmaskedseqs)
 
-    print("Total masked bases: {0}".\
-            format(percentage(allmasked, allbases)), file=sys.stderr)
-    print("Total masked sequences (contain > {0}% masked): {1}".\
-            format(cutoff, percentage(maskedseqnum, seqnum)), file=sys.stderr)
+    print(
+        "Total masked bases: {0}".format(percentage(allmasked, allbases)),
+        file=sys.stderr,
+    )
+    print(
+        "Total masked sequences (contain > {0}% masked): {1}".format(
+            cutoff, percentage(maskedseqnum, seqnum)
+        ),
+        file=sys.stderr,
+    )
 
 
 def mask(args):
@@ -92,14 +98,19 @@ def mask(args):
     (default to lower case, set --hard for hardmasking).
     """
     p = OptionParser(mask.__doc__)
-    p.add_option("--hard", dest="hard", default=False, action="store_true",
-            help="Hard mask the low-complexity bases [default: %default]")
+    p.add_option(
+        "--hard",
+        dest="hard",
+        default=False,
+        action="store_true",
+        help="Hard mask the low-complexity bases",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    genomefile, = args
+    (genomefile,) = args
 
     # entire pipeline
     countsfile = genomefile + ".counts"
@@ -112,5 +123,5 @@ def mask(args):
         hardmask(maskedfastafile)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -118,12 +118,8 @@ def blastfilter_main(blast_file, p, opts):
             "running the local dups filter (tandem_Nmax={}) ..".format(tandem_Nmax)
         )
 
-        qtandems = tandem_grouper(
-            qbed, filtered_blasts, flip=True, tandem_Nmax=tandem_Nmax
-        )
-        standems = tandem_grouper(
-            sbed, filtered_blasts, flip=False, tandem_Nmax=tandem_Nmax
-        )
+        qtandems = tandem_grouper(filtered_blasts, flip=True, tandem_Nmax=tandem_Nmax)
+        standems = tandem_grouper(filtered_blasts, flip=False, tandem_Nmax=tandem_Nmax)
 
         qdups_fh = (
             open(op.splitext(opts.qbed)[0] + ".localdups", "w")
@@ -210,7 +206,7 @@ def write_new_blast(filtered_blasts, fh=sys.stdout):
 
 
 def filter_exclude(blast_list, exclude=None):
-    """ Filter gene pairs from an excluded list
+    """Filter gene pairs from an excluded list
 
     Args:
         blast_list (List[BlastLine]): List of BlastLines
@@ -266,7 +262,7 @@ def filter_tandem(blast_list, qdups_to_mother, sdups_to_mother):
         yield b
 
 
-def tandem_grouper(bed, blast_list, tandem_Nmax=10, flip=True):
+def tandem_grouper(blast_list, tandem_Nmax=10, flip=True):
     if not flip:
         simple_blast = [
             (b.query, (b.sseqid, b.si)) for b in blast_list if b.evalue < 1e-10
@@ -324,7 +320,7 @@ def main(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    blastfile, = args
+    (blastfile,) = args
     blastfilter_main(blastfile, p, opts)
 
 

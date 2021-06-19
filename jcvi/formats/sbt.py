@@ -24,16 +24,14 @@ NameTemplate = """        {{
         }}"""
 
 
-class SubmissionTemplate (object):
+class SubmissionTemplate(object):
     def __init__(self):
         raise NotImplementedError
 
 
 def main():
 
-    actions = (
-        ('names', 'convert a list of names to sbt blocks'),
-            )
+    actions = (("names", "convert a list of names to sbt blocks"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -47,13 +45,13 @@ def get_name_parts(au):
     """
     parts = au.split()
     first = parts[0]
-    middle = [x for x in parts if x[-1] == '.']
+    middle = [x for x in parts if x[-1] == "."]
     middle = "".join(middle)
 
-    last = [x for x in parts[1:] if x[-1] != '.']
+    last = [x for x in parts[1:] if x[-1] != "."]
     last = " ".join(last)
     initials = "{0}.{1}".format(first[0], middle)
-    if first[-1] == '.':  # Some people use full middle name
+    if first[-1] == ".":  # Some people use full middle name
         middle, last = last.split(None, 1)
         initials = "{0}.{1}.".format(first[0], middle)
 
@@ -78,7 +76,7 @@ def parse_names(lstfile):
             if not au:
                 continue
             au = string.translate(au, None, string.digits)
-            #au = au.replace("-", '')
+            # au = au.replace("-", '')
             authors.append(au)
         all_authors.append(authors)
 
@@ -88,8 +86,9 @@ def parse_names(lstfile):
         for au in authors:
             last, first, initials = get_name_parts(au)
             suffix = ""
-            nameblock = NameTemplate.format(last=last, first=first,
-                    initials=initials, suffix=suffix)
+            nameblock = NameTemplate.format(
+                last=last, first=first, initials=initials, suffix=suffix
+            )
             blocks.append(nameblock)
         bigblock = ",\n".join(blocks)
         out.append(bigblock)
@@ -141,7 +140,7 @@ def names(args):
     namelist, templatefile = args
 
     # First check the alternative format
-    if open(namelist).read()[0] == '[':
+    if open(namelist).read()[0] == "[":
         out = parse_names(namelist)
         make_template(templatefile, out)
         return
@@ -157,14 +156,15 @@ def names(args):
     for row in reader:
         first, middle, last = row[:3]
         extras = row[3:]
-        bools.append([(x.upper() == 'Y') for x in extras])
+        bools.append([(x.upper() == "Y") for x in extras])
         middle = middle.strip()
         if middle != "":
-            middle = middle.rstrip('.') + '.'
+            middle = middle.rstrip(".") + "."
         initials = "{0}.{1}".format(first[0], middle)
         suffix = ""
-        nameblock = NameTemplate.format(last=last, first=first,
-                initials=initials, suffix=suffix)
+        nameblock = NameTemplate.format(
+            last=last, first=first, initials=initials, suffix=suffix
+        )
         blocks.append(nameblock)
 
     selected_idx = zip(*bools)
@@ -176,14 +176,16 @@ def names(args):
                 selected.append(b)
         bigblock = ",\n".join(selected)
         out.append(bigblock)
-        logging.debug("List N{0} contains a total of {1} names.".format(i,
-            len(selected)))
+        logging.debug(
+            "List N{0} contains a total of {1} names.".format(i, len(selected))
+        )
 
     make_template(templatefile, out)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
 
     main()

@@ -23,7 +23,6 @@ import sys
 from jcvi.algorithms.lpsolve import MIPDataModel
 from jcvi.compara.synteny import AnchorFile, _score, check_beds
 from jcvi.formats.base import must_open
-from jcvi.utils.console import printf
 from jcvi.apps.base import OptionParser
 
 
@@ -116,7 +115,6 @@ def create_data_model(nodes, constraints_x, qa, constraints_y, qb):
     """
     num_vars = len(nodes)
     obj_coeffs = nodes[:]
-    num_constraints = 0
     constraint_coeffs = []
     bounds = []
     for c in constraints_x:

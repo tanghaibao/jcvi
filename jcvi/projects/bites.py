@@ -170,7 +170,7 @@ def scenario(args):
     Illustration of the two-step genome merger process for B. rapa companion paper.
     """
     p = OptionParser(__doc__)
-    opts, args = p.parse_args()
+    p.parse_args()
 
     fig = plt.figure(1, (5, 5))
     root = fig.add_axes([0, 0, 1, 1])

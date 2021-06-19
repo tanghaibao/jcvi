@@ -218,7 +218,7 @@ class ORFFinder(object):
             start += 3
 
     def scan_sequence(self, frame, direction):
-        """ Search in one reading frame """
+        """Search in one reading frame"""
         orf_start = None
         for c, index in self.codons(frame):
             if (
@@ -1642,11 +1642,6 @@ def hash_fasta(
         else:
             seq = re.sub("N", "", seq)
 
-    if checksum == "MD5":
-        hashed = md5(seq).hexdigest()
-    elif checksum == "GCG":
-        hashed = seguid(seq)
-
     return seguid(seq) if checksum == "GCG" else hashlib.sha256(seq)
 
 
@@ -1744,7 +1739,7 @@ def identical(args):
         uniqfile = "_".join(files) + ".uniq.fasta"
         uniqfw = must_open(uniqfile, "w")
 
-    header = "\t".join(str(x) for x in (args))
+    header = "\t".join(str(x) for x in args)
     print("\t".join(str(x) for x in ("", header)), file=fw)
     for idx, hashed in enumerate(d.keys()):
         line = []

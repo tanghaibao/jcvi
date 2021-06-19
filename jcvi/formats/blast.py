@@ -15,7 +15,7 @@ from jcvi.formats.sizes import Sizes
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.orderedcollections import OrderedDict
 from jcvi.utils.range import range_distance
-from jcvi.utils.cbook import percentage, thousands
+from jcvi.utils.cbook import percentage
 from jcvi.assembly.base import calculate_A50
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
 
@@ -1008,7 +1008,6 @@ def mismatches(args):
     (blastfile,) = args
 
     data = []
-    matches = 0
     b = Blast(blastfile)
     for query, bline in b.iter_best_hit():
         mm = bline.nmismatch + bline.ngaps

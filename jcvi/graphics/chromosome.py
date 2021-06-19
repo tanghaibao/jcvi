@@ -11,7 +11,6 @@ import logging
 import sys
 from itertools import groupby
 from math import ceil
-from optparse import OptionGroup
 
 import numpy as np
 
@@ -246,6 +245,7 @@ class GeneticMap(BaseGlyph):
     def __init__(
         self, ax, x, y1, y2, markers, unit="cM", tip=0.008, fc="k", flip=False
     ):
+        super(GeneticMap, self).__init__()
         # tip = length of the ticks
         y1, y2 = sorted((y1, y2))
         ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
@@ -285,6 +285,7 @@ class Gauge(BaseGlyph):
     ):
         # tip = length of the ticks
         # extra = offset for the unit label
+        super(Gauge, self).__init__()
         ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
         r = y2 - y1
         yy = y2
@@ -431,7 +432,8 @@ def main():
     )
     g = OptionGroup(p, "Display accessories")
     g.add_option(
-        "--title", help="title of the image",
+        "--title",
+        help="title of the image",
     )
     g.add_option(
         "--gauge",
@@ -608,7 +610,6 @@ def draw_chromosomes(
         bac_list = []
         prev_end, prev_klass = 0, None
         for b in bed.sub_bed(chr):
-            clen = chr_lens[chr]
             idx = chr_idxs[chr]
             klass = b.accn
             if klass == "centromere":

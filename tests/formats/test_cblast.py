@@ -5,8 +5,7 @@ import unittest
 
 
 class TestCblast(unittest.TestCase):
-    """ Test formats.cblast - BLAST parsing
-    """
+    """Test formats.cblast - BLAST parsing"""
 
     def setUp(self):
         from jcvi.formats.cblast import BlastLine

@@ -419,8 +419,6 @@ def subplot_twinx(
     data,
     xlabel,
     ylabels,
-    xcast=float,
-    ycast=float,
     title=None,
     legend=None,
     loc="upper left",
@@ -512,7 +510,7 @@ def simulation(args):
         "Translocation error rate",
         "Accuracy",
         xlim=0.5,
-        legend=("intra-chromosomal", "inter-chromosomal", "75\% intra + 25\% inter"),
+        legend=("intra-chromosomal", "inter-chromosomal", r"75\% intra + 25\% inter"),
     )
     subplot(C, dataC, "Number of input maps", "Accuracy", xcast=int)
     subplot(D, dataD, "Number of input maps", "Accuracy", xcast=int)

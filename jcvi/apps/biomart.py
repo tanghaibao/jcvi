@@ -76,8 +76,7 @@ class PhytozomePath(dict):
 
     @property
     def has_genome_release(self):
-        """Only the folders that contain both `assembly` and `annotation` are of interest here.
-        """
+        """Only the folders that contain both `assembly` and `annotation` are of interest here."""
         return "assembly" in self and "annotation" in self
 
     def download(self, name, base_url, cookies, downloader=None):

@@ -2,13 +2,10 @@
 Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
-from __future__ import print_function
-
 import os.path as op
 import re
 import sys
 import logging
-import functools
 
 from collections import defaultdict
 
@@ -220,7 +217,6 @@ def thousands(x):
             groups.append(s[-3:])
             s = s[:-3]
         return s + ",".join(reversed(groups))
-    return locale.format("%d", x, True)
 
 
 SUFFIXES = {
@@ -316,27 +312,29 @@ def seqid_parse(seqid, sep=["-"], stdpf=True):
     This function tries to parse seqid (1st col in bed files)
     return prefix, numeric id, and suffix, for example:
 
-    >>> seqid_parse('chr1_random')
-    ('Chr', '1', '_random')
-    >>> seqid_parse('AmTr_v1.0_scaffold00001', '', stdpf=False)
+    >>> seqid_parse('chr1_random', stdpf=False)
+    ('chr', '1', '_random')
+    >>> seqid_parse('chr1_random', stdpf=True)
+    ('C', '1', '_random')
+    >>> seqid_parse('AmTr_v1.0_scaffold00001', ["-"], stdpf=False)
     ('AmTr_v1.0_scaffold', '00001', '')
     >>> seqid_parse('AmTr_v1.0_scaffold00001')
     ('Sca', '00001', '')
     >>> seqid_parse('PDK_30s1055861')
     ('C', '1055861', '')
     >>> seqid_parse('PDK_30s1055861', stdpf=False)
-    ('PDK', '1055861', '')
+    ('PDK_30s', '1055861', '')
     >>> seqid_parse("AC235758.1", stdpf=False)
     ('AC', '235758.1', '')
     """
     seqid = seqid.split(";")[0]
     if "mito" in seqid or "chloro" in seqid:
-        return (seqid, "", "")
+        return seqid, "", ""
 
     numbers = re.findall(r"\d+\.*\d*", seqid)
 
     if not numbers:
-        return (seqid, "", "")
+        return seqid, "", ""
 
     id = numbers[-1]
     lastnumi = seqid.rfind(id)
@@ -397,7 +395,7 @@ def fixChromName(name, orgn="medicago"):
     """
     import re
 
-    mtr_pat1 = re.compile(r"Mt[0-9]+\.[0-9]+[\.[0-9]+]{0,}_([a-z]+[0-9]+)")
+    mtr_pat1 = re.compile(r"Mt[0-9]+\.[0-9]+[.[0-9]+]*_([a-z]+[0-9]+)")
     mtr_pat2 = re.compile(r"([A-z0-9]+)_[A-z]+_[A-z]+")
 
     zmays_pat = re.compile(r"[a-z]+:[A-z0-9]+:([A-z0-9]+):[0-9]+:[0-9]+:[0-9]+")

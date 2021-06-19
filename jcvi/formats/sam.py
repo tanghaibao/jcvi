@@ -93,7 +93,7 @@ class SamLine(object):
 
 class Sam(LineFile):
     def __init__(self, filename, callback=None):
-
+        super(Sam, self).__init__(filename)
         fp = open(filename)
         for row in fp:
             if row[0] == "@":

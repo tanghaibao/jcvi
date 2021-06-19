@@ -7,7 +7,6 @@ framewor, including a Genetic Algorithm (GA) based method to solve scaffold
 ordering and orientation problem.
 """
 
-import sys
 import array
 import random
 import logging

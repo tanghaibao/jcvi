@@ -19,29 +19,32 @@ from jcvi.utils.cbook import AutoVivification
 
 # set up valid database connection params
 valid_dbconn = AutoVivification()
-for (dbconn, port, module, host) in zip(("Sybase", "MySQL", "PostgreSQL", "Oracle"), \
-        (2025, 3306, 5432, 1521), \
-        ("Sybase", "MySQLdb", "psycopg2", "cx_Oracle"), \
-        ("SYBPROD", "mysql-lan-dev", "pgsql-lan-dev", "DBNAME.tacc.utexas.edu")):
-    valid_dbconn[dbconn]['port'] = port
-    valid_dbconn[dbconn]['module'] = module
-    valid_dbconn[dbconn]['hostname'] = host
+for (dbconn, port, module, host) in zip(
+    ("Sybase", "MySQL", "PostgreSQL", "Oracle"),
+    (2025, 3306, 5432, 1521),
+    ("Sybase", "MySQLdb", "psycopg2", "cx_Oracle"),
+    ("SYBPROD", "mysql-lan-dev", "pgsql-lan-dev", "DBNAME.tacc.utexas.edu"),
+):
+    valid_dbconn[dbconn]["port"] = port
+    valid_dbconn[dbconn]["module"] = module
+    valid_dbconn[dbconn]["hostname"] = host
 
 
-def db_defaults(connector='Sybase'):
+def db_defaults(connector="Sybase"):
     """
     JCVI legacy Sybase, MySQL and PostgreSQL database connection defaults
     """
-    return valid_dbconn[connector]['hostname'], "access", "access"
+    return valid_dbconn[connector]["hostname"], "access", "access"
 
 
-def get_profile(sqshrc="~/.sqshrc", connector='Sybase',
-                hostname=None, username=None, password=None):
+def get_profile(
+    sqshrc="~/.sqshrc", connector="Sybase", hostname=None, username=None, password=None
+):
     """
     get database, username, password from .sqshrc file e.g.
     \set username="user"
     """
-    if connector == 'Sybase':
+    if connector == "Sybase":
         shost, suser, spass = None, None, None
         _ = lambda x: x.split("=")[-1].translate(None, "\"'").strip()
         sqshrc = op.expanduser(sqshrc)
@@ -76,19 +79,23 @@ def get_profile(sqshrc="~/.sqshrc", connector='Sybase',
     return hostname, username, password
 
 
-def connect(dbname, connector='Sybase', hostname=None, username=None, password=None, port=None):
+def connect(
+    dbname, connector="Sybase", hostname=None, username=None, password=None, port=None
+):
     if None in (hostname, username, password):
-        hostname, username, password = \
-                get_profile(hostname=hostname, username=username, password=password)
+        hostname, username, password = get_profile(
+            hostname=hostname, username=username, password=password
+        )
     if port is None:
-        port = valid_dbconn[connector]['port']
+        port = valid_dbconn[connector]["port"]
 
-    dbconn = __import__(valid_dbconn[connector]['module'])
-    if connector == 'PostgreSQL':
-        dsn = "host={0} user={1} password={2} dbname={3} port={4}".format(hostname, \
-                username, password, dbname, port)
+    dbconn = __import__(valid_dbconn[connector]["module"])
+    if connector == "PostgreSQL":
+        dsn = "host={0} user={1} password={2} dbname={3} port={4}".format(
+            hostname, username, password, dbname, port
+        )
         dbh = dbconn.connect(dsn)
-    elif connector == 'Oracle':
+    elif connector == "Oracle":
         dsn = dbconn.makedsn(hostname, port, dbname)
         dbh = dbconn.connect(username, password, dsn)
     else:
@@ -114,10 +121,10 @@ def commit(dbh):
 def main():
 
     actions = (
-        ('libs', 'get list of lib_ids to to run by pull'),
-        ('pull', 'pull the sequences from the TIGR database'),
-        ('query', 'run query using input from datafile'),
-            )
+        ("libs", "get list of lib_ids to to run by pull"),
+        ("pull", "pull the sequences from the TIGR database"),
+        ("query", "run query using input from datafile"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -140,10 +147,12 @@ def libs(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    libfile, = args
+    (libfile,) = args
 
-    sqlcmd = "select library.lib_id, library.name, bac.gb# from library join bac on " + \
-             "library.bac_id=bac.id where bac.lib_name='Medicago'"
+    sqlcmd = (
+        "select library.lib_id, library.name, bac.gb# from library join bac on "
+        + "library.bac_id=bac.id where bac.lib_name='Medicago'"
+    )
     cur = connect(opts.dbname)
     results = fetchall(cur, sqlcmd)
 
@@ -165,14 +174,18 @@ def pull(args):
     """
     p = OptionParser(pull.__doc__)
     p.set_db_opts(dbname="mtg2", credentials=None)
-    p.add_option("--frag", default=False, action="store_true",
-            help="The command to pull sequences from db [default: %default]")
+    p.add_option(
+        "--frag",
+        default=False,
+        action="store_true",
+        help="The command to pull sequences from db",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    libfile, = args
+    (libfile,) = args
 
     dbname = opts.dbname
     frag = opts.frag
@@ -185,19 +198,28 @@ def pull(args):
 
         if not op.exists(sqlfile):
             fw = open(sqlfile, "w")
-            print("select seq_name from sequence where seq_name like" + \
-                    " '{0}%' and trash is null".format(lib_id), file=fw)
+            print(
+                "select seq_name from sequence where seq_name like"
+                + " '{0}%' and trash is null".format(lib_id),
+                file=fw,
+            )
             fw.close()
 
         if frag:
-            cmd = "pullfrag -D {0} -n {1}.sql -o {1} -q -S {2}".format(dbname, lib_id, hostname)
+            cmd = "pullfrag -D {0} -n {1}.sql -o {1} -q -S {2}".format(
+                dbname, lib_id, hostname
+            )
             cmd += " -U {0} -P {1}".format(username, password)
         else:
             cmd = "pullseq -D {0} -n {1}.sql -o {1} -q".format(dbname, lib_id)
         sh(cmd)
 
 
-to_commit_re = re.compile("|".join("^{0}".format(x) for x in ("update", "insert", "delete")), re.I)
+to_commit_re = re.compile(
+    "|".join("^{0}".format(x) for x in ("update", "insert", "delete")), re.I
+)
+
+
 def to_commit(query):
     """
     check if query needs to be committed (only if "update", "insert" or "delete")
@@ -220,8 +242,12 @@ def query(args):
     """
     p = OptionParser(query.__doc__)
     p.set_db_opts()
-    p.add_option("--dryrun", default=False, action="store_true",
-                 help="Don't commit to database. Just print queries [default: %default]")
+    p.add_option(
+        "--dryrun",
+        default=False,
+        action="store_true",
+        help="Don't commit to database. Just print queries",
+    )
     p.set_sep(help="Specify output field separator")
     p.set_verbose(help="Print out all the queries")
     p.set_outfile()
@@ -236,7 +262,7 @@ def query(args):
     files = None
     if sep in args:
         sepidx = args.index(sep)
-        files = args[sepidx + 1:]
+        files = args[sepidx + 1 :]
         args = args[:sepidx]
         if not files:
             files = [""]
@@ -262,9 +288,13 @@ def query(args):
                     if m:
                         mi = [int(x.strip("{}")) for x in m]
                         atoms = row.strip().split("\t")
-                        assert max(mi) <= len(atoms), \
-                                "Number of columns in `datafile`({0})".format(len(atoms)) + \
-                                " != number of `placeholders`({0})".format(len(m))
+                        assert max(mi) <= len(
+                            atoms
+                        ), "Number of columns in `datafile`({0})".format(
+                            len(atoms)
+                        ) + " != number of `placeholders`({0})".format(
+                            len(m)
+                        )
                         natoms = [atoms[x] for x in mi]
                         for idx, (match, atom) in enumerate(zip(m, natoms)):
                             qry = qry.replace(match, atom)
@@ -272,14 +302,24 @@ def query(args):
     else:
         for qry in qrys:
             if re.search(r"\{\d+\}", qry):
-                logging.error("Query `{0}` contains placeholders, no datafile(s) specified".format(qry))
+                logging.error(
+                    "Query `{0}` contains placeholders, no datafile(s) specified".format(
+                        qry
+                    )
+                )
                 sys.exit()
             queries.add(qry)
 
     if not opts.dryrun:
         fw = must_open(opts.outfile, "w")
-        dbh, cur = connect(opts.dbname, connector=opts.dbconn, hostname=opts.hostname, \
-                username=opts.username, password=opts.password, port=opts.port)
+        dbh, cur = connect(
+            opts.dbname,
+            connector=opts.dbconn,
+            hostname=opts.hostname,
+            username=opts.username,
+            password=opts.password,
+            port=opts.port,
+        )
     cflag = None
     for qry in queries:
         if opts.dryrun or opts.verbose:
@@ -296,5 +336,5 @@ def query(args):
         commit(dbh)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

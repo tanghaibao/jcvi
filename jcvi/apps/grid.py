@@ -49,13 +49,13 @@ class SharedCounter(object):
         self.count = Value("i", n)
 
     def increment(self, n=1):
-        """ Increment the counter by n (default = 1) """
+        """Increment the counter by n (default = 1)"""
         with self.count.get_lock():
             self.count.value += n
 
     @property
     def value(self):
-        """ Return the value of the counter """
+        """Return the value of the counter"""
         return self.count.value
 
 
@@ -85,11 +85,11 @@ class Queue(Queue):
         return super(Queue, self).get(*args, **kwargs)
 
     def qsize(self):
-        """ Reliable implementation of multiprocessing.Queue.qsize() """
+        """Reliable implementation of multiprocessing.Queue.qsize()"""
         return self.size.value
 
     def empty(self):
-        """ Reliable implementation of multiprocessing.Queue.empty() """
+        """Reliable implementation of multiprocessing.Queue.empty()"""
         return not self.qsize()
 
 
@@ -477,7 +477,7 @@ def array(args):
 
     (cmds,) = args
     fp = open(cmds)
-    N = sum(1 for x in fp)
+    N = sum(1 for _ in fp)
     fp.close()
 
     pf = cmds.rsplit(".", 1)[0]
@@ -496,8 +496,8 @@ def array(args):
     if engine == "PBS":
         return
 
-    outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
-    errfile = "{0}.{1}.err".format(pf, "\$TASK_ID")
+    outfile = "{0}.{1}.out".format(pf, r"\$TASK_ID")
+    errfile = "{0}.{1}.err".format(pf, r"\$TASK_ID")
     p = GridProcess(
         "sh {0}".format(runfile),
         outfile=outfile,
@@ -649,7 +649,7 @@ def kill(args):
             qsxml = check_output(shlex.split(qsxmlcmd)).strip()
         except CalledProcessError as e:
             qsxml = None
-            logging.debug('No jobs matching the pattern "{0}"'.format(tag))
+            logging.debug(f'No jobs matching the pattern "{tag}": {e}')
 
         if qsxml is not None:
             for job in ET.fromstring(qsxml).findall("djob_info"):

@@ -210,7 +210,7 @@ class AbstractMIPSolver(object):
         if self.results:
             logging.debug("optimized objective value ({0})".format(self.obj_val))
 
-    def run(self, lp_data, work_dir):
+    def run(self, lp_data):
         raise NotImplementedError
 
     def parse_output(self):
@@ -459,7 +459,7 @@ def edges_to_path(edges):
     return path
 
 
-def hamiltonian(edges, directed=False, constraint_generation=True):
+def hamiltonian(edges, directed=False):
     """
     Calculates shortest path that traverses each node exactly once. Convert
     Hamiltonian path problem to TSP by adding one dummy point that has a distance
@@ -485,7 +485,6 @@ def hamiltonian(edges, directed=False, constraint_generation=True):
         edges + [(DUMMY, x, 0) for x in nodes] + [(x, DUMMY, 0) for x in nodes]
     )
 
-    # results = tsp(dummy_edges, constraint_generation=constraint_generation)
     results = tsp_gurobi(dummy_edges)
     if results:
         results = [x for x in results if DUMMY not in x]

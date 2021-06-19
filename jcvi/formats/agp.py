@@ -1001,7 +1001,7 @@ def compress(args):
         print(a, file=fw)
 
 
-def map_one_scaffold_1way(scaffold_name, scaffold, genome, orientation="+"):
+def map_one_scaffold_1way(scaffold, genome, orientation="+"):
     if orientation == "-":
         scaffold = scaffold.reverse_complement()
 
@@ -1018,10 +1018,10 @@ def map_one_scaffold_1way(scaffold_name, scaffold, genome, orientation="+"):
 def map_one_scaffold(opts):
     scaffold_name, scaffold, genome = opts
     scaffold = scaffold.seq
-    obj_name, obj_idx, objo = map_one_scaffold_1way(scaffold_name, scaffold, genome)
+    obj_name, obj_idx, objo = map_one_scaffold_1way(scaffold, genome)
     if obj_name == -1:
         obj_name, obj_idx, objo = map_one_scaffold_1way(
-            scaffold_name, scaffold, genome, orientation="-"
+            scaffold, genome, orientation="-"
         )
     if obj_name == -1:
         return ""
@@ -1231,7 +1231,7 @@ def swap(args):
 
     fw.close()
     # Reindex
-    idxagpfile = reindex([newagpfile, "--inplace"])
+    reindex([newagpfile, "--inplace"])
 
     return newagpfile
 
@@ -1504,7 +1504,7 @@ def mask(args):
     fw.close()
 
     # Reindex
-    idxagpfile = reindex([newagpfile, "--inplace"])
+    reindex([newagpfile, "--inplace"])
 
     return newagpfile
 
@@ -1563,7 +1563,7 @@ def reindex(args):
 
     # Last step: validate the new agpfile
     fw.close()
-    agp = AGP(newagpfile, validate=True)
+    AGP(newagpfile, validate=True)
 
     if inplace:
         shutil.move(newagpfile, agpfile)
@@ -2132,12 +2132,10 @@ def validate(args):
     p = OptionParser(validate.__doc__)
 
     opts, args = p.parse_args(args)
+    if len(args) < 3:
+        sys.exit(not p.print_help())
 
-    try:
-        agpfile, componentfasta, targetfasta = args
-    except Exception as e:
-        sys.exit(p.print_help())
-
+    agpfile, componentfasta, targetfasta = args
     agp = AGP(agpfile)
     build = Fasta(targetfasta)
     bacs = Fasta(componentfasta, index=False)

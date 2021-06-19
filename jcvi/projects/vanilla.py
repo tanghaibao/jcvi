@@ -12,7 +12,7 @@ import sys
 from jcvi.apps.base import ActionDispatcher, OptionParser
 from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.formats.base import get_number
-from jcvi.formats.bed import Bed, BedLine
+from jcvi.formats.bed import Bed
 from jcvi.graphics.base import normalize_axes, panel_labels, plt, savefig
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
@@ -242,7 +242,7 @@ def synteny(args):
     )
 
     # Panel B
-    draw_ploidy(fig, ax2, iopts, blocksfile, allbedfile, blockslayout)
+    draw_ploidy(fig, ax2, blocksfile, allbedfile, blockslayout)
 
     normalize_axes([root, ax1, ax2])
     labels = ((0.05, 0.95, "A"), (0.05, 0.5, "B"))
@@ -302,7 +302,7 @@ def microsynteny(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     ax2 = fig.add_axes([0, 0, 1, 1])
 
-    draw_ploidy(fig, ax2, iopts, blocksfile, allbedfile, blockslayout)
+    draw_ploidy(fig, ax2, blocksfile, allbedfile, blockslayout)
 
     normalize_axes([ax2])
 
@@ -400,7 +400,7 @@ def ploidy(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
-    draw_ploidy(fig, root, iopts, blocksfile, bedfile, blockslayout)
+    draw_ploidy(fig, root, blocksfile, bedfile, blockslayout)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -411,7 +411,7 @@ def ploidy(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def draw_ploidy(fig, root, iopts, blocksfile, bedfile, blockslayout):
+def draw_ploidy(fig, root, blocksfile, bedfile, blockslayout):
     switchidsfile = "switch.ids"
     Synteny(
         fig,

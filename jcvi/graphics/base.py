@@ -161,7 +161,7 @@ def linear_blend(from_color, to_color, fraction=0.5):
 
     r1, g1, b1 = to_rgb(from_color)
     r2, g2, b2 = to_rgb(to_color)
-    return (lerp(r1, r2, fraction), lerp(g1, g2, fraction), lerp(b1, b2, fraction))
+    return lerp(r1, r2, fraction), lerp(g1, g2, fraction), lerp(b1, b2, fraction)
 
 
 def linear_shade(from_color, fraction=0.5):

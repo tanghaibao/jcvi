@@ -21,11 +21,11 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 def main():
 
     actions = (
-        ('flanks', 'create sequences flanking the gaps'),
-        ('sizes', 'compile gap sizes'),
-        ('estimate', 'estimate gap sizes based on mates'),
-        ('annotate', 'annotate AGP v2 file with linkage info'),
-            )
+        ("flanks", "create sequences flanking the gaps"),
+        ("sizes", "compile gap sizes"),
+        ("estimate", "estimate gap sizes based on mates"),
+        ("annotate", "annotate AGP v2 file with linkage info"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -40,8 +40,7 @@ def annotate(args):
     from jcvi.formats.agp import AGP, bed, tidy
 
     p = OptionParser(annotate.__doc__)
-    p.add_option("--minsize", default=200,
-                 help="Smallest component size [default: %default]")
+    p.add_option("--minsize", default=200, help="Smallest component size")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -103,63 +102,7 @@ def annotate(args):
     tidy([newagpfile, contigfasta])
 
 
-def estimate(args):
-    """
-    %prog estimate gaps.bed all.spans.bed all.mates
-
-    Estimate gap sizes based on mate positions and library insert sizes.
-    """
-    from collections import defaultdict
-    from jcvi.formats.bed import intersectBed_wao
-    from jcvi.formats.posmap import MatesFile
-
-    p = OptionParser(estimate.__doc__)
-    p.add_option("--minlinks", default=3, type="int",
-                 help="Minimum number of links to place [default: %default]")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    gapsbed, spansbed, matesfile = args
-    mf = MatesFile(matesfile)
-    bed = Bed(gapsbed)
-    order = bed.order
-
-    gap2mate = defaultdict(set)
-    mate2gap = defaultdict(set)
-
-    for a, b in intersectBed_wao(gapsbed, spansbed):
-        gapsize = a.span
-        if gapsize != 100:
-            continue
-
-        gapname = a.accn
-
-        if b is None:
-            gap2mate[gapname] = set()
-            continue
-
-        matename = b.accn
-        gap2mate[gapname].add(matename)
-        mate2gap[matename].add(gapname)
-
-    omgapsbed = "gaps.linkage.bed"
-    fw = open(omgapsbed, "w")
-    for gapname, mates in sorted(gap2mate.items()):
-        i, b = order[gapname]
-        nmates = len(mates)
-        if nmates < opts.minlinks:
-            print("{0}\t{1}".format(b, nmates), file=fw)
-            continue
-
-        print(gapname, mates)
-
-    fw.close()
-
-
-def blast_to_twobeds(blastfile, log=False,
-                     rclip=1, maxsize=300000, flipbeds=False):
+def blast_to_twobeds(blastfile, rclip=1):
 
     key1 = lambda x: x.query
     key2 = lambda x: x.query[:-rclip] if rclip else key1
@@ -186,28 +129,30 @@ def blast_to_twobeds(blastfile, log=False,
 
             else:
                 astrand, bstrand = a.orientation, b.orientation
-                assert aquery[-1] == 'L' and bquery[-1] == 'R', str((aquery, bquery))
+                assert aquery[-1] == "L" and bquery[-1] == "R", str((aquery, bquery))
 
-                if astrand == '+' and bstrand == '+':
+                if astrand == "+" and bstrand == "+":
                     sstart, sstop = a.sstop + 1, b.sstart - 1
 
-                elif astrand == '-' and bstrand == '-':
+                elif astrand == "-" and bstrand == "-":
                     sstart, sstop = b.sstop + 1, a.sstart - 1
 
                 else:
                     label = "Strand {0}|{1}".format(astrand, bstrand)
 
         if label == OK:
-            strand = '+'
+            strand = "+"
             label = sstop - sstart + 1
 
             if sstart > sstop:
                 sstart, sstop = sstop, sstart
-                strand = '-'
-                label = - (sstop - sstart + 1)
+                strand = "-"
+                label = -(sstop - sstart + 1)
 
-            print("\t".join(str(x) for x in \
-                      (asubject, sstart - 1, sstop, pe, strand)), file=fw)
+            print(
+                "\t".join(str(x) for x in (asubject, sstart - 1, sstop, pe, strand)),
+                file=fw,
+            )
 
         print("\t".join(str(x) for x in (pe, label)), file=fwlabels)
 
@@ -258,7 +203,6 @@ def sizes(args):
 
     gapsbed, afasta, bfasta = args
     pf = gapsbed.rsplit(".", 1)[0]
-    extbed = pf + ".ext.bed"
     extfasta = pf + ".ext.fasta"
 
     if need_update(gapsbed, extfasta):
@@ -272,13 +216,26 @@ def sizes(args):
         blastfile = blast([bfasta, extfasta, "--wordsize=50", "--pctid=98"])
 
     labelsfile = blast_to_twobeds(blastfile)
-    labels = DictFile(labelsfile, delimiter='\t')
+    labels = DictFile(labelsfile, delimiter="\t")
     bed = Bed(gapsbed)
     for b in bed:
         b.score = b.span
         accn = b.accn
-        print("\t".join((str(x) for x in (b.seqid, b.start - 1, b.end, accn,
-                        b.score, labels.get(accn, "na")))))
+        print(
+            "\t".join(
+                (
+                    str(x)
+                    for x in (
+                        b.seqid,
+                        b.start - 1,
+                        b.end,
+                        accn,
+                        b.score,
+                        labels.get(accn, "na"),
+                    )
+                )
+            )
+        )
 
 
 def flanks(args):
@@ -288,8 +245,12 @@ def flanks(args):
     Create sequences flanking the gaps.
     """
     p = OptionParser(flanks.__doc__)
-    p.add_option("--extend", default=2000, type="int",
-                 help="Extend seq flanking the gaps [default: %default]")
+    p.add_option(
+        "--extend",
+        default=2000,
+        type="int",
+        help="Extend seq flanking the gaps",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -317,18 +278,20 @@ def flanks(args):
 
         start = prev_b.end + 1 if prev_b else 1
         start, end = max(start, b.start - Ext), b.start - 1
-        print("\t".join(str(x) for x in \
-                             (b.seqid, start - 1, end, gapname + "L")), file=fw)
+        print(
+            "\t".join(str(x) for x in (b.seqid, start - 1, end, gapname + "L")), file=fw
+        )
 
         end = next_b.start - 1 if next_b else size
         start, end = b.end + 1, min(end, b.end + Ext)
-        print("\t".join(str(x) for x in \
-                             (b.seqid, start - 1, end, gapname + "R")), file=fw)
+        print(
+            "\t".join(str(x) for x in (b.seqid, start - 1, end, gapname + "R")), file=fw
+        )
     fw.close()
 
     extfasta = fastaFromBed(extbed, fastafile, name=True)
     return extbed, extfasta
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

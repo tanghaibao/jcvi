@@ -509,7 +509,6 @@ class OptionParser(OptionP):
         dpi=300,
         format="pdf",
         font="Helvetica",
-        palette="deep",
         style="darkgrid",
         cmap="jet",
     ):
@@ -775,7 +774,7 @@ class OptionParser(OptionP):
             help="Insert mean size, stdev assumed to be 20% around mean",
         )
 
-    def set_trinity_opts(self, gg=False):
+    def set_trinity_opts(self):
         self.set_home("trinity")
         self.set_home("hpcgridrunner")
         self.set_cpus()
@@ -1065,7 +1064,7 @@ def splitall(path):
 
 
 def get_module_docstring(filepath):
-    "Get module-level docstring of Python module at filepath, e.g. 'path/to/file.py'."
+    """Get module-level docstring of Python module at filepath, e.g. 'path/to/file.py'."""
     co = compile(open(filepath).read(), filepath, "exec")
     if co.co_consts and isinstance(co.co_consts[0], str):
         docstring = co.co_consts[0]
@@ -1428,7 +1427,7 @@ def download(
             except (CalledProcessError, KeyboardInterrupt) as e:
                 print(e, file=sys.stderr)
         else:
-            print("Cannot find a suitable downloader", outfile=sys.stderr)
+            print("Cannot find a suitable downloader", file=sys.stderr)
 
         if success and handle_gzip:
             if need_gunzip:
@@ -1475,7 +1474,7 @@ def getfilesize(filename, ratio=None):
     while size < heuristicsize:
         size += 2 ** 32
     if size > 2 ** 32:
-        logging.warn("Gzip file estimated uncompressed size: {0}.".format(size))
+        logging.warning("Gzip file estimated uncompressed size: {0}.".format(size))
 
     return size
 
@@ -1569,7 +1568,7 @@ def get_times(filename):
     st = os.stat(filename)
     atime = st.st_atime
     mtime = st.st_mtime
-    return (atime, mtime)
+    return atime, mtime
 
 
 def timestamp(args):
@@ -1701,7 +1700,7 @@ def pushover(
     """
     assert -1 <= priority <= 2, "Priority should be an int() between -1 and 2"
 
-    if timestamp == None:
+    if timestamp is None:
         from time import time
 
         timestamp = int(time())
@@ -1755,7 +1754,7 @@ def nma(description, apikey, event="JCVI: Job Monitor", priority=0):
     conn.getresponse()
 
 
-def pushbullet(body, apikey, device, title="JCVI: Job Monitor", type="note"):
+def pushbullet(body, apikey, device, title="JCVI: Job Monitor"):
     """
     pushbullet.com API
 
@@ -1764,7 +1763,7 @@ def pushbullet(body, apikey, device, title="JCVI: Job Monitor", type="note"):
     import base64
 
     headers = {}
-    auth = base64.encodestring("{0}:".format(apikey)).strip()
+    auth = base64.encodestring("{0}:".format(apikey).encode("utf-8")).strip()
     headers["Authorization"] = "Basic {0}".format(auth)
     headers["Content-type"] = "application/x-www-form-urlencoded"
 
@@ -1800,8 +1799,6 @@ def pushnotify(subject, message, api="pushover", priority=0, timestamp=None):
         apikey: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
         iden: dddddddddddddddddddddddddddddddddddd
     """
-    import types
-
     assert (
         type(priority) is int and -1 <= priority <= 2
     ), "Priority should be and int() between -1 and 2"
@@ -1850,7 +1847,7 @@ def send_email(fromaddr, toaddr, subject, message):
 
 
 def get_email_address(whoami="user"):
-    """ Auto-generate the FROM and TO email address """
+    """Auto-generate the FROM and TO email address"""
     if whoami == "user":
         username = getusername()
         domain = getdomainname()

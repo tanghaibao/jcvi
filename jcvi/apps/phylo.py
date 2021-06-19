@@ -296,7 +296,7 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
 
     phy_file = op.join(work_dir, "work", "aln.phy")
     try:
-        AlignIO.write(alignment, file(phy_file, "w"), "phylip")
+        AlignIO.write(alignment, open(phy_file, "w"), "phylip")
     except ValueError:
         print(
             "Repeated seq name, possibly due to truncation. NJ tree not built.",
@@ -399,7 +399,7 @@ def build_ml_phyml(alignment, outfile, work_dir=".", **kwargs):
     build maximum likelihood tree of DNA seqs with PhyML
     """
     phy_file = op.join(work_dir, "work", "aln.phy")
-    AlignIO.write(alignment, file(phy_file, "w"), "phylip-relaxed")
+    AlignIO.write(alignment, open(phy_file, "w"), "phylip-relaxed")
 
     phyml_cl = PhymlCommandline(cmd=PHYML_BIN("phyml"), input=phy_file, **kwargs)
     logging.debug("Building ML tree using PhyML: %s" % phyml_cl)
@@ -423,7 +423,7 @@ def build_ml_raxml(alignment, outfile, work_dir=".", **kwargs):
     work_dir = op.join(work_dir, "work")
     mkdir(work_dir)
     phy_file = op.join(work_dir, "aln.phy")
-    AlignIO.write(alignment, file(phy_file, "w"), "phylip-relaxed")
+    AlignIO.write(alignment, open(phy_file, "w"), "phylip-relaxed")
 
     raxml_work = op.abspath(op.join(op.dirname(phy_file), "raxml_work"))
     mkdir(raxml_work)
@@ -587,7 +587,7 @@ def merge_rows_local(
     merge overlapping rows within given row count distance
     """
     fw = must_open(filename + ".merged", "w")
-    rows = file(filename).readlines()
+    rows = open(filename).readlines()
     rows = [row.strip().split(colsep) for row in rows]
     l = len(rows[0])
 
@@ -632,7 +632,7 @@ def add_tandems(mcscanfile, tandemfile):
     """
     add tandem genes to anchor genes in mcscan file
     """
-    tandems = [f.strip().split(",") for f in file(tandemfile)]
+    tandems = [f.strip().split(",") for f in open(tandemfile)]
     fw = must_open(mcscanfile + ".withtandems", "w")
     fp = must_open(mcscanfile)
     seen = set()
@@ -669,7 +669,7 @@ def add_tandems(mcscanfile, tandemfile):
     fp.seek(0)
     logging.debug(
         "{0} rows merged to {1} rows".format(
-            len(fp.readlines()), len(file(newmcscanfile).readlines())
+            len(fp.readlines()), len(open(newmcscanfile).readlines())
         )
     )
     sh("rm %s" % fw.name)
@@ -777,7 +777,7 @@ def prepare(args):
                 a = find_first_isoform(a, f)
                 assert a, a
             arec = f[a]
-            SeqIO.write((arec), fw, "fasta")
+            SeqIO.write(arec, fw, "fasta")
         fw.close()
         n += 1
 

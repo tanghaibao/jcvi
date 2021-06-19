@@ -14,22 +14,28 @@ import logging
 from jcvi.formats.base import BaseFile, write_file, must_open
 from jcvi.formats.fastq import guessoffset
 from jcvi.utils.cbook import depends, human_size
-from jcvi.apps.base import OptionParser, ActionDispatcher, download, \
-            sh, mkdir, need_update, datadir
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    download,
+    sh,
+    mkdir,
+    need_update,
+    datadir,
+)
 
 
-class FastQCdata (BaseFile, dict):
-
+class FastQCdata(BaseFile, dict):
     def __init__(self, filename, human=False):
         super(FastQCdata, self).__init__(filename)
         if not op.exists(filename):
             logging.debug("File `{0}` not found.".format(filename))
             # Sample_RF37-1/RF37-1_GATCAG_L008_R2_fastqc =>
             # RF37-1_GATCAG_L008_R2
-            self["Filename"] = op.basename(\
-                    op.split(filename)[0]).rsplit("_", 1)[0]
-            self["Total Sequences"] = self["Sequence length"] = \
-                self["Total Bases"] = "na"
+            self["Filename"] = op.basename(op.split(filename)[0]).rsplit("_", 1)[0]
+            self["Total Sequences"] = self["Sequence length"] = self[
+                "Total Bases"
+            ] = "na"
             return
 
         fp = open(filename)
@@ -61,15 +67,15 @@ class FastQCdata (BaseFile, dict):
 def main():
 
     actions = (
-        ('count', 'count reads based on FASTQC results'),
-        ('trim', 'trim reads using TRIMMOMATIC'),
-        ('correct', 'correct reads using ALLPATHS-LG'),
-        ('hetsmooth', 'reduce K-mer diversity using het-smooth'),
-        ('alignextend', 'increase read length by extending based on alignments'),
-        ('contamination', 'check reads contamination against Ecoli'),
-        ('diginorm', 'run K-mer based normalization'),
-        ('expand', 'expand sequences using short reads'),
-            )
+        ("count", "count reads based on FASTQC results"),
+        ("trim", "trim reads using TRIMMOMATIC"),
+        ("correct", "correct reads using ALLPATHS-LG"),
+        ("hetsmooth", "reduce K-mer diversity using het-smooth"),
+        ("alignextend", "increase read length by extending based on alignments"),
+        ("contamination", "check reads contamination against Ecoli"),
+        ("diginorm", "run K-mer based normalization"),
+        ("expand", "expand sequences using short reads"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -96,11 +102,16 @@ def diginorm(args):
     from jcvi.apps.base import getfilesize
 
     p = OptionParser(diginorm.__doc__)
-    p.add_option("--single", default=False, action="store_true",
-                 help="Single end reads")
+    p.add_option(
+        "--single", default=False, action="store_true", help="Single end reads"
+    )
     p.add_option("--tablesize", help="Memory size")
-    p.add_option("--npass", default="1", choices=("1", "2"),
-                 help="How many passes of normalization")
+    p.add_option(
+        "--npass",
+        default="1",
+        choices=("1", "2"),
+        help="How many passes of normalization",
+    )
     p.set_depth(depth=50)
     p.set_home("khmer", default="/usr/local/bin/")
     opts, args = p.parse_args(args)
@@ -111,7 +122,7 @@ def diginorm(args):
     if len(args) == 2:
         fastq = shuffle(args + ["--tag"])
     else:
-        fastq, = args
+        (fastq,) = args
 
     kh = opts.khmer_home
     depth = opts.depth
@@ -151,8 +162,9 @@ def diginorm(args):
             sh(cmd)
 
     if PE:
-        pairsfile = pairinplace([seckeepfile,
-                                "--base={0}".format(pf + "_norm"), "--rclip=2"])
+        pairsfile = pairinplace(
+            [seckeepfile, "--base={0}".format(pf + "_norm"), "--rclip=2"]
+        )
         split([pairsfile])
 
 
@@ -186,11 +198,12 @@ def expand(args):
     rl = readlen([reads])
     expected_size = size + 2 * rl
     nreads = expected_size * opts.depth / rl
-    nreads = int(math.ceil(nreads / 1000.)) * 1000
+    nreads = int(math.ceil(nreads / 1000.0)) * 1000
 
     # Attract reads
-    samfile, logfile = align([bes, reads, "--reorder", "--mapped",
-           "--firstN={0}".format(opts.firstN)])
+    samfile, logfile = align(
+        [bes, reads, "--reorder", "--mapped", "--firstN={0}".format(opts.firstN)]
+    )
 
     samfile, mapped, _ = get_samfile(reads, bes, bowtie=True, mapped=True)
     logging.debug("Extract first {0} reads from `{1}`.".format(nreads, mapped))
@@ -230,7 +243,7 @@ def expand(args):
             continue
         b = mapping[vid]
         subject = b.subject
-        rec = v.reverse_complement() if b.orientation == '-' else v
+        rec = v.reverse_complement() if b.orientation == "-" else v
         rec.id = rid = "_".join((pf, vid, subject))
         rec.description = ""
         recs.append((keys.index(subject), rid, rec))
@@ -240,8 +253,9 @@ def expand(args):
     fw.close()
 
     FileShredder([samfile, logfile, mapped, reads, fastafile, qualfile, blastfile, pf])
-    logging.debug("Annotated seqs (n={0}) written to `{1}`.".\
-                    format(len(recs), annotatedfasta))
+    logging.debug(
+        "Annotated seqs (n={0}) written to `{1}`.".format(len(recs), annotatedfasta)
+    )
 
     return annotatedfasta
 
@@ -282,8 +296,10 @@ def contamination(args):
     median = "{0:.1f}".format(median)
 
     print("\t".join((fq, lowerbound, median, upperbound)), file=fw)
-    print("{0}: Ecoli contamination rate {1}-{2}".\
-                        format(fq, lowerbound, upperbound), file=sys.stderr)
+    print(
+        "{0}: Ecoli contamination rate {1}-{2}".format(fq, lowerbound, upperbound),
+        file=sys.stderr,
+    )
     fw.close()
 
 
@@ -295,18 +311,31 @@ def alignextend(args):
     """
     choices = "prepare,align,filter,rmdup,genreads".split(",")
     p = OptionParser(alignextend.__doc__)
-    p.add_option("--nosuffix", default=False, action="store_true",
-                 help="Do not add /1/2 suffix to the read [default: %default]")
-    p.add_option("--rc", default=False, action="store_true",
-                 help="Reverse complement the reads before alignment")
-    p.add_option("--len", default=100, type="int",
-                 help="Extend to this length")
-    p.add_option("--stage", default="prepare", choices=choices,
-                 help="Start from certain stage")
-    p.add_option("--dup", default=10, type="int",
-                 help="Filter duplicates with coordinates within this distance")
-    p.add_option("--maxdiff", default=1, type="int",
-                 help="Maximum number of differences")
+    p.add_option(
+        "--nosuffix",
+        default=False,
+        action="store_true",
+        help="Do not add /1/2 suffix to the read",
+    )
+    p.add_option(
+        "--rc",
+        default=False,
+        action="store_true",
+        help="Reverse complement the reads before alignment",
+    )
+    p.add_option("--len", default=100, type="int", help="Extend to this length")
+    p.add_option(
+        "--stage", default="prepare", choices=choices, help="Start from certain stage"
+    )
+    p.add_option(
+        "--dup",
+        default=10,
+        type="int",
+        help="Filter duplicates with coordinates within this distance",
+    )
+    p.add_option(
+        "--maxdiff", default=1, type="int", help="Maximum number of differences"
+    )
     p.set_home("amos")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -346,10 +375,13 @@ def count(args):
     from jcvi.utils.table import loadtable, write_csv
 
     p = OptionParser(count.__doc__)
-    p.add_option("--dir",
-                help="Sub-directory where FASTQC was run [default: %default]")
-    p.add_option("--human", default=False, action="store_true",
-                help="Human friendly numbers [default: %default]")
+    p.add_option("--dir", help="Sub-directory where FASTQC was run")
+    p.add_option(
+        "--human",
+        default=False,
+        action="store_true",
+        help="Human friendly numbers",
+    )
     p.set_table()
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -373,8 +405,7 @@ def count(args):
         rows.append(row)
 
     print(loadtable(header, rows), file=sys.stderr)
-    write_csv(header, rows, sep=opts.sep,
-              filename=opts.outfile, align=opts.align)
+    write_csv(header, rows, sep=opts.sep, filename=opts.outfile, align=opts.align)
 
 
 def hetsmooth(args):
@@ -388,12 +419,9 @@ def hetsmooth(args):
                reads_1.fq reads_2.fq
     """
     p = OptionParser(hetsmooth.__doc__)
-    p.add_option("-K", default=23, type="int",
-                 help="K-mer size [default: %default]")
-    p.add_option("-L", type="int",
-                 help="Bottom threshold, first min [default: %default]")
-    p.add_option("-U", type="int",
-                 help="Top threshold, second min [default: %default]")
+    p.add_option("-K", default=23, type="int", help="K-mer size")
+    p.add_option("-L", type="int", help="Bottom threshold, first min")
+    p.add_option("-U", type="int", help="Top threshold, second min")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -427,21 +455,48 @@ def trim(args):
     tv = "0.32"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     p = OptionParser(trim.__doc__)
-    p.add_option("--path", default=op.join("~/bin", TrimJar),
-            help="Path to trimmomatic jar file [default: %default]")
+    p.add_option(
+        "--path",
+        default=op.join("~/bin", TrimJar),
+        help="Path to trimmomatic jar file",
+    )
     p.set_phred()
-    p.add_option("--nofrags", default=False, action="store_true",
-            help="Discard frags file in PE mode [default: %default]")
-    p.add_option("--minqv", default=15, type="int",
-            help="Average qv after trimming [default: %default]")
-    p.add_option("--minlen", default=36, type="int",
-            help="Minimum length after trimming [default: %default]")
-    p.add_option("--adapteronly", default=False, action="store_true",
-            help="Only trim adapters with no qv trimming [default: %default]")
-    p.add_option("--nogz", default=False, action="store_true",
-            help="Do not write to gzipped files [default: %default]")
-    p.add_option("--log", default=None, dest="trimlog",
-            help="Specify a `trimlog` file [default: %default]")
+    p.add_option(
+        "--nofrags",
+        default=False,
+        action="store_true",
+        help="Discard frags file in PE mode",
+    )
+    p.add_option(
+        "--minqv",
+        default=15,
+        type="int",
+        help="Average qv after trimming",
+    )
+    p.add_option(
+        "--minlen",
+        default=36,
+        type="int",
+        help="Minimum length after trimming",
+    )
+    p.add_option(
+        "--adapteronly",
+        default=False,
+        action="store_true",
+        help="Only trim adapters with no qv trimming",
+    )
+    p.add_option(
+        "--nogz",
+        default=False,
+        action="store_true",
+        help="Do not write to gzipped files",
+    )
+    p.add_option(
+        "--log",
+        default=None,
+        dest="trimlog",
+        help="Specify a `trimlog` file",
+    )
     p.set_cpus(cpus=4)
     opts, args = p.parse_args(args)
 
@@ -449,9 +504,9 @@ def trim(args):
         sys.exit(not p.print_help())
 
     path = op.expanduser(opts.path)
-    url = \
-    "http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-{0}.zip"\
-    .format(tv)
+    url = "http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmomatic-{0}.zip".format(
+        tv
+    )
 
     if not op.exists(path):
         path = download(url)
@@ -461,17 +516,15 @@ def trim(args):
         os.remove(path)
         path = op.join(TrimUnzipped, TrimJar)
 
-    assert op.exists(path), \
-        "Couldn't find Trimmomatic jar file at `{0}`".\
-        format(path)
+    assert op.exists(path), "Couldn't find Trimmomatic jar file at `{0}`".format(path)
 
     adaptersfile = "adapters.fasta"
     Adapters = must_open(op.join(datadir, adaptersfile)).read()
     write_file(adaptersfile, Adapters, skipcheck=True)
 
-    assert op.exists(adaptersfile), \
-        "Please place the illumina adapter sequence in `{0}`".\
-        format(adaptersfile)
+    assert op.exists(
+        adaptersfile
+    ), "Please place the illumina adapter sequence in `{0}`".format(adaptersfile)
 
     if opts.phred is None:
         offset = guessoffset([args[0]])
@@ -491,14 +544,14 @@ def trim(args):
         pairs += ".gz"
 
     get_prefix = lambda x: op.basename(x).replace(".gz", "").rsplit(".", 1)[0]
-    get_dirname = lambda x: "{0}/".format(op.dirname(x)) if op.dirname(x) else ''
+    get_dirname = lambda x: "{0}/".format(op.dirname(x)) if op.dirname(x) else ""
     if len(args) == 1:
         cmd += " SE"
         cmd += phredflag
         cmd += threadsflag
         if opts.trimlog:
             cmd += trimlog
-        fastqfile, = args
+        (fastqfile,) = args
         prefix = get_prefix(fastqfile)
         dirname = get_dirname(fastqfile)
         frags1 = dirname + prefix + frags
@@ -521,8 +574,9 @@ def trim(args):
         if opts.nofrags:
             frags1 = "/dev/null"
             frags2 = "/dev/null"
-        cmd += " {0}".format(" ".join((fastqfile1, fastqfile2, \
-                pairs1, frags1, pairs2, frags2)))
+        cmd += " {0}".format(
+            " ".join((fastqfile1, fastqfile2, pairs1, frags1, pairs2, frags2))
+        )
 
     cmd += " ILLUMINACLIP:{0}:2:30:10".format(adaptersfile)
 
@@ -538,8 +592,14 @@ def trim(args):
 
 
 @depends
-def run_RemoveDodgyReads(infile=None, outfile=None, workdir=None,
-        removeDuplicates=True, rc=False, nthreads=32):
+def run_RemoveDodgyReads(
+    infile=None,
+    outfile=None,
+    workdir=None,
+    removeDuplicates=True,
+    rc=False,
+    nthreads=32,
+):
     # orig.fastb => filt.fastb
     assert op.exists(infile)
     orig = infile.rsplit(".", 1)[0]
@@ -567,6 +627,7 @@ def run_FastbAndQualb2Fastq(infile=None, outfile=None, rc=False):
 @depends
 def run_pairs(infile=None, outfile=None, suffix=False):
     from jcvi.assembly.allpaths import pairs
+
     args = infile
     if suffix:
         args.append("--suffix")
@@ -589,16 +650,26 @@ def correct(args):
     from jcvi.assembly.base import FastqNamings
 
     p = OptionParser(correct.__doc__ + FastqNamings)
-    p.add_option("--dir", default="data",
-                help="Working directory [default: %default]")
-    p.add_option("--fragsdedup", default=False, action="store_true",
-                 help="Don't deduplicate the fragment reads [default: %default]")
-    p.add_option("--ploidy", default="2", choices=("1", "2"),
-                 help="Ploidy [default: %default]")
-    p.add_option("--haploidify", default=False, action="store_true",
-                 help="Set HAPLOIDIFY=True [default: %default]")
-    p.add_option("--suffix", default=False, action="store_true",
-                 help="Add suffix /1, /2 to read names")
+    p.add_option("--dir", default="data", help="Working directory")
+    p.add_option(
+        "--fragsdedup",
+        default=False,
+        action="store_true",
+        help="Don't deduplicate the fragment reads",
+    )
+    p.add_option("--ploidy", default="2", choices=("1", "2"), help="Ploidy")
+    p.add_option(
+        "--haploidify",
+        default=False,
+        action="store_true",
+        help="Set HAPLOIDIFY=True",
+    )
+    p.add_option(
+        "--suffix",
+        default=False,
+        action="store_true",
+        help="Add suffix /1, /2 to read names",
+    )
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -611,7 +682,7 @@ def correct(args):
     ploidy = opts.ploidy
     haploidify = opts.haploidify
     suffix = opts.suffix
-    assert (not haploidify) or (haploidify and ploidy == '2')
+    assert (not haploidify) or (haploidify and ploidy == "2")
 
     prepare(["Unknown"] + fastq + ["--norun"])
 
@@ -619,20 +690,28 @@ def correct(args):
     mkdir(datadir)
     fullpath = op.join(os.getcwd(), datadir)
     nthreads = " NUM_THREADS={0}".format(opts.cpus)
-    phred64 = (guessoffset([args[0]]) == 64)
+    phred64 = guessoffset([args[0]]) == 64
 
     orig = datadir + "/{0}_orig".format(tag)
     origfastb = orig + ".fastb"
     if need_update(fastq, origfastb):
-        cmd = "PrepareAllPathsInputs.pl DATA_DIR={0} HOSTS='{1}' PLOIDY={2}".\
-                format(fullpath, opts.cpus, ploidy)
+        cmd = "PrepareAllPathsInputs.pl DATA_DIR={0} HOSTS='{1}' PLOIDY={2}".format(
+            fullpath, opts.cpus, ploidy
+        )
         if phred64:
             cmd += " PHRED_64=True"
         sh(cmd)
 
     if op.exists(origfastb):
-        correct_frag(datadir, tag, origfastb, nthreads, dedup=opts.fragsdedup,
-                     haploidify=haploidify, suffix=suffix)
+        correct_frag(
+            datadir,
+            tag,
+            origfastb,
+            nthreads,
+            dedup=opts.fragsdedup,
+            haploidify=haploidify,
+            suffix=suffix,
+        )
 
     origj = datadir + "/{0}_orig".format(tagj)
     origjfastb = origj + ".fastb"
@@ -651,22 +730,30 @@ def export_fastq(datadir, corrfastb, rc=False, suffix=False):
     cwd = os.getcwd()
     os.chdir(datadir)
     corrfastq = pf + ".fastq"
-    run_FastbAndQualb2Fastq(infile=op.basename(corrfastb), \
-                            outfile=corrfastq, rc=rc)
+    run_FastbAndQualb2Fastq(infile=op.basename(corrfastb), outfile=corrfastq, rc=rc)
     os.chdir(cwd)
 
     pairsfile = pf + ".pairs"
     fragsfastq = pf + ".corr.fastq"
-    run_pairs(infile=[op.join(datadir, pairsfile), op.join(datadir, corrfastq)],
-                      outfile=fragsfastq, suffix=suffix)
+    run_pairs(
+        infile=[op.join(datadir, pairsfile), op.join(datadir, corrfastq)],
+        outfile=fragsfastq,
+        suffix=suffix,
+    )
 
 
-def correct_frag(datadir, tag, origfastb, nthreads,
-                 dedup=False, haploidify=False, suffix=False):
+def correct_frag(
+    datadir, tag, origfastb, nthreads, dedup=False, haploidify=False, suffix=False
+):
     filt = datadir + "/{0}_filt".format(tag)
     filtfastb = filt + ".fastb"
-    run_RemoveDodgyReads(infile=origfastb, outfile=filtfastb,
-                         removeDuplicates=dedup, rc=False, nthreads=nthreads)
+    run_RemoveDodgyReads(
+        infile=origfastb,
+        outfile=filtfastb,
+        removeDuplicates=dedup,
+        rc=False,
+        nthreads=nthreads,
+    )
 
     filtpairs = filt + ".pairs"
     edit = datadir + "/{0}_edit".format(tag)
@@ -700,11 +787,16 @@ def correct_jump(datadir, tagj, origjfastb, nthreads, suffix=False):
     # Pipeline for jump reads does not involve correction
     filt = datadir + "/{0}_filt".format(tagj)
     filtfastb = filt + ".fastb"
-    run_RemoveDodgyReads(infile=origjfastb, outfile=filtfastb, \
-                         removeDuplicates=True, rc=True, nthreads=nthreads)
+    run_RemoveDodgyReads(
+        infile=origjfastb,
+        outfile=filtfastb,
+        removeDuplicates=True,
+        rc=True,
+        nthreads=nthreads,
+    )
 
     export_fastq(datadir, filtfastb, rc=True, suffix=suffix)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

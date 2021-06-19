@@ -49,7 +49,7 @@ def add_bed_to_graph(G, bed, families):
     return G
 
 
-def print_edges(G, bed, families):
+def print_edges(bed, families):
     """
     Instead of going through the graph construction, just print the edges.
     """
@@ -100,16 +100,9 @@ def fuse(args):
 
     # TODO: Use C++ implementation of BiGraph() when available
     # For now just serialize this to the disk
-    G = BiGraph()
     for bedfile in bedfiles:
         bed = Bed(bedfile, include=allowed)
-        # add_bed_to_graph(G, bed, families)
-        print_edges(G, bed, families)
-
-    # G.write(filename="graph.edges")
-    # for path in G.iter_paths():
-    #    m, oo = G.path(path)
-    #    print m
+        print_edges(bed, families)
 
 
 def adjgraph(args):

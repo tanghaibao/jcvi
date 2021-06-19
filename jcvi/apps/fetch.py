@@ -263,7 +263,7 @@ def phytozome(args):
 
     # Proceed to use the cookies and download the species list
     try:
-        d = download(
+        download(
             dlist,
             filename=directory_listing,
             cookies=cookies,
@@ -314,6 +314,8 @@ def download_species_phytozome(
         genomes (dict): Dictionary parsed from Globus XML.
         species (str): Target species to download.
         valid_species (List[str]): Allowed set of species
+        base_url (str): URL.
+        cookies (str): cookies file path.
         assembly (bool, optional): Do we download assembly FASTA (can be big).
         Defaults to False.
         downloader (str, optional): Use a given downloader. One of wget|curl|powershell|insecure.
@@ -407,7 +409,7 @@ def format_bed_and_cds(species, gff, cdsfa):
     Args:
         species (str): Name of the species
         gff (str): Path to the GFF file
-        fa (str): Path to the FASTA file
+        cdsfa (str): Path to the FASTA file
     """
     from jcvi.formats.gff import bed as gff_bed
     from jcvi.formats.fasta import format as fasta_format
@@ -415,26 +417,24 @@ def format_bed_and_cds(species, gff, cdsfa):
     # We have to watch out when the gene names and mRNA names mismatch, in which
     # case we just extract the mRNA names
     use_IDs = set()
-    use_mRNAs = set(
-        [
-            "Cclementina",
-            "Creinhardtii",
-            "Csinensis",
-            "Fvesca",
-            "Lusitatissimum",
-            "Mesculenta",
-            "Mguttatus",
-            "Ppersica",
-            "Pvirgatum",
-            "Rcommunis",
-            "Sitalica",
-            "Tcacao",
-            "Thalophila",
-            "Vcarteri",
-            "Vvinifera",
-            "Zmays",
-        ]
-    )
+    use_mRNAs = {
+        "Cclementina",
+        "Creinhardtii",
+        "Csinensis",
+        "Fvesca",
+        "Lusitatissimum",
+        "Mesculenta",
+        "Mguttatus",
+        "Ppersica",
+        "Pvirgatum",
+        "Rcommunis",
+        "Sitalica",
+        "Tcacao",
+        "Thalophila",
+        "Vcarteri",
+        "Vvinifera",
+        "Zmays",
+    }
     key = "ID" if species in use_IDs else "Name"
     ttype = "mRNA" if species in use_mRNAs else "gene"
     bedfile = species + ".bed"
@@ -502,7 +502,7 @@ def bisect(args):
         try:
             query = list(batch_entrez([term], email=opts.email))
         except AssertionError as e:
-            logging.debug("no records found for %s. terminating." % term)
+            logging.debug(f"no records found for {term}. terminating. {e}")
             return
 
         id, term, handle = query[0]
@@ -702,7 +702,7 @@ def sra(args):
 
 def download_srr_term(term):
     sra_base_url = "ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByRun/sra/"
-    sra_run_id_re = re.compile(r"^([DES]{1}RR)(\d{3})(\d{3,4})$")
+    sra_run_id_re = re.compile(r"^([DES]RR)(\d{3})(\d{3,4})$")
 
     m = re.search(sra_run_id_re, term)
     if m is None:

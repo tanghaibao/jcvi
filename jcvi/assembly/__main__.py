@@ -7,5 +7,5 @@ Assemblage of genome-assembly related scripts: ALLMAPS algorithm, scaffolding, k
 from jcvi.apps.base import dmain
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dmain(__file__)

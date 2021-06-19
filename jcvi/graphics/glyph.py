@@ -142,6 +142,7 @@ def get_asymmetry(ax, radius):
 
     Args:
         ax (Axes): matplotlib axes
+        radius (float):
     """
     x0, y0 = ax.transAxes.transform((0, 0))  # Lower left in pixels
     x1, y1 = ax.transAxes.transform((1, 1))  # Upper right in pixels
@@ -191,6 +192,8 @@ class TextCircle(object):
 class BasePalette(dict):
     """Base class for coloring gene glyphs"""
 
+    palette: dict
+
     def get_color_and_zorder(self, feature: str) -> tuple:
         """Get color and zorder based on the orientation.
 
@@ -236,10 +239,10 @@ class OrthoGroupPalette(BasePalette):
             str: color and zorder for the given gene_name based on the assignment
         """
         if feature not in self.grouper:
-            return ("gray", 3)
+            return "gray", 3
         group = self.grouper[feature]
         # Any gene part of an orthogroup gets a higher zorder
-        return (self.palette[hash(group) % len(self.palette)], 4)
+        return self.palette[hash(group) % len(self.palette)], 4
 
 
 class BaseGlyph(list):

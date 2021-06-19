@@ -19,9 +19,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher
 
 def main():
 
-    actions = (
-        ('wheel', 'wheel plot that shows continuous data in radial axes'),
-            )
+    actions = (("wheel", "wheel plot that shows continuous data in radial axes"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -45,7 +43,7 @@ def parse_data(datafile, score_column="score"):
     fp = open(datafile)
     for row in fp:
         atoms = row.split(",")
-        if len(atoms) == 4:   # First column is SampleID
+        if len(atoms) == 4:  # First column is SampleID
             atoms = atoms[1:]
         label, score, percentile = atoms
         label = label.strip()
@@ -77,8 +75,12 @@ def wheel(args):
     Wheel plot that shows continous data in radial axes.
     """
     p = OptionParser(wheel.__doc__)
-    p.add_option("--column", default="score", choices=("score", "percentile"),
-                    help="Which column to extract from `datafile.csv`")
+    p.add_option(
+        "--column",
+        default="score",
+        choices=("score", "percentile"),
+        help="Which column to extract from `datafile.csv`",
+    )
     opts, args, iopts = p.set_image_options(args, figsize="5x5", format="png")
 
     if len(args) != 2:
@@ -100,13 +102,22 @@ def wheel(args):
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
     categories = len(df)
-    #ax = plt.subplot(111, projection='polar')
+    # ax = plt.subplot(111, projection='polar')
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8], polar=True)
 
-    brewer = [ "#FF3B30", "#DD43A0", "#5856D6",
-	       "#007AFE", "#56BDEC", "#4CD8BA",
-	       "#4CD864", "#B0F457", "#FEF221",
-	       "#FFCC01", "#FF9500", "#FF3B30",
+    brewer = [
+        "#FF3B30",
+        "#DD43A0",
+        "#5856D6",
+        "#007AFE",
+        "#56BDEC",
+        "#4CD8BA",
+        "#4CD864",
+        "#B0F457",
+        "#FEF221",
+        "#FFCC01",
+        "#FF9500",
+        "#FF3B30",
     ]
 
     # Baseline
@@ -115,13 +126,13 @@ def wheel(args):
     R = max(max(df), 10)
     xlim = (-R, R) if column == "score" else (-100, 100)
     plim = (-R / 2, R) if column == "score" else (0, 100)
-    ci = (-.5, 2) if column == "score" else (10, 90)
+    ci = (-0.5, 2) if column == "score" else (10, 90)
 
     # Grid
     if column == "score":
         for t in theta:
             ax.plot([t, t], plim, color=linecolor)
-    ax.axis('off')
+    ax.axis("off")
 
     # Contours
     for t in plim:
@@ -138,21 +149,27 @@ def wheel(args):
     sector = False
     if sector:
         theta_interval = 2 * np.pi / categories
-        theta_pad = theta_interval / 2 * .9
+        theta_pad = theta_interval / 2 * 0.9
         for color, group in zip(brewer, gg):
             tmin, tmax = min(group), max(group)
-            sector(ax, theta[tmin], theta[tmax], theta_pad, R * .95,
-                       "-", color=color, lw=2)
+            sector(
+                ax,
+                theta[tmin],
+                theta[tmax],
+                theta_pad,
+                R * 0.95,
+                "-",
+                color=color,
+                lw=2,
+            )
 
     # Data
     r = df
-    closed_plot(ax, theta, r, color="lightslategray", alpha=.25)
+    closed_plot(ax, theta, r, color="lightslategray", alpha=0.25)
     all_data = []
     for color, group in zip(brewer, gg):
-        hidden_data = [(theta[x], r[x]) for x in group if \
-                            (ci[0] <= r[x] <= ci[1])]
-        shown_data = [(theta[x], r[x]) for x in group if (r[x] < ci[0] \
-                            or r[x] > ci[1])]
+        hidden_data = [(theta[x], r[x]) for x in group if (ci[0] <= r[x] <= ci[1])]
+        shown_data = [(theta[x], r[x]) for x in group if (r[x] < ci[0] or r[x] > ci[1])]
         all_data.append((theta[x], labels[x], r[x]))
         for alpha, data in zip((1, 1), (hidden_data, shown_data)):
             if not data:
@@ -162,22 +179,29 @@ def wheel(args):
 
     # Print out data
     diseaseNames, risks = labels, df
-    print("var theta = [{}]".format(",".join("{:.1f}".format(degrees(x)) for x in theta)))
+    print(
+        "var theta = [{}]".format(",".join("{:.1f}".format(degrees(x)) for x in theta))
+    )
     print("var risks = [{}]".format(",".join(str(x) for x in risks)))
-    print("var diseaseNames = [{}]".format(",".join(\
-                    ['"{}"'.format(x) for x in diseaseNames])))
+    print(
+        "var diseaseNames = [{}]".format(
+            ",".join(['"{}"'.format(x) for x in diseaseNames])
+        )
+    )
 
     # Labels
     from math import cos, sin
-    r = .5
+
+    r = 0.5
     for i, label in enumerate(labels):
         tl = theta[i]
-        x, y = .5 + r * cos(tl), .5 + r * sin(tl)
+        x, y = 0.5 + r * cos(tl), 0.5 + r * sin(tl)
         d = degrees(tl)
         if 90 < d % 360 < 270:  # On the left quardrants
             d -= 180
-        root.text(x, y, label, size=4, rotation=d,
-                  ha="center", va="center", color=linecolor)
+        root.text(
+            x, y, label, size=4, rotation=d, ha="center", va="center", color=linecolor
+        )
         print(x, y, label)
 
     # Add baseline
@@ -199,5 +223,5 @@ def wheel(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

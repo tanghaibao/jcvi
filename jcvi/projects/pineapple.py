@@ -397,7 +397,7 @@ def breakpoints(args):
         old = scaffold + old
         start, end = int(start), int(end)
         if start >= end:
-            logging.warn("{0} {1} >= {2}".format(old, start, end))
+            logging.warning("{0} {1} >= {2}".format(old, start, end))
             start, end = end, start
         print("\t".join(str(x) for x in (old, start - 1, end)))
         nbreaks += 1

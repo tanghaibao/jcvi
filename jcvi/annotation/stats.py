@@ -23,8 +23,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update
 metrics = ("Exon_Length", "Intron_Length", "Gene_Length", "Exon_Count")
 
 
-class GeneStats (object):
-
+class GeneStats(object):
     def __init__(self, feat, conf_class, transcript_sizes, exons):
         self.fid = feat.id
         self.conf_class = conf_class
@@ -32,27 +31,33 @@ class GeneStats (object):
         self.num_transcripts = len(transcript_sizes)
         self.locus_size = feat.stop - feat.start + 1
         self.cum_transcript_size = sum(transcript_sizes)
-        self.cum_exon_size = sum((stop - start + 1) \
-                        for (c, start, stop) in exons)
+        self.cum_exon_size = sum((stop - start + 1) for (c, start, stop) in exons)
 
     def __str__(self):
-        return "\t".join(str(x) for x in (self.fid, self.conf_class,
-                         self.num_exons, self.num_transcripts,
-                         self.locus_size,
-                         self.cum_transcript_size,
-                         self.cum_exon_size))
+        return "\t".join(
+            str(x)
+            for x in (
+                self.fid,
+                self.conf_class,
+                self.num_exons,
+                self.num_transcripts,
+                self.locus_size,
+                self.cum_transcript_size,
+                self.cum_exon_size,
+            )
+        )
 
 
 def main():
 
     actions = (
-        ('stats', 'collect gene statistics based on gff file'),
-        ('statstable', 'print gene statistics table based on output of stats'),
-        ('histogram', 'plot gene statistics based on output of stats'),
+        ("stats", "collect gene statistics based on gff file"),
+        ("statstable", "print gene statistics table based on output of stats"),
+        ("histogram", "plot gene statistics based on output of stats"),
         # summary tables of various styles
-        ('genestats', 'print detailed gene statistics'),
-        ('summary', 'print detailed gene/exon/intron statistics'),
-            )
+        ("genestats", "print detailed gene statistics"),
+        ("summary", "print detailed gene/exon/intron statistics"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -61,8 +66,8 @@ def gc(seqs):
     gc = total = 0
     for s in seqs:
         s = s.upper()
-        gc += s.count('G') + s.count('C')
-        total += sum(s.count(x) for x in 'ACGT')
+        gc += s.count("G") + s.count("C")
+        total += sum(s.count(x) for x in "ACGT")
     return percentage(gc, total, precision=0, mode=-1)
 
 
@@ -91,17 +96,20 @@ def summary(args):
     geneseqs, exonseqs, intronseqs = [], [], []  # Calc % GC
     for f in g.features_of_type("gene"):
         fid = f.id
-        fseq = s.sequence({'chr': f.chrom, 'start': f.start, 'stop': f.stop})
+        fseq = s.sequence({"chr": f.chrom, "start": f.start, "stop": f.stop})
         geneseqs.append(fseq)
-        exons = set((c.chrom, c.start, c.stop) for c in g.children(fid, 2) \
-                    if c.featuretype == "exon")
+        exons = set(
+            (c.chrom, c.start, c.stop)
+            for c in g.children(fid, 2)
+            if c.featuretype == "exon"
+        )
         exons = list(exons)
         for chrom, start, stop in exons:
-            fseq = s.sequence({'chr': chrom, 'start': start, 'stop': stop})
+            fseq = s.sequence({"chr": chrom, "start": start, "stop": stop})
             exonseqs.append(fseq)
         introns = range_interleave(exons)
         for chrom, start, stop in introns:
-            fseq = s.sequence({'chr': chrom, 'start': start, 'stop': stop})
+            fseq = s.sequence({"chr": chrom, "start": start, "stop": stop})
             intronseqs.append(fseq)
 
     r = {}  # Report
@@ -112,7 +120,9 @@ def summary(args):
         r[t, "Average size (bp)"] = tsummary.mean
         r[t, "Median size (bp)"] = tsummary.median
         r[t, "Total length (Mb)"] = human_size(tsummary.sum, precision=0, target="Mb")
-        r[t, "% of genome"] = percentage(tsummary.sum, s.totalsize, precision=0, mode=-1)
+        r[t, "% of genome"] = percentage(
+            tsummary.sum, s.totalsize, precision=0, mode=-1
+        )
         r[t, "% GC"] = gc(tseqs)
 
     print(tabulate(r), file=sys.stderr)
@@ -139,15 +149,14 @@ def genestats(args):
     A physical, genetic and functional sequence assembly of the barley genome
     """
     p = OptionParser(genestats.__doc__)
-    p.add_option("--groupby", default="conf_class",
-                 help="Print separate stats groupby")
+    p.add_option("--groupby", default="conf_class", help="Print separate stats groupby")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    gff_file, = args
+    (gff_file,) = args
     gb = opts.groupby
     g = make_index(gff_file)
 
@@ -157,8 +166,11 @@ def genestats(args):
         for feat in g.features_of_type("mRNA"):
             fid = feat.id
             conf_class = feat.attributes.get(gb, "all")
-            tsize = sum((c.stop - c.start + 1) for c in g.children(fid, 1) \
-                             if c.featuretype == "exon")
+            tsize = sum(
+                (c.stop - c.start + 1)
+                for c in g.children(fid, 1)
+                if c.featuretype == "exon"
+            )
             print("\t".join((fid, str(tsize), conf_class)), file=fw)
         fw.close()
 
@@ -169,13 +181,15 @@ def genestats(args):
     genes = []
     for feat in g.features_of_type("gene"):
         fid = feat.id
-        transcripts = [c.id for c in g.children(fid, 1) \
-                         if c.featuretype == "mRNA"]
+        transcripts = [c.id for c in g.children(fid, 1) if c.featuretype == "mRNA"]
         if len(transcripts) == 0:
             continue
         transcript_sizes = [tsizes[x] for x in transcripts]
-        exons = set((c.chrom, c.start, c.stop) for c in g.children(fid, 2) \
-                         if c.featuretype == "exon")
+        exons = set(
+            (c.chrom, c.start, c.stop)
+            for c in g.children(fid, 2)
+            if c.featuretype == "exon"
+        )
         conf_class = conf_classes[transcripts[0]]
         gs = GeneStats(feat, conf_class, transcript_sizes, exons)
         genes.append(gs)
@@ -204,20 +218,23 @@ def genestats(args):
             cum_transcript_size += gs.cum_transcript_size
             cum_exon_size += gs.cum_exon_size
 
-        mean_num_exons = num_exons * 1. / num_genes
-        mean_num_transcripts = num_transcripts * 1. / num_genes
-        mean_locus_size = cum_locus_size * 1. / num_genes
-        mean_transcript_size = cum_transcript_size * 1. / num_transcripts
-        mean_exon_size = cum_exon_size * 1. / num_exons if num_exons != 0 else 0
+        mean_num_exons = num_exons * 1.0 / num_genes
+        mean_num_transcripts = num_transcripts * 1.0 / num_genes
+        mean_locus_size = cum_locus_size * 1.0 / num_genes
+        mean_transcript_size = cum_transcript_size * 1.0 / num_transcripts
+        mean_exon_size = cum_exon_size * 1.0 / num_exons if num_exons != 0 else 0
 
         r[("Number of genes", g)] = num_genes
-        r[("Number of single-exon genes", g)] = \
-            percentage(num_single_exon_genes, num_genes, mode=1)
-        r[("Number of multi-exon genes", g)] = \
-            percentage(num_multi_exon_genes, num_genes, mode=1)
+        r[("Number of single-exon genes", g)] = percentage(
+            num_single_exon_genes, num_genes, mode=1
+        )
+        r[("Number of multi-exon genes", g)] = percentage(
+            num_multi_exon_genes, num_genes, mode=1
+        )
         r[("Number of distinct exons", g)] = num_exons
-        r[("Number of genes with alternative transcript variants", g)] = \
-            percentage(num_genes_with_alts, num_genes, mode=1)
+        r[("Number of genes with alternative transcript variants", g)] = percentage(
+            num_genes_with_alts, num_genes, mode=1
+        )
         r[("Number of predicted transcripts", g)] = num_transcripts
         r[("Mean number of distinct exons per gene", g)] = mean_num_exons
         r[("Mean number of transcripts per gene", g)] = mean_num_transcripts
@@ -271,8 +288,13 @@ def histogram(args):
     from jcvi.graphics.histogram import histogram_multiple
 
     p = OptionParser(histogram.__doc__)
-    p.add_option("--bins", dest="bins", default=40, type="int",
-            help="number of bins to plot in the histogram [default: %default]")
+    p.add_option(
+        "--bins",
+        dest="bins",
+        default=40,
+        type="int",
+        help="number of bins to plot in the histogram",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -285,12 +307,21 @@ def histogram(args):
     xlabels = ("bp", "bp", "bp", "number")
     for metric, color, vmax, xlabel in zip(metrics, colors, vmaxes, xlabels):
         logging.debug("Parsing files in `{0}`..".format(metric))
-        numberfiles = [op.join(metric, op.basename(x).split(".")[0] + ".txt") \
-                        for x in gff_files]
+        numberfiles = [
+            op.join(metric, op.basename(x).split(".")[0] + ".txt") for x in gff_files
+        ]
 
-        histogram_multiple(numberfiles, 0, vmax, xlabel, metric,
-                       bins=opts.bins, facet=True, fill=color,
-                       prefix=metric + ".")
+        histogram_multiple(
+            numberfiles,
+            0,
+            vmax,
+            xlabel,
+            metric,
+            bins=opts.bins,
+            facet=True,
+            fill=color,
+            prefix=metric + ".",
+        )
 
 
 def stats(args):
@@ -309,16 +340,14 @@ def stats(args):
     With data written to disk then you can run %prog histogram
     """
     p = OptionParser(stats.__doc__)
-    p.add_option("--gene", default="mRNA",
-                 help="The gene type [default: %default]")
-    p.add_option("--exon", default="CDS",
-                 help="The exon type [default: %default]")
+    p.add_option("--gene", default="mRNA", help="The gene type")
+    p.add_option("--exon", default="CDS", help="The exon type")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    gff_file, = args
+    (gff_file,) = args
     g = make_index(gff_file)
     exon_lengths = []
     intron_lengths = []
@@ -354,5 +383,5 @@ def stats(args):
         x.tofile(txtfile)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -636,7 +636,7 @@ def validate(args, config):
             for option in required_options:
                 short_term[option] = config.get(profile, option)
         except NoOptionError:
-            logging.warn(
+            logging.warning(
                 "Your existing credentials are missing or invalid, "
                 "obtaining new credentials."
             )

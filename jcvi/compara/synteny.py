@@ -478,7 +478,6 @@ def synteny_liftover(points, anchors, dist):
     points = np.array(points, dtype=int)
     ppoints = points[:, :2] if points.shape[1] > 2 else points
     tree = cKDTree(anchors, leafsize=16)
-    # print tree.data
     dists, idxs = tree.query(ppoints, p=1, distance_upper_bound=dist)
 
     for point, dist, idx in zip(points, dists, idxs):

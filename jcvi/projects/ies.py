@@ -122,7 +122,7 @@ def variation(args):
     # Plot the IES variant number diversity
     from jcvi.graphics.base import plt, savefig, set_ticklabels_helvetica
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    plt.figure(1, (iopts.w, iopts.h))
     if opts.diversity == "variant":
         left, height = zip(*sorted(F1_counts.items()))
         for l, h in zip(left, height):

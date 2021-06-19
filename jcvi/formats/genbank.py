@@ -388,7 +388,7 @@ def preparegb(p, args):
     else:
         idfile = None
 
-    return (filenames, accessions, idfile, opts, args)
+    return filenames, accessions, idfile, opts, args
 
 
 def tofasta(args):
@@ -460,7 +460,6 @@ def print_locus_quals(locus_tag, locus, quals_ftypes):
 
     Replace locus_tag with protein_id if processing an "mRNA" or "CDS"
     """
-    prot_id = None
     for ftype in quals_ftypes:
         for i, quals in enumerate(locus[locus_tag][ftype]):
             for elem in quals:
@@ -504,7 +503,6 @@ def getquals(args):
     quals_ignore = opts.quals_ignore.split(",")
 
     locus = dict()
-    locus_tag = None
     for rec in SeqIO.parse(gbkfile, "gb"):
         for f in rec.features:
             if f.type in quals_ftypes:

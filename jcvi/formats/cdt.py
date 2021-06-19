@@ -69,7 +69,7 @@ class CDT(BaseFile):
 
         self.gtr_tree = node
 
-    def print_newick(self, nwk_file, gtr=True):
+    def print_newick(self, nwk_file):
 
         self.gtr_tree.write(format=5, outfile=nwk_file)
         logging.debug("Newick tree written to `{0}`".format(nwk_file))

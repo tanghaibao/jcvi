@@ -264,7 +264,6 @@ def prepare(args):
 
     libs = get_libs(fnames)
     rank = 0
-    singletons = []
     max_rd_len = max(readlen([f]) for f in fnames)
 
     block = "max_rd_len={0}\n".format(max_rd_len)
@@ -286,7 +285,6 @@ def prepare(args):
         rank += 1
         block = "[LIB]\n"
         block += "avg_ins={0}\n".format(size)
-        f = fs[0]
         block += "reverse_seq={0}\n".format(lib.reverse_seq)
         asm_flags = 2 if (rank > 1 and a1st) else lib.asm_flags
         block += "asm_flags={0}\n".format(asm_flags)

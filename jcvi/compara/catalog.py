@@ -474,7 +474,7 @@ def omg(args):
         fw.close()
 
 
-def geneinfo(bed, order, genomeidx, ploidy):
+def geneinfo(bed, genomeidx, ploidy):
     bedfile = bed.filename
     p = bedfile.split(".")[0]
     idx = genomeidx[p]
@@ -539,8 +539,8 @@ def omgprepare(args):
 
     ploidy = DictFile(ploidy)
 
-    geneinfo(qbed, qorder, genomeidx, ploidy)
-    geneinfo(sbed, sorder, genomeidx, ploidy)
+    geneinfo(qbed, genomeidx, ploidy)
+    geneinfo(sbed, genomeidx, ploidy)
 
     pf = blastfile.rsplit(".", 1)[0]
     cscorefile = pf + ".cscore"

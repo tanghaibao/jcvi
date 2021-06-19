@@ -115,7 +115,6 @@ def create_data_model(nodes, constraints_x, qa, constraints_y, qb):
     """
     num_vars = len(nodes)
     obj_coeffs = nodes[:]
-    num_constraints = 0
     constraint_coeffs = []
     bounds = []
     for c in constraints_x:

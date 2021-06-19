@@ -140,7 +140,6 @@ class CopyNumberHMM(object):
         around_2 = around_value(mean_cn, 2)
         if realbins <= 1:  # Remove singleton bins
             return
-        is_PAR = False
         if chr == "chrX":
             start, end = rr
             is_PAR = end < 5000 or start > 155000

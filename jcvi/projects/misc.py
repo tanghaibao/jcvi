@@ -518,8 +518,8 @@ def amborella(args):
     fc = "lightslategrey"
     x = 0.05
     radius = 0.012
-    TextCircle(root, x, 0.86, "$\gamma$", radius=radius)
-    TextCircle(root, x, 0.95, "$\epsilon$", radius=radius)
+    TextCircle(root, x, 0.86, r"$\gamma$", radius=radius)
+    TextCircle(root, x, 0.95, r"$\epsilon$", radius=radius)
     root.plot([x, x], [0.83, 0.9], ":", color=fc, lw=2)
     pts = plot_cap((x, 0.95), np.radians(range(-70, 250)), 0.02)
     x, y = zip(*pts)
@@ -681,7 +681,7 @@ def epoch(args):
     classifiy S/G/F/FB/FN for the genes.
     """
     p = OptionParser(__doc__)
-    opts, args = p.parse_args()
+    p.parse_args(args)
 
     fig = plt.figure(1, (6, 4))
     root = fig.add_axes([0, 0, 1, 1])

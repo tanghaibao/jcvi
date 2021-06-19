@@ -502,7 +502,7 @@ def filter_same_gender(pairs, gender):
         if gender[a] != gender[b]:
             diffGender += 1
             continue
-        yield (a, b, gender[a])
+        yield a, b, gender[a]
     print(notPresent, "not found")
     print(diffGender, "different gender")
 
@@ -515,6 +515,7 @@ def extract_twin_values(triples, traits, gender=None):
     triples: (a, b, "Female/Male") triples. The sample IDs are then used to query
              the traits dictionary.
     traits: sample_id => value dictionary
+    gender:
 
     Returns
     =======

@@ -102,7 +102,7 @@ def annotate(args):
     tidy([newagpfile, contigfasta])
 
 
-def blast_to_twobeds(blastfile, log=False, rclip=1, maxsize=300000, flipbeds=False):
+def blast_to_twobeds(blastfile, rclip=1):
 
     key1 = lambda x: x.query
     key2 = lambda x: x.query[:-rclip] if rclip else key1
@@ -203,7 +203,6 @@ def sizes(args):
 
     gapsbed, afasta, bfasta = args
     pf = gapsbed.rsplit(".", 1)[0]
-    extbed = pf + ".ext.bed"
     extfasta = pf + ".ext.fasta"
 
     if need_update(gapsbed, extfasta):

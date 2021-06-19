@@ -42,7 +42,7 @@ def _needle(fa, fb, needlefile, a, b, results):
     needle_cline = NeedleCommandline(
         asequence=fa, bsequence=fb, gapopen=10, gapextend=0.5, outfile=needlefile
     )
-    stdout, stderr = needle_cline()
+    _, _ = needle_cline()
     nh = NeedleHeader(needlefile)
     FileShredder([fa, fb, needlefile], verbose=False)
     r = ["\t".join((a, b, nh.identity, nh.score))]

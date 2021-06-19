@@ -1642,11 +1642,6 @@ def hash_fasta(
         else:
             seq = re.sub("N", "", seq)
 
-    if checksum == "MD5":
-        hashed = md5(seq).hexdigest()
-    elif checksum == "GCG":
-        hashed = seguid(seq)
-
     return seguid(seq) if checksum == "GCG" else hashlib.sha256(seq)
 
 

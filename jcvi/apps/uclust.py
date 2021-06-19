@@ -607,7 +607,6 @@ def consensus(args):
             fname, cons_seq, RAD, S, total_nreps, mindepth=mindepth, verbose=verbose
         )
         if len(shortcon) < minlength:
-            cons_seq = seq
             shortcon, shortRAD = compute_consensus(
                 fname,
                 first_seq,

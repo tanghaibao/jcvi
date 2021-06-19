@@ -83,8 +83,8 @@ class TrioOrDuo:
     def __hash__(self):
         return hash(self.__key())
 
-    def __eq__(x, y):
-        return x.__key() == y.__key()
+    def __eq__(self, other):
+        return self.__key() == other.__key()
 
     def __str__(self):
         return str(self.parents) + "=>" + str(self.child)
@@ -163,7 +163,7 @@ def get_alleles(df, sample, tred):
         return None
     if a == -1 or b == -1:
         return None
-    return (a, b)
+    return a, b
 
 
 def main():
@@ -261,7 +261,7 @@ def mendelian_errors2(args):
     ax.set_xticks(ticks)
     ax.set_xticklabels(treds, rotation=45, ha="right", size=8)
     ax.set_yticklabels([int(x) for x in ax.get_yticks()], family="Helvetica")
-    ax.set_ylabel("Mendelian errors (\%)")
+    ax.set_ylabel(r"Mendelian errors (\%)")
     ax.set_ylim(ymin, 100)
 
     normalize_axes(root)
@@ -703,7 +703,7 @@ def mendelian_errors(args):
     ax.set_xticklabels(treds, rotation=45, ha="right", size=8)
     yticklabels = [int(x) for x in ax.get_yticks()]
     ax.set_yticklabels(yticklabels, family="Helvetica")
-    ax.set_ylabel("Mendelian errors (\%)")
+    ax.set_ylabel(r"Mendelian errors (\%)")
     ax.set_ylim(ymin, 20)
 
     normalize_axes(root)
@@ -972,7 +972,6 @@ def likelihood(args):
 
     # Diploid model
     LL, CI_h1, CI_h2, MLE = parse_log("100_20.log")
-    h_hat, max_LL = max(data, key=lambda x: x[-1])
     _, min_LL = min(data, key=lambda x: x[-1])
     data = np.ones((301, 301)) * min_LL
     for k, v in LL.items():
@@ -1013,7 +1012,7 @@ def ax_plot(ax, P_h, h_hat, CI_h, xlabel, ylabel, ticks=True):
     data.sort()
     x, y = zip(*data)
     x = np.array(x)
-    (curve,) = ax.plot(x, y, "-", color=lsg, lw=2)
+    ax.plot(x, y, "-", color=lsg, lw=2)
     title = "Marginal distribution for $%s$" % xlabel
     ax.set_title(title)
     if not ticks:
@@ -1039,7 +1038,7 @@ def ax_plot(ax, P_h, h_hat, CI_h, xlabel, ylabel, ticks=True):
         ax.text(
             h_hat + 20,
             ymax * 3.0 / 5,
-            "95$\%$ CI" + r"$=%s-%s$" % (a, b),
+            r"95$\%$ CI" + r"$=%s-%s$" % (a, b),
             color=lsg,
             va="center",
         )
@@ -1055,7 +1054,7 @@ def ax_plot(ax, P_h, h_hat, CI_h, xlabel, ylabel, ticks=True):
         ax.text(
             h_hat - 30,
             ymax * 3.0 / 5,
-            "95$\%$ CI" + r"$=%s-%s$" % (a, b),
+            r"95$\%$ CI" + r"$=%s-%s$" % (a, b),
             color=lsg,
             ha="right",
             va="center",
@@ -1093,7 +1092,7 @@ def ax_imshow(
         circle = plt.Circle((h1_hat, h2_hat), r, ec="w", fill=False)
         ax.add_artist(circle)
 
-    annotation = "$\hat{h_1}=%d, \hat{h_2}=%d$" % (h1_hat, h2_hat)
+    annotation = r"$\hat{h_1}=%d, \hat{h_2}=%d$" % (h1_hat, h2_hat)
     ax.text(200, 100, annotation, color=lsg, ha="center", va="center")
 
     ax.set_xlabel(r"$h_1$")
@@ -1972,9 +1971,6 @@ def plot_compare(
     pad=8,
     ms=3,
     max_insert=300,
-    depth=20,
-    readlen=150,
-    distance=500,
     color="g",
     risk=True,
 ):
@@ -2000,7 +1996,7 @@ def plot_compare(
     )
     ax.plot(truth, truth, "k--", label="Truth")
     ax.fill_between(
-        tx, tl, th, facecolor=color, alpha=0.25, label="TREDPARSE 95$\%$ CI"
+        tx, tl, th, facecolor=color, alpha=0.25, label=r"TREDPARSE 95$\%$ CI"
     )
 
     ax.set_xlabel(r"Num of CAG repeats inserted ($\mathit{h}$)")

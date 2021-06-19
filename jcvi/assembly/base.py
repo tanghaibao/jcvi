@@ -4,14 +4,10 @@
 """
 Base utilties for genome assembly related calculations and manipulations
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 
 from math import log
-
-ln2 = log(2)
 
 import numpy as np
 from bisect import bisect
@@ -19,6 +15,8 @@ from bisect import bisect
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta
 from jcvi.apps.base import OptionParser, ActionDispatcher, glob
+
+ln2 = log(2)
 
 
 types = {"PE": "fragment", "MP": "jumping", "TT": "jumping", "LL": "long"}

@@ -777,7 +777,7 @@ def prepare(args):
                 a = find_first_isoform(a, f)
                 assert a, a
             arec = f[a]
-            SeqIO.write((arec), fw, "fasta")
+            SeqIO.write(arec, fw, "fasta")
         fw.close()
         n += 1
 

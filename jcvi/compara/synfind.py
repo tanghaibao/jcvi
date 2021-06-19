@@ -189,7 +189,6 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
 
                 far_syntelog = sbed[far_syntelog].accn
 
-                left_pos, right_pos = sorted((left_pos, right_pos))
                 data = [
                     query,
                     anchor,

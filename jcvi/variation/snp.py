@@ -195,7 +195,7 @@ def somatic(args):
         pf = b.split(".")[0]
         cmd = tcmd
         cmd += " -o {0}".format(pf)
-        others = ",".join(sorted(set(bams) - set([b])))
+        others = ",".join(sorted(set(bams) - {b}))
         cmd += " {0} {1} {2}".format(ref, others, b)
         cmds.append(cmd)
 

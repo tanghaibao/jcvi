@@ -39,6 +39,7 @@ KMERYL, KSOAP, KALLPATHS = range(3)
 
 class KmerSpectrum(BaseFile):
     def __init__(self, histfile):
+        super(BaseFile, self).__init__(histfile)
         self.load_data(histfile)
 
     def load_data(self, histfile):
@@ -84,6 +85,7 @@ class KmerSpectrum(BaseFile):
 
         Args:
             K (int, optional): K-mer size. Defaults to 23.
+            maxiter (int): Iterations to run. Defaults to 100.
             method (str, optional): Method to use, either 'nbinom' or
             'allpaths'. Defaults to "nbinom".
 

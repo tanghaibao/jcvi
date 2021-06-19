@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-"""
+r"""
 From my blog post:
 <http://tanghaibao.blogspot.com/2010/02/getting-phylogeny-from-list-of.html>
 

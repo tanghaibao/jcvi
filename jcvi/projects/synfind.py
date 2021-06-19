@@ -610,7 +610,7 @@ def grass(args):
 
     https://genomevolution.org/r/fhak
     """
-    p = OptionParser(grass._doc__)
+    p = OptionParser(grass.__doc__)
     p.set_verbose()
     opts, args = p.parse_args(args)
 
@@ -733,7 +733,7 @@ def ecoli(args):
     for i, b in enumerate(bed):
         accn = b.accn
         if accn not in store:
-            logging.warn("missing {0}".format(accn))
+            logging.warning("missing {0}".format(accn))
             continue
         tags.append((store[accn], accn))
 

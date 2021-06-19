@@ -1008,7 +1008,6 @@ def mismatches(args):
     (blastfile,) = args
 
     data = []
-    matches = 0
     b = Blast(blastfile)
     for query, bline in b.iter_best_hit():
         mm = bline.nmismatch + bline.ngaps

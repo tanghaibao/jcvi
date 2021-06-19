@@ -151,7 +151,7 @@ def prune(args):
 
     (bestedges,) = args
     G = read_graph(bestedges, maxerr=opts.maxerr)
-    reads_to_ctgs = parse_ctgs(bestedges, opts.frgctg)
+    reads_to_ctgs = parse_ctgs(opts.frgctg)
     edges = defaultdict(int)
     r = defaultdict(int)
     for a, b, d in G.edges_iter(data=True):
@@ -318,7 +318,6 @@ def overlap(args):
     cmd = "gatekeeper -b {0} -e {0}".format(iid)
     cmd += " -tabular -dumpfragments ../asm.gkpStore"
     fp = popen(cmd)
-    row = next(fp)
     size = int(next(fp).split()[-1])
 
     # Determine size of canvas
@@ -346,7 +345,7 @@ def overlap(args):
         )
 
 
-def parse_ctgs(bestedges, frgtoctg):
+def parse_ctgs(frgtoctg):
     cache = "frgtoctg.cache"
     if need_update(frgtoctg, cache):
         reads_to_ctgs = {}
@@ -603,7 +602,7 @@ def graph(args):
     if query:
         if query == -1:
             query = choice(G.nodes())
-        reads_to_ctgs = parse_ctgs(bestedges, frgctg)
+        reads_to_ctgs = parse_ctgs(frgctg)
         if contig:
             contigs = set(contig.split(","))
             core = [k for k, v in reads_to_ctgs.items() if v in contigs]

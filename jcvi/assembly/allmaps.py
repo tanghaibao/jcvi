@@ -526,6 +526,7 @@ class Map(list):
         remove_outliers=False,
         function=(lambda x: x.rank),
     ):
+        super(Map, self).__init__()
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))

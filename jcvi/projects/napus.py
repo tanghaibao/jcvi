@@ -50,7 +50,7 @@ gap = 0.03
 
 
 class F4ALayoutLine(object):
-    def __init__(self, row, delimiter=",", datadir=None):
+    def __init__(self, row, delimiter=","):
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
         self.region = args[0]
@@ -65,14 +65,14 @@ class F4ALayoutLine(object):
 
 
 class F4ALayout(LineFile):
-    def __init__(self, filename, delimiter=",", datadir=None):
+    def __init__(self, filename, delimiter=","):
         super(F4ALayout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
         for row in fp:
             if row[0] == "#":
                 continue
-            self.append(F4ALayoutLine(row, delimiter=delimiter, datadir=datadir))
+            self.append(F4ALayoutLine(row, delimiter=delimiter))
 
 
 def main():
@@ -103,7 +103,6 @@ def center_panel(chr, chr_size, ratio, gap=gap, shift=0):
 
 
 def make_seqids(chrs, seqidsfile="seqids"):
-    seqidsfile = "seqids"
     fw = open(seqidsfile, "w")
     for chr in chrs:
         print(",".join(chr), file=fw)
@@ -276,7 +275,6 @@ def make_affix_axis(fig, t, yoffset, height=0.001):
     x, y = t.xstart, t.y + yoffset
     w = t.xend - t.xstart
     ax = fig.add_axes([x, y, w, height])
-    start, end = 0, t.total
     return ax
 
 
@@ -549,7 +547,7 @@ def fig4(args):
         sys.exit(not p.print_help())
 
     layout, datadir = args
-    layout = F4ALayout(layout, datadir=datadir)
+    layout = F4ALayout(layout)
 
     gs = opts.gauge_step
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -645,7 +643,7 @@ def deletion(args):
     ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
     minval = 2 if deletion_genes == "deleted-genes" else 2048
     bins = np.logspace(math.log(minval, 10), math.log(max(dg), 10), 16)
-    n, bins, histpatches = ax.hist(dg, bins=bins, fc=lsg, alpha=0.75)
+    ax.hist(dg, bins=bins, fc=lsg, alpha=0.75)
     ax.set_xscale("log", basex=2)
     if deletion_genes == "deleted-genes":
         ax.xaxis.set_major_formatter(mpl.ticker.FormatStrFormatter("%d"))
@@ -660,7 +658,7 @@ def deletion(args):
     # Draw chromosome C2
     na, nb = 0.45, 0.85
     root.text((na + nb) / 2, 0.54, "ChrC02", ha="center")
-    HorizontalChromosome(root, na, nb, 0.5, height=0.025, fc=lsg, fill=True)
+    HorizontalChromosome(root, na, nb, 0.5, height=0.025, fc=lsg)
 
     order = Bed(bed).order
     fp = open(deletions)
@@ -845,8 +843,8 @@ def expr(args):
             )
 
     axA, axC = axes
-    p = axA.pcolormesh(A, cmap=default_cm)
-    p = axC.pcolormesh(C, cmap=default_cm)
+    axA.pcolormesh(A, cmap=default_cm)
+    axC.pcolormesh(C, cmap=default_cm)
     axA.set_xlim(0, len(gA))
     axC.set_xlim(0, len(gC))
 

@@ -509,7 +509,6 @@ class OptionParser(OptionP):
         dpi=300,
         format="pdf",
         font="Helvetica",
-        palette="deep",
         style="darkgrid",
         cmap="jet",
     ):
@@ -1065,7 +1064,7 @@ def splitall(path):
 
 
 def get_module_docstring(filepath):
-    "Get module-level docstring of Python module at filepath, e.g. 'path/to/file.py'."
+    """Get module-level docstring of Python module at filepath, e.g. 'path/to/file.py'."""
     co = compile(open(filepath).read(), filepath, "exec")
     if co.co_consts and isinstance(co.co_consts[0], str):
         docstring = co.co_consts[0]
@@ -1569,7 +1568,7 @@ def get_times(filename):
     st = os.stat(filename)
     atime = st.st_atime
     mtime = st.st_mtime
-    return (atime, mtime)
+    return atime, mtime
 
 
 def timestamp(args):
@@ -1701,7 +1700,7 @@ def pushover(
     """
     assert -1 <= priority <= 2, "Priority should be an int() between -1 and 2"
 
-    if timestamp == None:
+    if timestamp is None:
         from time import time
 
         timestamp = int(time())
@@ -1755,7 +1754,7 @@ def nma(description, apikey, event="JCVI: Job Monitor", priority=0):
     conn.getresponse()
 
 
-def pushbullet(body, apikey, device, title="JCVI: Job Monitor", type="note"):
+def pushbullet(body, apikey, device, title="JCVI: Job Monitor"):
     """
     pushbullet.com API
 

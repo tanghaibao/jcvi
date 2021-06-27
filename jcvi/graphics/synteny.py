@@ -90,8 +90,7 @@ class Layout(AbstractLayout):
             else:
                 self.append(LayoutLine(row, delimiter=delimiter))
 
-        if 3 <= len(self) <= 8:
-            self.assign_colors()
+        self.assign_colors()
 
 
 class Shade(object):

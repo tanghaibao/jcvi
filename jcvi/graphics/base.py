@@ -104,7 +104,7 @@ class AbstractLayout(LineFile):
     represents a subplot, a track or a panel.
     """
 
-    def __init__(self, filename, delimiter=","):
+    def __init__(self, filename):
         super(AbstractLayout, self).__init__(filename)
 
     def assign_array(self, attrib, array):

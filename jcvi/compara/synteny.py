@@ -1,7 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from __future__ import print_function
+"""Syntenty inference in comparative genomics
+"""
 
 import os.path as op
 import sys
@@ -32,7 +33,7 @@ class AnchorFile(BaseFile):
 
     def iter_blocks(self, minsize=0):
         fp = open(self.filename)
-        for header, lines in read_block(fp, "#"):
+        for _, lines in read_block(fp, "#"):
             lines = [x.split() for x in lines]
             if len(lines) >= minsize:
                 yield lines
@@ -46,8 +47,7 @@ class AnchorFile(BaseFile):
                 yield a, b, block_id
 
     def make_ranges(self, order, clip=10):
-        """ Prepare anchors information into a set of ranges for chaining
-        """
+        """Prepare anchors information into a set of ranges for chaining"""
         ranges = []
         block_pairs = defaultdict(dict)
         blocks = self.blocks
@@ -90,9 +90,9 @@ class AnchorFile(BaseFile):
                 print("\t".join((a, b, score)), file=fw)
         fw.close()
 
-        logging.debug("Removed {0} existing anchors.".format(nremoved))
-        logging.debug("Corrected scores for {0} anchors.".format(ncorrected))
-        logging.debug("Anchors written to `{0}`.".format(filename))
+        logging.debug("Removed %d existing anchors.", nremoved)
+        logging.debug("Corrected scores for %d anchors.", ncorrected)
+        logging.debug("Anchors written to `%s`.", filename)
 
     def blast(self, blastfile=None, outfile=None):
         """
@@ -110,7 +110,7 @@ class AnchorFile(BaseFile):
 
         fw = must_open(outfile, "w", checkexists=True)
         nlines = 0
-        for a, b, id in self.iter_pairs():
+        for a, b, _ in self.iter_pairs():
             if (a, b) in blasts:
                 bline = blasts[(a, b)]
             elif (b, a) in blasts:
@@ -123,14 +123,19 @@ class AnchorFile(BaseFile):
             nlines += 1
         fw.close()
 
-        logging.debug(
-            "A total of {0} BLAST lines written to `{1}`.".format(nlines, outfile)
-        )
+        logging.debug("A total of %d BLAST lines written to `%s`.", nlines, outfile)
 
         return outfile
 
+    @property
+    def is_empty(self):
+        blocks = self.blocks
+        return not blocks or not blocks[0]
+
 
 class BlockFile(BaseFile):
+    """Parse .blocks file which is the mcscan output with multiple columns as 'tracks'"""
+
     def __init__(self, filename, defaultcolor="#fb8072", header=False):
         super(BlockFile, self).__init__(filename)
         fp = must_open(filename)
@@ -254,6 +259,15 @@ class BlockFile(BaseFile):
                 line = color + "*" + line
             yield line
 
+    def grouper(self) -> Grouper:
+        """Build orthogroup based on the gene matches."""
+        grouper = Grouper()
+        for row in self.data:
+            if "." not in row:
+                grouper.join(*row)
+        logging.debug("A total of %d orthogroups formed", len(grouper))
+        return grouper
+
 
 class SimpleFile(object):
     def __init__(self, simplefile, defaultcolor="#fb8072", order=None):
@@ -286,8 +300,7 @@ class SimpleFile(object):
             self.blocks.append((a, b, c, d, score, orientation, hl))
         if check:
             print(
-                """Error: some genes in blocks can't be found,
-please rerun after making sure that bed file agree with simple file.""",
+                "Error: some genes in blocks can't be found, please rerun after making sure that bed file agree with simple file.",
                 file=sys.stderr,
             )
             exit(1)
@@ -302,7 +315,7 @@ def _score(cluster):
 
 
 def get_orientation(ia, ib):
-    """ Infer the orientation of a pairwise block.
+    """Infer the orientation of a pairwise block.
 
     Args:
         ia (List[int]): List a
@@ -314,7 +327,7 @@ def get_orientation(ia, ib):
     if len(ia) != len(ib) or len(ia) < 2:
         return "+"  # Just return a default orientation
 
-    slope, intercept = np.polyfit(ia, ib, 1)
+    slope, _ = np.polyfit(ia, ib, 1)
     return "+" if slope >= 0 else "-"
 
 
@@ -335,8 +348,7 @@ def group_hits(blasts):
 
 
 def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
-    """ Read the blast and convert name into coordinates
-    """
+    """Read the blast and convert name into coordinates"""
     filtered_blast = []
     seen = set()
     bl = Blast(blast_file)
@@ -374,9 +386,7 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
         filtered_blast.append(b)
 
     logging.debug(
-        "A total of {0} BLAST imported from `{1}`.".format(
-            len(filtered_blast), blast_file
-        )
+        "A total of %d BLAST imported from `%s`.", len(filtered_blast), blast_file
     )
 
     return filtered_blast
@@ -470,7 +480,6 @@ def synteny_liftover(points, anchors, dist):
     points = np.array(points, dtype=int)
     ppoints = points[:, :2] if points.shape[1] > 2 else points
     tree = cKDTree(anchors, leafsize=16)
-    # print tree.data
     dists, idxs = tree.query(ppoints, p=1, distance_upper_bound=dist)
 
     for point, dist, idx in zip(points, dists, idxs):
@@ -555,7 +564,9 @@ def main():
         ("spa", "convert chr ordering from SPA to simple lists"),
         ("layout", "compute layout based on .simple file"),
         ("rebuild", "rebuild anchors file from prebuilt blocks file"),
+        # Formatting
         ("fromaligns", "convert aligns file to anchors file"),
+        ("toaligns", "convert anchors file to aligns file"),
     )
 
     p = ActionDispatcher(actions)
@@ -563,7 +574,7 @@ def main():
 
 
 def get_region_size(region, bed, order):
-    """ Get a summary of a syntenic region, how many anchors it has and
+    """Get a summary of a syntenic region, how many anchors it has and
     how many genes it spans.
 
     Args:
@@ -667,7 +678,6 @@ def assemble(args):
 
     from jcvi.apps.align import last
     from jcvi.formats.fasta import some
-    from jcvi.formats.base import FileShredder
 
     p = OptionParser(assemble.__doc__)
     p.add_option(
@@ -875,6 +885,34 @@ def fromaligns(args):
         atoms = row.split(":")[-1].split()
         print("\t".join(atoms[:2]), file=fw)
     fw.close()
+
+
+def toaligns(args):
+    """
+    %prog fromaligns input.anchors
+
+    Convert anchors file to tab-separated aligns file, adding the first column
+    with the Block ID.
+    """
+    p = OptionParser(toaligns.__doc__)
+    p.add_option("--prefix", default="b", help="Prefix to the block id")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(p.print_help())
+
+    (anchorfile,) = args
+    ac = AnchorFile(anchorfile)
+    logging.debug("A total of {} blocks imported".format(len(ac.blocks)))
+    max_block_id_len = len(str(len(ac.blocks) - 1))
+    header = "\t".join(("#Block ID", "Gene 1", "Gene 2"))
+
+    with must_open(opts.outfile, "w") as fw:
+        print(header, file=fw)
+        for a, b, block_id in ac.iter_pairs():
+            block_id = "{}{:0{}d}".format(opts.prefix, block_id, max_block_id_len)
+            print("\t".join((block_id, a, b)), file=fw)
 
 
 def mcscanq(args):
@@ -1167,7 +1205,9 @@ def simple(args):
 
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
     pf = "-".join(anchorfile.split(".", 2)[:2])
-    blocks = ac.blocks
+    if ac.is_empty:
+        logging.error("No blocks found in `%s`. Aborting ..", anchorfile)
+        return
 
     if coords:
         h = "Block|Chr|Start|End|Span|StartGene|EndGene|GeneSpan|Orientation"
@@ -1180,9 +1220,9 @@ def simple(args):
     if header:
         print("\t".join(h.split("|")), file=fws)
 
+    blocks = ac.blocks
     atotalbase = btotalbase = 0
     for i, block in enumerate(blocks):
-
         a, b, scores = zip(*block)
         a = [qorder[x] for x in a]
         b = [sorder[x] for x in b]
@@ -1677,6 +1717,7 @@ def depth(args):
     multiplicity will be summarized to stderr.
     """
     from jcvi.utils.range import range_depth
+    from jcvi.graphics.base import latex
 
     p = OptionParser(depth.__doc__)
     p.add_option("--depthfile", help="Generate file with gene and depth")
@@ -1765,7 +1806,7 @@ def depth(args):
         qgenome, sgenome, speak, qpeak
     )
     root = f.add_axes([0, 0, 1, 1])
-    vs, pattern = title.split("\n")
+    vs, pattern = latex(title).split("\n")
     root.text(0.5, 0.97, vs, ha="center", va="center", color="darkslategray")
     root.text(0.5, 0.925, pattern, ha="center", va="center", color="tomato", size=16)
     print(title, file=sys.stderr)
@@ -1873,6 +1914,11 @@ def scan(args):
         help="Lower bound of intra-chromosomal blocks (only for self comparison)",
     )
     p.add_option("--liftover", help="Scan BLAST file to find extra anchors")
+    p.add_option(
+        "--liftover_dist",
+        type="int",
+        help="Distance to extend from liftover. Defaults to half of --dist",
+    )
     p.set_stripnames()
 
     blast_file, anchor_file, dist, opts = add_options(p, args, dist=20)
@@ -1907,9 +1953,12 @@ def scan(args):
     if not lo:
         return anchor_file
 
-    bedopts = ["--qbed=" + opts.qbed, "--sbed=" + opts.sbed]
-    ostrip = [] if opts.strip_names else ["--no_strip_names"]
-    newanchorfile = liftover([lo, anchor_file] + bedopts + ostrip)
+    dargs = ["--qbed=" + opts.qbed, "--sbed=" + opts.sbed]
+    if not opts.strip_names:
+        dargs += ["--no_strip_names"]
+    liftover_dist = opts.liftover_dist or dist // 2
+    dargs += ["--dist={}".format(liftover_dist)]
+    newanchorfile = liftover([lo, anchor_file] + dargs)
     return newanchorfile
 
 
@@ -1959,7 +2008,7 @@ def liftover(args):
             ac.blocks[block_id].append((query, subject, str(score) + "L"))
             lifted += 1
 
-    logging.debug("{0} new pairs found.".format(lifted))
+    logging.debug("{} new pairs found (dist={}).".format(lifted, dist))
     newanchorfile = anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
     ac.print_to_file(filename=newanchorfile, accepted=accepted)
     summary([newanchorfile])

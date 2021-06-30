@@ -20,8 +20,8 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
 def main():
 
     actions = (
-        ('prepare', 'prepare shell script to run trinity-dn/gg on a folder of reads'),
-            )
+        ("prepare", "prepare shell script to run trinity-dn/gg on a folder of reads"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -43,11 +43,18 @@ def prepare(args):
     If "--merge" is specified, the fastq files are merged together before assembling
     """
     p = OptionParser(prepare.__doc__)
-    p.add_option("--paired", default=False, action="store_true",
-                 help="Paired-end mode [default: %default]")
-    p.add_option("--merge", default=False, action="store_true",
-                 help="Merge individual input fastq's into left/right/single" + \
-                      " file(s) [default: %default]")
+    p.add_option(
+        "--paired",
+        default=False,
+        action="store_true",
+        help="Paired-end mode",
+    )
+    p.add_option(
+        "--merge",
+        default=False,
+        action="store_true",
+        help="Merge individual input fastq's into left/right/single file(s)",
+    )
     p.set_trinity_opts()
     p.set_fastq_names()
     p.set_grid()
@@ -56,7 +63,7 @@ def prepare(args):
     if len(args) not in (1, 2):
         sys.exit(not p.print_help())
 
-    inparam, = args[:1]
+    (inparam,) = args[:1]
 
     paired = opts.paired
     merge = opts.merge
@@ -87,8 +94,12 @@ def prepare(args):
 
         flist = iglob("../" + inparam, opts.names)
         if paired:
-            f1 = [x for x in flist if "_1_" in x or ".1." in x or "_1." in x or "_R1" in x]
-            f2 = [x for x in flist if "_2_" in x or ".2." in x or "_2." in x or "_R2" in x]
+            f1 = [
+                x for x in flist if "_1_" in x or ".1." in x or "_1." in x or "_R1" in x
+            ]
+            f2 = [
+                x for x in flist if "_2_" in x or ".2." in x or "_2." in x or "_R2" in x
+            ]
             assert len(f1) == len(f2)
             if merge:
                 r1, r2 = "left.fastq", "right.fastq"
@@ -96,7 +107,7 @@ def prepare(args):
         else:
             if merge:
                 r = "single.fastq"
-                reads = ((flist, r), )
+                reads = ((flist, r),)
 
         if merge:
             for fl, r in reads:
@@ -122,17 +133,23 @@ def prepare(args):
                 cmd += " --right {0}".format(",".join(f2))
         else:
             if merge:
-                 cmd += " --single {0}".format(reads[0][-1])
+                cmd += " --single {0}".format(reads[0][-1])
             else:
                 for f in flist:
                     cmd += " --single {0}".format(f)
 
     if opts.grid and opts.grid_conf_file:
         hpc_grid_runner = op.join(hpc_grid_runner_home, "hpc_cmds_GridRunner.pl")
-        hpc_grid_conf_file = op.join(hpc_grid_runner_home, "hpc_conf", opts.grid_conf_file)
-        assert op.exists(hpc_grid_conf_file), "HpcGridRunner conf file does not exist: {0}".format(hpc_grid_conf_file)
+        hpc_grid_conf_file = op.join(
+            hpc_grid_runner_home, "hpc_conf", opts.grid_conf_file
+        )
+        assert op.exists(
+            hpc_grid_conf_file
+        ), "HpcGridRunner conf file does not exist: {0}".format(hpc_grid_conf_file)
 
-        cmd += ' --grid_exec "{0} --grid_conf {1} -c"'.format(hpc_grid_runner, hpc_grid_conf_file)
+        cmd += ' --grid_exec "{0} --grid_conf {1} -c"'.format(
+            hpc_grid_runner, hpc_grid_conf_file
+        )
 
     if opts.extra:
         cmd += " {0}".format(opts.extra)
@@ -140,15 +157,17 @@ def prepare(args):
     cmds.append(cmd)
 
     if opts.cleanup:
-        cleanup_cmd = 'rm -rf !("Trinity.fasta"|"Trinity.gene_trans_map"|"Trinity.timing")' \
-            if method == "DN" else \
-            'rm -rf !("Trinity-GG.fasta"|"Trinity-GG.gene_trans_map"|"Trinity.timing")'
-        cmd.append(cleanup_cmd)
+        cleanup_cmd = (
+            'rm -rf !("Trinity.fasta"|"Trinity.gene_trans_map"|"Trinity.timing")'
+            if method == "DN"
+            else 'rm -rf !("Trinity-GG.fasta"|"Trinity-GG.gene_trans_map"|"Trinity.timing")'
+        )
+        cmds.append(cleanup_cmd)
 
     runfile = "run.sh"
     write_file(runfile, "\n".join(cmds))
     os.chdir(cwd)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

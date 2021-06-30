@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from __future__ import print_function
 import os
 import os.path as op
 import math
 import sys
 import logging
 
+from collections import OrderedDict
 from itertools import groupby, islice, cycle
 
 from Bio import SeqIO
@@ -20,8 +20,6 @@ from jcvi.apps.base import (
     mkdir,
     popen,
 )
-
-debug()
 
 
 FastaExt = ("fasta", "fa", "fna", "cds", "pep", "faa", "fsa", "seq", "nt", "aa")
@@ -53,7 +51,7 @@ class LineFile(BaseFile, list):
             )
 
 
-class DictFile(BaseFile, dict):
+class DictFile(BaseFile, OrderedDict):
     """
     Generic file parser for multi-column files, keyed by a particular index.
     """
@@ -69,7 +67,8 @@ class DictFile(BaseFile, dict):
         cast=None,
     ):
 
-        super(DictFile, self).__init__(filename)
+        BaseFile.__init__(self, filename)
+        OrderedDict.__init__(self)
         self.keypos = keypos
 
         fp = must_open(filename)
@@ -78,6 +77,7 @@ class DictFile(BaseFile, dict):
         for lineno, row in enumerate(fp):
             row = row.rstrip()
             atoms = row.split(delimiter)
+            atoms = [x.strip() for x in atoms]
             thiscols = len(atoms)
             if thiscols < ncols:
                 action = "Aborted" if strict else "Skipped"
@@ -101,6 +101,20 @@ class DictFile(BaseFile, dict):
         assert thiscols, "File empty"
         self.ncols = thiscols
         logging.debug("Imported {0} records from `{1}`.".format(len(self), filename))
+
+    @classmethod
+    def num_columns(cls, filename, delimiter=None):
+        """Return the column number of the csv file.
+
+        Args:
+            filename (str): Path to the file.
+            delimiter (str, optional): Separator of the csv file. Defaults to None.
+
+        Returns:
+            int: Column number.
+        """
+        fp = must_open(filename)
+        return max(len(row.split(delimiter)) for row in fp)
 
 
 class SetFile(BaseFile, set):
@@ -326,11 +340,14 @@ def check_exists(filename, oappend=False):
     """
     Avoid overwriting some files accidentally.
     """
+    from jcvi.utils.console import console
+
     if op.exists(filename):
         if oappend:
             return oappend
-        logging.error("`{0}` found, overwrite (Y/N)?".format(filename))
-        overwrite = input() == "Y"
+        overwrite = (
+            console.input("`{}` found, overwrite (Y/n)?".format(filename)) == "Y"
+        )
     else:
         overwrite = True
 
@@ -379,7 +396,7 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=Fa
     elif filename == "tmp" and mode == "w":
         from tempfile import NamedTemporaryFile
 
-        fp = NamedTemporaryFile(delete=False)
+        fp = NamedTemporaryFile(mode=mode, delete=False)
 
     elif filename.endswith(".gz"):
         import gzip
@@ -699,7 +716,7 @@ def flatten(args):
                              | 1,4
                              | 3,na
     """
-    from six.moves import zip_longest
+    from itertools import zip_longest
 
     p = OptionParser(flatten.__doc__)
     p.set_sep(sep=",")
@@ -764,20 +781,20 @@ def group(args):
 
     For example, convert this | into this
     ---------------------------------------
-    a	2    3    4           | a,2,3,4,5,6
-    a	5    6                | b,7,8
-    b	7    8                | c,9,10,11
-    c	9                     |
-    c 	10   11               |
+    a   2    3    4           | a,2,3,4,5,6
+    a   5    6                | b,7,8
+    b   7    8                | c,9,10,11
+    c   9                     |
+    c  10   11                |
 
     If grouping by a particular column,
     convert this              | into this:
     ---------------------------------------------
-    a	2    3    4           | a	2,5   3,6   4
-    a	5    6                | b	7     8
-    b	7    8                | c	9,10  11
-    c	9                     |
-    c 	10   11               |
+    a   2    3    4           | a   2,5   3,6   4
+    a   5    6                | b   7     8
+    b   7    8                | c   9,10  11
+    c   9                     |
+    c  10   11                |
 
     By default, it uniqifies all the grouped elements
     """
@@ -787,10 +804,10 @@ def group(args):
     p = OptionParser(group.__doc__)
     p.set_sep()
     p.add_option(
-        "--groupby", default=None, type="int", help="Default column to groupby",
+        "--groupby", default=None, type="int", help="Default column to groupby"
     )
     p.add_option(
-        "--groupsep", default=",", help="Separator to join the grouped elements",
+        "--groupsep", default=",", help="Separator to join the grouped elements"
     )
     p.add_option(
         "--nouniq",
@@ -899,9 +916,7 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     mode_choices = ("batch", "cycle", "optimal")
-    p.add_option(
-        "--all", default=False, action="store_true", help="split all records",
-    )
+    p.add_option("--all", default=False, action="store_true", help="split all records")
     p.add_option(
         "--mode",
         default="optimal",
@@ -909,9 +924,7 @@ def split(args):
         help="Mode when splitting records",
     )
     p.add_option(
-        "--format",
-        choices=("fasta", "fastq", "txt", "clust"),
-        help="input file format",
+        "--format", choices=("fasta", "fastq", "txt", "clust"), help="input file format"
     )
 
     opts, args = p.parse_args(args)
@@ -949,11 +962,11 @@ def join(args):
     """
     p = OptionParser(join.__doc__)
     p.add_option(
-        "--column", default="0", help="0-based column id, multiple values allowed",
+        "--column", default="0", help="0-based column id, multiple values allowed"
     )
     p.set_sep(multiple=True)
     p.add_option(
-        "--noheader", default=False, action="store_true", help="Do not print header",
+        "--noheader", default=False, action="store_true", help="Do not print header"
     )
     p.add_option("--na", default="na", help="Value for unjoined data")
     p.add_option(
@@ -1054,7 +1067,7 @@ def subset(args):
 
     p = OptionParser(subset.__doc__)
     p.add_option(
-        "--column", default="0", help="0-based column id, multiple values allowed",
+        "--column", default="0", help="0-based column id, multiple values allowed"
     )
     p.set_sep(multiple=True)
     p.add_option(
@@ -1131,7 +1144,7 @@ def setop(args):
 
     Please quote the argument to avoid shell interpreting | and &.
     """
-    from jcvi.utils.natsort import natsorted
+    from natsort import natsorted
 
     p = OptionParser(setop.__doc__)
     p.add_option(
@@ -1185,7 +1198,6 @@ def mergecsv(args):
     if op.exists(outfile):
         os.remove(outfile)
 
-    tsvfile = tsvfiles[0]
     fw = must_open(opts.outfile, "w")
     for i, tsvfile in enumerate(tsvfiles):
         fp = open(tsvfile)

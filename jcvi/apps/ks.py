@@ -4,8 +4,6 @@
 """
 Calculation of synonymous substitutions (Ks).
 """
-from __future__ import print_function
-
 import csv
 import logging
 import os
@@ -46,8 +44,7 @@ class AbstractCommandline:
 
 
 class YnCommandline(AbstractCommandline):
-    """Little commandline for yn00.
-    """
+    """Little commandline for yn00."""
 
     def __init__(self, ctl_file, command=PAML_BIN("yn00")):
         self.ctl_file = ctl_file
@@ -59,8 +56,7 @@ class YnCommandline(AbstractCommandline):
 
 
 class MrTransCommandline(AbstractCommandline):
-    """Simple commandline faker.
-    """
+    """Simple commandline faker."""
 
     def __init__(
         self,
@@ -346,7 +342,6 @@ def plot_GC3(GC3, cdsfile, fill="white"):
         bins=50,
         skip=0,
         ascii=False,
-        log=0,
         fill=fill,
     )
 
@@ -628,8 +623,7 @@ def calc(args):
 
 
 def find_synonymous(input_file, work_dir):
-    """Run yn00 to find the synonymous subsitution rate for the alignment.
-    """
+    """Run yn00 to find the synonymous subsitution rate for the alignment."""
     cwd = os.getcwd()
     os.chdir(work_dir)
     # create the .ctl file
@@ -702,8 +696,7 @@ def extract_subs_value(text):
 
 
 def run_mrtrans(align_fasta, recs, work_dir, outfmt="paml"):
-    """Align nucleotide sequences with mrtrans and the protein alignment.
-    """
+    """Align nucleotide sequences with mrtrans and the protein alignment."""
     align_file = op.join(work_dir, "prot-align.fasta")
     nuc_file = op.join(work_dir, "nuc.fasta")
     output_file = op.join(work_dir, "nuc-align.mrtrans")

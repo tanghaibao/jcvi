@@ -14,23 +14,32 @@ There are a few techniques, used in curating medicago assembly.
 5. Find gaps in optical map
 6. Insert unplaced scaffolds using mates
 """
-from __future__ import print_function
-
 import sys
 import math
 import logging
 
-from itertools import groupby
 from collections import defaultdict
+from itertools import groupby
+from more_itertools import pairwise, roundrobin
 
-from jcvi.formats.bed import Bed, complementBed, mergeBed, \
-            fastaFromBed, summary
+from jcvi.formats.bed import (
+    Bed,
+    BedLine,
+    complementBed,
+    mergeBed,
+    fastaFromBed,
+    summary,
+)
 from jcvi.formats.blast import BlastSlow
 from jcvi.formats.sizes import Sizes
-from jcvi.utils.range import range_parse, range_distance, ranges_depth, \
-            range_minmax, range_overlap, range_merge, range_closest, \
-            range_interleave
-from jcvi.utils.iter import roundrobin
+from jcvi.utils.range import (
+    range_parse,
+    range_distance,
+    range_minmax,
+    range_merge,
+    range_closest,
+    range_interleave,
+)
 from jcvi.formats.base import FileMerger, FileShredder
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
@@ -39,28 +48,24 @@ def main():
 
     actions = (
         # OM guided approach
-        ('refine', 'find gaps within or near breakpoint regions'),
-        ('patcher', 'given om alignment, prepare the patchers'),
-
+        ("refine", "find gaps within or near breakpoint regions"),
+        ("patcher", "given om alignment, prepare the patchers"),
         # Gap filling through sequence matching
-        ('fill', 'perform gap filling using one assembly vs the other'),
-        ('install', 'install patches into backbone'),
-
+        ("fill", "perform gap filling using one assembly vs the other"),
+        ("install", "install patches into backbone"),
         # Placement through mates and manual insertions and deletions
-        ('bambus', 'find candidate scaffolds to insert based on mates'),
-        ('insert', 'insert scaffolds into assembly'),
-        ('eject', 'eject scaffolds from assembly'),
-        ('closest', 'find the nearest gaps flanking suggested regions'),
-
+        ("bambus", "find candidate scaffolds to insert based on mates"),
+        ("insert", "insert scaffolds into assembly"),
+        ("eject", "eject scaffolds from assembly"),
+        ("closest", "find the nearest gaps flanking suggested regions"),
         # Misc
-        ('tips', 'append telomeric sequences based on patchers and complements'),
-        ('gaps', 'create patches around OM gaps'),
-
+        ("tips", "append telomeric sequences based on patchers and complements"),
+        ("gaps", "create patches around OM gaps"),
         # Touch-up
-        ('pasteprepare', 'prepare sequences for paste'),
-        ('paste', 'paste in good sequences in the final assembly'),
-        ('pastegenes', 'paste in zero or low coverage genes'),
-            )
+        ("pasteprepare", "prepare sequences for paste"),
+        ("paste", "paste in good sequences in the final assembly"),
+        ("pastegenes", "paste in zero or low coverage genes"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -77,12 +82,24 @@ def pastegenes(args):
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(pastegenes.__doc__)
-    p.add_option("--cutoff", default=90, type="int",
-                 help="Coverage cutoff to call gene missing [default: %default]")
-    p.add_option("--flank", default=2000, type="int",
-                 help="Get the seq of size on two ends [default: %default]")
-    p.add_option("--maxsize", default=50000, type="int",
-            help="Maximum size of patchers to be replaced [default: %default]")
+    p.add_option(
+        "--cutoff",
+        default=90,
+        type="int",
+        help="Coverage cutoff to call gene missing",
+    )
+    p.add_option(
+        "--flank",
+        default=2000,
+        type="int",
+        help="Get the seq of size on two ends",
+    )
+    p.add_option(
+        "--maxsize",
+        default=50000,
+        type="int",
+        help="Maximum size of patchers to be replaced",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -131,21 +148,25 @@ def pastegenes(args):
                 distance_to_right, oo = range_distance(cur, rightr)
                 span, oo = range_distance(leftr, rightr)
 
-                if distance_to_left <= distance_to_right and \
-                   distance_to_left > 0:
-                    label = "LEFT"
-                else:
-                    label = "RIGHT"
+                label = "LEFT" if 0 < distance_to_left <= distance_to_right else "RIGHT"
 
                 if 0 < span <= maxsize:
-                    print("\t".join(str(x) for x in \
-                                    (chr, leftb.start, rightb.end, gb.accn)), file=fwp)
+                    print(
+                        "\t".join(
+                            str(x) for x in (chr, leftb.start, rightb.end, gb.accn)
+                        ),
+                        file=fwp,
+                    )
 
                 print(leftb, file=fwe)
                 print(gb, file=fwe)
                 print(rightb, file=fwe)
-                print("L:{0} R:{1} [{2}]".format(distance_to_left, \
-                            distance_to_right, label), file=fwe)
+                print(
+                    "L:{0} R:{1} [{2}]".format(
+                        distance_to_left, distance_to_right, label
+                    ),
+                    file=fwe,
+                )
                 print(gb.accn, file=fw_ids)
                 continue
 
@@ -178,14 +199,18 @@ def pasteprepare(args):
     Prepare sequences for paste.
     """
     p = OptionParser(pasteprepare.__doc__)
-    p.add_option("--flank", default=5000, type="int",
-                 help="Get the seq of size on two ends [default: %default]")
+    p.add_option(
+        "--flank",
+        default=5000,
+        type="int",
+        help="Get the seq of size on two ends",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    goodfasta, = args
+    (goodfasta,) = args
     flank = opts.flank
     pf = goodfasta.rsplit(".", 1)[0]
     extbed = pf + ".ext.bed"
@@ -193,10 +218,11 @@ def pasteprepare(args):
     sizes = Sizes(goodfasta)
     fw = open(extbed, "w")
     for bac, size in sizes.iter_sizes():
-        print("\t".join(str(x) for x in \
-                               (bac, 0, min(flank, size), bac + "L")), file=fw)
-        print("\t".join(str(x) for x in \
-                               (bac, max(size - flank, 0), size, bac + "R")), file=fw)
+        print("\t".join(str(x) for x in (bac, 0, min(flank, size), bac + "L")), file=fw)
+        print(
+            "\t".join(str(x) for x in (bac, max(size - flank, 0), size, bac + "R")),
+            file=fw,
+        )
     fw.close()
 
     fastaFromBed(extbed, goodfasta, name=True)
@@ -211,9 +237,13 @@ def paste(args):
     from jcvi.formats.bed import uniq
 
     p = OptionParser(paste.__doc__)
-    p.add_option("--maxsize", default=300000, type="int",
-            help="Maximum size of patchers to be replaced [default: %default]")
-    p.add_option("--prefix", help="Prefix of the new object [default: %default]")
+    p.add_option(
+        "--maxsize",
+        default=300000,
+        type="int",
+        help="Maximum size of patchers to be replaced",
+    )
+    p.add_option("--prefix", help="Prefix of the new object")
     p.set_rclip(rclip=1)
     opts, args = p.parse_args(args)
 
@@ -224,9 +254,9 @@ def paste(args):
     maxsize = opts.maxsize  # Max DNA size to replace gap
     order = Bed(pbed).order
 
-    beforebed, afterbed = blast_to_twobeds(blastfile, order, log=True,
-                                           rclip=opts.rclip, maxsize=maxsize,
-                                           flipbeds=True)
+    beforebed, afterbed = blast_to_twobeds(
+        blastfile, order, log=True, rclip=opts.rclip, maxsize=maxsize, flipbeds=True
+    )
     beforebed = uniq([beforebed])
 
     afbed = Bed(beforebed)
@@ -255,7 +285,7 @@ def eject(args):
     for b in cbed:
         b.accn = b.seqid
         b.score = 1000
-        b.strand = '+'
+        b.strand = "+"
 
     cbed.print_to_file()
 
@@ -267,8 +297,12 @@ def closest(args):
     Identify the nearest gaps flanking suggested regions.
     """
     p = OptionParser(closest.__doc__)
-    p.add_option("--om", default=False, action="store_true",
-                 help="The bedfile is OM blocks [default: %default]")
+    p.add_option(
+        "--om",
+        default=False,
+        action="store_true",
+        help="The bedfile is OM blocks",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -369,8 +403,7 @@ def insert(args):
         scfs.sort(key=lambda x: corder[x[0]][1].start + corder[x[0]][1].end)
         for scf, strand in scfs:
             size = sizes[scf]
-            finalbed.add("\t".join(str(x) for x in \
-                    (scf, 0, size, sid, 1000, strand)))
+            finalbed.add("\t".join(str(x) for x in (scf, 0, size, sid, 1000, strand)))
 
     finalbedfile = "final.bed"
     finalbed.print_to_file(finalbedfile)
@@ -380,169 +413,6 @@ def insert(args):
     FileShredder(toclean)
 
 
-def bambus(args):
-    """
-    %prog bambus bambus.bed bambus.mates total.fasta
-
-    Insert unplaced scaffolds based on mates.
-    """
-    from jcvi.utils.iter import pairwise
-    from jcvi.formats.bed import BedLine
-    from jcvi.formats.posmap import MatesFile
-
-    p = OptionParser(bambus.__doc__)
-    p.add_option("--prefix", default="scaffold",
-                 help="Prefix of the unplaced scaffolds [default: %default]")
-    p.add_option("--minlinks", default=3, type="int",
-                 help="Minimum number of links to place [default: %default]")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    bedfile, matesfile, fastafile = args
-    pf = matesfile.rsplit(".", 1)[0]
-    logfile = pf + ".log"
-    log = open(logfile, "w")
-
-    mf = MatesFile(matesfile)
-    maxdist = max(x.max for x in mf.libraries.values())
-    logging.debug("Max separation: {0}".format(maxdist))
-
-    prefix = opts.prefix
-    minlinks = opts.minlinks
-
-    is_unplaced = lambda x: x.startswith(prefix)
-    bed = Bed(bedfile, sorted=False)
-    beds = []
-    unplaced = defaultdict(list)
-
-    for a, b in pairwise(bed):
-        aname, bname = a.accn, b.accn
-        aseqid, bseqid = a.seqid, b.seqid
-
-        if aname not in mf:
-            continue
-
-        pa, la = mf[aname]
-        if pa != bname:
-            continue
-
-        ia = is_unplaced(aseqid)
-        ib = is_unplaced(bseqid)
-        if ia == ib:
-            continue
-
-        if ia:
-            a, b = b, a
-
-        unplaced[b.seqid].append((a, b))
-        beds.extend([a, b])
-
-    sizes = Sizes(fastafile)
-    candidatebed = Bed()
-    cbeds = []
-    # For each unplaced scaffold, find most likely placement and orientation
-    for scf, beds in sorted(unplaced.items()):
-        print(file=log)
-        ranges = []
-        for a, b in beds:
-            aname, astrand = a.accn, a.strand
-            bname, bstrand = b.accn, b.strand
-            aseqid, bseqid = a.seqid, b.seqid
-            pa, lib = mf[aname]
-
-            print(a, file=log)
-            print(b, file=log)
-
-            flip_b = (astrand == bstrand)
-            fbstrand = '-' if flip_b else '+'
-            if flip_b:
-                b.reverse_complement(sizes)
-
-            lmin, lmax = lib.min, lib.max
-
-            L = sizes.get_size(scf)
-            assert astrand in ('+', '-')
-            if astrand == '+':
-                offset = a.start - b.end
-                sstart, sstop = offset + lmin, offset + lmax
-            else:
-                offset = a.end - b.start + L
-                sstart, sstop = offset - lmax, offset - lmin
-
-            # Prevent out of range error
-            size = sizes.get_size(aseqid)
-            sstart = max(0, sstart)
-            sstop = max(0, sstop)
-            sstart = min(size - 1, sstart)
-            sstop = min(size - 1, sstop)
-
-            start_range = (aseqid, sstart, sstop, scf, 1, fbstrand)
-            print("*" + "\t".join(str(x) for x in start_range), file=log)
-            ranges.append(start_range)
-
-        mranges = [x[:3] for x in ranges]
-        # Determine placement by finding the interval with the most support
-        rd = ranges_depth(mranges, sizes.mapping, verbose=False)
-        alldepths = []
-        for depth in rd:
-            alldepths.extend(depth)
-        print(alldepths, file=log)
-
-        maxdepth = max(alldepths, key=lambda x: x[-1])[-1]
-        if maxdepth < minlinks:
-            print("Insufficient links ({0} < {1})".format(maxdepth, minlinks), file=log)
-            continue
-
-        candidates = [x for x in alldepths if x[-1] == maxdepth]
-        nseqids = len(set(x[0] for x in candidates))
-        if nseqids != 1:
-            msg = "Multiple conflicting candidates found"
-            print(msg, file=log)
-            continue
-
-        seqid, mmin, mmax, depth = candidates[0]
-        mmin, mmax = range_minmax([x[1:3] for x in candidates])
-
-        if mmin >= mmax:
-            msg = "Invalid (min, max) range"
-            print("Invalid (min, max) range", file=log)
-            continue
-
-        if (mmax - mmin) > maxdist:
-            msg = "(min, max) distance greater than library maxdist"
-            print(msg, file=log)
-            continue
-
-        # Determine orientation by voting
-        nplus, nminus = 0, 0
-        arange = (seqid, mmin, mmax)
-        for sid, start, end, sf, sc, fbstrand in ranges:
-            brange = (sid, start, end)
-            if range_overlap(arange, brange):
-                if fbstrand == '+':
-                    nplus += 1
-                else:
-                    nminus += 1
-
-        fbstrand = '+' if nplus >= nminus else '-'
-
-        candidate = (seqid, mmin, mmax, scf, depth, fbstrand)
-        bedline = BedLine("\t".join((str(x) for x in candidate)))
-        cbeds.append(bedline)
-        print("Plus: {0}, Minus: {1}".format(nplus, nminus), file=log)
-        print(candidate, file=log)
-
-    candidatebed.extend(cbeds)
-    logging.debug("A total of {0} scaffolds can be placed.".\
-                    format(len(candidatebed)))
-    log.close()
-
-    candidatebedfile = pf + ".candidate.bed"
-    candidatebed.print_to_file(candidatebedfile, sorted=True)
-
-
 def gaps(args):
     """
     %prog gaps OM.bed fastafile
@@ -550,7 +420,6 @@ def gaps(args):
     Create patches around OM gaps.
     """
     from jcvi.formats.bed import uniq
-    from jcvi.utils.iter import pairwise
 
     p = OptionParser(gaps.__doc__)
     opts, args = p.parse_args(args)
@@ -620,8 +489,13 @@ def tips(args):
             b = complements[start_id][0]
             b.accn = object
             tbeds.append(b)
-        tbeds.append(BedLine("\t".join(str(x) for x in \
-                        (object, 0, bbsizes[object], object, 1000, "+"))))
+        tbeds.append(
+            BedLine(
+                "\t".join(
+                    str(x) for x in (object, 0, bbsizes[object], object, 1000, "+")
+                )
+            )
+        )
         if end_id:
             b = complements[end_id][-1]
             b.accn = object
@@ -641,8 +515,12 @@ def fill(args):
     Perform gap filling of one assembly (bad) using sequences from another.
     """
     p = OptionParser(fill.__doc__)
-    p.add_option("--extend", default=2000, type="int",
-                 help="Extend seq flanking the gaps [default: %default]")
+    p.add_option(
+        "--extend",
+        default=2000,
+        type="int",
+        help="Extend seq flanking the gaps",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -662,24 +540,22 @@ def fill(args):
     for b in bed:
         gapname = b.accn
         start, end = max(0, b.start - Ext - 1), b.start - 1
-        print("\t".join(str(x) for x in \
-                             (b.seqid, start, end, gapname + "L")), file=fw)
+        print("\t".join(str(x) for x in (b.seqid, start, end, gapname + "L")), file=fw)
         start, end = b.end, min(sizes[b.seqid], b.end + Ext)
-        print("\t".join(str(x) for x in \
-                             (b.seqid, start, end, gapname + "R")), file=fw)
+        print("\t".join(str(x) for x in (b.seqid, start, end, gapname + "R")), file=fw)
     fw.close()
 
     fastaFromBed(extbed, badfasta, name=True)
 
 
-def blast_to_twobeds(blastfile, order, log=False,
-                     rclip=1, maxsize=300000, flipbeds=False):
+def blast_to_twobeds(
+    blastfile, order, log=False, rclip=1, maxsize=300000, flipbeds=False
+):
 
     abed, bbed = "before.bed", "after.bed"
     beforebed, afterbed = abed, bbed
     if flipbeds:
         beforebed, afterbed = afterbed, beforebed
-
 
     fwa = open(beforebed, "w")
     fwb = open(afterbed, "w")
@@ -709,16 +585,16 @@ def blast_to_twobeds(blastfile, order, log=False,
 
             else:
                 astrand, bstrand = a.orientation, b.orientation
-                assert aquery[-1] == 'L' and bquery[-1] == 'R', str((aquery, bquery))
+                assert aquery[-1] == "L" and bquery[-1] == "R", str((aquery, bquery))
 
                 ai, ax = order[aquery]
                 bi, bx = order[bquery]
                 qstart, qstop = ax.start + a.qstart - 1, bx.start + b.qstop - 1
 
-                if astrand == '+' and bstrand == '+':
+                if astrand == "+" and bstrand == "+":
                     sstart, sstop = a.sstart, b.sstop
 
-                elif astrand == '-' and bstrand == '-':
+                elif astrand == "-" and bstrand == "-":
                     sstart, sstop = b.sstart, a.sstop
 
                 else:
@@ -740,10 +616,16 @@ def blast_to_twobeds(blastfile, order, log=False,
                 print("\t".join((name, label)), file=log)
             continue
 
-        print("\t".join(str(x) for x in \
-                    (ax.seqid, qstart - 1, qstop, name, 1000, "+")), file=fwa)
-        print("\t".join(str(x) for x in \
-                    (asubject, sstart - 1, sstop, name, 1000, astrand)), file=fwb)
+        print(
+            "\t".join(str(x) for x in (ax.seqid, qstart - 1, qstop, name, 1000, "+")),
+            file=fwa,
+        )
+        print(
+            "\t".join(
+                str(x) for x in (asubject, sstart - 1, sstop, name, 1000, astrand)
+            ),
+            file=fwb,
+        )
 
     # Missing
     if log:
@@ -794,15 +676,14 @@ def shuffle_twobeds(afbed, bfbed, bbfasta, prefix=None):
         for a in aa:
             gapid = a.accn
             bi, b = border[gapid]
-            if a.strand == '-':
-                b.extra[1] = b.strand = ('-' if b.strand == '+' else '+')
+            if a.strand == "-":
+                b.extra[1] = b.strand = "-" if b.strand == "+" else "+"
 
             bbeds.append(b)
 
         n_abeds = len(abeds)
         n_bbeds = len(bbeds)
-        assert n_abeds - n_bbeds == 1, \
-            "abeds: {0}, bbeds: {1}".format(n_abeds, n_bbeds)
+        assert n_abeds - n_bbeds == 1, "abeds: {0}, bbeds: {1}".format(n_abeds, n_bbeds)
 
         beds = [x for x in roundrobin(abeds, bbeds) if x]
         if prefix:
@@ -848,11 +729,19 @@ def install(args):
 
     p = OptionParser(install.__doc__)
     p.set_rclip(rclip=1)
-    p.add_option("--maxsize", default=300000, type="int",
-            help="Maximum size of patchers to be replaced [default: %default]")
-    p.add_option("--prefix", help="Prefix of the new object [default: %default]")
-    p.add_option("--strict", default=False, action="store_true",
-            help="Only update if replacement has no gaps [default: %default]")
+    p.add_option(
+        "--maxsize",
+        default=300000,
+        type="int",
+        help="Maximum size of patchers to be replaced",
+    )
+    p.add_option("--prefix", help="Prefix of the new object")
+    p.add_option(
+        "--strict",
+        default=False,
+        action="store_true",
+        help="Only update if replacement has no gaps",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -862,10 +751,11 @@ def install(args):
     maxsize = opts.maxsize  # Max DNA size to replace gap
     rclip = opts.rclip
 
-    blastfile = blast([altfasta, pfasta,"--wordsize=100", "--pctid=99"])
+    blastfile = blast([altfasta, pfasta, "--wordsize=100", "--pctid=99"])
     order = Bed(pbed).order
-    beforebed, afterbed = blast_to_twobeds(blastfile, order, rclip=rclip,
-                                           maxsize=maxsize)
+    beforebed, afterbed = blast_to_twobeds(
+        blastfile, order, rclip=rclip, maxsize=maxsize
+    )
 
     beforefasta = fastaFromBed(beforebed, bbfasta, name=True, stranded=True)
     afterfasta = fastaFromBed(afterbed, altfasta, name=True, stranded=True)
@@ -873,7 +763,7 @@ def install(args):
     # Exclude the replacements that contain more Ns than before
     ah = SeqIO.parse(beforefasta, "fasta")
     bh = SeqIO.parse(afterfasta, "fasta")
-    count_Ns = lambda x: x.seq.count('n') + x.seq.count('N')
+    count_Ns = lambda x: x.seq.count("n") + x.seq.count("N")
     exclude = set()
     for arec, brec in zip(ah, bh):
         an = count_Ns(arec)
@@ -888,9 +778,9 @@ def install(args):
         id = arec.id
         exclude.add(id)
 
-    logging.debug("Ignore {0} updates because of decreasing quality."\
-                    .format(len(exclude)))
-
+    logging.debug(
+        "Ignore {0} updates because of decreasing quality.".format(len(exclude))
+    )
 
     abed = Bed(beforebed, sorted=False)
     bbed = Bed(afterbed, sorted=False)
@@ -921,16 +811,20 @@ def refine(args):
     - Break at the closest gap (--closest)
     """
     p = OptionParser(refine.__doc__)
-    p.add_option("--closest", default=False, action="store_true",
-                 help="In case of no gaps, use closest [default: %default]")
+    p.add_option(
+        "--closest",
+        default=False,
+        action="store_true",
+        help="In case of no gaps, use closest",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     breakpointsbed, gapsbed = args
-    ncols = len(open(breakpointsbed).next().split())
-    logging.debug("File {0} contains {1} columns.".format(breakpointsbed, ncols))
+    ncols = len(next(open(breakpointsbed)).split())
+    logging.debug("File %s contains %d columns.", breakpointsbed, ncols)
     cmd = "intersectBed -wao -a {0} -b {1}".format(breakpointsbed, gapsbed)
 
     pf = "{0}.{1}".format(breakpointsbed.split(".")[0], gapsbed.split(".")[0])
@@ -972,7 +866,7 @@ def refine(args):
         pbed = Bed()
         bed = Bed(nogapsbed)
         for b in bed:
-            pos = (b.start + b.end) / 2
+            pos = (b.start + b.end) // 2
             b.start, b.end = pos, pos
             pbed.append(b)
         pbed.print_to_file(pointbed)
@@ -1002,9 +896,9 @@ def merge_ranges(beds):
     ms = min(x.start for x in mr)
     me = max(x.end for x in mr)
 
-    neg_strands = sum(1 for x in beds if x.strand == '-')
+    neg_strands = sum(1 for x in beds if x.strand == "-")
     pos_strands = len(beds) - neg_strands
-    strand = '-' if neg_strands > pos_strands else '+'
+    strand = "-" if neg_strands > pos_strands else "+"
 
     return mc, ms, me, strand
 
@@ -1020,10 +914,12 @@ def patcher(args):
     from jcvi.formats.bed import uniq
 
     p = OptionParser(patcher.__doc__)
-    p.add_option("--backbone", default="OM",
-                 help="Prefix of the backbone assembly [default: %default]")
-    p.add_option("--object", default="object",
-                 help="New object name [default: %default]")
+    p.add_option(
+        "--backbone",
+        default="OM",
+        help="Prefix of the backbone assembly",
+    )
+    p.add_option("--object", default="object", help="New object name")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1034,7 +930,6 @@ def patcher(args):
     otherbed = uniq([otherbed])
 
     pf = backbonebed.split(".")[0]
-    key = lambda x: (x.seqid, x.start, x.end)
 
     # Make a uniq bed keeping backbone at redundant intervals
     cmd = "intersectBed -v -wa"
@@ -1059,11 +954,13 @@ def patcher(args):
         sb = list(sb)
         chr, start, end, strand = merge_ranges(sb)
 
-        print("\t".join(str(x) for x in \
-                (chr, start, end, opts.object, 1000, strand)), file=bed_fw)
+        print(
+            "\t".join(str(x) for x in (chr, start, end, opts.object, 1000, strand)),
+            file=bed_fw,
+        )
 
     bed_fw.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -36,7 +36,7 @@ def parse_csv(csvfile, vmin=0, groups=False):
 
     reader = csv.reader(open(csvfile))
     if groups:
-        groups = reader.next()[1:]
+        groups = next(reader)[1:]
         # Fill in empty cells in groups
         filled_groups = []
         lastg = ""
@@ -47,7 +47,7 @@ def parse_csv(csvfile, vmin=0, groups=False):
         groups = filled_groups
 
     rows = []
-    cols = reader.next()[1:]
+    cols = next(reader)[1:]
     data = []
     for row in reader:
         name = row[0]
@@ -62,17 +62,25 @@ def parse_csv(csvfile, vmin=0, groups=False):
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option("--groups", default=False, action="store_true",
-                 help="The first row contains group info [default: %default]")
-    p.add_option("--rowgroups", help="Row groupings [default: %default]")
-    p.add_option("--horizontalbar", default=False, action="store_true",
-                 help="Horizontal color bar [default: vertical]")
+    p.add_option(
+        "--groups",
+        default=False,
+        action="store_true",
+        help="The first row contains group info",
+    )
+    p.add_option("--rowgroups", help="Row groupings")
+    p.add_option(
+        "--horizontalbar",
+        default=False,
+        action="store_true",
+        help="Horizontal color bar [default: vertical]",
+    )
     opts, args, iopts = p.set_image_options(figsize="8x8")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    datafile, = args
+    (datafile,) = args
     pf = datafile.rsplit(".", 1)[0]
     rowgroups = opts.rowgroups
 
@@ -89,16 +97,16 @@ def main():
 
     plt.rcParams["axes.linewidth"] = 0
 
-    xstart = .18
+    xstart = 0.18
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    ax = fig.add_axes([xstart, .15, .7, .7])
+    ax = fig.add_axes([xstart, 0.15, 0.7, 0.7])
 
     im = ax.matshow(data, cmap=iopts.cmap, norm=mpl.colors.LogNorm(vmin=1, vmax=10000))
     nrows, ncols = len(rows), len(cols)
 
-    xinterval = .7 / ncols
-    yinterval = .7 / max(nrows, ncols)
+    xinterval = 0.7 / ncols
+    yinterval = 0.7 / max(nrows, ncols)
 
     plt.xticks(range(ncols), cols, rotation=45, size=10, ha="center")
     plt.yticks(range(nrows), rows, size=10)
@@ -106,42 +114,42 @@ def main():
     for x in ax.get_xticklines() + ax.get_yticklines():
         x.set_visible(False)
 
-    ax.set_xlim(-.5, ncols - .5)
+    ax.set_xlim(-0.5, ncols - 0.5)
 
     t = [1, 10, 100, 1000, 10000]
-    pad = .06
+    pad = 0.06
     if opts.horizontalbar:
-        ypos = .5 * (1 - nrows * yinterval) - pad
-        axcolor = fig.add_axes([.3, ypos, .4, .02])
+        ypos = 0.5 * (1 - nrows * yinterval) - pad
+        axcolor = fig.add_axes([0.3, ypos, 0.4, 0.02])
         orientation = "horizontal"
     else:
-        axcolor = fig.add_axes([.9, .3, .02, .4])
+        axcolor = fig.add_axes([0.9, 0.3, 0.02, 0.4])
         orientation = "vertical"
     fig.colorbar(im, cax=axcolor, ticks=t, orientation=orientation)
 
     if groups:
         groups = [(key, len(list(nn))) for key, nn in groupby(groups)]
-        yy = .5 + .5 * nrows / ncols * .7 + .06
-        e = .005
-        sep = -.5
+        yy = 0.5 + 0.5 * nrows / ncols * 0.7 + 0.06
+        e = 0.005
+        sep = -0.5
 
         for k, kl in groups:
             # Separator in the array area
             sep += kl
-            ax.plot([sep, sep], [-.5, nrows - .5], "w-", lw=2)
+            ax.plot([sep, sep], [-0.5, nrows - 0.5], "w-", lw=2)
             # Group labels on the top
             kl *= xinterval
             root.plot([xstart + e, xstart + kl - e], [yy, yy], "-", color="gray", lw=2)
-            root.text(xstart + .5 * kl, yy + e, k, ha="center", color="gray")
+            root.text(xstart + 0.5 * kl, yy + e, k, ha="center", color="gray")
             xstart += kl
 
     if rowgroups:
         from jcvi.graphics.glyph import TextCircle
 
-        xpos = .04
-        tip = .015
+        xpos = 0.04
+        tip = 0.015
         assert rgroups
-        ystart = 1 - .5 * (1 - nrows * yinterval)
+        ystart = 1 - 0.5 * (1 - nrows * yinterval)
         for gname, start, end in rgroups:
             start = ystart - start * yinterval
             end = ystart - (end + 1) * yinterval
@@ -152,7 +160,7 @@ def main():
             root.plot((xpos, xpos + tip), (start, start), "k-", lw=2)
             root.plot((xpos, xpos), (start, end), "k-", lw=2)
             root.plot((xpos, xpos + tip), (end, end), "k-", lw=2)
-            TextCircle(root, xpos, .5 * (start + end), gname)
+            TextCircle(root, xpos, 0.5 * (start + end), gname)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -162,5 +170,5 @@ def main():
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

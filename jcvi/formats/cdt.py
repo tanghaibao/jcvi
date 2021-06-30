@@ -21,8 +21,7 @@ from jcvi.formats.base import BaseFile
 GTRLine = namedtuple("GTRLine", "parent left_child right_child dist")
 
 
-class CDT (BaseFile):
-
+class CDT(BaseFile):
     def __init__(self, filename):
         super(CDT, self).__init__(filename)
 
@@ -33,7 +32,7 @@ class CDT (BaseFile):
 
     def get_names(self):
         cdt_file = self.filename
-        reader = csv.reader(file(cdt_file), delimiter="\t")
+        reader = csv.reader(open(cdt_file), delimiter="\t")
 
         gid = next(reader)
         assert gid[0] == "GID"
@@ -49,7 +48,7 @@ class CDT (BaseFile):
 
     def get_gtr_tree(self):
 
-        from ete2 import Tree
+        from ete3 import Tree
 
         fp = open(self.gtrfile)
         reader = csv.reader(fp, delimiter="\t")
@@ -70,12 +69,12 @@ class CDT (BaseFile):
 
         self.gtr_tree = node
 
-    def print_newick(self, nwk_file, gtr=True):
+    def print_newick(self, nwk_file):
 
         self.gtr_tree.write(format=5, outfile=nwk_file)
         logging.debug("Newick tree written to `{0}`".format(nwk_file))
 
-    def iter_partitions(self, cutoff=.3, gtr=True):
+    def iter_partitions(self, cutoff=0.3, gtr=True):
         from jcvi.utils.grouper import Grouper
 
         if gtr:
@@ -112,7 +111,7 @@ def main(args):
     cdt.print_newick(nwk_file)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
 
     p = OptionParser(__doc__)
     opts, args = p.parse_args()

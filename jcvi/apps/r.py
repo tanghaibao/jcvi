@@ -12,10 +12,11 @@ from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 
-class RTemplate (object):
+class RTemplate(object):
     """
     Creates a R script and runs it
     """
+
     def __init__(self, template, parameters):
 
         self.template = Template(template)
@@ -46,9 +47,7 @@ class RTemplate (object):
 
 def main():
 
-    actions = (
-        ('rdotplot', 'dot plot based on lastz rdotplot output'),
-            )
+    actions = (("rdotplot", "dot plot based on lastz rdotplot output"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -73,7 +72,7 @@ def rdotplot(args):
     dev.off()
     """
 
-    rdotplotfile, = args
+    (rdotplotfile,) = args
     assert rdotplotfile.endswith(".rdotplot")
     pngfile = rdotplotfile.replace(".rdotplot", ".png")
 
@@ -81,5 +80,5 @@ def rdotplot(args):
     rtemplate.run()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

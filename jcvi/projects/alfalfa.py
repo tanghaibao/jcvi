@@ -14,9 +14,7 @@ from jcvi.apps.base import OptionParser, ActionDispatcher, sh
 
 def main():
 
-    actions = (
-        ('nucmer', 'select specific chromosome region based on MTR mapping'),
-            )
+    actions = (("nucmer", "select specific chromosome region based on MTR mapping"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -42,8 +40,9 @@ def nucmer(args):
     bed.add("\t".join(str(x) for x in (chr, (idx - 1) * m1, idx * m1)))
     bed.print_to_file(bedfile)
 
-    cmd = "intersectBed -a {0} -b {1} -nonamecheck -sorted | cut -f4".\
-                format(mapbed, bedfile)
+    cmd = "intersectBed -a {0} -b {1} -nonamecheck -sorted | cut -f4".format(
+        mapbed, bedfile
+    )
     idsfile = "query.ids"
     sh(cmd, outfile=idsfile)
 
@@ -59,5 +58,5 @@ def nucmer(args):
     sh("mv out.pdf {0}.{1}.pdf".format(chr, idx))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

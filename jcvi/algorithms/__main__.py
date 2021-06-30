@@ -7,5 +7,5 @@ Implementations of several key algorithms, such as: TSP, Graph, SuperMap, Linear
 from jcvi.apps.base import dmain
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dmain(__file__)

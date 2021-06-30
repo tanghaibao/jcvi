@@ -4,8 +4,6 @@
 """
 Scaffold Ordering with Weighted Maps.
 """
-from __future__ import print_function
-
 import os.path as op
 import os
 import sys
@@ -14,9 +12,10 @@ import logging
 import numpy as np
 import networkx as nx
 
-from itertools import combinations, product
-from collections import defaultdict
+from collections import Counter, defaultdict
 from functools import partial
+from itertools import combinations, product
+from more_itertools import flatten, pairwise
 
 from jcvi import __version__ as version
 from jcvi.algorithms.formula import reject_outliers, spearmanr
@@ -34,9 +33,7 @@ from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
 from jcvi.graphics.landscape import draw_gauge
 from jcvi.utils.cbook import human_size, percentage
-from jcvi.utils.counter import Counter
 from jcvi.utils.grouper import Grouper
-from jcvi.utils.iter import flatten, pairwise
 from jcvi.utils.table import tabulate
 from jcvi.apps.base import (
     OptionParser,
@@ -285,9 +282,9 @@ class ScaffoldOO(object):
                 continue
             G.add_edge(b, a, weight=d)
 
-        logging.debug("Graph size: |V|={0}, |E|={1}.".format(len(G), G.size()))
+        logging.debug("Graph size: |V|=%d, |E|=%d", len(G), G.size())
 
-        L = nx.all_pairs_dijkstra_path_length(G)
+        L = dict(nx.all_pairs_dijkstra_path_length(G))
         for a, b in combinations(scaffolds, 2):
             if G.has_edge(a, b):
                 continue
@@ -529,6 +526,7 @@ class Map(list):
         remove_outliers=False,
         function=(lambda x: x.rank),
     ):
+        super(Map, self).__init__()
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
@@ -661,7 +659,7 @@ class Weights(DictFile):
         logging.debug("Map weights: {0}".format(self.items()))
 
     def update_maps(self, mapnames, default=1):
-        keys = self.keys()
+        keys = list(self.keys())
         for m in keys:
             if m not in mapnames:
                 del self[m]
@@ -673,8 +671,14 @@ class Weights(DictFile):
 
     def get_pivot(self, mapnames):
         # Break ties by occurence in file
+        common_mapnames = set(self.maps) & set(mapnames)
+        if not common_mapnames:
+            logging.error(
+                "No common names found between {} and {}", self.maps, mapnames
+            )
+            sys.exit(1)
         return max(
-            (w, -self.maps.index(m), m) for m, w in self.items() if m in mapnames
+            (w, -self.maps.index(m), m) for m, w in self.items() if m in common_mapnames
         )
 
 
@@ -860,8 +864,7 @@ def main():
 def normalize_lms_axis(
     ax, xlim=None, ylim=None, xfactor=1e-6, yfactor=1, xlabel=None, ylabel="Map (cM)"
 ):
-    """ Normalize the axis limits and labels to beautify axis.
-    """
+    """Normalize the axis limits and labels to beautify axis."""
     if xlim:
         ax.set_xlim(0, xlim)
     if ylim:
@@ -1117,7 +1120,7 @@ def movie(args):
             fwagp = must_open(agpfile, "w")
             order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
             fwagp.close()
-            logging.debug("{0} written to `{1}`".format(header, agpfile))
+            logging.debug("%s written to `%s`.", header, agpfile)
             build([inputbed, scaffoldsfasta, "--cleanup"])
             pdf_name = plot([inputbed, seqid, "--title={0}".format(label)])
             sh("mv {0} {1}".format(pdf_name, image_name))
@@ -1133,8 +1136,7 @@ def movie(args):
 
 
 def make_movie(workdir, pf, dpi=120, fps=1, format="pdf", engine="ffmpeg"):
-    """ Make the movie using either ffmpeg or gifsicle.
-    """
+    """Make the movie using either ffmpeg or gifsicle."""
     os.chdir(workdir)
     if format != "png":
         cmd = "parallel convert -density {}".format(dpi)
@@ -1276,7 +1278,7 @@ def merge(args):
             continue
 
     b.print_to_file(filename=outfile, sorted=True)
-    logging.debug("A total of {0} markers written to `{1}`.".format(len(b), outfile))
+    logging.debug("A total of %d markers written to `%s`.", len(b), outfile)
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     write_weightsfile(mapnames, weightsfile=opts.weightsfile)
@@ -1315,7 +1317,7 @@ def mergebed(args):
             continue
 
     b.print_to_file(filename=outfile, sorted=True)
-    logging.debug("A total of {0} markers written to `{1}`.".format(len(b), outfile))
+    logging.debug("A total of %d markers written to `%s`.", len(b), outfile)
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     write_weightsfile(mapnames, weightsfile=opts.weightsfile)
@@ -1332,7 +1334,7 @@ def write_weightsfile(mapnames, weightsfile="weights.txt"):
     for mapname in sorted(mapnames):
         weight = 1
         print(mapname, weight, file=fw)
-    logging.debug("Weights file written to `{0}`.".format(weightsfile))
+    logging.debug("Weights file written to `%s`.", weightsfile)
 
 
 def best_no_ambiguous(d, label):
@@ -1616,17 +1618,15 @@ def path(args):
     command = "# COMMAND: python -m jcvi.assembly.allmaps path {0}".format(
         " ".join(oargs)
     )
-    comment = "Generated by ALLMAPS v{0} ({1})\n{2}".format(
-        version, get_today(), command
-    )
+    comment = "Generated by ALLMAPS {} ({})\n{}".format(version, get_today(), command)
     AGP.print_header(fwagp, comment=comment)
 
     for s in natsorted(solutions, key=lambda x: x.object):
         order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
     fwagp.close()
 
-    logging.debug("AGP file written to `{0}`.".format(agpfile))
-    logging.debug("Tour file written to `{0}`.".format(tourfile))
+    logging.debug("AGP file written to `%s`.", agpfile)
+    logging.debug("Tour file written to `%s`.", tourfile)
 
     build([inputbed, fastafile])
 
@@ -1652,7 +1652,7 @@ def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):
         if s in scaffolds_seen:
             continue
         order_to_agp(s, [(s, "?")], sizes, fwagp)
-    logging.debug("Write unplaced AGP to `{0}`.".format(unplaced_agp))
+    logging.debug("Write unplaced AGP to `%s`", unplaced_agp)
 
 
 def summary(args):

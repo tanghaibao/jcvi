@@ -1,5 +1,4 @@
 # cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
-# cython: language_level=2
 
 """
 Cythonized (fast) version of BlastLine
@@ -11,7 +10,6 @@ import sys
 from libc.stdio cimport FILE, EOF, fopen, fscanf, rewind, fclose, sscanf, \
             fgets, sprintf
 from libc.string cimport strcpy
-from cpython.version cimport PY_MAJOR_VERSION
 
 
 cdef const char *blast_format = "%s\t%s\t%f\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%lf\t%f"
@@ -59,16 +57,10 @@ cdef class Blast:
 # Python 2 and 3 differ in str and unicode handling
 # https://github.com/PySlurm/pyslurm/wiki/Strings-and-bytes-in-Cython
 cdef bytes c_str(str s):
-    if PY_MAJOR_VERSION == 3:
-        return s.encode("UTF-8")
-    # On Py2 we convert str to bytes
-    return bytes(s)
+    return s.encode("UTF-8")
 
 cdef str py_str(bytes s):
-    if PY_MAJOR_VERSION == 3:
-        return s.decode("UTF-8", "replace")
-    # On Py2 s.decode() returns a unicode
-    return str(s.decode("UTF-8", "replace"))
+    return s.decode("UTF-8", "replace")
 
 
 cdef class BlastLine:

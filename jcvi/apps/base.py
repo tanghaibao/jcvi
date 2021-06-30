@@ -1,8 +1,6 @@
 """
-basic support for running library as script
+Basic support for running library as script
 """
-from __future__ import print_function
-
 import errno
 import os
 import time
@@ -12,12 +10,11 @@ import signal
 import sys
 import logging
 import fnmatch
-import six
 
-from six.moves import input
-from six.moves.http_client import HTTPSConnection
-from six.moves.urllib.parse import urlencode
-from six.moves.configparser import (
+from more_itertools import flatten
+from http.client import HTTPSConnection
+from urllib.parse import urlencode
+from configparser import (
     ConfigParser,
     RawConfigParser,
     NoOptionError,
@@ -28,8 +25,10 @@ from socket import gethostname
 from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 
+from natsort import natsorted
+from rich.logging import Console, RichHandler
+
 from jcvi import __copyright__, __version__
-from jcvi.utils.natsort import natsorted
 
 # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
 nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
@@ -235,6 +234,20 @@ class OptionParser(OptionP):
             )
         self.add_option_group(group)
 
+    def set_downloader(self, downloader=None):
+        """
+        Add --downloader options for given command line program.
+        """
+        from jcvi.utils.ez_setup import ALL_DOWNLOADERS
+
+        downloader_choices = [x[0] for x in ALL_DOWNLOADERS]
+        self.add_option(
+            "--downloader",
+            default=downloader,
+            choices=downloader_choices,
+            help="Use the specified downloader to retrieve resources",
+        )
+
     def set_params(self, prog=None, params=""):
         """
         Add --params options for given command line programs
@@ -264,7 +277,7 @@ class OptionParser(OptionP):
         self.add_option(
             "--email",
             default=get_email_address(),
-            help='Specify an email address [default: "%default"]',
+            help="Specify an email address",
         )
 
     def set_tmpdir(self, tmpdir=None):
@@ -355,7 +368,7 @@ class OptionParser(OptionP):
                 "--strip_names",
                 action="store_true",
                 default=False,
-                help="strip alternative splicing " "(e.g. At5g06540.1 -> At5g06540)",
+                help="strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
             )
 
     def set_fixchrnames(self, orgn="medicago"):
@@ -479,14 +492,14 @@ class OptionParser(OptionP):
                 "--intron",
                 default=intron,
                 type="int",
-                help="Maximum intron length used for mapping " + "[default: %default]",
+                help="Maximum intron length used for mapping",
             )
         if bpsplice is not None:
             self.add_option(
                 "--bpsplice",
                 default=bpsplice,
                 type="int",
-                help="Number of bp of perfect splice boundary " + "[default: %default]",
+                help="Number of bp of perfect splice boundary",
             )
 
     def set_image_options(
@@ -496,7 +509,6 @@ class OptionParser(OptionP):
         dpi=300,
         format="pdf",
         font="Helvetica",
-        palette="deep",
         style="darkgrid",
         cmap="jet",
     ):
@@ -578,8 +590,7 @@ class OptionParser(OptionP):
         return opts, args, ImageOptions(opts)
 
     def set_dotplot_opts(self, theme=2):
-        """Used in compara.catalog and graphics.dotplot
-        """
+        """Used in compara.catalog and graphics.dotplot"""
         from jcvi.graphics.base import set1
 
         group = OptionGroup(self, "Dot plot parameters")
@@ -722,9 +733,7 @@ class OptionParser(OptionP):
     def set_sep(self, sep="\t", help="Separator in the tabfile", multiple=False):
         if multiple:
             help += ", multiple values allowed"
-        self.add_option(
-            "--sep", default=sep, help="{0} [default: '%default']".format(help)
-        )
+        self.add_option("--sep", default=sep, help=help)
 
     def set_firstN(self, firstN=100000):
         self.add_option(
@@ -765,7 +774,7 @@ class OptionParser(OptionP):
             help="Insert mean size, stdev assumed to be 20% around mean",
         )
 
-    def set_trinity_opts(self, gg=False):
+    def set_trinity_opts(self):
         self.set_home("trinity")
         self.set_home("hpcgridrunner")
         self.set_cpus()
@@ -782,7 +791,7 @@ class OptionParser(OptionP):
             "--min_contig_length",
             default=90,
             type="int",
-            help="Minimum assembled contig length to report" + "",
+            help="Minimum assembled contig length to report",
         )
         topts.add_option(
             "--bflyGCThreads",
@@ -794,7 +803,7 @@ class OptionParser(OptionP):
             "--grid_conf_file",
             default="JCVI_SGE.0689.conf",
             type="str",
-            help="HpcGridRunner config file for supported compute farms" + "",
+            help="HpcGridRunner config file for supported compute farms",
         )
         topts.add_option(
             "--cleanup",
@@ -808,7 +817,7 @@ class OptionParser(OptionP):
             "--bam",
             default=None,
             type="str",
-            help="provide coord-sorted bam file as starting point" + "",
+            help="provide coord-sorted bam file as starting point",
         )
         ggopts.add_option(
             "--max_intron",
@@ -858,7 +867,7 @@ class OptionParser(OptionP):
                 "--annots_gff3",
                 default=None,
                 type="str",
-                help="Reference annotation to load and compare against" + "",
+                help="Reference annotation to load and compare against",
             )
             genetic_code = [
                 "universal",
@@ -877,15 +886,13 @@ class OptionParser(OptionP):
                 "--pctovl",
                 default=50,
                 type="int",
-                help="Minimum pct overlap between gene and FL assembly "
-                + "[default: %default]",
+                help="Minimum pct overlap between gene and FL assembly",
             )
             self.add_option(
                 "--pct_coding",
                 default=50,
                 type="int",
-                help="Minimum pct of cDNA sequence to be protein coding "
-                + "[default: %default]",
+                help="Minimum pct of cDNA sequence to be protein coding",
             )
             self.add_option(
                 "--orf_size",
@@ -914,8 +921,7 @@ class OptionParser(OptionP):
                 "--pctid_prot",
                 default=70,
                 type="int",
-                help="Minimum pctid allowed for protein pairwise comparison"
-                + "[default: %default]",
+                help="Minimum pctid allowed for protein pairwise comparison",
             )
             self.add_option(
                 "--pct_aln",
@@ -935,8 +941,7 @@ class OptionParser(OptionP):
                 "--stompovl",
                 default="",
                 action="store_true",
-                help="Ignore alignment results, only consider genome span of ORF"
-                + "[default: %default]",
+                help="Ignore alignment results, only consider genome span of ORF",
             )
             self.add_option(
                 "--trust_FL",
@@ -954,38 +959,41 @@ class OptionParser(OptionP):
             "--uc",
             default=False,
             action="store_true",
-            help="Toggle gene identifier upper case" + "",
+            help="Toggle gene identifier upper case",
         )
 
     def set_home(self, prog, default=None):
         tag = "--{0}_home".format(prog)
-        default = default or {
-            "amos": "~/code/amos-code",
-            "trinity": "~/export/trinityrnaseq-2.0.6",
-            "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
-            "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
-            "maker": "~/export/maker",
-            "augustus": "~/export/maker/exe/augustus",
-            "pasa": "~/export/PASApipeline-2.0.2",
-            "gatk": "~/export",
-            "gmes": "~/export/gmes",
-            "gt": "~/export/genometools",
-            "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
-            "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
-            "pbjelly": "~/export/PBSuite_15.2.20",
-            "picard": "~/export/picard-tools-1.138",
-            "khmer": "~/export/khmer",
-            "tassel": "/usr/local/projects/MTG4/packages/tassel",
-            "tgi": "~/export/seqclean-x86_64",
-            "eddyyeh": "/home/shared/scripts/eddyyeh",
-            "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
-            "fermi": "~/export/fermi",
-            "lobstr": "/mnt/software/lobSTR",
-            "shapeit": "/mnt/software/shapeit",
-            "impute": "/mnt/software/impute",
-            "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
-            "minimac": "/mnt/software/Minimac3/bin",
-        }.get(prog, None)
+        default = (
+            default
+            or {
+                "amos": "~/code/amos-code",
+                "trinity": "~/export/trinityrnaseq-2.0.6",
+                "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
+                "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
+                "maker": "~/export/maker",
+                "augustus": "~/export/maker/exe/augustus",
+                "pasa": "~/export/PASApipeline-2.0.2",
+                "gatk": "~/export",
+                "gmes": "~/export/gmes",
+                "gt": "~/export/genometools",
+                "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
+                "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
+                "pbjelly": "~/export/PBSuite_15.2.20",
+                "picard": "~/export/picard-tools-1.138",
+                "khmer": "~/export/khmer",
+                "tassel": "/usr/local/projects/MTG4/packages/tassel",
+                "tgi": "~/export/seqclean-x86_64",
+                "eddyyeh": "/home/shared/scripts/eddyyeh",
+                "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
+                "fermi": "~/export/fermi",
+                "lobstr": "/mnt/software/lobSTR",
+                "shapeit": "/mnt/software/shapeit",
+                "impute": "/mnt/software/impute",
+                "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
+                "minimac": "/mnt/software/Minimac3/bin",
+            }.get(prog, None)
+        )
         if default is None:  # Last attempt at guessing the path
             try:
                 default = op.dirname(which(prog))
@@ -1056,9 +1064,9 @@ def splitall(path):
 
 
 def get_module_docstring(filepath):
-    "Get module-level docstring of Python module at filepath, e.g. 'path/to/file.py'."
+    """Get module-level docstring of Python module at filepath, e.g. 'path/to/file.py'."""
     co = compile(open(filepath).read(), filepath, "exec")
-    if co.co_consts and isinstance(co.co_consts[0], six.string_types):
+    if co.co_consts and isinstance(co.co_consts[0], str):
         docstring = co.co_consts[0]
     else:
         docstring = None
@@ -1345,53 +1353,104 @@ def get_today():
 
 
 def ls_ftp(dir):
-    from six.moves.urllib.parse import urlparse
-    from ftplib import FTP, error_perm
+    """List the contents of a remote FTP server path.
+
+    Args:
+        dir (URL): URL of a remote FTP server path.
+
+    Returns:
+        [str]: List of remote paths available, analogous to `ls`.
+    """
+    from urllib.parse import urlparse
+    from ftpretty import ftpretty
 
     o = urlparse(dir)
 
-    ftp = FTP(o.netloc)
-    ftp.login()
-    ftp.cwd(o.path)
-
-    files = []
-    try:
-        files = ftp.nlst()
-    except error_perm as resp:
-        if str(resp) == "550 No files found":
-            print("no files in this directory")
-        else:
-            raise
-    return files
+    ftp = ftpretty(o.netloc, "anonymous", "anonymous@")
+    return [op.basename(x) for x in ftp.list(o.path)]
 
 
-def download(url, filename=None, debug=True, cookies=None):
-    from six.moves.urllib.parse import urlsplit
+def download(
+    url, filename=None, debug=True, cookies=None, handle_gzip=False, downloader=None
+):
+    """Download URL to local
+
+    Args:
+        url (str): Link to the file on the internet.
+        filename (str, optional): Local file name. Defaults to None.
+        debug (bool, optional): Print debug messages. Defaults to True.
+        cookies (str, optional): cookies file. Defaults to None.
+        handle_gzip (bool, optional): Postprocess .gz files, either compress or
+        uncompress. Defaults to False.
+        downloader (str, optional): Use a given downloader. One of wget|curl|powershell|insecure.
+        Defaults to None.
+
+    Returns:
+        str: Local file name.
+    """
+    from urllib.parse import urlsplit
     from subprocess import CalledProcessError
     from jcvi.formats.base import FileShredder
 
     scheme, netloc, path, query, fragment = urlsplit(url)
-    filename = filename or op.basename(path)
-    filename = filename.strip()
+    basepath = op.basename(path)
+    if basepath:
+        url_gzipped = basepath.endswith(".gz")
+        filename_gzipped = filename and filename.endswith(".gz")
+        need_gunzip = url_gzipped and (not filename_gzipped)
+        need_gzip = (not url_gzipped) and filename_gzipped
+        if handle_gzip and (
+            need_gunzip or need_gzip
+        ):  # One more compress/decompress step after download
+            target = basepath
+        else:  # Just download
+            target = filename or basepath
+    else:
+        need_gunzip, need_gzip = False, False
+        target = filename or "index.html"
 
-    if not filename:
-        filename = "index.html"
-
-    if op.exists(filename):
+    success = False
+    final_filename = filename or target
+    if op.exists(final_filename):
         if debug:
-            msg = "File `{0}` exists. Download skipped.".format(filename)
+            msg = "File `{}` exists. Download skipped.".format(final_filename)
             logging.error(msg)
+        success = True
     else:
         from jcvi.utils.ez_setup import get_best_downloader
 
-        downloader = get_best_downloader()
-        try:
-            downloader(url, filename, cookies=cookies)
-        except (CalledProcessError, KeyboardInterrupt) as e:
-            print(e, file=sys.stderr)
-            FileShredder([filename])
+        downloader = get_best_downloader(downloader=downloader)
+        if downloader:
+            try:
+                downloader(url, target, cookies=cookies)
+                success = True
+            except (CalledProcessError, KeyboardInterrupt) as e:
+                print(e, file=sys.stderr)
+        else:
+            print("Cannot find a suitable downloader", file=sys.stderr)
 
-    return filename
+        if success and handle_gzip:
+            if need_gunzip:
+                sh("gzip -dc {}".format(target), outfile=filename)
+                FileShredder([target])
+            elif need_gzip:
+                sh("gzip -c {}".format(target), outfile=filename)
+                FileShredder([target])
+
+    if not success:
+        FileShredder([target])
+
+    return final_filename
+
+
+def remove_if_exists(filename):
+    """Check if a file exists and if so remove it
+
+    Args:
+        filename (str): Path to the local file.
+    """
+    if op.exists(filename):
+        os.remove(filename)
 
 
 def getfilesize(filename, ratio=None):
@@ -1415,7 +1474,7 @@ def getfilesize(filename, ratio=None):
     while size < heuristicsize:
         size += 2 ** 32
     if size > 2 ** 32:
-        logging.warn("Gzip file estimated uncompressed size: {0}.".format(size))
+        logging.warning("Gzip file estimated uncompressed size: {0}.".format(size))
 
     return size
 
@@ -1424,11 +1483,12 @@ def debug(level=logging.DEBUG):
     """
     Turn on the debugging
     """
-    from jcvi.apps.console import magenta, yellow
-
-    format = yellow("%(asctime)s [%(module)s]")
-    format += magenta(" %(message)s")
-    logging.basicConfig(level=level, format=format, datefmt="%H:%M:%S")
+    logging.basicConfig(
+        level=level,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(console=Console(stderr=True))],
+    )
 
 
 debug()
@@ -1508,7 +1568,7 @@ def get_times(filename):
     st = os.stat(filename)
     atime = st.st_atime
     mtime = st.st_mtime
-    return (atime, mtime)
+    return atime, mtime
 
 
 def timestamp(args):
@@ -1516,7 +1576,7 @@ def timestamp(args):
     %prog timestamp path > timestamp.info
 
     Record the timestamps for all files in the current folder.
-    filename	atime	mtime
+    filename atime mtime
 
     This file can be used later to recover previous timestamps through touch().
     """
@@ -1640,7 +1700,7 @@ def pushover(
     """
     assert -1 <= priority <= 2, "Priority should be an int() between -1 and 2"
 
-    if timestamp == None:
+    if timestamp is None:
         from time import time
 
         timestamp = int(time())
@@ -1694,7 +1754,7 @@ def nma(description, apikey, event="JCVI: Job Monitor", priority=0):
     conn.getresponse()
 
 
-def pushbullet(body, apikey, device, title="JCVI: Job Monitor", type="note"):
+def pushbullet(body, apikey, device, title="JCVI: Job Monitor"):
     """
     pushbullet.com API
 
@@ -1703,7 +1763,7 @@ def pushbullet(body, apikey, device, title="JCVI: Job Monitor", type="note"):
     import base64
 
     headers = {}
-    auth = base64.encodestring("{0}:".format(apikey)).strip()
+    auth = base64.encodestring("{0}:".format(apikey).encode("utf-8")).strip()
     headers["Authorization"] = "Basic {0}".format(auth)
     headers["Content-type"] = "application/x-www-form-urlencoded"
 
@@ -1739,8 +1799,6 @@ def pushnotify(subject, message, api="pushover", priority=0, timestamp=None):
         apikey: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
         iden: dddddddddddddddddddddddddddddddddddd
     """
-    import types
-
     assert (
         type(priority) is int and -1 <= priority <= 2
     ), "Priority should be and int() between -1 and 2"
@@ -1789,7 +1847,7 @@ def send_email(fromaddr, toaddr, subject, message):
 
 
 def get_email_address(whoami="user"):
-    """ Auto-generate the FROM and TO email address """
+    """Auto-generate the FROM and TO email address"""
     if whoami == "user":
         username = getusername()
         domain = getdomainname()
@@ -1829,7 +1887,7 @@ def is_valid_email(email):
     local_part = "%s(?:\\x2e%s)*" % (word, word)
     addr_spec = "%s\\x40%s" % (local_part, domain)
 
-    email_address = re.compile("\A%s\Z" % addr_spec)
+    email_address = re.compile(r"\A%s\Z" % addr_spec)
     if email_address.match(email):
         return True
     return False
@@ -1846,8 +1904,6 @@ def notify(args):
 
     Push notify: Uses available API
     """
-    from jcvi.utils.iter import flatten
-
     valid_notif_methods.extend(available_push_api.keys())
 
     fromaddr = get_email_address(whoami="notifier")
@@ -2009,7 +2065,6 @@ def waitpid(args):
     Specify `--grid` option to send the new process to the grid after waiting for PID
     """
     import shlex
-    from jcvi.utils.iter import flatten
 
     valid_notif_methods.extend(list(flatten(available_push_api.values())))
 
@@ -2082,8 +2137,7 @@ def get_config(path):
         config.read(path)
     except ParsingError:
         e = sys.exc_info()[1]
-        log_error_and_exit(
-            logger,
+        logging.error(
             "There was a problem reading or parsing "
             "your credentials file: %s" % (e.args[0],),
         )
@@ -2114,8 +2168,6 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
     except NoSectionError:
         config.add_section(PATH)
         changed = True
-    except:
-        pass
 
     try:
         fullpath = config.get(PATH, name)
@@ -2144,8 +2196,7 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
 
 
 def inspect(object):
-    """ A better dir() showing attributes and values
-    """
+    """A better dir() showing attributes and values"""
     for k in dir(object):
         try:
             details = getattr(object, k)
@@ -2160,19 +2211,24 @@ def inspect(object):
         print("{}: {}".format(k, details), file=sys.stderr)
 
 
-def sample_N(a, N):
-    """ When size of N is > size of a, random.sample() will emit an error:
+def sample_N(a, N, seed=None):
+    """When size of N is > size of a, random.sample() will emit an error:
     ValueError: sample larger than population
 
     This method handles such restrictions by repeatedly sampling when that
     happens. Guaranteed to cover all items if N is > size of a.
 
     Examples:
-    >>> sample_N([1, 2, 3], 2)
-    >>> sample_N([1, 2, 3], 3)
-    >>> sample_N([1, 2, 3], 4)
+    >>> sample_N([1, 2, 3], 2, seed=666)
+    [2, 3]
+    >>> sample_N([1, 2, 3], 3, seed=666)
+    [2, 3, 1]
+    >>> sample_N([1, 2, 3], 4, seed=666)
+    [2, 3, 1, 2]
     """
     import random
+
+    random.seed(seed)
 
     ret = []
     while N > len(a):

@@ -5,19 +5,17 @@
 Use genetic map to break chimeric scaffolds, order and orient scaffolds onto
 chromosomes.
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import logging
 import numpy as np
 
+from collections import Counter
+from functools import lru_cache
 from itertools import combinations, groupby
 
 from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
 from jcvi.formats.bed import Bed, fastaFromBed
-from jcvi.utils.cbook import memoized
-from jcvi.utils.counter import Counter
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
@@ -36,8 +34,7 @@ number_of_individual {3}
 """
 
 
-class BinMap (BaseFile, dict):
-
+class BinMap(BaseFile, dict):
     def __init__(self, filename):
         super(BinMap, self).__init__(filename)
 
@@ -46,29 +43,43 @@ class BinMap (BaseFile, dict):
             lg = header.split()[-1]
             self[lg] = []
             for s in seq:
-                if s.strip() == '' or s[0] == ';':
+                if s.strip() == "" or s[0] == ";":
                     continue
                 marker, pos = s.split()
                 pos = int(float(pos) * 1000)
                 self[lg].append((marker, pos))
 
-    def print_to_bed(self, filename="stdout", switch=False):
+    def print_to_bed(self, filename="stdout", switch=False, sep="."):
+        """Print the genetic map in the BED format.
+
+        Args:
+            filename (str, optional): Output filename. Defaults to "stdout".
+            switch (bool, optional): Use linkage group as seqid. Defaults to False.
+            sep (str, optional): Separator that delimits scaffold name and position. Defaults to ".".
+        """
         fw = must_open(filename, "w")
         for lg, markers in sorted(self.items()):
             for marker, pos in markers:
                 if not switch:
                     line = (lg, pos, pos + 1, marker)
                 else:
-                    seqid, spos = marker.split(".")
+                    seqid_spos = marker.rsplit(sep, 1)
+                    if len(seqid_spos) != 2:
+                        logging.error(
+                            "Error: `{}` must be in the form e.g. `name{}position`".format(
+                                marker, sep
+                            )
+                        )
+                        continue
+                    seqid, spos = seqid_spos
                     spos = int(spos)
-                    marker = "{0}:{1}".format(lg, pos / 1000.)
+                    marker = "{0}:{1}".format(lg, pos / 1000.0)
                     line = (seqid, spos - 1, spos, marker)
                 print("\t".join(str(x) for x in line), file=fw)
         fw.close()
 
 
-class MSTMapLine (object):
-
+class MSTMapLine(object):
     def __init__(self, row, startidx=3):
         args = row.split()
         self.id = args[0]
@@ -84,12 +95,10 @@ class MSTMapLine (object):
 
     @property
     def bedline(self):
-        return "\t".join(str(x) for x in \
-                (self.seqid, self.pos - 1, self.pos, self.id))
+        return "\t".join(str(x) for x in (self.seqid, self.pos - 1, self.pos, self.id))
 
 
-class MSTMap (LineFile):
-
+class MSTMap(LineFile):
     def __init__(self, filename):
         super(MSTMap, self).__init__(filename)
         fp = open(filename)
@@ -106,12 +115,14 @@ class MSTMap (LineFile):
 
         self.nmarkers = len(self)
         self.nind = len(self[0].genotype)
-        logging.debug("Map contains {0} markers in {1} individuals".\
-                      format(self.nmarkers, self.nind))
+        logging.debug(
+            "Map contains {0} markers in {1} individuals".format(
+                self.nmarkers, self.nind
+            )
+        )
 
 
-class MSTMatrix (object):
-
+class MSTMatrix(object):
     def __init__(self, matrix, markerheader, population_type, missing_threshold):
         self.matrix = matrix
         self.markerheader = markerheader
@@ -120,14 +131,24 @@ class MSTMatrix (object):
         self.ngenotypes = len(matrix)
         self.nind = len(markerheader) - 1
         assert self.nind == len(matrix[0]) - 1
-        logging.debug("Imported {0} markers and {1} individuals.".\
-                      format(self.ngenotypes, self.nind))
+        logging.debug(
+            "Imported {0} markers and {1} individuals.".format(
+                self.ngenotypes, self.nind
+            )
+        )
 
     def write(self, filename="stdout", header=True):
         fw = must_open(filename, "w")
         if header:
-            print(MSTheader.format(self.population_type,
-                                self.missing_threshold, self.ngenotypes, self.nind), file=fw)
+            print(
+                MSTheader.format(
+                    self.population_type,
+                    self.missing_threshold,
+                    self.ngenotypes,
+                    self.nind,
+                ),
+                file=fw,
+            )
         print("\t".join(self.markerheader), file=fw)
         for m in self.matrix:
             print("\t".join(m), file=fw)
@@ -136,17 +157,17 @@ class MSTMatrix (object):
 def main():
 
     actions = (
-        ('breakpoint', 'find scaffold breakpoints using genetic map'),
-        ('ld', 'calculate pairwise linkage disequilibrium'),
-        ('bed', 'convert MSTmap output to bed format'),
-        ('fasta', 'extract markers based on map'),
-        ('anchor', 'anchor scaffolds based on map'),
-        ('rename', 'rename markers according to the new mapping locations'),
-        ('header', 'rename lines in the map header'),
+        ("breakpoint", "find scaffold breakpoints using genetic map"),
+        ("ld", "calculate pairwise linkage disequilibrium"),
+        ("bed", "convert MSTmap output to bed format"),
+        ("fasta", "extract markers based on map"),
+        ("anchor", "anchor scaffolds based on map"),
+        ("rename", "rename markers according to the new mapping locations"),
+        ("header", "rename lines in the map header"),
         # Plot genetic map
-        ('blat', 'make ALLMAPS input csv based on sequences'),
-        ('dotplot', 'make dotplot between chromosomes and linkage maps'),
-            )
+        ("blat", "make ALLMAPS input csv based on sequences"),
+        ("dotplot", "make dotplot between chromosomes and linkage maps"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -163,7 +184,7 @@ def blat(args):
     from jcvi.apps.align import blat as blat_align
 
     p = OptionParser(blat.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -178,7 +199,7 @@ def blat(args):
         name, lg, pos, seq = row.split()
         if not is_number(pos):
             continue
-        register[name] = (pf + '-' + lg, pos)
+        register[name] = (pf + "-" + lg, pos)
         print(">{0}\n{1}\n".format(name, seq), file=fw)
     fw.close()
 
@@ -187,8 +208,7 @@ def blat(args):
     bedfile = blast_bed([bestfile])
     b = Bed(bedfile).order
 
-    pf = ".".join((op.basename(maptxt).split(".")[0],
-                   op.basename(ref).split(".")[0]))
+    pf = ".".join((op.basename(maptxt).split(".")[0], op.basename(ref).split(".")[0]))
     csvfile = pf + ".csv"
     fp = open(maptxt)
     fw = open(csvfile, "w")
@@ -198,8 +218,7 @@ def blat(args):
             continue
         bbi, bb = b[name]
         scaffold, scaffold_pos = bb.seqid, bb.start
-        print(",".join(str(x) for x in \
-                    (scaffold, scaffold_pos, lg, pos)), file=fw)
+        print(",".join(str(x) for x in (scaffold, scaffold_pos, lg, pos)), file=fw)
     fw.close()
 
 
@@ -214,17 +233,25 @@ def dotplot(args):
     scaffold_2707,11508,1,0
     scaffold_2707,11525,1,1.2
     """
+    from natsort import natsorted
     from jcvi.assembly.allmaps import CSVMapLine
     from jcvi.formats.sizes import Sizes
-    from jcvi.utils.natsort import natsorted
     from jcvi.graphics.base import shorten
-    from jcvi.graphics.dotplot import plt, savefig, markup, normalize_axes, \
-                    downsample, plot_breaks_and_labels, thousands
+    from jcvi.graphics.dotplot import (
+        plt,
+        savefig,
+        markup,
+        normalize_axes,
+        downsample,
+        plot_breaks_and_labels,
+        thousands,
+    )
 
     p = OptionParser(dotplot.__doc__)
     p.set_outfile(outfile=None)
-    opts, args, iopts = p.set_image_options(args, figsize="8x8",
-                                            style="dark", dpi=90, cmap="copper")
+    opts, args, iopts = p.set_image_options(
+        args, figsize="8x8", style="dark", dpi=90, cmap="copper"
+    )
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -236,7 +263,7 @@ def dotplot(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
-    ax = fig.add_axes([.1, .1, .8, .8])  # the dot plot
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])  # the dot plot
 
     fp = must_open(csvfile)
     for row in fp:
@@ -265,9 +292,13 @@ def dotplot(args):
     sstarts = dict(zip(lgs, [0] + sb))
 
     # Re-code all the scatter dots
-    data = [(qstarts[x.seqid] + x.pos, sstarts[x.lg] + x.cm, 'g') \
-                for x in raw_data if (x.seqid in qstarts)]
-    npairs = downsample(data)
+    data = [
+        (qstarts[x.seqid] + x.pos, sstarts[x.lg] + x.cm, "g")
+        for x in raw_data
+        if (x.seqid in qstarts)
+    ]
+    npairs = len(data)
+    data = downsample(data)
 
     x, y, c = zip(*data)
     ax.scatter(x, y, c=c, edgecolors="none", s=2, lw=0)
@@ -275,37 +306,37 @@ def dotplot(args):
     # Flip X-Y label
     gy, gx = op.basename(csvfile).split(".")[:2]
     gx, gy = shorten(gx, maxchar=30), shorten(gy, maxchar=30)
-    xlim, ylim = plot_breaks_and_labels(fig, root, ax, gx, gy,
-                                xsize, ysize, qbreaks, sbreaks)
+    xlim, ylim = plot_breaks_and_labels(
+        fig, root, ax, gx, gy, xsize, ysize, qbreaks, sbreaks
+    )
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
 
     title = "Alignment: {} vs {}".format(gx, gy)
     title += " ({} markers)".format(thousands(npairs))
-    root.set_title(markup(title), x=.5, y=.96, color="k")
+    root.set_title(markup(title), x=0.5, y=0.96, color="k")
     logging.debug(title)
     normalize_axes(root)
 
-    image_name = opts.outfile or \
-                (csvfile.rsplit(".", 1)[0] + "." + iopts.format)
+    image_name = opts.outfile or (csvfile.rsplit(".", 1)[0] + "." + iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
     fig.clear()
 
 
-@memoized
+@lru_cache(maxsize=None)
 def calc_ldscore(a, b):
     assert len(a) == len(b), "{0}\n{1}".format(a, b)
     # Assumes markers as A/B
     c = Counter(zip(a, b))
-    c_aa = c[('A', 'A')]
-    c_ab = c[('A', 'B')]
-    c_ba = c[('B', 'A')]
-    c_bb = c[('B', 'B')]
+    c_aa = c[("A", "A")]
+    c_ab = c[("A", "B")]
+    c_ba = c[("B", "A")]
+    c_bb = c[("B", "B")]
     n = c_aa + c_ab + c_ba + c_bb
     if n == 0:
         return 0
 
-    f = 1. / n
+    f = 1.0 / n
     x_aa = c_aa * f
     x_ab = c_ab * f
     x_ba = c_ba * f
@@ -329,20 +360,22 @@ def ld(args):
 
     Calculate pairwise linkage disequilibrium given MSTmap.
     """
-    import numpy as np
     from random import sample
-
     from jcvi.algorithms.matrix import symmetrize
 
     p = OptionParser(ld.__doc__)
-    p.add_option("--subsample", default=1000, type="int",
-                 help="Subsample markers to speed up [default: %default]")
+    p.add_option(
+        "--subsample",
+        default=1000,
+        type="int",
+        help="Subsample markers to speed up",
+    )
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    mstmap, = args
+    (mstmap,) = args
     subsample = opts.subsample
     data = MSTMap(mstmap)
 
@@ -350,8 +383,7 @@ def ld(args):
     ldmatrix = mstmap + ".subsample.matrix"
     # Take random subsample while keeping marker order
     if subsample < data.nmarkers:
-        data = [data[x] for x in \
-                sorted(sample(xrange(len(data)), subsample))]
+        data = [data[x] for x in sorted(sample(range(len(data)), subsample))]
     else:
         logging.debug("Use all markers, --subsample ignored")
 
@@ -359,8 +391,11 @@ def ld(args):
     if need_update(mstmap, (ldmatrix, markerbedfile)):
         fw = open(markerbedfile, "w")
         print("\n".join(x.bedline for x in data), file=fw)
-        logging.debug("Write marker set of size {0} to file `{1}`."\
-                        .format(nmarkers, markerbedfile))
+        logging.debug(
+            "Write marker set of size {0} to file `{1}`.".format(
+                nmarkers, markerbedfile
+            )
+        )
         fw.close()
 
         M = np.zeros((nmarkers, nmarkers), dtype=float)
@@ -376,8 +411,7 @@ def ld(args):
     else:
         nmarkers = len(Bed(markerbedfile))
         M = np.fromfile(ldmatrix, dtype="float").reshape(nmarkers, nmarkers)
-        logging.debug("LD matrix `{0}` exists ({1}x{1})."\
-                        .format(ldmatrix, nmarkers))
+        logging.debug("LD matrix `{0}` exists ({1}x{1}).".format(ldmatrix, nmarkers))
 
     from jcvi.graphics.base import plt, savefig, Rectangle, draw_cmap
 
@@ -385,7 +419,7 @@ def ld(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    ax = fig.add_axes([.1, .1, .8, .8])  # the heatmap
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])  # the heatmap
 
     ax.matshow(M, cmap=iopts.cmap)
 
@@ -407,12 +441,12 @@ def ld(args):
 
     # Plot chromosome labels
     for label, pos, ignore in chr_labels:
-        pos = .1 + pos * .8 / xsize
+        pos = 0.1 + pos * 0.8 / xsize
         if not ignore:
-            root.text(pos, .91, label,
-                ha="center", va="bottom", rotation=45, color="grey")
-            root.text(.09, pos, label,
-                ha="right", va="center", color="grey")
+            root.text(
+                pos, 0.91, label, ha="center", va="bottom", rotation=45, color="grey"
+            )
+            root.text(0.09, pos, label, ha="right", va="center", color="grey")
 
     ax.set_xlim(extent)
     ax.set_ylim(extent)
@@ -420,9 +454,11 @@ def ld(args):
 
     draw_cmap(root, "Pairwise LD (r2)", 0, 1, cmap=iopts.cmap)
 
-    root.add_patch(Rectangle((.1, .1), .8, .8, fill=False, ec="k", lw=2))
+    root.add_patch(Rectangle((0.1, 0.1), 0.8, 0.8, fill=False, ec="k", lw=2))
     m = mstmap.split(".")[0]
-    root.text(.5, .06, "Linkage Disequilibrium between {0} markers".format(m), ha="center")
+    root.text(
+        0.5, 0.06, "Linkage Disequilibrium between {0} markers".format(m), ha="center"
+    )
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -442,9 +478,8 @@ def header(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(header.__doc__)
-    p.add_option("--prefix", default="",
-                 help="Prepend text to line number [default: %default]")
-    p.add_option("--ids", help="Write ids to file [default: %default]")
+    p.add_option("--prefix", default="", help="Prepend text to line number")
+    p.add_option("--ids", help="Write ids to file")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -544,18 +579,27 @@ def bed(args):
     Convert MSTMAP output into bed format.
     """
     p = OptionParser(bed.__doc__)
-    p.add_option("--switch", default=False, action="store_true",
-                 help="Switch reference and aligned map elements [default: %default]")
+    p.add_option(
+        "--switch",
+        default=False,
+        action="store_true",
+        help="Switch reference and aligned map elements",
+    )
+    p.add_option(
+        "--sep",
+        default=".",
+        help="Separator that is used to delimit scaffold and position in the marker name",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    mapout, = args
+    (mapout,) = args
     pf = mapout.split(".")[0]
     mapbed = pf + ".bed"
     bm = BinMap(mapout)
-    bm.print_to_bed(mapbed, switch=opts.switch)
+    bm.print_to_bed(mapbed, switch=opts.switch, sep=opts.sep)
 
     return mapbed
 
@@ -569,8 +613,12 @@ def fasta(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fasta.__doc__)
-    p.add_option("--extend", default=1000, type="int",
-                 help="Extend seq flanking the gaps [default: %default]")
+    p.add_option(
+        "--extend",
+        default=1000,
+        type="int",
+        help="Extend seq flanking the gaps",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -593,8 +641,7 @@ def fasta(args):
         pos = int(pos)
         start = max(0, pos - Flank)
         end = min(pos + Flank, sizes[scf])
-        print("\t".join(str(x) for x in \
-                    (scf, start, end, accn)), file=fw)
+        print("\t".join(str(x) for x in (scf, start, end, accn)), file=fw)
 
     fw.close()
 
@@ -612,6 +659,7 @@ def hamming_distance(a, b, ignore=None):
 
 
 OK, BREAK, END = range(3)
+
 
 def check_markers(a, b, maxdiff):
 
@@ -632,24 +680,28 @@ def breakpoint(args):
     Find scaffold breakpoints using genetic map. Use variation.vcf.mstmap() to
     generate the input for this routine.
     """
-    from jcvi.utils.iter import pairwise
+    from more_itertools import pairwise
 
     p = OptionParser(breakpoint.__doc__)
-    p.add_option("--diff", default=.1, type="float",
-                 help="Maximum ratio of differences allowed [default: %default]")
+    p.add_option(
+        "--diff",
+        default=0.1,
+        type="float",
+        help="Maximum ratio of differences allowed",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    mstmap, = args
+    (mstmap,) = args
     diff = opts.diff
     data = MSTMap(mstmap)
 
     # Remove singleton markers (avoid double cross-over)
     good = []
     nsingletons = 0
-    for i in xrange(1, len(data) - 1):
+    for i in range(1, len(data) - 1):
         a = data[i]
         left_label, left_rr = check_markers(data[i - 1], a, diff)
         right_label, right_rr = check_markers(a, data[i + 1], diff)
@@ -668,5 +720,5 @@ def breakpoint(args):
             print("\t".join(str(x) for x in rr))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

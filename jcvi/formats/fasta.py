@@ -1,8 +1,6 @@
 """
 Wrapper for biopython Fasta, add option to parse sequence headers
 """
-from __future__ import print_function
-
 import re
 import sys
 import os
@@ -10,22 +8,21 @@ import os.path as op
 import shutil
 import logging
 import string
+import hashlib
 
-from itertools import groupby
-from six.moves import zip_longest
+from itertools import groupby, zip_longest
+from more_itertools import grouper, pairwise
 
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils.CheckSum import seguid
 
-from hashlib import md5
-
 from jcvi.formats.base import BaseFile, DictFile, must_open
 from jcvi.formats.bed import Bed
 from jcvi.utils.cbook import percentage
+from jcvi.utils.console import printf
 from jcvi.utils.table import write_csv
-from jcvi.apps.console import red, green
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
 
 
@@ -187,7 +184,7 @@ class ORFFinder(object):
     """
 
     def __init__(self, seq, start=[], stop=["TAG", "TAA", "TGA"]):
-        self.seq = seq.tostring().upper()
+        self.seq = str(seq).upper()
         self.start = start
         self.stop = stop
         # strand, frame, start, end, length; coordinates are 1-based
@@ -209,7 +206,7 @@ class ORFFinder(object):
         return "\t".join(str(x) for x in (strand, frame, start, end))
 
     def codons(self, frame):
-        """ A generator that yields DNA in one codon blocks
+        """A generator that yields DNA in one codon blocks
         "frame" counts for 0. This function yields a tuple (triplet, index) with
         index relative to the original DNA sequence
         """
@@ -219,7 +216,7 @@ class ORFFinder(object):
             start += 3
 
     def scan_sequence(self, frame, direction):
-        """ Search in one reading frame """
+        """Search in one reading frame"""
         orf_start = None
         for c, index in self.codons(frame):
             if (
@@ -433,7 +430,7 @@ def simulate(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    idsfile, = args
+    (idsfile,) = args
     fp = open(idsfile)
     fw = must_open(opts.outfile, "w")
     for row in fp:
@@ -456,7 +453,7 @@ def gc(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     binsize = opts.binsize
     allbins = []
     for name, seq in parse_fasta(fastafile):
@@ -500,7 +497,7 @@ def trimsplit(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     minlength = opts.minlength
 
     fw = must_open(fastafile.rsplit(".", 1)[0] + ".split.fasta", "w")
@@ -556,7 +553,7 @@ def qual(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     sizes = Sizes(fastafile)
     qvchar = str(opts.qv)
     fw = must_open(opts.outfile, "w")
@@ -648,7 +645,7 @@ def longestorf(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     pf = fastafile.rsplit(".", 1)[0]
     orffile = pf + ".orf.fasta"
     idsfile = None
@@ -692,8 +689,6 @@ def ispcr(args):
     Reformat paired primers into isPcr query format, which is three column
     format: name, forward, reverse
     """
-    from jcvi.utils.iter import grouper
-
     p = OptionParser(ispcr.__doc__)
     p.add_option(
         "-r",
@@ -707,7 +702,7 @@ def ispcr(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     ispcrfile = fastafile + ".isPcr"
     fw = open(ispcrfile, "w")
 
@@ -771,8 +766,6 @@ def iter_canonical_fasta(fastafile):
 
 
 def fancyprint(fw, seq, width=60, chunk=10):
-    from jcvi.utils.iter import grouper
-
     assert width % chunk == 0
     nchunks = width / chunk
     seqlen = len(seq)
@@ -806,7 +799,7 @@ def clean(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     fw = must_open(opts.outfile, "w")
     if opts.fancy:
         for header, seq in iter_clean_fasta(fastafile):
@@ -839,7 +832,7 @@ def translate(args):
         "--ids",
         default=False,
         action="store_true",
-        help="Create .ids file with the complete/partial/gaps " "label",
+        help="Create .ids file with the complete/partial/gaps label",
     )
     p.add_option(
         "--longest",
@@ -874,7 +867,7 @@ def translate(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    cdsfasta, = args
+    (cdsfasta,) = args
     if opts.longest:
         cdsfasta = longestorf([cdsfasta])
 
@@ -1112,7 +1105,7 @@ def sort(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     sortedfastafile = fastafile.rsplit(".", 1)[0] + ".sorted.fasta"
 
     f = Fasta(fastafile, index=False)
@@ -1151,7 +1144,7 @@ def join(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(join.__doc__)
-    p.add_option("--newid", default=None, help="New sequence ID [default: `%default`]")
+    p.add_option("--newid", default=None, help="New sequence ID")
     p.add_option(
         "--gapsize",
         default=100,
@@ -1174,7 +1167,7 @@ def join(args):
         phases = DictFile(phasefile)
         phases = dict((a, Phases[int(b)]) for a, b in phases.items())
     else:
-        fastafile, = args
+        (fastafile,) = args
         phases = {}
 
     sizes = Sizes(fastafile)
@@ -1228,7 +1221,7 @@ def summary(args):
 
     Report real bases and N's in fastafiles in a tabular report
     """
-    from jcvi.utils.natsort import natsort_key
+    from natsort import natsort_key
 
     p = OptionParser(summary.__doc__)
     p.add_option(
@@ -1336,7 +1329,7 @@ def format(args):
     p.add_option("--switch", help="Switch ID from two-column file")
     p.add_option(
         "--annotation",
-        help="Add functional annotation from " "two-column file ('ID <--> Annotation')",
+        help="Add functional annotation from two-column file ('ID <--> Annotation')",
     )
     p.add_option("--ids", help="Generate ID conversion table")
     p.add_option(
@@ -1350,6 +1343,9 @@ def format(args):
         default=False,
         action="store_true",
         help="Remove description after identifier",
+    )
+    p.add_option(
+        "--minlength", default=0, type="int", help="Minimum sequence length to keep"
     )
     opts, args = p.parse_args(args)
 
@@ -1372,6 +1368,7 @@ def format(args):
     idsfile = opts.ids
     idsfile = open(idsfile, "w") if idsfile else None
     upper = opts.upper
+    minlength = opts.minlength
 
     if mapfile:
         mapping = DictFile(mapfile, delimiter="\t")
@@ -1380,7 +1377,11 @@ def format(args):
 
     fp = SeqIO.parse(must_open(infasta), "fasta")
     fw = must_open(outfasta, "w")
+    nremoved = 0
     for i, rec in enumerate(fp):
+        if len(rec) < minlength:
+            nremoved += 1
+            continue
         origid = rec.id
         description = rec.description.replace(origid, "").strip()
         if sep:
@@ -1439,6 +1440,11 @@ def format(args):
         logging.debug("Conversion table written to `{0}`.".format(idsfile.name))
         idsfile.close()
 
+    if nremoved:
+        logging.debug(
+            "Removed {} sequences with length < {}".format(nremoved, minlength)
+        )
+
 
 def print_first_difference(
     arec, brec, ignore_case=False, ignore_N=False, rc=False, report_match=True
@@ -1493,21 +1499,21 @@ def _print_first_difference(
 
     if i + 1 == asize and matched:
         if report_match:
-            print(green("Two sequences match"))
+            printf("[green]Two sequences match")
         match = True
     else:
-        print(red("Two sequences do not match"))
+        printf("[red]Two sequences do not match")
 
         snippet_size = 20  # show the context of the difference
 
-        print(red("Sequence start to differ at position %d:" % (i + 1)))
+        printf("[red]Sequence start to differ at position {}:".format(i + 1))
 
         begin = max(i - snippet_size, 0)
         aend = min(i + snippet_size, asize)
         bend = min(i + snippet_size, bsize)
 
-        print(red(aseq[begin:i] + "|" + aseq[i:aend]))
-        print(red(bseq[begin:i] + "|" + bseq[i:bend]))
+        printf("[red]{}|{}".format(aseq[begin:i], aseq[i:aend]))
+        printf("[red]{}|{}".format(bseq[begin:i], bseq[i:bend]))
         match = False
 
     return match
@@ -1564,19 +1570,15 @@ def diff(args):
     bfastan = len(Fasta(bfasta))
 
     if afastan == bfastan:
-        print(
-            green(
-                "Two sets contain the same number of sequences ({0}, {1})".format(
-                    afastan, bfastan
-                )
+        printf(
+            "[green]Two sets contain the same number of sequences ({}, {})".format(
+                afastan, bfastan
             )
         )
     else:
-        print(
-            red(
-                "Two sets contain different number of sequences ({0}, {1})".format(
-                    afastan, bfastan
-                )
+        printf(
+            "[red]Two sets contain different number of sequences ({}, {})".format(
+                afastan, bfastan
             )
         )
 
@@ -1595,9 +1597,11 @@ def diff(args):
         if not opts.quiet:
             print(banner(str(arec), [str(brec)]))
             if asize == bsize:
-                print(green("Two sequence size match (%d)" % asize))
+                printf("[green]Two sequence size match ({})".format(asize))
             else:
-                print(red("Two sequence size do not match (%d, %d)" % (asize, bsize)))
+                printf(
+                    "[red]Two sequence size do not match ({}, {}})".format(asize, bsize)
+                )
 
         # print out the first place the two sequences diff
         fd = print_first_difference(
@@ -1615,7 +1619,7 @@ def diff(args):
             )
 
     if problem_ids:
-        print(red("A total of {0} records mismatch.".format(len(problem_ids))))
+        print("A total of {0} records mismatch.".format(len(problem_ids)))
         fw = must_open("Problems.ids", "w")
         print("\n".join(problem_ids), file=fw)
 
@@ -1636,12 +1640,7 @@ def hash_fasta(
         else:
             seq = re.sub("N", "", seq)
 
-    if checksum == "MD5":
-        hashed = md5(seq).hexdigest()
-    elif checksum == "GCG":
-        hashed = seguid(seq)
-
-    return hashed
+    return seguid(seq) if checksum == "GCG" else hashlib.sha256(seq)
 
 
 def identical(args):
@@ -1657,15 +1656,15 @@ def identical(args):
 
     Example output:
     ---------------------------
-	       tta1.fsa    tta2.fsa
-	t0         2131          na
-	t1         3420          na
-	t2    3836,3847         852
-	t3          148         890
-	t4          584         614
-	t5          623         684
-	t6         1281         470
-	t7         3367          na
+               tta1.fsa    tta2.fsa
+        t0         2131          na
+        t1         3420          na
+        t2    3836,3847         852
+        t3          148         890
+        t4          584         614
+        t5          623         684
+        t6         1281         470
+        t7         3367          na
     """
     from jcvi.utils.cbook import AutoVivification
 
@@ -1694,7 +1693,7 @@ def identical(args):
         "--output_uniq",
         default=False,
         action="store_true",
-        help="output uniq sequences in FASTA format" + "",
+        help="output uniq sequences in FASTA format",
     )
     p.add_option(
         "--checksum",
@@ -1738,7 +1737,7 @@ def identical(args):
         uniqfile = "_".join(files) + ".uniq.fasta"
         uniqfw = must_open(uniqfile, "w")
 
-    header = "\t".join(str(x) for x in (args))
+    header = "\t".join(str(x) for x in args)
     print("\t".join(str(x) for x in ("", header)), file=fw)
     for idx, hashed in enumerate(d.keys()):
         line = []
@@ -1870,14 +1869,14 @@ def fastq(args):
     from jcvi.formats.fastq import FastqLite
 
     p = OptionParser(fastq.__doc__)
-    p.add_option("--qv", type="int", help="Use generic qv value [dafault: %default]")
+    p.add_option("--qv", type="int", help="Use generic qv value")
 
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     fastqfile = fastafile.rsplit(".", 1)[0] + ".fastq"
     fastqhandle = open(fastqfile, "w")
     num_records = 0
@@ -1930,7 +1929,7 @@ def pair(args):
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     qualfile = get_qual(fastafile)
 
     prefix = fastafile.rsplit(".", 1)[0]
@@ -2001,8 +2000,6 @@ def pairinplace(args):
     records. If they match, print to bulk.pairs.fasta, else print to
     bulk.frags.fasta.
     """
-    from jcvi.utils.iter import pairwise
-
     p = OptionParser(pairinplace.__doc__)
     p.add_option(
         "-r",
@@ -2016,7 +2013,7 @@ def pairinplace(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     base = op.basename(fastafile).split(".")[0]
 
     frags = base + ".frags.fasta"
@@ -2090,7 +2087,7 @@ def extract(args):
     if len(args) == 2:
         fastafile, query = args
     elif len(args) == 1 and opts.bed:
-        fastafile, = args
+        (fastafile,) = args
         bedaccns = Bed(opts.bed).accns
     else:
         sys.exit(p.print_help())
@@ -2411,7 +2408,7 @@ def sequin(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    inputfasta, = args
+    (inputfasta,) = args
     unk = opts.unk
 
     outputfasta = inputfasta.rsplit(".", 1)[0] + ".split"
@@ -2510,7 +2507,7 @@ def tidy(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastafile, = args
+    (fastafile,) = args
     gapsize = opts.gapsize
     minlen = opts.minlen
 
@@ -2609,7 +2606,7 @@ def gaps(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    inputfasta, = args
+    (inputfasta,) = args
     mingap = opts.mingap
     split = opts.split
     prefix = inputfasta.rsplit(".", 1)[0]

@@ -2,24 +2,23 @@
 Wrapper for fetching data from various online repositories \
 (Entrez, Ensembl, Phytozome, and SRA)
 """
-from __future__ import print_function
-
+import logging
 import os.path as op
+import re
 import sys
 import time
-import logging
-from six.moves.urllib.error import HTTPError, URLError
-import re
+
 from os.path import join as urljoin
+from urllib.error import HTTPError, URLError
 
 from Bio import Entrez, SeqIO
+from more_itertools import grouper
 
 from jcvi.formats.base import FileShredder, must_open
 from jcvi.formats.fasta import print_first_difference
 from jcvi.formats.fastq import fromsra
 from jcvi.utils.cbook import tile
-from jcvi.utils.iter import grouper
-from jcvi.apps.console import green
+from jcvi.utils.console import printf
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
@@ -29,11 +28,13 @@ from jcvi.apps.base import (
     download,
     sh,
     last_updated,
+    which,
 )
 
 
 myEmail = get_email_address()
 Entrez.email = myEmail
+PHYTOZOME_COOKIES = ".phytozome_cookies"
 
 
 def batch_taxonomy(list_of_taxids):
@@ -67,7 +68,7 @@ def batch_entrez(
 
     for term in list_of_terms:
 
-        logging.debug("Search term %s" % term)
+        logging.debug("Search term %s", term)
         success = False
         ids = None
         if not term:
@@ -145,7 +146,7 @@ def ensembl(args):
     $ %prog ensembl danio_rerio,gasterosteus_aculeatus
     """
     p = OptionParser(ensembl.__doc__)
-    p.add_option("--version", default="75", help="Ensembl version [default: %default]")
+    p.add_option("--version", default="75", help="Ensembl version")
     opts, args = p.parse_args(args)
 
     version = opts.version
@@ -159,7 +160,7 @@ def ensembl(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    species, = args
+    (species,) = args
     species = species.split(",")
     for s in species:
         download_species_ensembl(s, valid_species, url)
@@ -179,18 +180,30 @@ def download_species_ensembl(species, valid_species, url):
             download(f)
 
 
-def get_cookies(cookies=".phytozome_cookies"):
-    from getpass import getpass
+def get_cookies(cookies=PHYTOZOME_COOKIES):
+    from jcvi.utils.console import console
 
     # Check if cookies is still good
     if op.exists(cookies) and last_updated(cookies) < 3600:
         return cookies
 
-    username = input("Phytozome Login: ")
-    pw = getpass("Phytozome Password: ")
-    cmd = "curl https://signon.jgi.doe.gov/signon/create --data-ascii"
-    cmd += " login={0}\&password={1} -b {2} -c {2}".format(username, pw, cookies)
+    if console.is_terminal:
+        username = console.input("[bold green]Phytozome Login: ")
+        pw = console.input("[bold green]Phytozome Password: ", password=True)
+    else:
+        username, pw = None, None
+    curlcmd = which("curl")
+    if curlcmd is None:
+        logging.error("curl command not installed. Aborting.")
+        return None
+    cmd = "{} https://signon.jgi.doe.gov/signon/create".format(curlcmd)
+    cmd += " --data-urlencode 'login={0}' --data-urlencode 'password={1}' -b {2} -c {2}".format(
+        username, pw, cookies
+    )
     sh(cmd, outfile="/dev/null", errfile="/dev/null", log=False)
+    if not op.exists(cookies):
+        logging.error("Cookies file `{}` not created. Aborting.".format(cookies))
+        return None
 
     return cookies
 
@@ -215,14 +228,14 @@ def phytozome(args):
     p.add_option(
         "--version",
         default="12",
-        choices=("9", "10", "11", "12", "12_unrestricted"),
+        choices=("9", "10", "11", "12", "12_unrestricted", "13"),
         help="Phytozome version",
     )
     p.add_option(
         "--assembly",
         default=False,
         action="store_true",
-        help="Download assembly [default: %default]",
+        help="Download assembly",
     )
     p.add_option(
         "--format",
@@ -230,17 +243,32 @@ def phytozome(args):
         action="store_true",
         help="Format to CDS and BED for synteny inference",
     )
+    p.set_downloader()
     opts, args = p.parse_args(args)
 
-    cookies = get_cookies()
+    downloader = opts.downloader
     directory_listing = ".phytozome_directory_V{}.xml".format(opts.version)
     # Get directory listing
     base_url = "http://genome.jgi.doe.gov"
     dlist = "{}/ext-api/downloads/get-directory?organism=PhytozomeV{}".format(
         base_url, opts.version
     )
+
+    # Make sure we have a valid cookies
+    cookies = get_cookies()
+    if cookies is None:
+        logging.error("Error fetching cookies ... cleaning up")
+        FileShredder([directory_listing])
+        sys.exit(1)
+
+    # Proceed to use the cookies and download the species list
     try:
-        d = download(dlist, filename=directory_listing, cookies=cookies)
+        download(
+            dlist,
+            filename=directory_listing,
+            cookies=cookies,
+            downloader=downloader,
+        )
         g = GlobusXMLParser(directory_listing)
     except:
         logging.error("Error downloading directory listing ... cleaning up")
@@ -255,14 +283,20 @@ def phytozome(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    species, = args
+    (species,) = args
     if species == "all":
         species = ",".join(valid_species)
 
     species = species.split(",")
     for s in species:
         res = download_species_phytozome(
-            genomes, s, valid_species, base_url, cookies, assembly=opts.assembly
+            genomes,
+            s,
+            valid_species,
+            base_url,
+            cookies,
+            assembly=opts.assembly,
+            downloader=downloader,
         )
         if not res:
             logging.error("No files downloaded")
@@ -272,7 +306,7 @@ def phytozome(args):
 
 
 def download_species_phytozome(
-    genomes, species, valid_species, base_url, cookies, assembly=False
+    genomes, species, valid_species, base_url, cookies, assembly=False, downloader=None
 ):
     """Download assembly FASTA and annotation GFF.
 
@@ -280,7 +314,12 @@ def download_species_phytozome(
         genomes (dict): Dictionary parsed from Globus XML.
         species (str): Target species to download.
         valid_species (List[str]): Allowed set of species
-        assembly (bool, optional): Do we download assembly FASTA (can be big). Defaults to False.
+        base_url (str): URL.
+        cookies (str): cookies file path.
+        assembly (bool, optional): Do we download assembly FASTA (can be big).
+        Defaults to False.
+        downloader (str, optional): Use a given downloader. One of wget|curl|powershell|insecure.
+        Defaults to None.
     """
     assert species in valid_species, "{} is not in the species list".format(species)
     res = {}
@@ -292,16 +331,22 @@ def download_species_phytozome(
     if assembly and genome_assembly:
         asm_name = next(x for x in genome_assembly if x.endswith(".fa.gz"))
         if asm_name:
-            res["asm"] = genome_assembly.download(asm_name, base_url, cookies)
+            res["asm"] = genome_assembly.download(
+                asm_name, base_url, cookies, downloader=downloader
+            )
 
     genome_annotation = genome.get("annotation")
     if genome_annotation:
         gff_name = next(x for x in genome_annotation if x.endswith(".gene.gff3.gz"))
         if gff_name:
-            res["gff"] = genome_annotation.download(gff_name, base_url, cookies)
+            res["gff"] = genome_annotation.download(
+                gff_name, base_url, cookies, downloader=downloader
+            )
         cds_name = next(x for x in genome_annotation if x.endswith(".cds.fa.gz"))
         if cds_name:
-            res["cds"] = genome_annotation.download(cds_name, base_url, cookies)
+            res["cds"] = genome_annotation.download(
+                cds_name, base_url, cookies, downloader=downloader
+            )
 
     return res
 
@@ -320,7 +365,7 @@ def phytozome9(args):
         "--assembly",
         default=False,
         action="store_true",
-        help="Download assembly [default: %default]",
+        help="Download assembly",
     )
     p.add_option(
         "--format",
@@ -340,7 +385,7 @@ def phytozome9(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    species, = args
+    (species,) = args
     if species == "all":
         species = ",".join(valid_species)
 
@@ -364,7 +409,7 @@ def format_bed_and_cds(species, gff, cdsfa):
     Args:
         species (str): Name of the species
         gff (str): Path to the GFF file
-        fa (str): Path to the FASTA file
+        cdsfa (str): Path to the FASTA file
     """
     from jcvi.formats.gff import bed as gff_bed
     from jcvi.formats.fasta import format as fasta_format
@@ -372,26 +417,24 @@ def format_bed_and_cds(species, gff, cdsfa):
     # We have to watch out when the gene names and mRNA names mismatch, in which
     # case we just extract the mRNA names
     use_IDs = set()
-    use_mRNAs = set(
-        [
-            "Cclementina",
-            "Creinhardtii",
-            "Csinensis",
-            "Fvesca",
-            "Lusitatissimum",
-            "Mesculenta",
-            "Mguttatus",
-            "Ppersica",
-            "Pvirgatum",
-            "Rcommunis",
-            "Sitalica",
-            "Tcacao",
-            "Thalophila",
-            "Vcarteri",
-            "Vvinifera",
-            "Zmays",
-        ]
-    )
+    use_mRNAs = {
+        "Cclementina",
+        "Creinhardtii",
+        "Csinensis",
+        "Fvesca",
+        "Lusitatissimum",
+        "Mesculenta",
+        "Mguttatus",
+        "Ppersica",
+        "Pvirgatum",
+        "Rcommunis",
+        "Sitalica",
+        "Tcacao",
+        "Thalophila",
+        "Vcarteri",
+        "Vvinifera",
+        "Zmays",
+    }
     key = "ID" if species in use_IDs else "Name"
     ttype = "mRNA" if species in use_mRNAs else "gene"
     bedfile = species + ".bed"
@@ -459,7 +502,7 @@ def bisect(args):
         try:
             query = list(batch_entrez([term], email=opts.email))
         except AssertionError as e:
-            logging.debug("no records found for %s. terminating." % term)
+            logging.debug(f"no records found for {term}. terminating. {e}")
             return
 
         id, term, handle = query[0]
@@ -473,8 +516,8 @@ def bisect(args):
             break
 
     if valid:
-        print()
-        print(green("%s matches the sequence in `%s`" % (valid, fastafile)))
+        printf()
+        printf("[green]{} matches the sequence in `{}`".format(valid, fastafile))
 
 
 def entrez(args):
@@ -511,43 +554,41 @@ def entrez(args):
         "--format",
         default="fasta",
         choices=valid_formats,
-        help="download format [default: %default]",
+        help="download format",
     )
     p.add_option(
         "--database",
         default="nuccore",
         choices=valid_databases,
-        help="search database [default: %default]",
+        help="search database",
     )
     p.add_option(
         "--retmax",
         default=1000000,
         type="int",
-        help="how many results to return [default: %default]",
+        help="how many results to return",
     )
     p.add_option(
         "--skipcheck",
         default=False,
         action="store_true",
-        help="turn off prompt to check file existence [default: %default]",
+        help="turn off prompt to check file existence",
     )
     p.add_option(
         "--batchsize",
         default=500,
         type="int",
-        help="download the results in batch for speed-up [default: %default]",
+        help="download the results in batch for speed-up",
     )
     p.set_outdir(outdir=None)
-    p.add_option(
-        "--outprefix", default="out", help="output file name prefix [default: %default]"
-    )
+    p.add_option("--outprefix", default="out", help="output file name prefix")
     p.set_email()
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
 
-    filename, = args
+    (filename,) = args
     if op.exists(filename):
         pf = filename.rsplit(".", 1)[0]
         list_of_terms = [row.strip() for row in open(filename)]
@@ -612,9 +653,8 @@ def entrez(args):
         seen.add(id)
 
     if seen:
-        print(
+        printf(
             "A total of {0} {1} records downloaded.".format(totalsize, fmt.upper()),
-            file=sys.stderr,
         )
 
     return outfile
@@ -644,7 +684,7 @@ def sra(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    term, = args
+    (term,) = args
     if op.isfile(term):
         terms = [x.strip() for x in open(term)]
     else:
@@ -662,7 +702,7 @@ def sra(args):
 
 def download_srr_term(term):
     sra_base_url = "ftp://ftp-trace.ncbi.nlm.nih.gov/sra/sra-instant/reads/ByRun/sra/"
-    sra_run_id_re = re.compile(r"^([DES]{1}RR)(\d{3})(\d{3,4})$")
+    sra_run_id_re = re.compile(r"^([DES]RR)(\d{3})(\d{3,4})$")
 
     m = re.search(sra_run_id_re, term)
     if m is None:

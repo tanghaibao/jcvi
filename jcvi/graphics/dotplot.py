@@ -9,10 +9,16 @@ indicating gene pairs, followed by an optional column (e.g. Ks value).
 
 The option --colormap specifies the block color to highlight certain blocks in
 a file.  Block ids are 1-based (non-digit chars will be removed). For example, below
-requests that the 7th blocks to be colored red.
+requests that block 1 is class 'sigma' and block 2 is class 'tau'.
 
-rice-sigma07    sigma
-rice-sigma10    tau
+1    sigma
+2    tau
+3    tau
+
+These classes will be mapped to auto-assigned colors and figure legend added to
+the bottom of the figure.
+
+*Important*
 
 Before running this script it is recommended to check/install
 TeX Live (http://www.tug.org/texlive/) and
@@ -27,7 +33,7 @@ import string
 
 from random import sample
 
-from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds
+from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds, get_orientation
 from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser, need_update
 from jcvi.graphics.base import (
@@ -45,7 +51,18 @@ from jcvi.graphics.base import (
 
 
 class Palette(dict):
-    def __init__(self, palettefile):
+    def __init__(self, palettedict=None, palettefile=None):
+        """Instantiate a palette to map from block_id to color
+
+        Args:
+            palettedict (Dict, optional): Get the mapping from a dict. Defaults to None.
+            palettefile (str, optional): Get the mapping from a two-column file. Defaults to None.
+        """
+        super(Palette, self).__init__()
+        if palettedict is not None:
+            self.update(palettedict)
+        if palettefile is None:
+            return
 
         pal = "rbcygmk"
 
@@ -68,6 +85,38 @@ class Palette(dict):
 
         for k, v in self.items():  # Update from categories to colors
             self[k] = self.colors[v]
+
+    @classmethod
+    def from_block_orientation(
+        cls, anchorfile, qbed, sbed, forward_color="#e7298a", reverse_color="#3690c0"
+    ):
+        """Generate a palette which contains mapping from block_id (1-based) to colors.
+
+        Args:
+            anchorfile (str): Path to the .anchors file
+            qbed (BedFile): Query BED
+            sbed (BedFile): Subject BED
+            forward_color (str, optional): Color of forward block. Defaults to "#e7298a".
+            reverse_color (str, optional): Color of reverse block. Defaults to "#3690c0".
+        """
+        ac = AnchorFile(anchorfile)
+        blocks = ac.blocks
+        palette = {}
+        qorder = qbed.order
+        sorder = sbed.order
+
+        for i, block in enumerate(blocks):
+            block_id = i + 1
+
+            a, b, _ = zip(*block)
+            a = [qorder[x] for x in a]
+            b = [sorder[x] for x in b]
+            ia, _ = zip(*a)
+            ib, _ = zip(*b)
+
+            orientation = get_orientation(ia, ib)
+            palette[block_id] = reverse_color if orientation == "-" else forward_color
+        return cls(palettedict=palette)
 
 
 def draw_box(clusters, ax, color="b"):
@@ -180,7 +229,7 @@ def downsample(data, sample_number=10000):
             "for clarity.".format(sample_number, npairs)
         )
         data = sample(data, sample_number)
-    return npairs
+    return data
 
 
 def dotplot(
@@ -229,11 +278,9 @@ def dotplot(
     block_id = 0
     for row in fp:
         atoms = row.split()
-        block_color = None
         if row[0] == "#":
             block_id += 1
-            if palette:
-                block_color = palette.get(block_id, "k")
+            block_color = palette.get(block_id, "k") if palette else None
             continue
 
         # first two columns are query and subject, and an optional third column
@@ -264,12 +311,13 @@ def dotplot(
         qi, q = qorder[query]
         si, s = sorder[subject]
 
-        nv = value if block_color is None else block_color
+        nv = block_color or value
         data.append((qi, si, nv))
         if is_self:  # Mirror image
             data.append((si, qi, nv))
 
-    npairs = downsample(data, sample_number=sample_number)
+    npairs = len(data)
+    data = downsample(data, sample_number=sample_number)
     x, y, c = zip(*data)
 
     if palette:
@@ -312,7 +360,9 @@ def dotplot(
     if is_self:
         ax.plot(xlim, (0, ysize), "m-", alpha=0.5, lw=2)
 
-    if palette:  # bottom-left has the palette, if available
+    if palette and hasattr(
+        palette, "colors"
+    ):  # bottom-left has the palette, if available
         colors = palette.colors
         xstart, ystart = 0.1, 0.05
         for category, c in sorted(colors.items()):
@@ -383,6 +433,12 @@ def dotplot_main(args):
     )
     p.add_option("--colormap", help="Two column file, block id to color mapping")
     p.add_option(
+        "--colororientation",
+        action="store_true",
+        default=False,
+        help="Color the blocks based on orientation, similar to mummerplot",
+    )
+    p.add_option(
         "--nosort",
         default=False,
         action="store_true",
@@ -401,11 +457,17 @@ def dotplot_main(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
+    (anchorfile,) = args
+    qbed, sbed, qorder, sorder, is_self = check_beds(
+        anchorfile, p, opts, sorted=(not opts.nosort)
+    )
+
     palette = opts.colormap
     if palette:
-        palette = Palette(palette)
+        palette = Palette(palettefile=palette)
+    elif opts.colororientation:
+        palette = Palette.from_block_orientation(anchorfile, qbed, sbed)
 
-    anchorfile, = args
     cmaptext = opts.cmaptext
     if anchorfile.endswith(".ks"):
         from jcvi.apps.ks import KsFile
@@ -417,10 +479,6 @@ def dotplot_main(args):
             ksfile = KsFile(anchorfile)
             ksfile.print_to_anchors(anchorksfile)
         anchorfile = anchorksfile
-
-    qbed, sbed, qorder, sorder, is_self = check_beds(
-        anchorfile, p, opts, sorted=(not opts.nosort)
-    )
 
     if opts.skipempty:
         ac = AnchorFile(anchorfile)

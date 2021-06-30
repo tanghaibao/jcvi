@@ -1,9 +1,10 @@
 # JCVI utility libraries
 
 [![DOI](https://zenodo.org/badge/doi/10.5281/zenodo.31631.svg)](https://doi.org/10.5281/zenodo.594205)
-[![Latest PyPI
-version](https://img.shields.io/pypi/v/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
+[![Latest PyPI version](https://img.shields.io/pypi/v/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
+[![bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/jcvi/README.html?highlight=jcvi)
 [![Github Actions](https://github.com/tanghaibao/jcvi/workflows/build/badge.svg)](https://github.com/tanghaibao/jcvi/actions)
+[![Downloads](https://pepy.tech/badge/jcvi)](https://pepy.tech/project/jcvi)
 
 Collection of Python libraries to parse bioinformatics files, or perform
 computation related to assembly, annotation, and comparative genomics.
@@ -16,6 +17,26 @@ computation related to assembly, annotation, and comparative genomics.
 |         | Xingtan Zhang ([tangerzhang](https://github.com/tangerzhang))    |
 | Email   | <tanghaibao@gmail.com>                                           |
 | License | [BSD](http://creativecommons.org/licenses/BSD/)                  |
+
+## Citations
+
+- If you use the MCscan pipeline for synteny inference, please cite:
+
+  _Tang et al. (2008) Synteny and Collinearity in Plant Genomes. [Science](https://science.sciencemag.org/content/320/5875/486)_
+
+![MCSCAN example](https://www.dropbox.com/s/9vl3ys3ndvimg4c/grape-peach-cacao.png?raw=1)
+
+- If you use the ALLMAPS pipeline for genome scaffolding, please cite:
+
+  _Tang et al. (2015) ALLMAPS: robust scaffold ordering based on multiple maps. [Genome Biology](https://genomebiology.biomedcentral.com/articles/10.1186/s13059-014-0573-1)_
+
+![ALLMAPS animation](https://www.dropbox.com/s/jfs8xavcxix37se/ALLMAPS.gif?raw=1)
+
+- For other uses, please cite the package directly:
+
+  _Tang et al. (2015). jcvi: JCVI utility libraries. Zenodo. [10.5281/zenodo.31631](http://dx.doi.org/10.5281/zenodo.31631)_
+
+![GRABSEEDS example](https://www.dropbox.com/s/yu9ehsi6sqifuaa/bluredges.png?raw=1)
 
 ## Contents
 
@@ -183,8 +204,3 @@ This will tell you the options and arguments it expects.
 
 **Feel free to check out other scripts in the package, it is not just
 for FASTA.**
-
-## Reference
-
-Haibao Tang et al. (2015). jcvi: JCVI utility libraries. Zenodo.
-[10.5281/zenodo.31631](http://dx.doi.org/10.5281/zenodo.31631).

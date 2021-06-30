@@ -4,17 +4,16 @@
 """
 Prepare the data for Genbank submission
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import string
 import logging
 
 from collections import defaultdict
+from functools import lru_cache
+
 from Bio import SeqIO
 
-from jcvi.utils.cbook import memoized
 from jcvi.utils.orderedcollections import parse_qs
 from jcvi.formats.base import DictFile
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, glob
@@ -74,11 +73,12 @@ INST: J. Craig Venter Institute
 ADDR: 9704 Medical Center Dr., Rockville, MD 20850, USA
 ||"""
 
-Directions = {"forward": "TR",
-              "reverse": "TV"}
+Directions = {"forward": "TR", "reverse": "TV"}
 
-Primers = {"TR": "M13 Universal For 18bp Primer (TGTAAAACGACGGCCAGT)",
-           "TV": "T7 Rev 20bp Primer (TAATACGACTCACTATAGGG)"}
+Primers = {
+    "TR": "M13 Universal For 18bp Primer (TGTAAAACGACGGCCAGT)",
+    "TV": "T7 Rev 20bp Primer (TAATACGACTCACTATAGGG)",
+}
 
 GSSTemplate = """TYPE: GSS
 STATUS: New
@@ -111,13 +111,13 @@ vars = globals()
 def main():
 
     actions = (
-        ('fcs', 'process the results from Genbank contaminant screen'),
-        ('gss', 'prepare package for genbank gss submission'),
-        ('htg', 'prepare sqn to update existing genbank htg records'),
-        ('htgnew', 'prepare sqn to submit new genbank htg records'),
-        ('asn', 'get the name tags from a bunch of asn.1 files'),
-        ('t384', 'print out a table converting between 96 well to 384 well'),
-            )
+        ("fcs", "process the results from Genbank contaminant screen"),
+        ("gss", "prepare package for genbank gss submission"),
+        ("htg", "prepare sqn to update existing genbank htg records"),
+        ("htgnew", "prepare sqn to submit new genbank htg records"),
+        ("asn", "get the name tags from a bunch of asn.1 files"),
+        ("t384", "print out a table converting between 96 well to 384 well"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -135,14 +135,17 @@ def fcs(args):
     contig0800      124133  30512..30559    primer/adapter
     """
     p = OptionParser(fcs.__doc__)
-    p.add_option("--cutoff", default=200,
-                 help="Skip small components less than [default: %default]")
+    p.add_option(
+        "--cutoff",
+        default=200,
+        help="Skip small components less than",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fcsfile, = args
+    (fcsfile,) = args
     cutoff = opts.cutoff
     fp = open(fcsfile)
     for row in fp:
@@ -213,14 +216,14 @@ def asn(args):
                 ingeneralblock = True
             if ingeneralblock and tag == "str":
                 if name is None:  # Only allow first assignment
-                    name = row.split("\"")[1]
+                    name = row.split('"')[1]
                 ingeneralblock = False
 
             if tag == "genbank":
                 ingenbankblock = True
             if ingenbankblock and tag == "accession":
                 if gb is None:
-                    gb = row.split("\"")[1]
+                    gb = row.split('"')[1]
                 ingenbankblock = False
 
         assert gb and name
@@ -256,8 +259,7 @@ def htgnew(args):
     from jcvi.formats.fasta import sequin
 
     p = OptionParser(htgnew.__doc__)
-    p.add_option("--comment", default="",
-            help="Comments for this submission [default: %default]")
+    p.add_option("--comment", default="", help="Comments for this submission")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -274,10 +276,10 @@ def htgnew(args):
     cmd = "faSplit byname {0} {1}/".format(fastafile, fastadir)
     sh(cmd, outfile="/dev/null", errfile="/dev/null")
 
-    acmd = 'tbl2asn -a z -p fasta -r {sqndir}'
-    acmd += ' -i {splitfile} -t {sbtfile} -C tigr'
+    acmd = "tbl2asn -a z -p fasta -r {sqndir}"
+    acmd += " -i {splitfile} -t {sbtfile} -C tigr"
     acmd += ' -j "[tech=htgs {phase}] [organism=Medicago truncatula] [strain=A17]"'
-    acmd += ' -o {sqndir}/{accession_nv}.sqn -V Vbr'
+    acmd += " -o {sqndir}/{accession_nv}.sqn -V Vbr"
     acmd += ' -y "{comment}" -W T -T T'
 
     nupdated = 0
@@ -292,9 +294,14 @@ def htgnew(args):
         phase = int(phase)
         assert phase in (1, 2, 3)
 
-        cmd = acmd.format(accession_nv=accession_nv, sqndir=sqndir,
-                sbtfile=sbtfile, splitfile=splitfile, phase=phase,
-                comment=comment)
+        cmd = acmd.format(
+            accession_nv=accession_nv,
+            sqndir=sqndir,
+            sbtfile=sbtfile,
+            splitfile=splitfile,
+            phase=phase,
+            comment=comment,
+        )
         sh(cmd)
 
         verify_sqn(sqndir, accession)
@@ -351,10 +358,12 @@ def htg(args):
     from jcvi.apps.fetch import entrez
 
     p = OptionParser(htg.__doc__)
-    p.add_option("--phases", default=None,
-            help="Use another phasefile to override [default: %default]")
-    p.add_option("--comment", default="",
-            help="Comments for this update [default: %default]")
+    p.add_option(
+        "--phases",
+        default=None,
+        help="Use another phasefile to override",
+    )
+    p.add_option("--comment", default="", help="Comments for this update")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -372,15 +381,13 @@ def htg(args):
     asndir = "asn.1"
     mkdir(asndir)
     entrez([idsfile, "--format=asn.1", "--outdir={0}".format(asndir)])
-    asn(glob("{0}/*".format(asndir)) + \
-            ["--outfile={0}".format(namesfile)])
+    asn(glob("{0}/*".format(asndir)) + ["--outfile={0}".format(namesfile)])
 
     if opts.phases is None:
         gbdir = "gb"
         mkdir(gbdir)
         entrez([idsfile, "--format=gb", "--outdir={0}".format(gbdir)])
-        phase(glob("{0}/*".format(gbdir)) + \
-                ["--outfile={0}".format(phasefile)])
+        phase(glob("{0}/*".format(gbdir)) + ["--outfile={0}".format(phasefile)])
     else:
         phasefile = opts.phases
 
@@ -412,10 +419,10 @@ def htg(args):
     cmd = "faSplit byname {0} {1}/".format(fastafile, fastadir)
     sh(cmd, outfile="/dev/null", errfile="/dev/null")
 
-    acmd = 'tbl2asn -a z -p fasta -r {sqndir}'
-    acmd += ' -i {splitfile} -t {sbtfile} -C tigr'
+    acmd = "tbl2asn -a z -p fasta -r {sqndir}"
+    acmd += " -i {splitfile} -t {sbtfile} -C tigr"
     acmd += ' -j "{qualifiers}"'
-    acmd += ' -A {accession_nv} -o {sqndir}/{accession_nv}.sqn -V Vbr'
+    acmd += " -A {accession_nv} -o {sqndir}/{accession_nv}.sqn -V Vbr"
     acmd += ' -y "{comment}" -W T -T T'
 
     qq = "[tech=htgs {phase}] [organism=Medicago truncatula] [strain=A17]"
@@ -443,17 +450,22 @@ def htg(args):
         if gaps != 0 and phase == 3:
             phase = 2
 
-        print("{0}\t{1}\t{2}".\
-                format(accession_nv, oldphase, phase), file=newphasefw)
+        print("{0}\t{1}\t{2}".format(accession_nv, oldphase, phase), file=newphasefw)
         newph.append(phase)
 
         qualifiers = qq.format(phase=phase)
         if ";" in clone:
             qualifiers += " [keyword=HTGS_POOLED_MULTICLONE]"
 
-        cmd = acmd.format(accession=accession, accession_nv=accession_nv,
-                sqndir=sqndir, sbtfile=sbtfile, splitfile=splitfile,
-                qualifiers=qualifiers, comment=comment)
+        cmd = acmd.format(
+            accession=accession,
+            accession_nv=accession_nv,
+            sqndir=sqndir,
+            sbtfile=sbtfile,
+            splitfile=splitfile,
+            qualifiers=qualifiers,
+            comment=comment,
+        )
         sh(cmd)
 
         verify_sqn(sqndir, accession)
@@ -463,39 +475,39 @@ def htg(args):
     print("A total of {0} records updated.".format(nupdated), file=sys.stderr)
 
 
-@memoized
+@lru_cache(maxsize=None)
 def get_rows_cols(nrows=Nrows, ncols=Ncols):
     rows, cols = string.ascii_uppercase[:nrows], range(1, ncols + 1)
     return rows, cols
 
 
-@memoized
+@lru_cache(maxsize=None)
 def get_plate(nrows=Nrows, ncols=Ncols):
 
     rows, cols = get_rows_cols(nrows, ncols)
-    plate = [[""] * ncols for x in xrange(nrows)]
+    plate = [[""] * ncols for _ in range(nrows)]
     n = 0
     # 384 to (96+quadrant)
-    for i in xrange(0, nrows, 2):
-        for j in xrange(0, ncols, 2):
+    for i in range(0, nrows, 2):
+        for j in range(0, ncols, 2):
             n += 1
             prefix = "{0:02d}".format(n)
-            plate[i][j] = prefix + 'A'
-            plate[i][j + 1] = prefix + 'B'
-            plate[i + 1][j] = prefix + 'C'
-            plate[i + 1][j + 1] = prefix + 'D'
+            plate[i][j] = prefix + "A"
+            plate[i][j + 1] = prefix + "B"
+            plate[i + 1][j] = prefix + "C"
+            plate[i + 1][j + 1] = prefix + "D"
 
     # (96+quadrant) to 384
     splate = {}
-    for i in xrange(nrows):
-        for j in xrange(ncols):
+    for i in range(nrows):
+        for j in range(ncols):
             c = plate[i][j]
             splate[c] = "{0}{1}".format(rows[i], j + 1)
 
     return plate, splate
 
 
-def convert_96_to_384(c96, quad, nrows=Nrows, ncols=Ncols):
+def convert_96_to_384(c96, quad, ncols=Ncols):
     """
     Convert the 96-well number and quad number to 384-well number
 
@@ -507,7 +519,7 @@ def convert_96_to_384(c96, quad, nrows=Nrows, ncols=Ncols):
     rows, cols = get_rows_cols()
     plate, splate = get_plate()
 
-    n96 = rows.index(c96[0]) * ncols / 2 + int(c96[1:])
+    n96 = rows.index(c96[0]) * ncols // 2 + int(c96[1:])
     q = "{0:02d}{1}".format(n96, "ABCD"[quad - 1])
     return splate[q]
 
@@ -519,7 +531,7 @@ def t384(args):
     Print out a table converting between 96 well to 384 well
     """
     p = OptionParser(t384.__doc__)
-    opts, args = p.parse_args(args)
+    p.parse_args(args)
 
     plate, splate = get_plate()
 
@@ -527,9 +539,9 @@ def t384(args):
     for i in plate:
         for j, p in enumerate(i):
             if j != 0:
-                fw.write('|')
+                fw.write("|")
             fw.write(p)
-        fw.write('\n')
+        fw.write("\n")
 
 
 def parse_description(s):
@@ -592,12 +604,9 @@ def gss(args):
         a = parse_description(description)
         direction = a["direction"][0]
         sequencer_plate_barcode = a["sequencer_plate_barcode"][0]
-        sequencer_plate_well_coordinates = \
-            a["sequencer_plate_well_coordinates"][0]
-        sequencer_plate_96well_quadrant = \
-            a["sequencer_plate_96well_quadrant"][0]
-        sequencer_plate_96well_coordinates = \
-            a["sequencer_plate_96well_coordinates"][0]
+        sequencer_plate_well_coordinates = a["sequencer_plate_well_coordinates"][0]
+        sequencer_plate_96well_quadrant = a["sequencer_plate_96well_quadrant"][0]
+        sequencer_plate_96well_coordinates = a["sequencer_plate_96well_coordinates"][0]
 
         # Check the 96-well ID is correctly converted to 384-well ID
         w96 = sequencer_plate_96well_coordinates
@@ -606,8 +615,9 @@ def gss(args):
         assert convert_96_to_384(w96, w96quad) == w384
 
         plate = sequencer_plate_barcode
-        assert plate in plateMapping, \
-            "{0} not found in `{1}` !".format(plate, mappingfile)
+        assert plate in plateMapping, "{0} not found in `{1}` !".format(
+            plate, mappingfile
+        )
 
         plate = plateMapping[plate]
         d = Directions[direction]
@@ -629,8 +639,7 @@ def gss(args):
         a = parse_description(description)
         direction = a["direction"][0]
         sequencer_plate_barcode = a["sequencer_plate_barcode"][0]
-        sequencer_plate_well_coordinates = \
-            a["sequencer_plate_well_coordinates"][0]
+        sequencer_plate_well_coordinates = a["sequencer_plate_well_coordinates"][0]
         w384 = sequencer_plate_well_coordinates
 
         plate = sequencer_plate_barcode
@@ -645,7 +654,7 @@ def gss(args):
             logging.error("duplicate key {0} found".format(gssID))
             gssID = "{0}{1}".format(gssID, seen[gssID])
 
-        othergss = clone[cloneID] - set([gssID])
+        othergss = clone[cloneID] - {gssID}
         othergss = ", ".join(sorted(othergss))
         vars.update(locals())
 
@@ -655,13 +664,13 @@ def gss(args):
         print("{0}\t{1}".format(gssID, description), file=fw_log)
         print("=" * 60, file=fw_log)
 
-    logging.debug("A total of {0} seqs written to `{1}`".\
-            format(len(seen), fw.name))
+    logging.debug("A total of {0} seqs written to `{1}`".format(len(seen), fw.name))
     fw.close()
     fw_log.close()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()
     main()

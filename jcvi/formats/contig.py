@@ -6,7 +6,6 @@ TIGR contig format, see spec:
 
 <http://www.cbcb.umd.edu/research/contig_representation.shtml#contig>
 """
-from __future__ import print_function
 
 import sys
 import logging
@@ -15,12 +14,11 @@ from jcvi.formats.base import BaseFile, read_block
 from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
-class ReadLine (object):
-
+class ReadLine(object):
     def __init__(self, row, contig):
         # '#16(0) [RC] 3046 bases, 00000000 checksum. {3046 1} <1 3046>'
-        assert row[0] == '#'
-        self.id = row.strip("#").split('(')[0]
+        assert row[0] == "#"
+        self.id = row.strip("#").split("(")[0]
         coords = row.split("<")[1].split(">")[0]
         start, end = coords.split()
         self.contig = contig
@@ -36,18 +34,25 @@ class ReadLine (object):
 
     @property
     def bedline(self):
-        return "\t".join(str(x) for x in \
-                (self.contig, self.start - 1, self.end,
-                 self.id, "0", self.orientation))
+        return "\t".join(
+            str(x)
+            for x in (
+                self.contig,
+                self.start - 1,
+                self.end,
+                self.id,
+                "0",
+                self.orientation,
+            )
+        )
 
     __repr__ = __str__
 
 
-class ContigLine (object):
-
+class ContigLine(object):
     def __init__(self, row):
         # '##1 6 8914 bases, 00000000 checksum.'
-        assert row[:2] == '##'
+        assert row[:2] == "##"
         self.id = row.strip("#").split()[0]
         self.reads = []
 
@@ -57,8 +62,7 @@ class ContigLine (object):
     __repr__ = __str__
 
 
-class ContigFile (BaseFile):
-
+class ContigFile(BaseFile):
     def __init__(self, filename):
         super(ContigFile, self).__init__(filename)
         self.fp = open(filename)
@@ -66,7 +70,7 @@ class ContigFile (BaseFile):
     def iter_records(self):
         c = None
         for a, b in read_block(self.fp, "#"):
-            if a[:2] == '##':
+            if a[:2] == "##":
                 if c:
                     yield c
                 c = ContigLine(a)
@@ -79,9 +83,9 @@ class ContigFile (BaseFile):
 def main():
 
     actions = (
-        ('bed', 'convert read membership to bed format'),
-        ('frombed', 'convert read placement to contig format'),
-            )
+        ("bed", "convert read membership to bed format"),
+        ("frombed", "convert read placement to contig format"),
+    )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -118,8 +122,9 @@ def frombed(args):
 
     for ctg, reads in bed.sub_beds():
         ctgseq = contigfasta[ctg]
-        ctgline = "##{0} {1} {2} bases, {3}".format(\
-                ctg, len(reads), len(ctgseq), checksum)
+        ctgline = "##{0} {1} {2} bases, {3}".format(
+            ctg, len(reads), len(ctgseq), checksum
+        )
 
         print(ctg, file=fw_ids)
         print(ctgline, file=fw)
@@ -137,8 +142,9 @@ def frombed(args):
 
             readrange = "{{{0} {1}}}".format(rstart, rend)
             conrange = "<{0} {1}>".format(b.start, b.end)
-            readline = "#{0}(0){1} {2} bases, {3} {4} {5}".format(\
-                    read, rc, readlen, checksum, readrange, conrange)
+            readline = "#{0}(0){1} {2} bases, {3} {4} {5}".format(
+                read, rc, readlen, checksum, readrange, conrange
+            )
             print(readline, file=fw)
             print(fill(readseq.seq), file=fw)
 
@@ -158,7 +164,7 @@ def bed(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    contigfile, = args
+    (contigfile,) = args
     bedfile = contigfile.rsplit(".", 1)[0] + ".bed"
     fw = open(bedfile, "w")
     c = ContigFile(contigfile)
@@ -167,10 +173,10 @@ def bed(args):
         for r in rec.reads:
             print(r.bedline, file=fw)
 
-    logging.debug("File written to `{0}`.".format(bedfile))
+    logging.debug("File written to `%s`.", bedfile)
 
     return bedfile
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

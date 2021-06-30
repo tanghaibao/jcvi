@@ -1,8 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-
-from __future__ import print_function
 import sys
 import os
 import os.path as op
@@ -10,14 +8,14 @@ import logging
 import re
 
 from collections import defaultdict
-from six.moves.urllib.parse import quote, unquote
+from more_itertools import flatten
+from urllib.parse import quote, unquote
 
 from jcvi.utils.cbook import AutoVivification
 from jcvi.formats.base import DictFile, LineFile, must_open, is_number
 from jcvi.formats.fasta import Fasta, SeqIO
 from jcvi.formats.bed import Bed, BedLine, natsorted
 from jcvi.annotation.reformat import atg_name
-from jcvi.utils.iter import flatten
 from jcvi.utils.range import range_minmax
 from jcvi.utils.orderedcollections import DefaultOrderedDict, OrderedDict, parse_qs
 from jcvi.apps.base import (
@@ -440,7 +438,7 @@ def make_attributes(s, gff3=True, keep_attr_order=True):
         replacing the '+' sign with a space
         """
         s = s.replace("+", "PlusSign")
-        d = parse_qs(s, keep_attr_order=keep_attr_order)
+        d = parse_qs(s, separator=";", keep_attr_order=keep_attr_order)
         for key in d:
             d[key][0] = unquote(d[key][0].replace("PlusSign", "+").replace('"', ""))
     else:
@@ -473,9 +471,9 @@ def to_range(obj, score=None, id=None, strand=None):
             seqid=obj.seqid, start=obj.start, end=obj.end, score=_score, id=_id
         )
     elif strand:
-        return (obj.seqid, obj.start, obj.end, obj.strand)
+        return obj.seqid, obj.start, obj.end, obj.strand
 
-    return (obj.seqid, obj.start, obj.end)
+    return obj.seqid, obj.start, obj.end
 
 
 def main():
@@ -634,19 +632,19 @@ def scan_for_valid_codon(codon_span, strand, seqid, genome, type="start"):
         is_valid = is_valid_codon(codon, type=type)
         if not is_valid:
             if type == "start":
-                ## if we are scanning upstream for a valid start codon,
-                ## stop scanning when we encounter a stop
+                # if we are scanning upstream for a valid start codon,
+                # stop scanning when we encounter a stop
                 if is_valid_codon(codon, type="stop"):
-                    return (None, None)
+                    return None, None
             elif type == "stop":
-                ## if we are scanning downstream for a valid stop codon,
-                ## stop scanning when we encounter a start
+                # if we are scanning downstream for a valid stop codon,
+                # stop scanning when we encounter a start
                 if is_valid_codon(codon, type="start"):
-                    return (None, None)
+                    return None, None
             continue
         break
 
-    return (s, e)
+    return s, e
 
 
 def fixpartials(args):
@@ -663,7 +661,11 @@ def fixpartials(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    gffile, gfasta, partials, = args
+    (
+        gffile,
+        gfasta,
+        partials,
+    ) = args
 
     gff = make_index(gffile)
     genome = Fasta(gfasta, index=True)
@@ -676,11 +678,11 @@ def fixpartials(args):
     for gene in gff.features_of_type("gene", order_by=("seqid", "start")):
         children = AutoVivification()
         cflag = False
-        transcripts = list(gff.children(gene, level=1, order_by=("start")))
+        transcripts = list(gff.children(gene, level=1, order_by="start"))
         for transcript in transcripts:
             trid, seqid, strand = transcript.id, transcript.seqid, transcript.strand
 
-            for child in gff.children(transcript, order_by=("start")):
+            for child in gff.children(transcript, order_by="start"):
                 ftype = child.featuretype
                 if ftype not in children[trid]:
                     children[trid][ftype] = []
@@ -876,9 +878,7 @@ def cluster(args):
             combinations(
                 [
                     mrna
-                    for mrna in gff.children(
-                        gene, featuretype="mRNA", order_by=("start")
-                    )
+                    for mrna in gff.children(gene, featuretype="mRNA", order_by="start")
                 ],
                 2,
             )
@@ -904,10 +904,10 @@ def cluster(args):
                             )
                         )
 
-                    if all(r == True for r in res):
+                    if all(res):
                         g.join((mrna1.id, mrna1s), (mrna2.id, mrna2s))
         else:
-            for mrna1 in gff.children(gene, featuretype="mRNA", order_by=("start")):
+            for mrna1 in gff.children(gene, featuretype="mRNA", order_by="start"):
                 mrna1s = gff.children_bp(mrna1, child_featuretype="exon")
                 g.join((mrna1.id, mrna1s))
 
@@ -1212,7 +1212,7 @@ def filter(args):
     fw = must_open(opts.outfile, "w")
     for g in gffdb.features_of_type(ptype, order_by=("seqid", "start")):
         if ptype != otype:
-            feats = list(gffdb.children(g, featuretype=otype, order_by=("start")))
+            feats = list(gffdb.children(g, featuretype=otype, order_by="start"))
             ok_feats = [f for f in feats if f.id not in bad]
             if len(ok_feats) > 0:
                 g.keep_order = True
@@ -1220,13 +1220,13 @@ def filter(args):
                 for feat in ok_feats:
                     feat.keep_order = True
                     print(feat, file=fw)
-                    for child in gffdb.children(feat, order_by=("start")):
+                    for child in gffdb.children(feat, order_by="start"):
                         child.keep_order = True
                         print(child, file=fw)
         else:
             if g.id not in bad:
                 print(g, file=fw)
-                for child in gffdb.children(g, order_by=("start")):
+                for child in gffdb.children(g, order_by="start"):
                     print(child, file=fw)
     fw.close()
 
@@ -1625,12 +1625,10 @@ def format(args):
         "--multiparents",
         default=None,
         choices=valid_multiparent_ops,
-        help="Split/merge identical features (same `seqid`, `source`, `type` "
-        + "`coord-range`, `strand`, `phase`) mapping to multiple parents "
-        + "[default: %default]",
+        help="Split/merge identical features (same `seqid`, `source`, `type`, `coord-range`, `strand`, `phase`) mapping to multiple parents",
     )
     g3.add_option(
-        "--remove_feats", help="Comma separated list of features to remove by type" + ""
+        "--remove_feats", help="Comma separated list of features to remove by type"
     )
     g3.add_option(
         "--remove_feats_by_ID",
@@ -2080,7 +2078,7 @@ def fixboundaries(args):
         if f.featuretype == opts.type:
             child_coords = []
             for cftype in opts.child_ftype.split(","):
-                for c in gffdb.children(f, featuretype=cftype, order_by=("start")):
+                for c in gffdb.children(f, featuretype=cftype, order_by="start"):
                     child_coords.append((c.start, c.stop))
             f.start, f.stop = range_minmax(child_coords)
 
@@ -2280,13 +2278,13 @@ def uniq(args):
     bestids = set()
     for group in g:
         if mode == "span":
-            scores_group = [(-x.span, x) for x in group]
+            sort_key = lambda x: -x.span
         else:
-            scores_group = [(-float(x.score), x) for x in group]
+            sort_key = lambda x: -float(x.score)
 
-        scores_group.sort()
+        group.sort(key=sort_key)
         seen = set()
-        for score, x in scores_group:
+        for x in group:
             if len(seen) >= bestn:
                 break
 
@@ -2309,9 +2307,7 @@ def populate_children(outfile, ids, gffile, iter="2", types=None):
     children = set()
     for g in gff:
         if types and g.type in types:
-            _id = g.accn
-            if _id not in ids:
-                ids.add(_id)
+            ids.add(g.accn)
         if "Parent" not in g.attributes:
             continue
         for parent in g.attributes["Parent"]:
@@ -2722,7 +2718,7 @@ def extract(args):
 
     if opts.children:
         assert types is not None or names is not None, "Must set --names or --types"
-        if names == None:
+        if names is None:
             names = list()
         populate_children(outfile, names, gffile, iter=opts.children, types=types)
         return
@@ -2884,7 +2880,10 @@ def splicecov(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    gfffile, juncsbed, = args
+    (
+        gfffile,
+        juncsbed,
+    ) = args
     tagged = "{0}.{1}.gff3".format(gfffile.rsplit(".", 1)[0], "tag_introns")
 
     gff3, junc = BedTool(gfffile), BedTool(juncsbed)
@@ -2949,8 +2948,6 @@ def bed(args):
     Parses the start, stop locations of the selected features out of GFF and
     generate a bed file
     """
-    from jcvi.utils.cbook import gene_name
-
     p = OptionParser(bed.__doc__)
     p.add_option(
         "--type",
@@ -2991,7 +2988,12 @@ def bed(args):
         action="store_true",
         help="Do not sort the output bed file",
     )
-    p.set_stripnames(default=False)
+    p.add_option(
+        "--primary_only",
+        default=False,
+        action="store_true",
+        help="Only retains a single transcript per gene",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -3003,8 +3005,8 @@ def bed(args):
     type = opts.type or set()
     accn = opts.accn
     source = opts.source or set()
-    strip_names = opts.strip_names
     span = opts.span
+    primary_only = opts.primary_only
 
     if opts.type:
         type = set(x.strip() for x in opts.type.split(","))
@@ -3019,18 +3021,24 @@ def bed(args):
         score_attrib=opts.score_attrib,
     )
     b = Bed()
+    seen_parents = set()  # used with --primary_only
+    skipped_non_primary = 0
 
     for g in gff:
         if type and g.type not in type:
             continue
         if source and g.source not in source:
             continue
+        if primary_only:
+            if g.parent in seen_parents:
+                skipped_non_primary += 1
+                continue
+            elif g.parent:
+                seen_parents.add(g.parent)
 
         bl = g.bedline
         if accn:
             bl.accn = accn
-        elif strip_names:
-            bl.accn = gene_name(bl.accn)
         if span:
             bl.score = bl.span
         b.append(bl)
@@ -3040,6 +3048,8 @@ def bed(args):
     logging.debug(
         "Extracted {0} features (type={1} id={2})".format(len(b), ",".join(type), key)
     )
+    if primary_only:
+        logging.debug("Skipped non-primary: %d", skipped_non_primary)
 
 
 def make_index(gff_file):
@@ -3079,7 +3089,7 @@ def children(args):
     p.add_option(
         "--parents",
         default="gene",
-        help="list of features to extract, use comma to separate (e.g." "'gene,mRNA')",
+        help="list of features to extract, use comma to separate (e.g. 'gene,mRNA')",
     )
 
     opts, args = p.parse_args(args)
@@ -3143,21 +3153,18 @@ def load(args):
     p.add_option(
         "--id_attribute",
         choices=valid_id_attributes,
-        help="The attribute field to extract and use as FASTA sequence ID "
-        + "[default: %default]",
+        help="The attribute field to extract and use as FASTA sequence ID",
     )
     p.add_option(
         "--desc_attribute",
         default="Note",
-        help="The attribute field to extract and use as FASTA sequence "
-        + "description",
+        help="The attribute field to extract and use as FASTA sequence description",
     )
     p.add_option(
         "--full_header",
         default=None,
         choices=["default", "tair"],
-        help="Specify if full FASTA header (with seqid, coordinates and datestamp)"
-        + " should be generated",
+        help="Specify if full FASTA header (with seqid, coordinates and datestamp) should be generated",
     )
 
     g1 = OptionGroup(p, "Optional parameters (if generating full header)")
@@ -3165,21 +3172,19 @@ def load(args):
         "--sep",
         dest="sep",
         default=" ",
-        help='Specify separator used to delimiter header elements [default: "%default"]',
+        help="Specify separator used to delimiter header elements",
     )
     g1.add_option(
         "--datestamp",
         dest="datestamp",
-        help="Specify a datestamp in the format YYYYMMDD or automatically pick `today`"
-        + "",
+        help="Specify a datestamp in the format YYYYMMDD or automatically pick `today`",
     )
     g1.add_option(
         "--conf_class",
         dest="conf_class",
         default=False,
         action="store_true",
-        help="Specify if `conf_class` attribute should be parsed and placed in the header"
-        + "",
+        help="Specify if `conf_class` attribute should be parsed and placed in the header",
     )
     p.add_option_group(g1)
 
@@ -3391,14 +3396,10 @@ def parse_feature_param(feature):
                 "Error: upstream len `" + str(upstream_len) + "` should be > 0",
             )
 
-        if not upstream_site in valid_upstream_sites:
+        if upstream_site not in valid_upstream_sites:
             flag, error_msg = (
                 1,
-                "Error: upstream site `"
-                + upstream_site
-                + "` not valid."
-                + " Please choose from "
-                + valid_upstream_sites,
+                f"Error: upstream site `{upstream_site}` not valid. Please choose from {valid_upstream_sites}",
             )
     elif feature == "CDS":
         parents, children = "mRNA", "CDS"

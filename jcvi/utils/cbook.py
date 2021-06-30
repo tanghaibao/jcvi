@@ -2,49 +2,12 @@
 Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
-from __future__ import print_function
-
 import os.path as op
 import re
 import sys
 import logging
-import functools
 
 from collections import defaultdict
-
-
-class memoized(object):
-    """
-    Decorator that caches a function's return value each time it is called.
-    If called later with the same arguments, the cached value is returned, and
-    not re-evaluated.
-
-    Taken from recipe (http://wiki.python.org/moin/PythonDecoratorLibrary)
-    """
-
-    def __init__(self, func):
-        self.func = func
-        self.cache = {}
-
-    def __call__(self, *args):
-        try:
-            return self.cache[args]
-        except KeyError:
-            value = self.func(*args)
-            self.cache[args] = value
-            return value
-        except TypeError:
-            # uncachable -- for instance, passing a list as an argument.
-            # Better to not cache than to blow up entirely.
-            return self.func(*args)
-
-    def __repr__(self):
-        """Return the function's docstring."""
-        return self.func.__doc__
-
-    def __get__(self, obj, objtype):
-        """Support instance methods."""
-        return functools.partial(self.__call__, obj)
 
 
 def inspect(item, maxchar=80):
@@ -91,27 +54,25 @@ def depends(func):
     outfile = "outfile"
 
     def wrapper(*args, **kwargs):
-        assert outfile in kwargs, \
-            "You need to specify `outfile=` on function call"
+        assert outfile in kwargs, "You need to specify `outfile=` on function call"
         if infile in kwargs:
             infilename = listify(kwargs[infile])
             for x in infilename:
-                assert op.exists(x), \
-                    "The specified infile `{0}` does not exist".format(x)
+                assert op.exists(x), "The specified infile `{0}` does not exist".format(
+                    x
+                )
 
         outfilename = kwargs[outfile]
         if need_update(infilename, outfilename):
             return func(*args, **kwargs)
         else:
-            msg = "File `{0}` exists. Computation skipped." \
-                .format(outfilename)
+            msg = "File `{0}` exists. Computation skipped.".format(outfilename)
             logging.debug(msg)
 
         outfilename = listify(outfilename)
 
         for x in outfilename:
-            assert op.exists(x), \
-                "Something went wrong, `{0}` not found".format(x)
+            assert op.exists(x), "Something went wrong, `{0}` not found".format(x)
 
         return outfilename
 
@@ -123,8 +84,7 @@ Functions that make text formatting easier.
 """
 
 
-class Registry (defaultdict):
-
+class Registry(defaultdict):
     def __init__(self, *args, **kwargs):
         super(Registry, self).__init__(list, *args, **kwargs)
 
@@ -141,13 +101,13 @@ class Registry (defaultdict):
 
     def update_from(self, filename):
         from jcvi.formats.base import DictFile
+
         d = DictFile(filename)
         for k, v in d.items():
             self[k].append(v)
 
 
-class SummaryStats (object):
-
+class SummaryStats(object):
     def __init__(self, a, dtype=None, title=None):
         import numpy as np
 
@@ -164,8 +124,8 @@ class SummaryStats (object):
         a.sort()
         self.firstq = a[self.size // 4]
         self.thirdq = a[self.size * 3 // 4]
-        self.p1 = a[int(self.size * .025)]
-        self.p2 = a[int(self.size * .975)]
+        self.p1 = a[int(self.size * 0.025)]
+        self.p2 = a[int(self.size * 0.975)]
 
         if dtype == "int":
             self.mean = int(self.mean)
@@ -174,21 +134,15 @@ class SummaryStats (object):
 
     def __str__(self):
         s = self.title + ": " if self.title else ""
-        s += "Min={0} Max={1} N={2} Mean={3} SD={4} Median={5} Sum={6}".\
-            format(self.min, self.max, self.size,
-                   self.mean, self.sd, self.median,
-                   self.sum)
+        s += "Min={} Max={} N={} Mean={:.2f} SD={:.2f} Median={} Sum={}".format(
+            self.min, self.max, self.size, self.mean, self.sd, self.median, self.sum
+        )
         return s
 
     def todict(self, quartile=False):
-        d = {
-            "Min": self.min, "Max": self.max,
-            "Mean": self.mean, "Median": self.median
-        }
+        d = {"Min": self.min, "Max": self.max, "Mean": self.mean, "Median": self.median}
         if quartile:
-            d.update({
-                "1st Quartile": self.firstq, "3rd Quartile": self.thirdq
-            })
+            d.update({"1st Quartile": self.firstq, "3rd Quartile": self.thirdq})
 
         return d
 
@@ -197,8 +151,9 @@ class SummaryStats (object):
         for x in self.data:
             print(x, file=fw)
         fw.close()
-        logging.debug("Array of size {0} written to file `{1}`.".
-                      format(self.size, filename))
+        logging.debug(
+            "Array of size {0} written to file `{1}`.".format(self.size, filename)
+        )
 
 
 class AutoVivification(dict):
@@ -233,14 +188,14 @@ def percentage(a, b, precision=1, mode=0):
     '100 of 200 (50.0%)'
     """
     _a, _b = a, b
-    pct = "{0:.{1}f}%".format(a * 100. / b, precision)
+    pct = "{0:.{1}f}%".format(a * 100.0 / b, precision)
     a, b = thousands(a), thousands(b)
     if mode == 0:
         return "{0} of {1} ({2})".format(a, b, pct)
     elif mode == 1:
         return "{0} ({1})".format(a, pct)
     elif mode == 2:
-        return _a * 100. / _b
+        return _a * 100.0 / _b
     return pct
 
 
@@ -250,26 +205,28 @@ def thousands(x):
     '12,345'
     """
     import locale
+
     try:
         locale.setlocale(locale.LC_ALL, "en_US.utf8")
     except Exception:
         locale.setlocale(locale.LC_ALL, "en_US.UTF-8")
     finally:
-        s = '%d' % x
+        s = "%d" % x
         groups = []
         while s and s[-1].isdigit():
             groups.append(s[-3:])
             s = s[:-3]
-        return s + ','.join(reversed(groups))
-    return locale.format('%d', x, True)
+        return s + ",".join(reversed(groups))
 
 
-SUFFIXES = {1000: ['', 'Kb', 'Mb', 'Gb', 'Tb', 'Pb', 'Eb', 'Zb'],
-            1024: ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB', 'EiB', 'ZiB']}
+SUFFIXES = {
+    1000: ["", "Kb", "Mb", "Gb", "Tb", "Pb", "Eb", "Zb"],
+    1024: ["B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB"],
+}
 
 
 def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
-    '''Convert a file size to human-readable form.
+    """Convert a file size to human-readable form.
 
     Keyword arguments:
     size -- file size in bytes
@@ -285,9 +242,9 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
     1.0Tb
     >>> print(human_size(300))
     300.0
-    '''
+    """
     if size < 0:
-        raise ValueError('number must be non-negative')
+        raise ValueError("number must be non-negative")
 
     multiple = 1024 if a_kilobyte_is_1024_bytes else 1000
     for suffix in SUFFIXES[multiple]:
@@ -302,7 +259,7 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
             else:
                 break
 
-    return '{0:.{1}f}{2}'.format(size, precision, suffix)
+    return "{0:.{1}f}{2}".format(size, precision, suffix)
 
 
 def autoscale(bp, optimal=6):
@@ -335,7 +292,7 @@ def gene_name(st, exclude=("ev",), sep="."):
     """
     if any(st.startswith(x) for x in exclude):
         sep = None
-    st = st.split('|')[0]
+    st = st.split("|")[0]
 
     if sep and sep in st:
         name, suffix = st.rsplit(sep, 1)
@@ -355,27 +312,29 @@ def seqid_parse(seqid, sep=["-"], stdpf=True):
     This function tries to parse seqid (1st col in bed files)
     return prefix, numeric id, and suffix, for example:
 
-    >>> seqid_parse('chr1_random')
-    ('Chr', '1', '_random')
-    >>> seqid_parse('AmTr_v1.0_scaffold00001', '', stdpf=False)
+    >>> seqid_parse('chr1_random', stdpf=False)
+    ('chr', '1', '_random')
+    >>> seqid_parse('chr1_random', stdpf=True)
+    ('C', '1', '_random')
+    >>> seqid_parse('AmTr_v1.0_scaffold00001', ["-"], stdpf=False)
     ('AmTr_v1.0_scaffold', '00001', '')
     >>> seqid_parse('AmTr_v1.0_scaffold00001')
     ('Sca', '00001', '')
     >>> seqid_parse('PDK_30s1055861')
     ('C', '1055861', '')
     >>> seqid_parse('PDK_30s1055861', stdpf=False)
-    ('PDK', '1055861', '')
+    ('PDK_30s', '1055861', '')
     >>> seqid_parse("AC235758.1", stdpf=False)
     ('AC', '235758.1', '')
     """
-    seqid = seqid.split(';')[0]
+    seqid = seqid.split(";")[0]
     if "mito" in seqid or "chloro" in seqid:
-        return (seqid, "", "")
+        return seqid, "", ""
 
-    numbers = re.findall(r'\d+\.*\d*', seqid)
+    numbers = re.findall(r"\d+\.*\d*", seqid)
 
     if not numbers:
-        return (seqid, "", "")
+        return seqid, "", ""
 
     id = numbers[-1]
     lastnumi = seqid.rfind(id)
@@ -387,7 +346,7 @@ def seqid_parse(seqid, sep=["-"], stdpf=True):
     elif type(sep) == str:
         sep = [sep]
 
-    prefix = seqid[: lastnumi]
+    prefix = seqid[:lastnumi]
     if not stdpf:
         sep = "|".join(sep)
         atoms = re.split(sep, prefix)
@@ -435,12 +394,12 @@ def fixChromName(name, orgn="medicago"):
             `chromosome:AGPv2:chloroplast:1:140384:1` to `Pt`
     """
     import re
-    mtr_pat1 = re.compile(r"Mt[0-9]+\.[0-9]+[\.[0-9]+]{0,}_([a-z]+[0-9]+)")
+
+    mtr_pat1 = re.compile(r"Mt[0-9]+\.[0-9]+[.[0-9]+]*_([a-z]+[0-9]+)")
     mtr_pat2 = re.compile(r"([A-z0-9]+)_[A-z]+_[A-z]+")
 
-    zmays_pat = re.compile(
-        r"[a-z]+:[A-z0-9]+:([A-z0-9]+):[0-9]+:[0-9]+:[0-9]+")
-    zmays_sub = {'mitochondrion': 'Mt', 'chloroplast': 'Pt'}
+    zmays_pat = re.compile(r"[a-z]+:[A-z0-9]+:([A-z0-9]+):[0-9]+:[0-9]+:[0-9]+")
+    zmays_sub = {"mitochondrion": "Mt", "chloroplast": "Pt"}
     if orgn == "medicago":
         for mtr_pat in (mtr_pat1, mtr_pat2):
             match = re.search(mtr_pat, name)
@@ -465,7 +424,7 @@ def fill(text, delimiter="", width=70):
     """
     texts = []
     for i in range(0, len(text), width):
-        t = delimiter.join(text[i:i + width])
+        t = delimiter.join(text[i : i + width])
         texts.append(t)
     return "\n".join(texts)
 
@@ -474,7 +433,7 @@ def tile(lt, width=70, gap=1):
     """
     Pretty print list of items.
     """
-    from jcvi.utils.iter import grouper
+    from more_itertools import grouper
 
     max_len = max(len(x) for x in lt) + gap
     items_per_line = max(width // max_len, 1)
@@ -499,6 +458,7 @@ def uniqify(L):
     return nL
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

@@ -4,13 +4,10 @@
 """
 Base utilties for genome assembly related calculations and manipulations
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 
 from math import log
-ln2 = log(2)
 
 import numpy as np
 from bisect import bisect
@@ -18,6 +15,8 @@ from bisect import bisect
 from jcvi.formats.base import must_open
 from jcvi.formats.fasta import Fasta
 from jcvi.apps.base import OptionParser, ActionDispatcher, glob
+
+ln2 = log(2)
 
 
 types = {"PE": "fragment", "MP": "jumping", "TT": "jumping", "LL": "long"}
@@ -39,17 +38,17 @@ FastqNamings = """
 """
 
 
-class Library (object):
+class Library(object):
     """
     The sequence files define a library.
     """
+
     def __init__(self, library_name):
 
         self.library_name = library_name
         if "-" in library_name:
             pf, size = library_name.split("-", 1)
-            assert pf in types, \
-                "Library prefix must be one of {0}".format(types.keys())
+            assert pf in types, "Library prefix must be one of {0}".format(types.keys())
         else:
             pf, size = "PE", 0
 
@@ -68,10 +67,21 @@ class Library (object):
         # isRevComped useForContigging scaffRound useForGapClosing 5pWiggleRoom
         # 3pWiggleRoom (used by MERACULOUS)
         useForContigging = useForGapClosing = int(self.asm_flags == 3)
-        return ("lib_seq", wildcard, prefix, self.size,
-                self.stddev, readlen, int(self.type == "jumping"),
-                self.reverse_seq, useForContigging, rank,
-                useForGapClosing, 0, 0)
+        return (
+            "lib_seq",
+            wildcard,
+            prefix,
+            self.size,
+            self.stddev,
+            readlen,
+            int(self.type == "jumping"),
+            self.reverse_seq,
+            useForContigging,
+            rank,
+            useForGapClosing,
+            0,
+            0,
+        )
 
 
 def get_libs(args):
@@ -82,10 +92,8 @@ def get_libs(args):
     for x in fnames:
         assert op.exists(x), "File `{0}` not found.".format(x)
 
-    library_name = lambda x: "-".join(\
-                op.basename(x).split(".")[0].split("-")[:2])
-    libs = [(Library(x), sorted(fs)) for x, fs in \
-                groupby(fnames, key=library_name)]
+    library_name = lambda x: "-".join(op.basename(x).split(".")[0].split("-")[:2])
+    libs = [(Library(x), sorted(fs)) for x, fs in groupby(fnames, key=library_name)]
 
     libs.sort(key=lambda x: x[0].size)
     return libs
@@ -103,7 +111,7 @@ def calculate_A50(ctgsizes, cutoff=0, percent=50):
     a50 = np.cumsum(ctgsizes)
 
     total = np.sum(ctgsizes)
-    idx = bisect(a50, total * percent / 100.)
+    idx = bisect(a50, total * percent / 100.0)
     l50 = ctgsizes[idx]
     n50 = idx + 1
 
@@ -128,14 +136,12 @@ def Astat(delta, k, G, n):
     G: total genome size
     n: total reads mapped to genome
     """
-    return n * delta * 1. / G - k * ln2
+    return n * delta * 1.0 / G - k * ln2
 
 
 def main():
 
-    actions = (
-            ('n50', "Given FASTA or a list of contig sizes, calculate N50"),
-            )
+    actions = (("n50", "Given FASTA or a list of contig sizes, calculate N50"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -150,8 +156,12 @@ def n50(args):
     from jcvi.graphics.histogram import loghistogram
 
     p = OptionParser(n50.__doc__)
-    p.add_option("--print0", default=False, action="store_true",
-                 help="Print size and L50 to stdout [default: %default]")
+    p.add_option(
+        "--print0",
+        default=False,
+        action="store_true",
+        help="Print size and L50 to stdout",
+    )
 
     opts, args = p.parse_args(args)
 
@@ -162,7 +172,7 @@ def n50(args):
 
     # Guess file format
     probe = open(args[0]).readline()[0]
-    isFasta = (probe == '>')
+    isFasta = probe == ">"
     if isFasta:
         for filename in args:
             f = Fasta(filename)
@@ -184,8 +194,10 @@ def n50(args):
     print(", ".join(args), file=sys.stderr)
 
     summary = (sumsize, l50, nn50, minsize, maxsize, n)
-    print(" ".join("{0}={1}".format(a, b) for a, b in \
-                        zip(header, summary)), file=sys.stderr)
+    print(
+        " ".join("{0}={1}".format(a, b) for a, b in zip(header, summary)),
+        file=sys.stderr,
+    )
     loghistogram(ctgsizes)
 
     if opts.print0:
@@ -194,5 +206,5 @@ def n50(args):
     return zip(header, summary)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -7,23 +7,29 @@ Utility script for annotations based on MAKER.
 Many of the routines in this script is to select among a set of conflicting
 models, either through accuracy (batcheval) or simply the length (longest).
 """
-from __future__ import print_function
 
 import os
 import os.path as op
 import sys
 import logging
 
-from collections import defaultdict
+from collections import Counter, defaultdict
 
 from jcvi.formats.base import BaseFile, LineFile, write_file
 from jcvi.apps.grid import GridProcess, get_grid_engine, PBS_STANZA
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, popen, \
-            sh, mkdir, glob, get_abs_path
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    need_update,
+    popen,
+    sh,
+    mkdir,
+    glob,
+    get_abs_path,
+)
 
 
-class CTLine (object):
-
+class CTLine(object):
     def __init__(self, row):
         row = row.strip()
         tag = value = real = comment = ""
@@ -51,8 +57,7 @@ class CTLine (object):
         return s
 
 
-class CTLFile (LineFile):
-
+class CTLFile(LineFile):
     def __init__(self, filename):
         super(CTLFile, self).__init__(filename)
         fp = open(filename)
@@ -80,11 +85,10 @@ class CTLFile (LineFile):
         for r in self:
             print(r, file=fw)
         fw.close()
-        logging.debug("File written to `{0}`".format(filename))
+        logging.debug("File written to `%s`.", filename)
 
 
-class DatastoreIndexFile (BaseFile):
-
+class DatastoreIndexFile(BaseFile):
     def __init__(self, filename):
         super(DatastoreIndexFile, self).__init__(filename)
         scaffold_status = {}
@@ -105,14 +109,14 @@ class DatastoreIndexFile (BaseFile):
 def main():
 
     actions = (
-        ('parallel', 'partition the genome into parts and run separately'),
-        ('merge', 'generate the gff files after parallel'),
-        ('validate', 'validate after MAKER run to check for failures'),
-        ('datastore', 'generate a list of gff filenames to merge'),
-        ('split', 'split MAKER models by checking against evidences'),
-        ('batcheval', 'calls bed.evaluate() in batch'),
-        ('longest', 'pick the longest model per group'),
-            )
+        ("parallel", "partition the genome into parts and run separately"),
+        ("merge", "generate the gff files after parallel"),
+        ("validate", "validate after MAKER run to check for failures"),
+        ("datastore", "generate a list of gff filenames to merge"),
+        ("split", "split MAKER models by checking against evidences"),
+        ("batcheval", "calls bed.evaluate() in batch"),
+        ("longest", "pick the longest model per group"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -122,12 +126,15 @@ DIR=`awk "NR==$SGE_TASK_ID" {0}`
 cd $DIR
 {1} --ignore_nfs_tmp"""
 
-arraysh_ua = PBS_STANZA + """
+arraysh_ua = (
+    PBS_STANZA
+    + """
 cd $PBS_O_WORKDIR
 DIR=`awk "NR==$PBS_ARRAY_INDEX" {2}`
 cd $DIR
 {3} --ignore_nfs_tmp > ../maker.$PBS_ARRAY_INDEX.out 2>&1
 """
+)
 
 
 def parallel(args):
@@ -193,17 +200,21 @@ def parallel(args):
         cmd += " -TMP {0}".format(tmpdir)
 
     engine = get_grid_engine()
-    contents = arraysh.format(jobs, cmd) if engine == "SGE" \
-                else arraysh_ua.format(N, threaded, jobs, cmd)
+    contents = (
+        arraysh.format(jobs, cmd)
+        if engine == "SGE"
+        else arraysh_ua.format(N, threaded, jobs, cmd)
+    )
     write_file(runfile, contents)
 
     if engine == "PBS":
         return
 
     # qsub script
-    outfile = "maker.\$TASK_ID.out"
-    p = GridProcess(runfile, outfile=outfile, errfile=outfile,
-                    arr=ncmds, grid_opts=opts)
+    outfile = r"maker.\$TASK_ID.out"
+    p = GridProcess(
+        runfile, outfile=outfile, errfile=outfile, arr=ncmds, grid_opts=opts
+    )
     qsubfile = "qsub.sh"
     qsub = p.build()
     write_file(qsubfile, qsub)
@@ -215,6 +226,7 @@ cd $1{0}/$1.maker.output
 {1} -n -d $1_master_datastore_index.log
 mv $1.all.gff ../../
 """
+
 
 def get_fsnames(outdir):
     fnames = glob(op.join(outdir, "*.fa*"))
@@ -262,7 +274,7 @@ def merge(args):
     print("\n".join(gffnames), file=fw)
     fw.close()
 
-    nlines = sum(1 for x in open(gfflist))
+    nlines = sum(1 for _ in open(gfflist))
     assert nlines == nfs  # Be extra, extra careful to include all results
     gmerge([gfflist, "-o", outputgff])
     logging.debug("Merged GFF file written to `{0}`".format(outputgff))
@@ -275,8 +287,6 @@ def validate(args):
     Validate current folder after MAKER run and check for failures. Failed batch
     will be written to a directory for additional work.
     """
-    from jcvi.utils.counter import Counter
-
     p = OptionParser(validate.__doc__)
     opts, args = p.parse_args(args)
 
@@ -312,7 +322,7 @@ def validate(args):
     print("\n".join(["\t".join((f, x)) for f, x in all_failed]), file=fw)
     fw.close()
 
-    nlines = sum(1 for x in open("FAILED"))
+    nlines = sum(1 for _ in open("FAILED"))
     assert nlines == nfailed
     print("FAILED !! {0} instances.".format(nfailed), file=sys.stderr)
 
@@ -322,8 +332,7 @@ def validate(args):
     cmd = "cut -f2 {0}".format(failed)
     sh(cmd, outfile=failed_ids)
     if need_update((genome, failed_ids), failed_fasta):
-        cmd = "faSomeRecords {0} {1} {2}".\
-                    format(genome, failed_ids, failed_fasta)
+        cmd = "faSomeRecords {} {} {}".format(genome, failed_ids, failed_fasta)
         sh(cmd)
 
 
@@ -342,9 +351,12 @@ def batcheval(args):
     from jcvi.formats.gff import make_index
 
     p = OptionParser(evaluate.__doc__)
-    p.add_option("--type", default="CDS",
-            help="list of features to extract, use comma to separate (e.g."
-            "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
+    p.add_option(
+        "--type",
+        default="CDS",
+        help="list of features to extract, use comma to separate (e.g."
+        "'five_prime_UTR,CDS,three_prime_UTR')",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -438,14 +450,22 @@ def split(args):
     from jcvi.formats.bed import Bed
 
     p = OptionParser(split.__doc__)
-    p.add_option("--key", default="Name",
-            help="Key in the attributes to extract predictor.gff [default: %default]")
-    p.add_option("--parents", default="match",
-            help="list of features to extract, use comma to separate (e.g."
-            "'gene,mRNA') [default: %default]")
-    p.add_option("--children", default="match_part",
-            help="list of features to extract, use comma to separate (e.g."
-            "'five_prime_UTR,CDS,three_prime_UTR') [default: %default]")
+    p.add_option(
+        "--key",
+        default="Name",
+        help="Key in the attributes to extract predictor.gff",
+    )
+    p.add_option(
+        "--parents",
+        default="match",
+        help="list of features to extract, use comma to separate (e.g.'gene,mRNA')",
+    )
+    p.add_option(
+        "--children",
+        default="match_part",
+        help="list of features to extract, use comma to separate (e.g."
+        "'five_prime_UTR,CDS,three_prime_UTR')",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 5:
@@ -496,15 +516,15 @@ def datastore(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    ds, = args
+    (ds,) = args
     fp = open(ds)
     for row in fp:
         fn = row.strip()
         assert op.exists(fn)
         pp, logfile = op.split(fn)
         flog = open(fn)
-        for row in flog:
-            ctg, folder, status = row.split()
+        for inner_row in flog:
+            ctg, folder, status = inner_row.split()
             if status != "FINISHED":
                 continue
 
@@ -513,5 +533,5 @@ def datastore(args):
             print(gff_file)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

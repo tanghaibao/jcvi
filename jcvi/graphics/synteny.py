@@ -13,8 +13,6 @@ the positions of tracks. For example:
 
 With the row ordering corresponding to the column ordering in the MCscan output.
 """
-from __future__ import print_function
-
 
 import sys
 import logging
@@ -26,19 +24,22 @@ from jcvi.formats.base import DictFile
 from jcvi.utils.cbook import human_size
 from jcvi.apps.base import OptionParser
 
-from jcvi.graphics.glyph import Glyph, RoundLabel
+from jcvi.graphics.glyph import (
+    BasePalette,
+    Glyph,
+    OrientationPalette,
+    OrthoGroupPalette,
+    RoundLabel,
+)
 from jcvi.graphics.base import (
+    markup,
     mpl,
     plt,
     savefig,
-    markup,
     Path,
     PathPatch,
     AbstractLayout,
 )
-
-
-forward, backward = "b", "g"  # Genes with different orientations
 
 
 class LayoutLine(object):
@@ -89,8 +90,7 @@ class Layout(AbstractLayout):
             else:
                 self.append(LayoutLine(row, delimiter=delimiter))
 
-        if 3 <= len(self) <= 8:
-            self.assign_colors()
+        self.assign_colors()
 
 
 class Shade(object):
@@ -110,7 +110,7 @@ class Shade(object):
         lw=1,
         zorder=1,
     ):
-        """ Create syntenic wedges between tracks.
+        """Create syntenic wedges between tracks.
 
         Args:
             ax: matplotlib Axes
@@ -127,7 +127,7 @@ class Shade(object):
             zorder (int, optional): Z-order. Defaults to 1.
         """
         fc = fc or "gainsboro"  # Default block color is grayish
-        assert style in self.Styles, "style must be one of {}".format(Styles)
+        assert style in self.Styles, "style must be one of {}".format(self.Styles)
         a1, a2 = a
         b1, b2 = b
         ax1, ay1 = a1
@@ -169,9 +169,12 @@ class Region(object):
         switch=None,
         chr_label=True,
         loc_label=True,
+        genelabelsize=0,
         pad=0.05,
         vpad=0.015,
         extra_features=None,
+        glyphstyle="box",
+        glyphcolor: BasePalette = OrientationPalette(),
     ):
         x, y = layout.x, layout.y
         ratio = layout.ratio
@@ -222,12 +225,40 @@ class Region(object):
                 strand = "+" if strand == "-" else "-"
 
             x1, x2, a, b = self.get_coordinates(gstart, gend, y, cv, tr, inv)
-            self.gg[g.accn] = (a, b)
+            gene_name = g.accn
+            self.gg[gene_name] = (a, b)
 
-            color = forward if strand == "+" else backward
-            if not hidden:
-                gp = Glyph(ax, x1, x2, y, height, gradient=False, fc=color, zorder=3)
-                gp.set_transform(tr)
+            color, zorder = (
+                glyphcolor.get_color_and_zorder(strand)
+                if isinstance(glyphcolor, OrientationPalette)
+                else glyphcolor.get_color_and_zorder(gene_name)
+            )
+
+            if hidden:
+                continue
+            gp = Glyph(
+                ax,
+                x1,
+                x2,
+                y,
+                height,
+                gradient=False,
+                fc=color,
+                style=glyphstyle,
+                zorder=zorder,
+            )
+            gp.set_transform(tr)
+            if genelabelsize:
+                ax.text(
+                    (x1 + x2) / 2,
+                    y + height / 2 + genelabelsize * vpad / 3,
+                    markup(gene_name),
+                    size=genelabelsize,
+                    rotation=25,
+                    ha="left",
+                    va="center",
+                    color="lightslategray",
+                )
 
         # Extra features (like repeats)
         if extra_features:
@@ -242,6 +273,7 @@ class Region(object):
                     height * 3 / 4,
                     gradient=False,
                     fc="#ff7f00",
+                    style=glyphstyle,
                     zorder=2,
                 )
                 gp.set_transform(tr)
@@ -323,13 +355,15 @@ class Synteny(object):
         extra_features=None,
         chr_label=True,
         loc_label=True,
+        genelabelsize=0,
         pad=0.05,
         vpad=0.015,
         scalebar=False,
         shadestyle="curve",
+        glyphstyle="arrow",
+        glyphcolor: BasePalette = OrientationPalette(),
     ):
-
-        w, h = fig.get_figwidth(), fig.get_figheight()
+        _, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
         order = bed.order
         bf = BlockFile(datafile)
@@ -363,7 +397,11 @@ class Synteny(object):
         self.gg = gg = {}
         self.rr = []
         ymids = []
-        # vpad = .012 * w / h
+        glyphcolor = (
+            OrientationPalette()
+            if glyphcolor == "orientation"
+            else OrthoGroupPalette(bf.grouper())
+        )
         for i in range(bf.ncols):
             ext = exts[i]
             ef = extras[i] if extras else None
@@ -374,10 +412,13 @@ class Synteny(object):
                 bed,
                 scale,
                 switch,
+                genelabelsize=genelabelsize,
                 chr_label=chr_label,
                 loc_label=loc_label,
                 vpad=vpad,
                 extra_features=ef,
+                glyphstyle=glyphstyle,
+                glyphcolor=glyphcolor,
             )
             self.rr.append(r)
             # Use tid and accn to store gene positions
@@ -467,7 +508,17 @@ class Synteny(object):
                 RoundLabel(ax, 0.5, 0.3, label, fill=True, fc="lavender", color=color)
 
 
-def draw_gene_legend(ax, x1, x2, ytop, d=0.04, text=False, repeat=False):
+def draw_gene_legend(
+    ax,
+    x1,
+    x2,
+    ytop,
+    d=0.04,
+    text=False,
+    repeat=False,
+    glyphstyle="box",
+):
+    forward, backward = OrientationPalette.forward, OrientationPalette.backward
     ax.plot([x1, x1 + d], [ytop, ytop], ":", color=forward, lw=2)
     ax.plot([x1 + d], [ytop], ">", color=forward, mec=forward)
     ax.plot([x2, x2 + d], [ytop, ytop], ":", color=backward, lw=2)
@@ -485,6 +536,7 @@ def draw_gene_legend(ax, x1, x2, ytop, d=0.04, text=False, repeat=False):
             0.012 * 3 / 4,
             gradient=False,
             fc="#ff7f00",
+            style=glyphstyle,
             zorder=2,
         )
         ax.text(xr, ytop + d / 2, "repeat", ha="center")
@@ -492,18 +544,34 @@ def draw_gene_legend(ax, x1, x2, ytop, d=0.04, text=False, repeat=False):
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option(
-        "--switch", help="Rename the seqid with two-column file [default: %default]"
-    )
-    p.add_option(
-        "--tree", help="Display trees on the bottom of the figure [default: %default]"
-    )
+    p.add_option("--switch", help="Rename the seqid with two-column file")
+    p.add_option("--tree", help="Display trees on the bottom of the figure")
     p.add_option("--extra", help="Extra features in BED format")
+    p.add_option(
+        "--genelabelsize",
+        default=0,
+        type="int",
+        help="Show gene labels at this font size, useful for debugging. "
+        + "However, plot may appear visually crowded. "
+        + "Reasonably good values are 2 to 6 [Default: disabled]",
+    )
     p.add_option(
         "--scalebar",
         default=False,
         action="store_true",
         help="Add scale bar to the plot",
+    )
+    p.add_option(
+        "--glyphstyle",
+        default="box",
+        choices=Glyph.Styles,
+        help="Style of feature glyphs",
+    )
+    p.add_option(
+        "--glyphcolor",
+        default="orientation",
+        choices=Glyph.Palette,
+        help="Glyph coloring based on",
     )
     p.add_option(
         "--shadestyle",
@@ -523,7 +591,6 @@ def main():
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-
     Synteny(
         fig,
         root,
@@ -533,8 +600,11 @@ def main():
         switch=switch,
         tree=tree,
         extra_features=opts.extra,
+        genelabelsize=opts.genelabelsize,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
+        glyphstyle=opts.glyphstyle,
+        glyphcolor=opts.glyphcolor,
     )
 
     root.set_xlim(0, 1)

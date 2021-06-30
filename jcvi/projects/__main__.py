@@ -7,5 +7,5 @@ Compilation of project specific scripts, used to execute specific analysis routi
 from jcvi.apps.base import dmain
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     dmain(__file__)

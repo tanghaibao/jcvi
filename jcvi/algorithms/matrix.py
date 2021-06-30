@@ -13,7 +13,7 @@ is_symmetric = lambda M: (M.T == M).all()
 
 
 def compact(A, factor=2):
-    """ Make a matrix compact by a compact_factor.
+    """Make a matrix compact by a compact_factor.
     Reference:
     https://stackoverflow.com/questions/36383107/how-to-evaluate-the-sum-of-values-within-array-blocks
 

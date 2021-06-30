@@ -83,14 +83,19 @@ def main():
     create a minimal boilerplate for a new script
     """
     p = OptionParser(main.__doc__)
-    p.add_option("-g", "--graphic", default=False, action="store_true",
-            help="Create boilerplate for a graphic script")
+    p.add_option(
+        "-g",
+        "--graphic",
+        default=False,
+        action="store_true",
+        help="Create boilerplate for a graphic script",
+    )
 
     opts, args = p.parse_args()
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    script, = args
+    (script,) = args
     imports = graphic_imports if opts.graphic else default_imports
     app = graphic_app if opts.graphic else default_app
     template = default_template.format(imports, app)
@@ -103,5 +108,5 @@ def main():
     logging.debug(message)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

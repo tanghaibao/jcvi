@@ -17,10 +17,13 @@ from jcvi.graphics.base import (
     Rectangle,
     CirclePolygon,
     Ellipse,
+    FancyArrowPatch,
     Polygon,
     savefig,
+    set3,
     get_map,
 )
+from jcvi.utils.grouper import Grouper
 
 
 tstep = 0.05
@@ -62,8 +65,7 @@ class Bezier(object):
 
 
 class RoundLabel(object):
-    """Round rectangle around the text label
-    """
+    """Round rectangle around the text label"""
 
     def __init__(self, ax, x1, x2, t, lw=0, fill=False, fc="lavender", **kwargs):
 
@@ -78,8 +80,7 @@ class RoundLabel(object):
 
 
 class RoundRect(object):
-    """Round rectangle directly
-    """
+    """Round rectangle directly"""
 
     def __init__(self, ax, xy, width, height, shrink=0.1, label=None, **kwargs):
 
@@ -117,8 +118,7 @@ class RoundRect(object):
 
 
 class DoubleSquare(object):
-    """Square with a double-line margin
-    """
+    """Square with a double-line margin"""
 
     def __init__(self, ax, x, y, radius=0.01, **kwargs):
 
@@ -129,8 +129,7 @@ class DoubleSquare(object):
 
 
 class DoubleCircle(object):
-    """Circle with a double-line margin
-    """
+    """Circle with a double-line margin"""
 
     def __init__(self, ax, x, y, radius=0.01, **kwargs):
 
@@ -143,6 +142,7 @@ def get_asymmetry(ax, radius):
 
     Args:
         ax (Axes): matplotlib axes
+        radius (float):
     """
     x0, y0 = ax.transAxes.transform((0, 0))  # Lower left in pixels
     x1, y1 = ax.transAxes.transform((1, 1))  # Upper right in pixels
@@ -155,8 +155,7 @@ def get_asymmetry(ax, radius):
 
 
 class TextCircle(object):
-    """Circle with a character wrapped in
-    """
+    """Circle with a character wrapped in"""
 
     def __init__(
         self,
@@ -190,8 +189,65 @@ class TextCircle(object):
         )
 
 
+class BasePalette(dict):
+    """Base class for coloring gene glyphs"""
+
+    palette: dict
+
+    def get_color_and_zorder(self, feature: str) -> tuple:
+        """Get color and zorder based on the orientation.
+
+        Args:
+            feature (str): orientation, name etc.
+
+        Returns:
+            (str, int): color and zorder for the given orientation
+        """
+        color = self.palette.get(feature)
+        return color, 4
+
+
+class OrientationPalette(BasePalette):
+    """Color gene glyphs with forward/reverse"""
+
+    forward, backward = "b", "g"  # Genes with different orientations
+    palette = {"+": forward, "-": backward}
+
+
+class OrthoGroupPalette(BasePalette):
+    """Color gene glyphs with random orthogroup color"""
+
+    grouper: Grouper
+    palette = set3
+
+    def __init__(self, grouper: Grouper):
+        """Initialize with grouper instance indicating orthogroup assignments.
+
+        Args:
+            grouper (Grouper): Orthogroup assignments
+        """
+        super().__init__()
+        self.grouper = grouper
+
+    def get_color_and_zorder(self, feature: str) -> tuple:
+        """Get color based on orthogroup assignement of a gene.
+
+        Args:
+            feature (str): Name of the gene
+
+        Returns:
+            str: color and zorder for the given gene_name based on the assignment
+        """
+        if feature not in self.grouper:
+            return "gray", 3
+        group = self.grouper[feature]
+        # Any gene part of an orthogroup gets a higher zorder
+        return self.palette[hash(group) % len(self.palette)], 4
+
+
 class BaseGlyph(list):
     def __init__(self, ax):
+        super().__init__()
         self.ax = ax
 
     def add_patches(self):
@@ -204,16 +260,57 @@ class BaseGlyph(list):
 
 
 class Glyph(BaseGlyph):
-    """Draws gradient rectangle
-    """
 
-    def __init__(self, ax, x1, x2, y, height=0.04, gradient=True, fc="gray", **kwargs):
+    Styles = ("box", "arrow")
+    Palette = ("orientation", "orthogroup")
+    ArrowStyle = "Simple,head_length=1.5,head_width=7,tail_width=7"
+
+    def __init__(
+        self,
+        ax,
+        x1,
+        x2,
+        y,
+        height=0.04,
+        gradient=True,
+        fc="gray",
+        ec="gainsboro",
+        lw=0,
+        style="box",
+        **kwargs
+    ):
+        """Draw a region that represent an interval feature, e.g. gene or repeat
+
+        Args:
+            ax (matplotlib.axis): matplot axis object
+            x1 (float): start coordinate
+            x2 (float): end coordinate
+            y (float): y coordinate. Note that the feature is horizontally drawn.
+            height (float, optional): Height of the feature. Defaults to 0.04.
+            gradient (bool, optional): Shall we draw color gradient on the box? Defaults to True.
+            fc (str, optional): Face color of the feature. Defaults to "gray".
+            style (str, optional): Style, either box|arrow. Defaults to "box".
+        """
 
         super(Glyph, self).__init__(ax)
         width = x2 - x1
         # Frame around the gradient rectangle
         p1 = (x1, y - 0.5 * height)
-        self.append(Rectangle(p1, width, height, fc=fc, lw=0, **kwargs))
+        if style == "arrow":
+            patch = FancyArrowPatch(
+                (x1, y),
+                (x2, y),
+                shrinkA=0,
+                shrinkB=0,
+                arrowstyle=self.ArrowStyle,
+                fc=fc,
+                ec=ec,
+                lw=lw,
+                **kwargs
+            )
+        else:
+            patch = Rectangle(p1, width, height, fc=fc, ec=ec, lw=lw, **kwargs)
+        self.append(patch)
 
         # Several overlaying patches
         if gradient:
@@ -235,12 +332,9 @@ class Glyph(BaseGlyph):
 
 
 class ExonGlyph(BaseGlyph):
-    """Multiple rectangles linked together.
-    """
+    """Multiple rectangles linked together."""
 
-    def __init__(
-        self, ax, x, y, mrnabed, exonbeds, height=0.03, ratio=1, align="left", **kwargs
-    ):
+    def __init__(self, ax, x, y, mrnabed, exonbeds, height=0.03, ratio=1, align="left"):
 
         super(ExonGlyph, self).__init__(ax)
         start, end = mrnabed.start, mrnabed.end
@@ -255,8 +349,7 @@ class ExonGlyph(BaseGlyph):
 
 
 class GeneGlyph(BaseGlyph):
-    """Draws an oriented gene symbol, with color gradient, to represent genes
-    """
+    """Draws an oriented gene symbol, with color gradient, to represent genes"""
 
     def __init__(
         self,
@@ -320,7 +413,7 @@ class CartoonRegion(object):
     def __init__(self, n, k=12):
         # Chromosome
         self.n = n
-        self.orientations = [choice([-1, 1]) for i in xrange(n)]
+        self.orientations = [choice([-1, 1]) for i in range(n)]
         self.assign_colors(k)
 
     def draw(self, ax, x, y, gene_len=0.012, strip=True, color=True):

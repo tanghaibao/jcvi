@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from __future__ import print_function
+import copy
 import os.path as op
 import sys
 import logging
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.INFO)
 
 from functools import partial
 
@@ -18,6 +19,7 @@ mpl.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
+from brewer2mpl import get_map
 from matplotlib import cm, rc, rcParams
 from matplotlib.patches import (
     Rectangle,
@@ -27,20 +29,18 @@ from matplotlib.patches import (
     PathPatch,
     FancyArrow,
     FancyArrowPatch,
+    FancyBboxPatch,
 )
 from matplotlib.path import Path
 
-from jcvi.utils.brewer2mpl import get_map
 from jcvi.formats.base import LineFile
-from jcvi.apps.console import dark, green
 from jcvi.apps.base import glob, listify, datadir, sample_N, which
 
 logging.getLogger().setLevel(logging.DEBUG)
 
 
 def is_usetex():
-    """Check if latex command is available
-    """
+    """Check if latex command is available"""
     return bool(which("latex")) and bool(which("lp"))
 
 
@@ -104,7 +104,7 @@ class AbstractLayout(LineFile):
     represents a subplot, a track or a panel.
     """
 
-    def __init__(self, filename, delimiter=","):
+    def __init__(self, filename):
         super(AbstractLayout, self).__init__(filename)
 
     def assign_array(self, attrib, array):
@@ -141,15 +141,77 @@ CHARS = {
 }
 
 
+def linear_blend(from_color, to_color, fraction=0.5):
+    """Interpolate a new color between two colors.
+
+    https://github.com/PimpTrizkit/PJs/wiki/12.-Shade,-Blend-and-Convert-a-Web-Color-(pSBC.js)
+
+    Args:
+        from_color (matplotlib color): starting color
+        to_color (matplotlib color): ending color
+        fraction (float, optional): Range is 0 (closer to starting color) to 1
+        (closer to ending color). Defaults to 0.5.
+    """
+    from matplotlib.colors import to_rgb
+
+    def lerp(v0, v1, t):
+        # Precise method, which guarantees v = v1 when t = 1
+        return (1 - t) * v0 + t * v1
+
+    r1, g1, b1 = to_rgb(from_color)
+    r2, g2, b2 = to_rgb(to_color)
+    return lerp(r1, r2, fraction), lerp(g1, g2, fraction), lerp(b1, b2, fraction)
+
+
+def linear_shade(from_color, fraction=0.5):
+    """Interpolate a lighter or darker color.
+
+    https://github.com/PimpTrizkit/PJs/wiki/12.-Shade,-Blend-and-Convert-a-Web-Color-(pSBC.js)
+
+    Args:
+        from_color (matplotlib color): starting color
+        fraction (float, optional): Range is -1 (darker) to 1 (lighter). Defaults to 0.5.
+    """
+    assert -1 <= fraction <= 1, "Fraction must be between -1 and 1"
+    if fraction < 0:
+        return linear_blend("k", from_color, 1 + fraction)
+    return linear_blend(from_color, "w", fraction)
+
+
+def load_image(filename):
+    img = plt.imread(filename)
+    if len(img.shape) == 2:  # Gray-scale image, convert to RGB
+        # http://www.socouldanyone.com/2013/03/converting-grayscale-to-rgb-with-numpy.html
+        h, w = img.shape
+        ret = np.empty((h, w, 3), dtype=np.uint8)
+        ret[:, :, 2] = ret[:, :, 1] = ret[:, :, 0] = img
+        img = ret
+    else:
+        h, w, c = img.shape
+    logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(filename, w, h))
+    return img
+
+
 def latex(s):
+    """Latex doesn't work well with certain characters, like '_', in plain text.
+    These characters would be interpreted as control characters, so we sanitize
+    these strings.
+
+    Args:
+        s (str): Input string
+
+    Returns:
+        str: Output string sanitized
+    """
     return "".join([CHARS.get(char, char) for char in s])
 
 
-def shorten(s, maxchar=20):
-    if len(s) <= maxchar:
+def shorten(s, maxchar=20, mid="..."):
+    if len(s) <= maxchar or len(mid) >= maxchar:
         return s
-    pad = (maxchar - 3) / 2
-    return s[:pad] + "..." + s[-pad:]
+    pad = (maxchar - len(mid)) // 2
+    right_pad = maxchar - len(mid) - pad
+    return s[:pad] + mid + s[-right_pad:]
 
 
 def set1_n(number=9):
@@ -168,15 +230,20 @@ def set3_n(number=12):
     return get_map("Set3", "qualitative", number).hex_colors
 
 
-set1, set2, set3 = set1_n(), set2_n(), set3_n()
+def paired_n(number=12):
+    """See also: https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=12"""
+    return get_map("Paired", "qualitative", number).hex_colors
+
+
+set1, set2, set3, paired = set1_n(), set2_n(), set3_n(), paired_n()
 
 
 def prettyplot():
-    reds = mpl.cm.Reds
+    reds = copy.copy(mpl.cm.Reds)
     reds.set_bad("white")
     reds.set_under("white")
 
-    blues_r = mpl.cm.Blues_r
+    blues_r = copy.copy(mpl.cm.Blues_r)
     blues_r.set_bad("white")
     blues_r.set_under("white")
 
@@ -263,8 +330,14 @@ set_human_base_axis = partial(set_human_axis, formatter=human_base_formatter)
 
 
 def set_helvetica_axis(ax):
-    ax.set_xticklabels([int(x) for x in ax.get_xticks()], family="Helvetica")
-    ax.set_yticklabels([int(x) for x in ax.get_yticks()], family="Helvetica")
+    xtick_locs = ax.get_xticks().tolist()
+    ytick_locs = ax.get_yticks().tolist()
+    # If we dont do the following, we have
+    # UserWarning: FixedFormatter should only be used together with FixedLocator
+    ax.xaxis.set_major_locator(mpl.ticker.FixedLocator(xtick_locs))
+    ax.yaxis.set_major_locator(mpl.ticker.FixedLocator(ytick_locs))
+    ax.set_xticklabels([int(x) for x in xtick_locs], family="Helvetica")
+    ax.set_yticklabels([int(x) for x in ytick_locs], family="Helvetica")
 
 
 available_fonts = [op.basename(x) for x in glob(datadir + "/*.ttf")]
@@ -292,7 +365,7 @@ def markup(s):
     import re
 
     s = latex(s)
-    s = re.sub("\*(.*)\*", r"\\textit{\1}", s)
+    s = re.sub(r"\*(.*)\*", r"\\textit{\1}", s)
     return s
 
 
@@ -346,6 +419,8 @@ def asciiaxis(x, digit=1):
         x = str(x)
     elif isinstance(x, float):
         x = "{0:.{1}f}".format(x, digit)
+    elif isinstance(x, np.int64):
+        x = str(x)
     elif isinstance(x, np.ndarray):
         assert len(x) == 2
         x = str(x).replace("]", ")")  # upper bound not inclusive
@@ -362,7 +437,7 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     ay = np.array(y)
 
     if title:
-        print(dark(title), file=sys.stderr)
+        print("[bold white]".format(title), file=sys.stderr)
 
     az = ay * width // ay.max()
     tx = [asciiaxis(x, digit=digit) for x in ax]
@@ -371,8 +446,8 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     for x, y, z in zip(tx, ay, az):
         x = x.rjust(rjust)
         y = y or ""
-        z = green(char * z)
-        print("{0} |{1} {2}".format(x, z, y), file=sys.stderr)
+        z = "[green]{}".format(char * z)
+        print("{} | {} {}".format(x, z, y), file=sys.stderr)
 
 
 def print_colors(palette, outfile="Palette.png"):
@@ -493,6 +568,7 @@ def adjust_spines(ax, spines, outward=False, color="lightslategray"):
 
     # Change tick styles directly
     ax.tick_params(color=color)
+    set_helvetica_axis(ax)
 
 
 def set_ticklabels_helvetica(ax, xcast=int, ycast=int):
@@ -524,7 +600,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
         ax.text(x, ymin - 0.005, "%.1f" % v, ha="center", va="top", size=10)
 
 
-def write_messages(ax, messages):
+def write_messages(ax, messages, ypad=0.04):
     """
     Write text on canvas, usually on the top right corner.
     """
@@ -533,7 +609,7 @@ def write_messages(ax, messages):
     yy = 0.95
     for msg in messages:
         ax.text(0.95, yy, msg, color=tc, transform=axt, ha="right")
-        yy -= 0.05
+        yy -= ypad
 
 
 def quickplot_ax(

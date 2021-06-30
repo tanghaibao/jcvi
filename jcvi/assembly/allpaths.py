@@ -4,8 +4,6 @@
 """
 Subroutines to aid ALLPATHS-LG assembly.
 """
-from __future__ import print_function
-
 import os.path as op
 import os
 import sys
@@ -21,42 +19,41 @@ from jcvi.apps.grid import Jobs
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, glob
 
 
-class PairsFile (BaseFile):
-
+class PairsFile(BaseFile):
     def __init__(self, filename):
         super(PairsFile, self).__init__(filename)
 
         fp = open(filename, "rb")
-        binwrite, = unpack("8s", fp.read(8))
+        (binwrite,) = unpack("8s", fp.read(8))
         assert binwrite == "BINWRITE"
 
-        self.version, = unpack("i", fp.read(4))
+        (self.version,) = unpack("i", fp.read(4))
         assert self.version == 1
 
-        self.nreads, = unpack("Q", fp.read(8))
-        self.nlibs, = unpack("Q", fp.read(8))
+        (self.nreads,) = unpack("Q", fp.read(8))
+        (self.nlibs,) = unpack("Q", fp.read(8))
         self.libstats = []
         self.libnames = []
 
-        for i in xrange(self.nlibs):
+        for i in range(self.nlibs):
             self.libstats.append(unpack("ii", fp.read(8)))
 
-        nlibs, = unpack("Q", fp.read(8))
+        (nlibs,) = unpack("Q", fp.read(8))
         assert nlibs == self.nlibs
 
-        for i in xrange(self.nlibs):
-            slen, = unpack("i", fp.read(4))
+        for i in range(self.nlibs):
+            (slen,) = unpack("i", fp.read(4))
             libname, nul = unpack("{0}sc".format(slen - 1), fp.read(slen))
             self.libnames.append(libname)
 
-        npairs, = unpack("Q", fp.read(8))
+        (npairs,) = unpack("Q", fp.read(8))
         self.r1 = np.fromfile(fp, dtype=np.int64, count=npairs)
 
-        npairs2, = unpack("Q", fp.read(8))
+        (npairs2,) = unpack("Q", fp.read(8))
         assert npairs2 == npairs
         self.r2 = np.fromfile(fp, dtype=np.int64, count=npairs)
 
-        npairsl, = unpack("Q", fp.read(8))
+        (npairsl,) = unpack("Q", fp.read(8))
         assert npairsl == npairs
         self.libs = np.fromfile(fp, dtype=np.int8, count=npairs)
 
@@ -67,8 +64,9 @@ class PairsFile (BaseFile):
     def header(self):
         from jcvi.utils.cbook import percentage
 
-        s = "Number of paired reads: {0}\n".format(\
-                percentage(self.npairs * 2, self.nreads))
+        s = "Number of paired reads: {0}\n".format(
+            percentage(self.npairs * 2, self.nreads)
+        )
         s += "Libraries: {0}\n".format(", ".join(self.libnames))
         s += "LibraryStats: {0}\n".format(self.libstats)
         s += "r1: {0}\n".format(self.r1)
@@ -106,13 +104,13 @@ class PairsFile (BaseFile):
 def main():
 
     actions = (
-        ('prepare', 'prepare ALLPATHS csv files and run script'),
-        ('log', 'prepare a log of created files'),
-        ('pairs', 'parse ALLPATHS pairs file'),
-        ('dump', 'export ALLPATHS fastb file to fastq'),
-        ('fixpairs', 'fix pairs library stats'),
-        ('fill', 'run FillFragments on `frag_reads_corr.fastb`'),
-            )
+        ("prepare", "prepare ALLPATHS csv files and run script"),
+        ("log", "prepare a log of created files"),
+        ("pairs", "parse ALLPATHS pairs file"),
+        ("dump", "export ALLPATHS fastb file to fastq"),
+        ("fixpairs", "fix pairs library stats"),
+        ("fill", "run FillFragments on `frag_reads_corr.fastb`"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 
@@ -125,16 +123,19 @@ def dump(args):
     run allpaths folder.
     """
     p = OptionParser(dump.__doc__)
-    p.add_option("--dir",
-                help="Working directory [default: %default]")
-    p.add_option("--nosim", default=False, action="store_true",
-                 help="Do not simulate qual to 50 [default: %default]")
+    p.add_option("--dir", help="Working directory")
+    p.add_option(
+        "--nosim",
+        default=False,
+        action="store_true",
+        help="Do not simulate qual to 50",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastbfile, = args
+    (fastbfile,) = args
     d = opts.dir
     if d:
         from jcvi.assembly.preprocess import export_fastq
@@ -156,7 +157,8 @@ def dump(args):
 
     libs = []
     fp = open(statsfile)
-    next(fp); next(fp)  # skip two rows
+    next(fp)
+    next(fp)  # skip two rows
     for row in fp:
         if row.strip() == "":
             continue
@@ -176,10 +178,10 @@ def dump(args):
         cmd += " PAIRED=True PHRED_OFFSET=33"
         if sim:
             cmd += " SIMULATE_QUALS=True"
-        if pf == 'j':
+        if pf == "j":
             cmd += " FLIP=True"
 
-        cmds.append((cmd, ))
+        cmds.append((cmd,))
 
     m = Jobs(target=sh, args=cmds)
     m.run()
@@ -221,8 +223,12 @@ def fill(args):
     Run FillFragments on `frag_reads_corr.fastb`.
     """
     p = OptionParser(fill.__doc__)
-    p.add_option("--stretch", default=3, type="int",
-                 help="MAX_STRETCH to pass to FillFragments [default: %default]")
+    p.add_option(
+        "--stretch",
+        default=3,
+        type="int",
+        help="MAX_STRETCH to pass to FillFragments",
+    )
     p.set_cpus()
 
     opts, args = p.parse_args(args)
@@ -230,7 +236,7 @@ def fill(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    fastb, = args
+    (fastb,) = args
     assert fastb == "frag_reads_corr.fastb"
 
     pcfile = "frag_reads_corr.k28.pc.info"
@@ -262,12 +268,12 @@ def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p, suffix=False):
     each for one end. p is a Pairs instance.
     """
     fp = open(fastqfile)
-    currentID = 0
+    current_id = 0
     npairs = nfrags = 0
-    for x, lib in izip(p.r1, p.libs):
-        while currentID != x:
+    for x, lib in zip(p.r1, p.libs):
+        while current_id != x:
             fragsfw.writelines(islice(fp, 4))  # Exhaust the iterator
-            currentID += 1
+            current_id += 1
             nfrags += 1
         a = list(islice(fp, 4))
         b = list(islice(fp, 4))
@@ -280,7 +286,7 @@ def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p, suffix=False):
 
         p1fw[lib].writelines(a)
         p2fw[lib].writelines(b)
-        currentID += 2
+        current_id += 2
         npairs += 2
 
     # Write the remaining single reads
@@ -291,18 +297,24 @@ def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p, suffix=False):
         fragsfw.writelines(contents)
         nfrags += 1
 
-    logging.debug("A total of {0} paired reads written to `{1}`.".\
-                  format(npairs, ",".join(x.name for x in p1fw + p2fw)))
-    logging.debug("A total of {0} single reads written to `{1}`.".\
-                  format(nfrags, fragsfw.name))
+    logging.debug(
+        "A total of {0} paired reads written to `{1}`.".format(
+            npairs, ",".join(x.name for x in p1fw + p2fw)
+        )
+    )
+    logging.debug(
+        "A total of {0} single reads written to `{1}`.".format(nfrags, fragsfw.name)
+    )
 
     # Validate the numbers
     expected_pairs = 2 * p.npairs
     expected_frags = p.nreads - 2 * p.npairs
-    assert npairs == expected_pairs, "Expect {0} paired reads, got {1} instead".\
-              format(expected_pairs, npairs)
-    assert nfrags == expected_frags, "Expect {0} single reads, got {1} instead".\
-              format(expected_frags, nfrags)
+    assert npairs == expected_pairs, "Expect {0} paired reads, got {1} instead".format(
+        expected_pairs, npairs
+    )
+    assert nfrags == expected_frags, "Expect {0} single reads, got {1} instead".format(
+        expected_frags, nfrags
+    )
 
 
 def pairs(args):
@@ -316,10 +328,18 @@ def pairs(args):
     from jcvi.assembly.preprocess import run_FastbAndQualb2Fastq
 
     p = OptionParser(pairs.__doc__)
-    p.add_option("--header", default=False, action="store_true",
-            help="Print header only [default: %default]")
-    p.add_option("--suffix", default=False, action="store_true",
-                 help="Add suffix /1, /2 to read names")
+    p.add_option(
+        "--header",
+        default=False,
+        action="store_true",
+        help="Print header only",
+    )
+    p.add_option(
+        "--suffix",
+        default=False,
+        action="store_true",
+        help="Add suffix /1, /2 to read names",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -389,12 +409,19 @@ def prepare(args):
     from jcvi.formats.fastq import guessoffset, readlen
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
-    p.add_option("--corr", default=False, action="store_true",
-                 help="Extra parameters for corrected data [default: %default]")
-    p.add_option("--norun", default=False, action="store_true",
-                 help="Don't write `run.sh` script [default: %default]")
-    p.add_option("--ploidy", default="2", choices=("1", "2"),
-                 help="Ploidy [default: %default]")
+    p.add_option(
+        "--corr",
+        default=False,
+        action="store_true",
+        help="Extra parameters for corrected data",
+    )
+    p.add_option(
+        "--norun",
+        default=False,
+        action="store_true",
+        help="Don't write `run.sh` script",
+    )
+    p.add_option("--ploidy", default="2", choices=("1", "2"), help="Ploidy")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -408,9 +435,11 @@ def prepare(args):
         assert op.exists(x), "File `{0}` not found.".format(x)
 
     groupheader = "group_name library_name file_name".split()
-    libheader = "library_name project_name organism_name type paired "\
-        "frag_size frag_stddev insert_size insert_stddev read_orientation "\
+    libheader = (
+        "library_name project_name organism_name type paired "
+        "frag_size frag_stddev insert_size insert_stddev read_orientation "
         "genomic_start genomic_end".split()
+    )
     groups_33 = []
     groups_64 = []
     libs = []
@@ -446,22 +475,35 @@ def prepare(args):
         insert_size = size if type != "fragment" else ""
         insert_stddev = stddev if type != "fragment" else ""
         genomic_start, genomic_end = "", ""
-        libcontents.append((library_name, project_name, organism_name, type, \
-            paired, frag_size, frag_stddev, insert_size, insert_stddev, \
-            read_orientation, genomic_start, genomic_end))
+        libcontents.append(
+            (
+                library_name,
+                project_name,
+                organism_name,
+                type,
+                paired,
+                frag_size,
+                frag_stddev,
+                insert_size,
+                insert_stddev,
+                read_orientation,
+                genomic_start,
+                genomic_end,
+            )
+        )
 
-    for groups, csvfile in ((groups_33, "in_groups_33.csv"), \
-                            (groups_64, "in_groups_64.csv"), \
-                            (groups_33 + groups_64, "in_groups.csv")):
+    for groups, csvfile in (
+        (groups_33, "in_groups_33.csv"),
+        (groups_64, "in_groups_64.csv"),
+        (groups_33 + groups_64, "in_groups.csv"),
+    ):
         if not groups:
             continue
         write_csv(groupheader, groups, filename=csvfile, tee=True)
-        logging.debug("`{0}` created (# of groups = {1}).".\
-            format(csvfile, len(groups)))
+        logging.debug("`{0}` created (# of groups = {1}).".format(csvfile, len(groups)))
 
     write_csv(libheader, libcontents, filename="in_libs.csv", tee=True)
-    logging.debug("`in_libs.csv` created (# of libs = {0}).".\
-        format(len(libcontents)))
+    logging.debug("`in_libs.csv` created (# of libs = {0}).".format(len(libcontents)))
 
     runfile = "run.sh"
 
@@ -477,89 +519,5 @@ def prepare(args):
         write_file(runfile, contents)
 
 
-def log(args):
-    """
-    %prog log logfile
-
-    Prepare a log of created files, ordered by their creation data. The purpose
-    for this script is to touch these files sequentially to reflect their build
-    order. On the JCVI scratch area, the files are touched regularly to avoid
-    getting deleted, losing their respective timestamps. However, this created a
-    problem for the make system adopted by ALLPATHS.
-
-    An example block to be extracted ==>
-    [PC] Calling PreCorrect to create 2 file(s):
-    [PC]
-    [PC] $(RUN)/frag_reads_prec.fastb
-    [PC] $(RUN)/frag_reads_prec.qualb
-    [PC]
-    [PC] from 2 file(s):
-    [PC]
-    [PC] $(RUN)/frag_reads_filt.fastb
-    [PC] $(RUN)/frag_reads_filt.qualb
-    """
-    from jcvi.algorithms.graph import nx, topological_sort
-
-    p = OptionParser(log.__doc__)
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    g = nx.DiGraph()
-
-    logfile, = args
-    fp = open(logfile)
-    row = fp.readline()
-    incalling = False
-    basedb = {}
-
-    while row:
-        atoms = row.split()
-        if len(atoms) < 3:
-            row = fp.readline()
-            continue
-
-        tag, token, trailing = atoms[0], atoms[1], atoms[-1]
-        if trailing == 'file(s):':
-            numfiles = int(atoms[-2])
-            row = fp.readline()
-            assert row.strip() == tag
-
-            if token == "Calling" and not incalling:
-                createfiles = []
-                for i in xrange(numfiles):
-                    row = fp.readline()
-                    createfiles.append(row.split()[-1])
-                incalling = True
-
-            if token == "from" and incalling:
-                fromfiles = []
-                for i in xrange(numfiles):
-                    row = fp.readline()
-                    fromfiles.append(row.split()[-1])
-
-                for a in fromfiles:
-                    for b in createfiles:
-                        ba, bb = op.basename(a), op.basename(b)
-                        basedb[ba] = a
-                        basedb[bb] = b
-                        g.add_edge(ba, bb)
-
-                incalling = False
-
-        if token == "ln":
-            fromfile, createfile = atoms[-2:]
-            ba, bb = op.basename(fromfile), op.basename(createfile)
-            #print ba, "-->", bb
-            if ba != bb:
-                g.add_edge(ba, bb)
-
-        row = fp.readline()
-
-    ts = [basedb[x] for x in topological_sort(g) if x in basedb]
-    print("\n".join(ts))
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -61,12 +61,12 @@ bed_append_source_ftype:
   outputs: [stdout]
   references: [references/sample.append_source_ftype.bed]
 
-bed_ftype_strip_names:
+bed_primary_only:
   action: bed
-  opts: --type=mRNA --strip_names
+  opts: --type=mRNA --primary_only
   args: __DIR__/inputs/sample.gff
   outputs: [stdout]
-  references: [references/sample.ftype_strip_names.bed]
+  references: [references/sample.primary_only.bed]
 
 bed12_do_nothing:
   action: bed12

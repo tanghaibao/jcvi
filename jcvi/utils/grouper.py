@@ -108,6 +108,7 @@ class Grouper(object):
         return self._mapping.keys()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     import doctest
+
     doctest.testmod()

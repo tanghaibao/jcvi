@@ -46,4 +46,3 @@ def test_heaviest_increasing_subsequence(input_array, expected):
     from jcvi.algorithms.lis import heaviest_increasing_subsequence
 
     assert heaviest_increasing_subsequence(input_array) == expected
-

@@ -1,24 +1,101 @@
 """
 Codes to submit multiple jobs to JCVI grid engine
 """
-from __future__ import print_function
-
 import os.path as op
 import sys
 import re
 import logging
+import platform
 
-from multiprocessing import Pool, Process, Queue, cpu_count
+from multiprocessing import (
+    Pool,
+    Process,
+    Value,
+    cpu_count,
+    get_context,
+    set_start_method,
+)
+from multiprocessing.queues import Queue
 
 from jcvi.formats.base import write_file, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, popen, backup, \
-            mkdir, sh, listify
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    popen,
+    backup,
+    mkdir,
+    sh,
+    listify,
+)
+
+
+class SharedCounter(object):
+    """A synchronized shared counter.
+
+    The locking done by multiprocessing.Value ensures that only a single
+    process or thread may read or write the in-memory ctypes object. However,
+    in order to do n += 1, Python performs a read followed by a write, so a
+    second process may read the old value before the new one is written by the
+    first process. The solution is to use a multiprocessing.Lock to guarantee
+    the atomicity of the modifications to Value.
+
+    This class comes almost entirely from Eli Bendersky's blog:
+    http://eli.thegreenplace.net/2012/01/04/shared-counter-with-pythons-multiprocessing/
+    """
+
+    def __init__(self, n=0):
+        self.count = Value("i", n)
+
+    def increment(self, n=1):
+        """Increment the counter by n (default = 1)"""
+        with self.count.get_lock():
+            self.count.value += n
+
+    @property
+    def value(self):
+        """Return the value of the counter"""
+        return self.count.value
+
+
+class Queue(Queue):
+    """A portable implementation of multiprocessing.Queue.
+
+    Because of multithreading / multiprocessing semantics, Queue.qsize() may
+    raise the NotImplementedError exception on Unix platforms like Mac OS X
+    where sem_getvalue() is not implemented. This subclass addresses this
+    problem by using a synchronized shared counter (initialized to zero) and
+    increasing / decreasing its value every time the put() and get() methods
+    are called, respectively. This not only prevents NotImplementedError from
+    being raised, but also allows us to implement a reliable version of both
+    qsize() and empty().
+    """
+
+    def __init__(self, *args, **kwargs):
+        super(Queue, self).__init__(*args, **kwargs, ctx=get_context())
+        self.size = SharedCounter(0)
+
+    def put(self, *args, **kwargs):
+        self.size.increment(1)
+        super(Queue, self).put(*args, **kwargs)
+
+    def get(self, *args, **kwargs):
+        self.size.increment(-1)
+        return super(Queue, self).get(*args, **kwargs)
+
+    def qsize(self):
+        """Reliable implementation of multiprocessing.Queue.qsize()"""
+        return self.size.value
+
+    def empty(self):
+        """Reliable implementation of multiprocessing.Queue.empty()"""
+        return not self.qsize()
 
 
 class Parallel(object):
     """
     Run a number of commands in parallel.
     """
+
     def __init__(self, cmds, cpus=cpu_count()):
         self.cmds = cmds
         self.cpus = min(len(cmds), cpus)
@@ -28,10 +105,11 @@ class Parallel(object):
         p.map(sh, self.cmds)
 
 
-class Dependency (object):
+class Dependency(object):
     """
     Used by MakeManager.
     """
+
     def __init__(self, source, target, cmds, id, remove=False):
         self.id = id
         self.source = listify(source)
@@ -60,10 +138,11 @@ class Dependency (object):
         return s
 
 
-class MakeManager (list):
+class MakeManager(list):
     """
     Write and execute makefile.
     """
+
     def __init__(self, filename="makefile"):
         self.makefile = filename
         self.targets = set()
@@ -99,10 +178,11 @@ class MakeManager (list):
         sh(cmd)
 
 
-class Jobs (list):
+class Jobs(list):
     """
     Runs multiple funcion calls on the SAME computer, using multiprocessing.
     """
+
     def __init__(self, target, args):
 
         for x in args:
@@ -126,13 +206,18 @@ class Poison:
     pass
 
 
-class WriteJobs (object):
+class WriteJobs(object):
     """
     Runs multiple function calls, but write to the same file.
 
     Producer-consumer model.
     """
+
     def __init__(self, target, args, filename, cpus=cpu_count()):
+        # macOS starts process with fork by default: https://zhuanlan.zhihu.com/p/144771768
+        if platform.system() == "Darwin":
+            set_start_method("fork")
+
         workerq = Queue()
         writerq = Queue()
 
@@ -144,8 +229,7 @@ class WriteJobs (object):
             workerq.put(Poison())
 
         self.worker = Jobs(work, args=[(workerq, writerq, target)] * cpus)
-        self.writer = Process(target=write, args=(workerq, writerq, \
-                                                  filename, cpus))
+        self.writer = Process(target=write, args=(workerq, writerq, filename, cpus))
 
     def run(self):
         self.worker.start()
@@ -165,49 +249,68 @@ def work(queue_in, queue_out, target):
 
 
 def write(queue_in, queue_out, filename, cpus):
-    from jcvi.utils.progressbar import ProgressBar, Percentage, Bar, ETA
+    from rich.progress import Progress
 
     fw = must_open(filename, "w")
     isize = queue_in.qsize()
     logging.debug("A total of {0} items to compute.".format(isize))
     isize = isize or 1
-    widgets = ['Queue: ', Percentage(), ' ',
-               Bar(marker='>', left='[', right=']'), ' ', ETA()]
-    p = ProgressBar(maxval=isize, term_width=60, widgets=widgets).start()
     poisons = 0
-    while True:
-        res = queue_out.get()
-        qsize = queue_in.qsize()
-        p.update(isize - qsize)
-        if isinstance(res, Poison):
-            poisons += 1
-            if poisons == cpus:  # wait all workers finish
-                break
-        elif res:
-            print(res, file=fw)
-            fw.flush()
+    with Progress() as progress:
+        task = progress.add_task("[green]Processing ...", total=isize)
+        while True:
+            res = queue_out.get()
+            qsize = queue_in.qsize()
+            progress.update(task, completed=isize - qsize)
+            if isinstance(res, Poison):
+                poisons += 1
+                if poisons == cpus:  # wait all workers finish
+                    break
+            elif res:
+                print(res, file=fw)
+                fw.flush()
     fw.close()
 
 
-class GridOpts (dict):
-
+class GridOpts(dict):
     def __init__(self, opts):
-        export = ("pcode", "queue", "threaded", "concurrency",
-                  "outdir", "name", "hold_jid")
+        export = (
+            "pcode",
+            "queue",
+            "threaded",
+            "concurrency",
+            "outdir",
+            "name",
+            "hold_jid",
+        )
         for e in export:
             if e in opts.__dict__:
                 self[e] = getattr(opts, e)
 
 
-class GridProcess (object):
+class GridProcess(object):
 
     pat1 = re.compile(r"Your job (?P<id>[0-9]*) ")
     pat2 = re.compile(r"Your job-array (?P<id>\S*) ")
 
-    def __init__(self, cmd, jobid="", pcode="99999", queue="default", threaded=None,
-                       infile=None, outfile=None, errfile=None, arr=None,
-                       concurrency=None, outdir=".", name=None, hold_jid=None,
-                       extra_opts=None, grid_opts=None):
+    def __init__(
+        self,
+        cmd,
+        jobid="",
+        pcode="99999",
+        queue="default",
+        threaded=None,
+        infile=None,
+        outfile=None,
+        errfile=None,
+        arr=None,
+        concurrency=None,
+        outdir=".",
+        name=None,
+        hold_jid=None,
+        extra_opts=None,
+        grid_opts=None,
+    ):
 
         self.cmd = cmd
         self.jobid = jobid
@@ -228,13 +331,12 @@ class GridProcess (object):
             self.__dict__.update(GridOpts(grid_opts))
 
     def __str__(self):
-        return "\t".join((x for x in \
-                (self.jobid, self.cmd, self.outfile) if x))
+        return "\t".join((x for x in (self.jobid, self.cmd, self.outfile) if x))
 
     def build(self):
         # Shell commands
         if "|" in self.cmd or "&&" in self.cmd or "||" in self.cmd:
-            quote = "\"" if "'" in self.cmd else "'"
+            quote = '"' if "'" in self.cmd else "'"
             self.cmd = "sh -c {1}{0}{1}".format(self.cmd, quote)
 
         # qsub command (the project code is specific to jcvi)
@@ -302,8 +404,7 @@ class GridProcess (object):
         logging.debug(msg)
 
 
-class Grid (list):
-
+class Grid(list):
     def __init__(self, cmds, outfiles=[]):
 
         assert cmds, "Commands empty!"
@@ -331,10 +432,13 @@ arraysh = """
 CMD=`awk "NR==$SGE_TASK_ID" {0}`
 $CMD"""
 
-arraysh_ua = PBS_STANZA + """
+arraysh_ua = (
+    PBS_STANZA
+    + """
 cd $PBS_O_WORKDIR
 CMD=`awk "NR==$PBS_ARRAY_INDEX" {2}`
 $CMD"""
+)
 
 
 def get_grid_engine():
@@ -346,10 +450,10 @@ def get_grid_engine():
 def main():
 
     actions = (
-        ('run', 'run a normal command on grid'),
-        ('array', 'run an array job'),
-        ('kill', 'wrapper around the `qdel` command'),
-            )
+        ("run", "run a normal command on grid"),
+        ("array", "run an array job"),
+        ("kill", "wrapper around the `qdel` command"),
+    )
 
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -369,29 +473,37 @@ def array(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    cmds, = args
+    (cmds,) = args
     fp = open(cmds)
-    N = sum(1 for x in fp)
+    N = sum(1 for _ in fp)
     fp.close()
 
-    pf = cmds.rsplit(".",  1)[0]
+    pf = cmds.rsplit(".", 1)[0]
     runfile = pf + ".sh"
-    assert runfile != cmds, \
-            "Commands list file should not have a `.sh` extension"
+    assert runfile != cmds, "Commands list file should not have a `.sh` extension"
 
     engine = get_grid_engine()
     threaded = opts.threaded or 1
-    contents = arraysh.format(cmds) if engine == "SGE" \
-                else arraysh_ua.format(N, threaded, cmds)
+    contents = (
+        arraysh.format(cmds)
+        if engine == "SGE"
+        else arraysh_ua.format(N, threaded, cmds)
+    )
     write_file(runfile, contents)
 
     if engine == "PBS":
         return
 
-    outfile = "{0}.{1}.out".format(pf, "\$TASK_ID")
-    errfile = "{0}.{1}.err".format(pf, "\$TASK_ID")
-    p = GridProcess("sh {0}".format(runfile), outfile=outfile, errfile=errfile,
-                    arr=N, extra_opts=opts.extra, grid_opts=opts)
+    outfile = "{0}.{1}.out".format(pf, r"\$TASK_ID")
+    errfile = "{0}.{1}.err".format(pf, r"\$TASK_ID")
+    p = GridProcess(
+        "sh {0}".format(runfile),
+        outfile=outfile,
+        errfile=errfile,
+        arr=N,
+        extra_opts=opts.extra,
+        grid_opts=opts,
+    )
     p.start()
 
 
@@ -433,7 +545,7 @@ def run(args):
     sep = ":::"
     if sep in args:
         sepidx = args.index(sep)
-        filenames = args[sepidx + 1:]
+        filenames = args[sepidx + 1 :]
         args = args[:sepidx]
         if not filenames:
             filenames = [""]
@@ -506,15 +618,18 @@ def kill(args):
 
     valid_methods = ("pattern", "jobid")
     p = OptionParser(kill.__doc__)
-    p.add_option("--method", choices=valid_methods,
-                 help="Identify jobs based on [default: guess]")
+    p.add_option(
+        "--method",
+        choices=valid_methods,
+        help="Identify jobs based on [default: guess]",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     username = getusername()
-    tag, = args
+    (tag,) = args
     tag = tag.strip()
 
     if tag == "all":
@@ -527,13 +642,12 @@ def kill(args):
         jobids = tag.split(",")
         valid_jobids |= set(jobids)
     elif method == "pattern":
-        qsxmlcmd = 'qstat -u "{0}" -j "{1}" -nenv -njd -xml'.\
-                                format(username, tag)
+        qsxmlcmd = 'qstat -u "{}" -j "{}" -nenv -njd -xml'.format(username, tag)
         try:
             qsxml = check_output(shlex.split(qsxmlcmd)).strip()
         except CalledProcessError as e:
             qsxml = None
-            logging.debug('No jobs matching the pattern "{0}"'.format(tag))
+            logging.debug(f'No jobs matching the pattern "{tag}": {e}')
 
         if qsxml is not None:
             for job in ET.fromstring(qsxml).findall("djob_info"):
@@ -545,5 +659,5 @@ def kill(args):
         sh("qdel {0}".format(",".join(valid_jobids)))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from __future__ import print_function
 import os.path as op
 import sys
 import logging
@@ -19,7 +18,6 @@ from jcvi.utils.cbook import gene_name
 from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.apps.base import (
     OptionParser,
-    OptionGroup,
     glob,
     ActionDispatcher,
     need_update,
@@ -376,7 +374,7 @@ def omgparse(args):
     if len(args) != 1:
         sys.exit(not p.print_help())
 
-    work, = args
+    (work,) = args
     omgfiles = glob(op.join(work, "gf*.out"))
     for omgfile in omgfiles:
         omg = OMGFile(omgfile)
@@ -475,7 +473,7 @@ def omg(args):
         fw.close()
 
 
-def geneinfo(bed, order, genomeidx, ploidy):
+def geneinfo(bed, genomeidx, ploidy):
     bedfile = bed.filename
     p = bedfile.split(".")[0]
     idx = genomeidx[p]
@@ -540,8 +538,8 @@ def omgprepare(args):
 
     ploidy = DictFile(ploidy)
 
-    geneinfo(qbed, qorder, genomeidx, ploidy)
-    geneinfo(sbed, sorder, genomeidx, ploidy)
+    geneinfo(qbed, genomeidx, ploidy)
+    geneinfo(sbed, genomeidx, ploidy)
 
     pf = blastfile.rsplit(".", 1)[0]
     cscorefile = pf + ".cscore"
@@ -627,19 +625,34 @@ def ortholog(args):
         "--full",
         default=False,
         action="store_true",
-        help="Run in full mode, including blocks and RBH",
+        help="Run in full 1x1 mode, including blocks and RBH",
     )
     p.add_option("--cscore", default=0.7, type="float", help="C-score cutoff")
     p.add_option(
         "--dist", default=20, type="int", help="Extent of flanking regions to search"
     )
+    p.add_option(
+        "-n",
+        "--min_size",
+        dest="n",
+        type="int",
+        default=4,
+        help="minimum number of anchors in a cluster",
+    )
     p.add_option("--quota", help="Quota align parameter")
+    p.add_option("--exclude", help="Remove anchors from a previous run")
     p.add_option(
         "--no_strip_names",
         default=False,
         action="store_true",
         help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
+    p.add_option(
+        "--liftover_dist",
+        type="int",
+        help="Distance to extend from liftover. Defaults to half of --dist",
+    )
+    p.set_cpus()
     p.set_dotplot_opts()
 
     opts, args = p.parse_args(args)
@@ -654,7 +667,10 @@ def ortholog(args):
     bbed, bfasta = b + ".bed", b + suffix
     ccscore = opts.cscore
     quota = opts.quota
+    exclude = opts.exclude
     dist = "--dist={0}".format(opts.dist)
+    minsize_flag = "--min_size={}".format(opts.n)
+    cpus_flag = "--cpus={}".format(opts.cpus)
 
     aprefix = afasta.split(".")[0]
     bprefix = bfasta.split(".")[0]
@@ -662,7 +678,7 @@ def ortholog(args):
     qprefix = ".".join((bprefix, aprefix))
     last = pprefix + ".last"
     if need_update((afasta, bfasta), last):
-        last_main([bfasta, afasta], dbtype)
+        last_main([bfasta, afasta, cpus_flag], dbtype)
 
     if a == b:
         lastself = last + ".P98L0.inverse"
@@ -672,28 +688,31 @@ def ortholog(args):
 
     filtered_last = last + ".filtered"
     if need_update(last, filtered_last):
+        # If we are doing filtering based on another file then we don't run cscore anymore
+        dargs = [last, "--cscore={}".format(ccscore)]
+        if exclude:
+            dargs += ["--exclude={}".format(exclude)]
         if opts.no_strip_names:
-            blastfilter_main([last, "--cscore={0}".format(ccscore), "--no_strip_names"])
-        else:
-            blastfilter_main([last, "--cscore={0}".format(ccscore)])
+            dargs += ["--no_strip_names"]
+        blastfilter_main(dargs)
 
     anchors = pprefix + ".anchors"
     lifted_anchors = pprefix + ".lifted.anchors"
     pdf = pprefix + ".pdf"
     if not opts.full:
         if need_update(filtered_last, lifted_anchors):
+            dargs = [
+                filtered_last,
+                anchors,
+                minsize_flag,
+                dist,
+                "--liftover={0}".format(last),
+            ]
             if opts.no_strip_names:
-                scan(
-                    [
-                        filtered_last,
-                        anchors,
-                        dist,
-                        "--liftover={0}".format(last),
-                        "--no_strip_names",
-                    ]
-                )
-            else:
-                scan([filtered_last, anchors, dist, "--liftover={0}".format(last)])
+                dargs += ["--no_strip_names"]
+            if opts.liftover_dist:
+                dargs += ["--liftover_dist={}".format(opts.liftover_dist)]
+            scan(dargs)
         if quota:
             quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])
         if need_update(anchors, pdf):
@@ -782,8 +801,8 @@ def tandem_main(
             if b.hitlen < min(query_len, subject_len) * P / 100.0:
                 continue
 
-            query = gene_name(b.query, strip_name)
-            subject = gene_name(b.subject, strip_name)
+            query = gene_name(b.query, sep=strip_name)
+            subject = gene_name(b.subject, sep=strip_name)
             qi, q = order[query]
             si, s = order[subject]
 
@@ -805,8 +824,8 @@ def tandem_main(
             if b.evalue > evalue:
                 continue
 
-            query = gene_name(b.query, strip_name)
-            subject = gene_name(b.subject, strip_name)
+            query = gene_name(b.query, sep=strip_name)
+            subject = gene_name(b.subject, sep=strip_name)
             homologs.join(query, subject)
 
         if genefam:

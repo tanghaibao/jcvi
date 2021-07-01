@@ -177,7 +177,7 @@ class Shade (object):
             ]
         else:
             pathdata = [(M, a1), (L, b1), (L, b2), (L, a2), (CP, a1)]
-        codes, verts = zip(*pathdata)
+        codes, verts = list(zip(*pathdata))
         path = Path(verts, codes)
         if highlight:
             ec = fc = highlight
@@ -463,8 +463,8 @@ class Synteny (object):
                 # Pruning removes minor features with < 0.1% of the region
                 if prune_features:
                     fe_pruned = [x for x in fe if x.span >= span / 1000]
-                    print >> sys.stderr, "Extracted {0} features "\
-                            "({1} after pruning)".format(len(fe), len(fe_pruned))
+                    print("Extracted {0} features "\
+                            "({1} after pruning)".format(len(fe), len(fe_pruned)), file=sys.stderr)
                     feats.append(fe_pruned)
                 else:
                     fe_all = [x for x in fe]
@@ -490,7 +490,7 @@ class Synteny (object):
                        vpad=vpad, features=fe, plotRibbonBlocks=plotRibbonBlocks,annotcolor=annotcolor)
             self.rr.append(r)
             # Use tid and accn to store gene positions
-            gg.update(dict(((i, k), v) for k, v in r.gg.items()))
+            gg.update(dict(((i, k), v) for k, v in list(r.gg.items())))
             ymids.append(r.y)
 
         # Plot ribbons
@@ -499,7 +499,7 @@ class Synteny (object):
             for ga, gb, h in bf.iter_pairs(i, j):
                 # Coords in gg should be correctly trimmed from Region processing
                 # Need to skip annotations in blockfile that are outside plotted region in layout file
-                if not (i, ga) in gg.keys() or not (j, gb) in gg.keys():
+                if not (i, ga) in list(gg.keys()) or not (j, gb) in list(gg.keys()):
                     continue
                 # Skip ribbons that will later be plotted with a hightlight color
                 if h:
@@ -523,7 +523,7 @@ class Synteny (object):
 
             # Paint ribbons for which a highlight colour was set
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
-                if not (i, ga) in gg.keys() or not (j, gb) in gg.keys():
+                if not (i, ga) in list(gg.keys()) or not (j, gb) in list(gg.keys()):
                     continue
                 if h == "hide":
                     continue
@@ -535,7 +535,7 @@ class Synteny (object):
                 Shade(root, a, b, ymid, alpha=baseAlpha, highlight=h, zorder=1, style=shadestyle)
 
         if scalebar:
-            print >> sys.stderr, "Build scalebar (scale={})".format(scale)
+            print("Build scalebar (scale={})".format(scale), file=sys.stderr)
             # Find the best length of the scalebar
             ar = [1, 2, 5]
             candidates = (

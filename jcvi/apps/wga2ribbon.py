@@ -122,14 +122,14 @@ def readLASTZ(infile,minID=50):
 				q_end	= int(row[7])# - 1 # Convert from idx '1' to idx '0'
 			# Correct for inverted coordinates
 			else:
-				print("Inverting query sequence coordinates for record number: ", UID)
+				print(("Inverting query sequence coordinates for record number: ", UID))
 				q_end	= int(row[6])# - 1 # Convert from idx '1' to idx '0'
 				q_start	= int(row[7])# - 1 # Convert from idx '1' to idx '0'
 			# Create target scaffold dict if not seen
-			if t_name not in hitsDict.keys():
+			if t_name not in list(hitsDict.keys()):
 				hitsDict[t_name] = dict()
 			# Create query scaffold list if not seen
-			if q_name not in hitsDict[t_name].keys():
+			if q_name not in list(hitsDict[t_name].keys()):
 				hitsDict[t_name][q_name] = list()
 			# Write record to target:query list as named tuple
 			hitsDict[t_name][q_name].append(hitTup(t_start,t_end,t_strand,q_start,q_end,q_strand,idPct,UID))
@@ -173,7 +173,7 @@ def main():
 
 	# Sort bedlines for each seq in layout file. Sort by Chrm name, start, end, UID
 	with open(args.outBed, 'w') as f:
-		for layoutIdx in bedlines.keys():
+		for layoutIdx in list(bedlines.keys()):
 			for line in sorted(bedlines[layoutIdx], key = lambda x: (x[0], int(x[1]),int(x[2]),x[3])):
 				f.write('\t'.join(line) + '\n')
 

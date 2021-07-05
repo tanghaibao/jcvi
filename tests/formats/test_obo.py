@@ -1,14 +1,8 @@
-import pytest
-
-
 def test_oboreader():
     import os
-    from jcvi.apps.base import download
-    from jcvi.formats.obo import GODag
+    from jcvi.formats.obo import GODag_from_GO
 
-    obo_file = download("http://geneontology.org/ontology/go-basic.obo")
-
-    go = GODag(obo_file, prt=None)
+    go, obo_file = GODag_from_GO()
     r1, r2, r3 = [
         rec
         for i, rec in enumerate(sorted(set(go.values()), key=lambda x: x.item_id))

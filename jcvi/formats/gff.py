@@ -1528,7 +1528,7 @@ def format(args):
 
     Read in the gff and print it out, changing seqid, etc.
     """
-    from jcvi.formats.obo import load_GODag, validate_term
+    from jcvi.formats.obo import GODag_from_SO, validate_term
 
     valid_multiparent_ops = ["split", "merge"]
 
@@ -1833,7 +1833,7 @@ def format(args):
                     cds_track[cds_parent].append((g.start, g.end))
 
     if opts.verifySO:
-        so = load_GODag()
+        so, _ = GODag_from_SO()
         valid_soterm = {}
 
     fw = must_open(outfile, "w")

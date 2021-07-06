@@ -10,21 +10,39 @@ import sys
 import logging
 
 from collections import deque
+from functools import partial
+from typing import IO, Optional
 
 from goatools.obo_parser import GODag
 from jcvi.apps.base import OptionParser
 
+GO_URL = "http://purl.obolibrary.org/obo/go/go-basic.obo"
+SO_URL = (
+    "http://obo.cvs.sourceforge.net/viewvc/obo/obo/ontology/genomic-proteomic/so.obo"
+)
 
-def load_GODag():
+
+def load_GODag(obo_url: str, prt: Optional[IO] = None) -> (GODag, str):
     """
-    OBO file retrieved from http://obo.cvs.sourceforge.net/viewvc/obo/obo/ontology/genomic-proteomic/so.obo
+    Load given obo url and returns GODag object.
+
+    Args:
+        obo_url (str): URL to the remote OBO file.
+        prt (Optional[IO]): IO stream to print verbose information.
+
+    Returns:
+        (GODag, str): GODag object that contains the dict, and path to the downloaded OBO file.
     """
+
     from jcvi.apps.base import download
 
-    so_file_url = "http://obo.cvs.sourceforge.net/viewvc/obo/obo/ontology/genomic-proteomic/so.obo"
-    so_file = download(so_file_url, debug=False)
+    so_file = download(obo_url, debug=False)
 
-    return GODag(so_file)
+    return GODag(so_file, prt=prt), so_file
+
+
+GODag_from_GO = partial(load_GODag, obo_url=GO_URL)
+GODag_from_SO = partial(load_GODag, obo_url=SO_URL)
 
 
 def validate_term(term, so=None, method="verify"):
@@ -32,7 +50,7 @@ def validate_term(term, so=None, method="verify"):
     Validate an SO term against so.obo
     """
     if so is None:
-        so = load_GODag()
+        so, _ = GODag_from_SO()
 
     oterm = term
     valid_names = set(x.name for x in so.values())
@@ -68,13 +86,13 @@ if __name__ == "__main__":
 
     (obo_file,) = args
 
-    def description(rec):
-        level = "level-{:>02}".format(rec.level)
-        description = "{} [{}]".format(rec.name, rec.namespace)
-        if rec.is_obsolete:
-            description += " obsolete"
-        alt_ids = ",".join(rec.alt_ids)
-        return "\t".join((rec.item_id, level, description, alt_ids))
+    def description(record):
+        level = "level-{:>02}".format(record.level)
+        desc = "{} [{}]".format(record.name, record.namespace)
+        if record.is_obsolete:
+            desc += " obsolete"
+        alt_ids = ",".join(record.alt_ids)
+        return "\t".join((record.item_id, level, desc, alt_ids))
 
     g = GODag(obo_file, prt=None)
     header = "\t".join(("#id", "level", "name", "alt_ids"))

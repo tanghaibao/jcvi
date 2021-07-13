@@ -9,9 +9,12 @@ the positions of tracks. For example:
 
 #x, y, rotation, ha, va, color, ratio
 0.5, 0.6, 0, left, center, g
-0.25, 0.7, 45, top, center, m
+0.25, 0.7, 45, center, center, m
 
 With the row ordering corresponding to the column ordering in the MCscan output.
+
+For "ha" (horizontal alignment), accepted values are: left|right|leftalign|rightalign|center|""(empty)
+For "va" (vertical alignment), accepted values are: top|bottom|center|""(empty)
 """
 
 import sys
@@ -22,6 +25,7 @@ from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import DictFile
 from jcvi.utils.cbook import human_size
+from jcvi.utils.validator import validate_in_choices, validate_in_range
 from jcvi.apps.base import OptionParser
 
 from jcvi.graphics.glyph import (
@@ -42,6 +46,11 @@ from jcvi.graphics.base import (
 )
 
 
+HorizontalAlignments = ("left", "right", "leftalign", "rightalign", "center", "")
+VerticalAlignments = ("top", "bottom", "center", "")
+CanvasSize = 0.65
+
+
 class LayoutLine(object):
     def __init__(self, row, delimiter=","):
         self.hidden = row[0] == "*"
@@ -50,10 +59,16 @@ class LayoutLine(object):
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
         self.x = float(args[0])
+        validate_in_range(self.x, 0, 1, "XPosition(x) column")
         self.y = float(args[1])
+        validate_in_range(self.y, 0, 1, "YPosition(y) column")
         self.rotation = int(args[2])
         self.ha = args[3]
+        validate_in_choices(
+            self.ha, HorizontalAlignments, "HorizontaAlignment(ha) column"
+        )
         self.va = args[4]
+        validate_in_choices(self.va, VerticalAlignments, "VerticalAlignment(va) column")
         self.color = args[5]
         self.ratio = 1
         if len(args) > 6:
@@ -284,8 +299,14 @@ class Region(object):
         if ha == "left":
             xx = xstart - hpad
             ha = "right"
+        elif ha == "leftalign":
+            xx = 0.5 - CanvasSize / 2 - hpad
+            ha = "right"
         elif ha == "right":
             xx = xend + hpad
+            ha = "left"
+        elif ha == "rightalign":
+            xx = 0.5 + CanvasSize / 2 + hpad
             ha = "left"
         else:
             xx = x
@@ -330,7 +351,7 @@ class Region(object):
                         loc_label,
                         color="lightslategrey",
                         size=10,
-                        **kwargs
+                        **kwargs,
                     )
                 else:
                     ax.text(lx, ly, chr_label, color=layout.color, **kwargs)
@@ -392,7 +413,7 @@ class Synteny(object):
                 extras.append(ef_pruned)
 
         maxspan = max(exts, key=lambda x: x[-1])[-1]
-        scale = maxspan / 0.65
+        scale = maxspan / CanvasSize
 
         self.gg = gg = {}
         self.rr = []

@@ -18,6 +18,7 @@ natsort
 networkx
 numpy
 ortools
+pytest
 rich
 scikit-image
 scipy

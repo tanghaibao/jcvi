@@ -25,6 +25,7 @@ from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import DictFile
 from jcvi.utils.cbook import human_size
+from jcvi.utils.validator import validate_in_choices, validate_in_range
 from jcvi.apps.base import OptionParser
 
 from jcvi.graphics.glyph import (
@@ -44,6 +45,7 @@ from jcvi.graphics.base import (
     AbstractLayout,
 )
 
+
 HorizontalAlignments = ("left", "right", "leftalign", "rightalign", "center", "")
 VerticalAlignments = ("top", "bottom", "center", "")
 CanvasSize = 0.65
@@ -57,16 +59,16 @@ class LayoutLine(object):
         args = row.rstrip().split(delimiter)
         args = [x.strip() for x in args]
         self.x = float(args[0])
+        validate_in_range(self.x, 0, 1, "XPosition(x) column")
         self.y = float(args[1])
+        validate_in_range(self.y, 0, 1, "YPosition(y) column")
         self.rotation = int(args[2])
         self.ha = args[3]
-        assert (
-            self.ha in HorizontalAlignments
-        ), f"HorizontaAlignment(ha) column must be one of {HorizontalAlignments}"
+        validate_in_choices(
+            self.ha, HorizontalAlignments, "HorizontaAlignment(ha) column"
+        )
         self.va = args[4]
-        assert (
-            self.va in VerticalAlignments
-        ), f"VerticalAlignment(va) must be one of {VerticalAlignments}"
+        validate_in_choices(self.va, VerticalAlignments, "VerticalAlignment(va) column")
         self.color = args[5]
         self.ratio = 1
         if len(args) > 6:

@@ -672,8 +672,8 @@ def ortholog(args):
     minsize_flag = "--min_size={}".format(opts.n)
     cpus_flag = "--cpus={}".format(opts.cpus)
 
-    aprefix = afasta.split(".")[0]
-    bprefix = bfasta.split(".")[0]
+    aprefix = op.basename(a)
+    bprefix = op.basename(b)
     pprefix = ".".join((aprefix, bprefix))
     qprefix = ".".join((bprefix, aprefix))
     last = pprefix + ".last"

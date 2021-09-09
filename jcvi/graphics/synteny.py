@@ -21,6 +21,8 @@ import sys
 import logging
 import numpy as np
 
+from typing import Optional
+
 from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import DictFile
@@ -184,6 +186,7 @@ class Region(object):
         switch=None,
         chr_label=True,
         loc_label=True,
+        gene_labels: Optional[set] = None,
         genelabelsize=0,
         pad=0.05,
         vpad=0.015,
@@ -263,7 +266,7 @@ class Region(object):
                 zorder=zorder,
             )
             gp.set_transform(tr)
-            if genelabelsize:
+            if genelabelsize and (not gene_labels or gene_name in gene_labels):
                 ax.text(
                     (x1 + x2) / 2,
                     y + height / 2 + genelabelsize * vpad / 3,
@@ -376,6 +379,7 @@ class Synteny(object):
         extra_features=None,
         chr_label=True,
         loc_label=True,
+        gene_labels: Optional[set] = None,
         genelabelsize=0,
         pad=0.05,
         vpad=0.015,
@@ -433,6 +437,7 @@ class Synteny(object):
                 bed,
                 scale,
                 switch,
+                gene_labels=gene_labels,
                 genelabelsize=genelabelsize,
                 chr_label=chr_label,
                 loc_label=loc_label,
@@ -569,6 +574,10 @@ def main():
     p.add_option("--tree", help="Display trees on the bottom of the figure")
     p.add_option("--extra", help="Extra features in BED format")
     p.add_option(
+        "--genelabels",
+        help='Show only these gene labels, separated by comma. Example: "At1g12340,At5g54690"',
+    )
+    p.add_option(
         "--genelabelsize",
         default=0,
         type="int",
@@ -608,6 +617,7 @@ def main():
     datafile, bedfile, layoutfile = args
     switch = opts.switch
     tree = opts.tree
+    gene_labels = None if not opts.genelabels else set(opts.genelabels.split(","))
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -621,6 +631,7 @@ def main():
         switch=switch,
         tree=tree,
         extra_features=opts.extra,
+        gene_labels=gene_labels,
         genelabelsize=opts.genelabelsize,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,

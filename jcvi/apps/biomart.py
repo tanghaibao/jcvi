@@ -66,7 +66,7 @@ class PhytozomePath(dict):
         else:
             self.name = element.attrib["name"]
         self.tag = tag
-        for child in element.getchildren():
+        for child in list(element):
             if child.tag not in self.TAGS_OF_INTEREST:
                 continue
             child = PhytozomePath(child)

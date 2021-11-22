@@ -37,7 +37,7 @@ KMERYL, KSOAP, KALLPATHS = range(3)
 
 class KmerSpectrum(BaseFile):
     def __init__(self, histfile):
-        super(BaseFile, self).__init__(histfile)
+        super(KmerSpectrum, self).__init__(histfile)
         self.load_data(histfile)
 
     def load_data(self, histfile):
@@ -115,7 +115,7 @@ class KmerSpectrum(BaseFile):
         # Generate bins for the decomposed negative binomial distributions
         bins = [
             (i, i) for i in range(1, 9)
-        ]  # The first 8 CN are critical often determins ploidy
+        ]  # The first 8 CN are critical often determines ploidy
         for i in (8, 16, 32, 64, 128, 256, 512):  # 14 geometricly sized bins
             a, b = i + 1, int(round(i * 2 ** 0.5))
             bins.append((a, b))
@@ -125,26 +125,32 @@ class KmerSpectrum(BaseFile):
         # Convert histogram to np array so we can index by CN
         kf_ceil = max([cov for cov, _ in self.data])
         N = kf_ceil + 1
-        hist = np.zeros(N, dtype=np.int)
+        hist = np.zeros(N, dtype=int)
         for cov, count in self.data:
             hist[cov] = count
 
         # min1: find first minimum
-        _kf_min1 = 10
-        while _kf_min1 - 1 >= 2 and hist[_kf_min1 - 1] < hist[_kf_min1]:
+        _kf_min1 = 5
+        while (
+            _kf_min1 - 1 >= 2
+            and hist[_kf_min1 - 1] * (_kf_min1 - 1) < hist[_kf_min1] * _kf_min1
+        ):
             _kf_min1 -= 1
-        while _kf_min1 <= kf_ceil and hist[_kf_min1 + 1] < hist[_kf_min1]:
+        while (
+            _kf_min1 <= kf_ceil
+            and hist[_kf_min1 + 1] * (_kf_min1 + 1) < hist[_kf_min1] * _kf_min1
+        ):
             _kf_min1 += 1
 
         # max2: find absolute maximum mx2 above first minimum min1
         _kf_max2 = _kf_min1
         for kf in range(_kf_min1 + 1, int(0.8 * kf_ceil)):
-            if hist[kf] > hist[_kf_max2]:
+            if hist[kf] * kf > hist[_kf_max2] * _kf_max2:
                 _kf_max2 = kf
 
         # Discard the last entry as that is usually an inflated number
         hist = hist[:-1]
-        kf_range = np.arange(_kf_min1, len(hist), dtype=np.int)
+        kf_range = np.arange(_kf_min1, len(hist), dtype=int)
         P = hist[kf_range] * kf_range  # Target distribution
         print("==> Start nbinom method on range ({}, {})".format(_kf_min1, len(hist)))
 

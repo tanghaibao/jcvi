@@ -131,15 +131,21 @@ class KmerSpectrum(BaseFile):
 
         # min1: find first minimum
         _kf_min1 = 5
-        while _kf_min1 - 1 >= 2 and hist[_kf_min1 - 1] < hist[_kf_min1]:
+        while (
+            _kf_min1 - 1 >= 2
+            and hist[_kf_min1 - 1] * (_kf_min1 - 1) < hist[_kf_min1] * _kf_min1
+        ):
             _kf_min1 -= 1
-        while _kf_min1 <= kf_ceil and hist[_kf_min1 + 1] < hist[_kf_min1]:
+        while (
+            _kf_min1 <= kf_ceil
+            and hist[_kf_min1 + 1] * (_kf_min1 + 1) < hist[_kf_min1] * _kf_min1
+        ):
             _kf_min1 += 1
 
         # max2: find absolute maximum mx2 above first minimum min1
         _kf_max2 = _kf_min1
         for kf in range(_kf_min1 + 1, int(0.8 * kf_ceil)):
-            if hist[kf] > hist[_kf_max2]:
+            if hist[kf] * kf > hist[_kf_max2] * _kf_max2:
                 _kf_max2 = kf
 
         # Discard the last entry as that is usually an inflated number

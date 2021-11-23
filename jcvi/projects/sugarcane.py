@@ -17,7 +17,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
-from jcvi.graphics.base import normalize_axes, adjust_spines, savefig
+from jcvi.graphics.base import adjust_spines, markup, normalize_axes, savefig
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
@@ -185,7 +185,7 @@ class GenomeSummary:
             round(np.min(a), precision),
             round(np.max(a), precision),
         )
-        s = f"{tag} chr: {mean:.0f}"
+        s = f"*{tag}* chr: {mean:.0f}"
         if min == mean and max == mean:
             return s
         return s + f" ({min:.0f}-{max:.0f})"
@@ -196,11 +196,11 @@ class GenomeSummary:
             round(np.min(a), precision),
             round(np.max(a), precision),
         )
-        s = f"{tag}\%: {mean:.1f}\%"
+        s = f"*{tag}*%: {mean:.1f}%"
         print(s)
         if min == mean and max == mean:
             return s
-        return s + f" ({min:.1f}-{max:.1f}\%)"
+        return s + f" ({min:.1f}-{max:.1f}%)"
 
     @property
     def percent_SO_summary(self):
@@ -328,10 +328,14 @@ def plot_summary(ax, samples):
         va="center",
         transform=ax.transAxes,
     )
-    ax.text(0.75, 0.85, summary.SS_summary, color=SsColor, **summary_style)
-    ax.text(0.75, 0.65, summary.percent_SS_summary, color=SsColor, **summary_style)
-    ax.text(0.25, 0.85, summary.SO_summary, color=SoColor, **summary_style)
-    ax.text(0.25, 0.65, summary.percent_SO_summary, color=SoColor, **summary_style)
+    ax.text(0.75, 0.85, markup(summary.SS_summary), color=SsColor, **summary_style)
+    ax.text(
+        0.75, 0.65, markup(summary.percent_SS_summary), color=SsColor, **summary_style
+    )
+    ax.text(0.25, 0.85, markup(summary.SO_summary), color=SoColor, **summary_style)
+    ax.text(
+        0.25, 0.65, markup(summary.percent_SO_summary), color=SoColor, **summary_style
+    )
 
     return summary
 

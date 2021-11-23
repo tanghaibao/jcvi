@@ -318,16 +318,30 @@ def plot_summary(ax, samples):
     # Avoid overlapping bars
     SS_counter, SO_counter = Counter(SS_data), Counter(SO_data)
     overlaps = SS_counter.keys() & SO_counter.keys()
+    shift = 0.5  # used to offset bars a bit to avoid cluttering
     if overlaps:
-        shift = 0.5  # used to offset bars a bit to avoid cluttering
         for overlap in overlaps:
-            logging.debug(
-                f"Slightly modify bar offsets at {overlap} due to SS and SO overlaps"
-            )
+            logging.debug(f"Modify bar offsets at {overlap} due to SS and SO overlaps")
             SS_counter[overlap - shift] = SS_counter[overlap]
             del SS_counter[overlap]
             SO_counter[overlap + shift] = SO_counter[overlap]
             del SO_counter[overlap]
+
+    def modify_range_end(d: dict, value: int):
+        if value not in d:
+            return
+        # Has data at the range end, but no adjacent data points (i.e. isolated bar)
+        if value in d and (value - 1 in d or value + 1 in d):
+            return
+        logging.debug(f"Modify bar offsets at {value} due to end of range ends")
+        d[value - shift if value else value + shift] = d[80]
+        del d[value]
+
+    modify_range_end(SS_counter, 0)
+    modify_range_end(SS_counter, 80)
+    modify_range_end(SO_counter, 0)
+    modify_range_end(SO_counter, 80)
+
     x, y = zip(*sorted(SS_counter.items()))
     ax.bar(np.array(x), y, color=SsColor, ec=SsColor)
     x, y = zip(*sorted(SO_counter.items()))

@@ -15,7 +15,6 @@ from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
     sh,
-    debug,
     need_update,
     mkdir,
     popen,

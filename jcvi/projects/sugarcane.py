@@ -7,7 +7,7 @@
 # Created by Haibao Tang on 12/02/19
 # Copyright © 2019 Haibao Tang. All rights reserved.
 #
-
+import logging
 import os.path as op
 import sys
 from random import random, sample
@@ -98,11 +98,11 @@ class Genome:
         # Randomly assign the rest, singleton chromosomes
         for group, chromosomes in groupby(singleton_chromosomes, key=prefix):
             chromosomes = list(chromosomes)
-            halfN = len(chromosomes) // 2
+            halfn = len(chromosomes) // 2
             # Odd number, e.g. 5, equal chance to be 2 or 3
             if len(chromosomes) % 2 != 0 and random() < 0.5:
-                halfN += 1
-            gamete_chromosomes += sorted(sample(chromosomes, halfN))
+                halfn += 1
+            gamete_chromosomes += sorted(sample(chromosomes, halfn))
         return Genome.make(self.name + " gamete", gamete_chromosomes)
 
     def mate_nplusn(self, name, other_genome, verbose=True):
@@ -115,7 +115,7 @@ class Genome:
         )
         return Genome.make(name, f1_chromosomes)
 
-    def mate_2xnplusn(self, name, other_genome, verbose=True):
+    def mate_nx2plusn(self, name, other_genome, verbose=True):
         if verbose:
             print(
                 f"Crossing '{self.name}' x '{other_genome.name}' (2xn+n)",
@@ -220,35 +220,37 @@ class GenomeSummary:
         return self._summary(self.SS_data, "Ss")
 
 
-def simulate_F1(SO, SS, verbose=False):
-    SO_SS_F1_2xnplusn = SO.mate_2xnplusn("SOxSS F1", SS, verbose=verbose)
-    if verbose:
-        SO_SS_F1_2xnplusn.print_summary()
-    return SO_SS_F1_2xnplusn
-
-
-def simulate_F2(SO, SS, verbose=False):
-    SO_SS_F1_2xnplusn = simulate_F1(SO, SS, verbose=verbose)
-    SO_SS_F2_nplusn = SO_SS_F1_2xnplusn.mate_nplusn(
-        "SOxSS F2", SO_SS_F1_2xnplusn, verbose=verbose
+def simulate_F1(SO, SS, mode="nx2+n", verbose=False):
+    SO_SS_F1 = (
+        SO.mate_nx2plusn("SOxSS F1", SS, verbose=verbose)
+        if mode == "nx2+n"
+        else SO.mate_2nplusn("SOxSS F1", SS, verbose=verbose)
     )
+    if verbose:
+        SO_SS_F1.print_summary()
+    return SO_SS_F1
+
+
+def simulate_F2(SO, SS, mode="nx2+n", verbose=False):
+    SO_SS_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
+    SO_SS_F2_nplusn = SO_SS_F1.mate_nplusn("SOxSS F2", SO_SS_F1, verbose=verbose)
     if verbose:
         SO_SS_F2_nplusn.print_summary()
     return SO_SS_F2_nplusn
 
 
-def simulate_F1intercross(SO, SS, verbose=False):
-    SO_SS_F1_2xnplusn_1 = simulate_F1(SO, SS, verbose=verbose)
-    SO_SS_F1_2xnplusn_2 = simulate_F1(SO, SS, verbose=verbose)
-    SO_SS_F1intercross_nplusn = SO_SS_F1_2xnplusn_1.mate_nplusn(
-        "SOxSS F1 intercross", SO_SS_F1_2xnplusn_2, verbose=verbose
+def simulate_F1intercross(SO, SS, mode="nx2+n", verbose=False):
+    SO_SS_F1_1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
+    SO_SS_F1_2 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
+    SO_SS_F1intercross_nplusn = SO_SS_F1_1.mate_nplusn(
+        "SOxSS F1 intercross", SO_SS_F1_2, verbose=verbose
     )
     return SO_SS_F1intercross_nplusn
 
 
-def simulate_BCn(n, SO, SS, verbose=False):
-    SS_SO_F1_2xnplusn = simulate_F1(SO, SS, verbose=verbose)
-    SS_SO_BC1_2xnplusn, SS_SO_BC2_nplusn, SS_SO_BC3_nplusn, SS_SO_BC4_nplusn = (
+def simulate_BCn(n, SO, SS, mode="nx2+n", verbose=False):
+    SS_SO_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
+    SS_SO_BC1, SS_SO_BC2_nplusn, SS_SO_BC3_nplusn, SS_SO_BC4_nplusn = (
         None,
         None,
         None,
@@ -256,14 +258,14 @@ def simulate_BCn(n, SO, SS, verbose=False):
     )
     # BC1
     if n >= 1:
-        SS_SO_BC1_2xnplusn = SO.mate_2xnplusn(
-            "SSxSO BC1", SS_SO_F1_2xnplusn, verbose=verbose
+        SS_SO_BC1 = (
+            SO.mate_nx2plusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
+            if mode == "nx2+n"
+            else SO.mate_2nplusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
         )
     # BC2
     if n >= 2:
-        SS_SO_BC2_nplusn = SO.mate_nplusn(
-            "SSxSO BC2", SS_SO_BC1_2xnplusn, verbose=verbose
-        )
+        SS_SO_BC2_nplusn = SO.mate_nplusn("SSxSO BC2", SS_SO_BC1, verbose=verbose)
     # BC3
     if n >= 3:
         SS_SO_BC3_nplusn = SO.mate_nplusn(
@@ -276,7 +278,7 @@ def simulate_BCn(n, SO, SS, verbose=False):
         )
     return [
         None,
-        SS_SO_BC1_2xnplusn,
+        SS_SO_BC1,
         SS_SO_BC2_nplusn,
         SS_SO_BC3_nplusn,
         SS_SO_BC4_nplusn,
@@ -384,6 +386,7 @@ def simulate(args):
 
     (mode,) = args
     validate_in_choices(mode, ["2n+n", "nx2+n"], "Mode")
+    logging.info(f"Simulation mode: {mode}")
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -413,12 +416,20 @@ def simulate(args):
     SO = Genome("SO", "SO", 8, 10)
 
     verbose = opts.verbose
-    all_F1s = [simulate_F1(SO, SS, verbose=verbose) for _ in range(1000)]
-    all_F2s = [simulate_F2(SO, SS, verbose=verbose) for _ in range(1000)]
-    all_BC1s = [simulate_BCn(1, SO, SS, verbose=verbose) for _ in range(1000)]
-    all_BC2s = [simulate_BCn(2, SO, SS, verbose=verbose) for _ in range(1000)]
-    all_BC3s = [simulate_BCn(3, SO, SS, verbose=verbose) for _ in range(1000)]
-    all_BC4s = [simulate_BCn(4, SO, SS, verbose=verbose) for _ in range(1000)]
+    all_F1s = [simulate_F1(SO, SS, mode=mode, verbose=verbose) for _ in range(1000)]
+    all_F2s = [simulate_F2(SO, SS, mode=mode, verbose=verbose) for _ in range(1000)]
+    all_BC1s = [
+        simulate_BCn(1, SO, SS, mode=mode, verbose=verbose) for _ in range(1000)
+    ]
+    all_BC2s = [
+        simulate_BCn(2, SO, SS, mode=mode, verbose=verbose) for _ in range(1000)
+    ]
+    all_BC3s = [
+        simulate_BCn(3, SO, SS, mode=mode, verbose=verbose) for _ in range(1000)
+    ]
+    all_BC4s = [
+        simulate_BCn(4, SO, SS, mode=mode, verbose=verbose) for _ in range(1000)
+    ]
 
     # Plotting
     plot_summary(ax1, all_F1s)
@@ -464,9 +475,9 @@ def simulate(args):
     adjust_spines(axes[-1], ["bottom"], outward=True)
     normalize_axes(root)
 
-    savefig("plotter.pdf", dpi=120)
+    savefig(f"{mode}.pdf", dpi=120)
 
-    outdir = "simulations"
+    outdir = f"simulations_{mode}"
     mkdir(outdir)
     # Write chromosomes to disk
     for genomes, filename in (
@@ -534,8 +545,8 @@ def prepare(args):
 
     solist, sslist = args
     # The haploid set of LA Purple is 957.2 Mb and haploid set of US56-14-4 is 732.5 Mb
-    sizes = _get_sizes(solist, 5, "SO", target_size=957.2 * 1e6)
-    sizes.update(_get_sizes(sslist, 4, "SS", target_size=732.5 * 1e6))
+    sizes = _get_sizes(solist, 5, "SO", target_size=int(957.2 * 1e6))
+    sizes.update(_get_sizes(sslist, 4, "SS", target_size=int(732.5 * 1e6)))
     print(sizes)
 
 

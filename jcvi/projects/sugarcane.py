@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 from jcvi.graphics.base import adjust_spines, markup, normalize_axes, savefig
+from jcvi.utils.validator import validate_in_choices
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
@@ -355,9 +356,16 @@ def write_chromosomes(genomes, filename):
 
 def simulate(args):
     """
-    %prog simulate
+    %prog simulate [2n+n|nx2+n]
 
-    Run simulation on female restitution.
+    Run simulation on female restitution. There are two modes:
+    - 2n+n: merger between a somatic and a germline
+    - nx2+n: merger between a doubled germline and a germline
+
+    These two modes would impact the sequence diversity in the progeny
+    genome in F1, F2, BCn ... the goal of this simulation, is thus to
+    understand the mode and the spread of such diversity in the hybrid
+    progenies.
     """
     import seaborn as sns
 
@@ -371,8 +379,11 @@ def simulate(args):
         help="Verbose logging during simulation",
     )
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
-    if len(args) != 0:
+    if len(args) != 1:
         sys.exit(not p.print_help())
+
+    (mode,) = args
+    validate_in_choices(mode, ["2n+n", "nx2+n"], "Mode")
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))

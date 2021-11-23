@@ -259,6 +259,7 @@ def simulate_BCn(n, SO, SS, mode="nx2+n", verbose=False):
     # BC1
     if n >= 1:
         SS_SO_BC1 = (
+            # Expecting one more round of female restitution in BC1
             SO.mate_nx2plusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
             if mode == "nx2+n"
             else SO.mate_2nplusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
@@ -314,11 +315,23 @@ def plot_summary(ax, samples):
         assert total_tag == "Total"
         percent_SO = total_so_size * 100.0 / total_size
         percent_SO_data.append(percent_SO)
-    shift = 0.5  # used to offset bars a bit to avoid cluttering
-    x, y = zip(*sorted(Counter(SS_data).items()))
-    ax.bar(np.array(x) - shift, y, color=SsColor, ec=SsColor)
-    x, y = zip(*sorted(Counter(SO_data).items()))
-    ax.bar(np.array(x) + shift, y, color=SoColor, ec=SoColor)
+    # Avoid overlapping bars
+    SS_counter, SO_counter = Counter(SS_data), Counter(SO_data)
+    overlaps = SS_counter.keys() & SO_counter.keys()
+    if overlaps:
+        shift = 0.5  # used to offset bars a bit to avoid cluttering
+        for overlap in overlaps:
+            logging.debug(
+                f"Slightly modify bar offsets at {overlap} due to SS and SO overlaps"
+            )
+            SS_counter[overlap - shift] = SS_counter[overlap]
+            del SS_counter[overlap]
+            SO_counter[overlap + shift] = SO_counter[overlap]
+            del SO_counter[overlap]
+    x, y = zip(*sorted(SS_counter.items()))
+    ax.bar(np.array(x), y, color=SsColor, ec=SsColor)
+    x, y = zip(*sorted(SO_counter.items()))
+    ax.bar(np.array(x), y, color=SoColor, ec=SoColor)
     ax.set_xlim(80, 0)
     ax.set_ylim(0, 500)
     ax.set_yticks([])
@@ -474,6 +487,9 @@ def simulate(args):
     axes[-1].set_xlabel("Number of unique chromosomes")
     adjust_spines(axes[-1], ["bottom"], outward=True)
     normalize_axes(root)
+
+    # Title
+    root.text(0.5, 0.95, f"Simulation mode: {mode}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)
 

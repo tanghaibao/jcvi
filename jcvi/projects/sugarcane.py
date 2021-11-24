@@ -510,7 +510,7 @@ def simulate(args):
 
     # Title
     mode_title = r"$n_1\times2 + n_2$" if mode == "nx2+n" else r"$2n + n$"
-    root.text(0.5, 0.95, f"Simulation mode: {mode_title}", ha="center")
+    root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)
 

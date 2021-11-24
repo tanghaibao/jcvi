@@ -426,7 +426,7 @@ def simulate(args):
 
     (mode,) = args
     validate_in_choices(mode, ["2n+n", "nx2+n"], "Mode")
-    logging.info(f"Simulation mode: {mode}")
+    logging.info(f"Transmission: {mode}")
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))

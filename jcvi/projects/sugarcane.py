@@ -286,12 +286,12 @@ def simulate_BCn(n, SO, SS, mode="nx2+n", verbose=False):
     ][n]
 
 
-def plot_summary(ax, samples):
+def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     """Plot the distribution of chromosome numbers given simulated samples.
 
     Args:
         ax (Axes): Matplotlib axes.
-        samples ([Genome]): Summarized genomes.
+        samples (list[Genome]): Summarized genomes.
 
     Returns:
         GenomeSummary: Summary statistics of simulated genomes.
@@ -370,17 +370,29 @@ def plot_summary(ax, samples):
     return summary
 
 
-def write_chromosomes(genomes, filename):
+def write_chromosomes(genomes: list[Genome], filename: str):
     """Write simulated chromosomes to file
 
     Args:
-        genomes (List[Genome]): List of simulated genomes.
-        filename: File path to write to.
+        genomes (list[Genome]): List of simulated genomes.
+        filename (str): File path to write to.
     """
     print(f"Write chromosomes to `{filename}`", file=sys.stderr)
     with open(filename, "w") as fw:
         for genome in genomes:
             print(genome, file=fw)
+
+
+def write_SO_percent(summary: GenomeSummary, filename: str):
+    """Write SO % to file
+
+    Args:
+        summary (GenomeSummary): List of simulated genomes.
+        filename (str): File path to write to.
+    """
+    print(f"Write SO percent to `{filename}`", file=sys.stderr)
+    with open(filename, "w") as fw:
+        print("\n".join(str(x) for x in sorted(summary.percent_SO_data)), file=fw)
 
 
 def simulate(args):
@@ -453,8 +465,8 @@ def simulate(args):
     all_BC4s = [simulate_BCn(4, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
 
     # Plotting
-    plot_summary(ax1, all_F1s)
-    plot_summary(ax2, all_F2s)
+    all_F1s_summary = plot_summary(ax1, all_F1s)
+    all_F2s_summary = plot_summary(ax2, all_F2s)
     plot_summary(ax3, all_BC1s)
     plot_summary(ax4, all_BC2s)
     plot_summary(ax5, all_BC3s)
@@ -514,6 +526,13 @@ def simulate(args):
         (all_BC4s, "all_BC4s"),
     ):
         write_chromosomes(genomes, op.join(outdir, filename))
+
+    # Write the SO percent in simulated samples so that we can compute P-value
+    for summary, SO_percent_filename in (
+        (all_F1s_summary, "all_F1s_SO_percent"),
+        (all_F2s_summary, "all_F2s_SO_percent"),
+    ):
+        write_SO_percent(summary, op.join(outdir, SO_percent_filename))
 
 
 def _get_sizes(filename, prefix_length, tag, target_size=None):

@@ -347,7 +347,7 @@ def plot_summary(ax, samples):
     x, y = zip(*sorted(SO_counter.items()))
     ax.bar(np.array(x), y, color=SoColor, ec=SoColor)
     ax.set_xlim(80, 0)
-    ax.set_ylim(0, 500)
+    ax.set_ylim(0, len(samples) / 2)
     ax.set_yticks([])
     summary = GenomeSummary(SO_data, SS_data, percent_SO_data)
 
@@ -407,6 +407,7 @@ def simulate(args):
         action="store_true",
         help="Verbose logging during simulation",
     )
+    p.add_option("-N", default=10000, type="int", help="Number of simulated samples")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -443,20 +444,13 @@ def simulate(args):
     SO = Genome("SO", "SO", 8, 10)
 
     verbose = opts.verbose
-    all_F1s = [simulate_F1(SO, SS, mode=mode, verbose=verbose) for _ in range(1000)]
-    all_F2s = [simulate_F2(SO, SS, mode=mode, verbose=verbose) for _ in range(1000)]
-    all_BC1s = [
-        simulate_BCn(1, SO, SS, mode=mode, verbose=verbose) for _ in range(1000)
-    ]
-    all_BC2s = [
-        simulate_BCn(2, SO, SS, mode=mode, verbose=verbose) for _ in range(1000)
-    ]
-    all_BC3s = [
-        simulate_BCn(3, SO, SS, mode=mode, verbose=verbose) for _ in range(1000)
-    ]
-    all_BC4s = [
-        simulate_BCn(4, SO, SS, mode=mode, verbose=verbose) for _ in range(1000)
-    ]
+    N = opts.N
+    all_F1s = [simulate_F1(SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
+    all_F2s = [simulate_F2(SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
+    all_BC1s = [simulate_BCn(1, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
+    all_BC2s = [simulate_BCn(2, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
+    all_BC3s = [simulate_BCn(3, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
+    all_BC4s = [simulate_BCn(4, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
 
     # Plotting
     plot_summary(ax1, all_F1s)
@@ -503,7 +497,8 @@ def simulate(args):
     normalize_axes(root)
 
     # Title
-    root.text(0.5, 0.95, f"Simulation mode: {mode}", ha="center")
+    mode_title = r"$n_1\times2 + n_2$" if mode == "nx2+n" else r"$2n + n$"
+    root.text(0.5, 0.95, f"Simulation mode: {mode_title}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)
 

@@ -163,13 +163,10 @@ class FileMerger(object):
         ingz, outgz = self.ingz, self.outgz
         if ingz and outgz:  # can merge gz files directly
             cmd = "cat {}".format(files)
-            if outfile not in ("-", "stdout"):
-                cmd += " > {}".format(outfile)
-            sh(cmd)
         else:
             cmd = "zcat" if self.ingz else "cat"
             cmd += " " + files
-            sh(cmd, outfile=outfile)
+        sh(cmd, outfile=outfile)
 
         return outfile
 

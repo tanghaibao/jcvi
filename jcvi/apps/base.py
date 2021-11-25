@@ -1166,7 +1166,7 @@ def sh(
             if infile.endswith(".gz"):
                 cat = "zcat"
             cmd = "{0} {1} |".format(cat, infile) + cmd
-        if outfile and outfile != "stdout":
+        if outfile and outfile not in ("-", "stdout"):
             if outfile.endswith(".gz"):
                 cmd += " | gzip"
             tag = ">"

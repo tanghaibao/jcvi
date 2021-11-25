@@ -1,0 +1,6 @@
+refine:
+  action: refine
+  opts: --outfile=stdout
+  args: __DIR__/inputs/breakpoints.bed __DIR__/inputs/genome.gaps.bed
+  outputs: [stdout]
+  references: [references/breakpoints.genome.refined.bed]

@@ -19,6 +19,14 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
 
+      - name: Install BEDTools (Linux)
+        run: sudo apt-get install bedtools
+        if: matrix.os == 'ubuntu-latest'
+
+      - name: Install BEDTools (macOS)
+        run: brew install bedtools
+        if: matrix.os == 'macos-latest'
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip

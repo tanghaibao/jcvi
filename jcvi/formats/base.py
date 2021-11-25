@@ -162,12 +162,11 @@ class FileMerger(object):
         files = " ".join(self.filelist)
         ingz, outgz = self.ingz, self.outgz
         if ingz and outgz:  # can merge gz files directly
-            cmd = "cat {0} > {1}".format(files, outfile)
-            sh(cmd)
+            cmd = "cat {}".format(files)
         else:
             cmd = "zcat" if self.ingz else "cat"
             cmd += " " + files
-            sh(cmd, outfile=outfile)
+        sh(cmd, outfile=outfile)
 
         return outfile
 

@@ -14,6 +14,7 @@ There are a few techniques, used in curating medicago assembly.
 5. Find gaps in optical map
 6. Insert unplaced scaffolds using mates
 """
+import os.path as op
 import sys
 import math
 import logging
@@ -810,6 +811,8 @@ def refine(args):
     - Break in the middle of the region
     - Break at the closest gap (--closest)
     """
+    from pybedtools import BedTool
+
     p = OptionParser(refine.__doc__)
     p.add_option(
         "--closest",
@@ -817,6 +820,7 @@ def refine(args):
         action="store_true",
         help="In case of no gaps, use closest",
     )
+    p.set_outfile("auto")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -825,20 +829,18 @@ def refine(args):
     breakpointsbed, gapsbed = args
     ncols = len(next(open(breakpointsbed)).split())
     logging.debug("File %s contains %d columns.", breakpointsbed, ncols)
-    cmd = "intersectBed -wao -a {0} -b {1}".format(breakpointsbed, gapsbed)
+    a = BedTool(breakpointsbed)
+    b = BedTool(gapsbed)
+    o = a.intersect(b, wao=True)
 
-    pf = "{0}.{1}".format(breakpointsbed.split(".")[0], gapsbed.split(".")[0])
-    ingapsbed = pf + ".bed"
-    sh(cmd, outfile=ingapsbed)
-
-    fp = open(ingapsbed)
-    data = [x.split() for x in fp]
-
+    pf = "{0}.{1}".format(
+        op.basename(breakpointsbed).split(".")[0], op.basename(gapsbed).split(".")[0]
+    )
     nogapsbed = pf + ".nogaps.bed"
     largestgapsbed = pf + ".largestgaps.bed"
     nogapsfw = open(nogapsbed, "w")
     largestgapsfw = open(largestgapsbed, "w")
-    for b, gaps in groupby(data, key=lambda x: x[:ncols]):
+    for b, gaps in groupby(o, key=lambda x: x[:ncols]):
         gaps = list(gaps)
         gap = gaps[0]
         if len(gaps) == 1 and gap[-1] == "0":
@@ -848,7 +850,8 @@ def refine(args):
 
         gaps = [(int(x[-1]), x) for x in gaps]
         maxgap = max(gaps)[1]
-        print("\t".join(maxgap), file=largestgapsfw)
+        # Write the gap interval that's intersected (often from column 4 and on)
+        print("\t".join(maxgap[ncols:]), file=largestgapsfw)
 
     nogapsfw.close()
     largestgapsfw.close()
@@ -873,7 +876,7 @@ def refine(args):
         beds += [pointbed]
         toclean += [pointbed]
 
-    refinedbed = pf + ".refined.bed"
+    refinedbed = pf + ".refined.bed" if opts.outfile == "auto" else opts.outfile
     FileMerger(beds, outfile=refinedbed).merge()
 
     # Clean-up

@@ -24,9 +24,7 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
 
       - name: Install BEDTools (macOS)
-        run: |
-          brew tap homebrew/science
-          brew install bedtools
+        run: brew install bedtools
         if: matrix.os == 'macos-latest'
 
       - name: Install dependencies

@@ -848,7 +848,8 @@ def refine(args):
 
         gaps = [(int(x[-1]), x) for x in gaps]
         maxgap = max(gaps)[1]
-        print("\t".join(maxgap), file=largestgapsfw)
+        # Write the gap interval that's intersected (often from column 4 and on)
+        print("\t".join(maxgap[ncols:]), file=largestgapsfw)
 
     nogapsfw.close()
     largestgapsfw.close()

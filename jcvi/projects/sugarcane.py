@@ -476,12 +476,12 @@ def simulate(args):
     xx = xpad / 2
     for (title, subtitle), yy in zip(
         (
-            ("F1", None),
-            ("F2", None),
-            ("BC1", None),
-            ("BC2", None),
-            ("BC3", None),
-            ("BC4", None),
+            (r"$\mathrm{F_1}$", None),
+            (r"$\mathrm{F_2}$", None),
+            (r"$\mathrm{BC_1}$", None),
+            (r"$\mathrm{BC_2}$", None),
+            (r"$\mathrm{BC_3}$", None),
+            (r"$\mathrm{BC_4}$", None),
         ),
         yy_positions,
     ):

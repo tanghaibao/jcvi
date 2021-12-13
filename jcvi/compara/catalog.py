@@ -653,7 +653,10 @@ def ortholog(args):
         help="Distance to extend from liftover. Defaults to half of --dist",
     )
     p.set_cpus()
-    p.set_dotplot_opts()
+    dotplot_group = p.set_dotplot_opts()
+    dotplot_group.add_option(
+        "--notex", default=False, action="store_true", help="Do not use tex"
+    )
 
     opts, args = p.parse_args(args)
 
@@ -729,6 +732,8 @@ def ortholog(args):
                 dargs += ["--genomenames", opts.genomenames]
             if opts.theme:
                 dargs += ["--theme", opts.theme]
+            if opts.notex:
+                dargs += ["--notex"]
             dotplot_main(dargs)
         return
 

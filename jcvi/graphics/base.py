@@ -284,7 +284,7 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True):
     except Exception as e:
         message = "savefig failed. Reset usetex to False."
         message += "\n{0}".format(str(e))
-        logging.error(message)
+        logging.info(message)
         rc("text", usetex=False)
         plt.savefig(figname, dpi=dpi)
 
@@ -397,11 +397,12 @@ def setup_theme(
         pass
 
     if usetex:
-        rc("text", usetex=usetex)
+        rc("text", usetex=True)
     else:
-        logging.error(
+        logging.info(
             "Set text.usetex={}. Font styles may be inconsistent.".format(usetex)
         )
+        rc("text", usetex=False)
 
     if font == "Helvetica":
         rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})

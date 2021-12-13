@@ -589,7 +589,7 @@ class OptionParser(OptionP):
 
         return opts, args, ImageOptions(opts)
 
-    def set_dotplot_opts(self, theme=2):
+    def set_dotplot_opts(self, theme: int = 2) -> OptionGroup:
         """Used in compara.catalog and graphics.dotplot"""
         from jcvi.graphics.base import set1
 
@@ -628,6 +628,7 @@ class OptionParser(OptionP):
             ),
         )
         self.add_option_group(group)
+        return group
 
     def set_depth(self, depth=50):
         self.add_option("--depth", default=depth, type="float", help="Desired depth")

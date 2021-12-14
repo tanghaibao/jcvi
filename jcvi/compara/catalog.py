@@ -657,6 +657,9 @@ def ortholog(args):
     dotplot_group.add_option(
         "--notex", default=False, action="store_true", help="Do not use tex"
     )
+    dotplot_group.add_option(
+        "--no_dotplot", default=False, action="store_true", help="Do not make dotplot"
+    )
 
     opts, args = p.parse_args(args)
 
@@ -718,7 +721,7 @@ def ortholog(args):
             scan(dargs)
         if quota:
             quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])
-        if need_update(anchors, pdf):
+        if need_update(anchors, pdf) and not opts.no_dotplot:
             from jcvi.graphics.dotplot import dotplot_main
 
             dargs = [anchors]

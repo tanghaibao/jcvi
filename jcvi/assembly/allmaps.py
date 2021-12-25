@@ -1118,7 +1118,7 @@ def movie(args):
         image_name = ".".join((seqid, "{0:04d}".format(i), label, "pdf"))
         if need_update(tourfile, image_name):
             fwagp = must_open(agpfile, "w")
-            order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
+            order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize, evidence="map")
             fwagp.close()
             logging.debug("%s written to `%s`.", header, agpfile)
             build([inputbed, scaffoldsfasta, "--cleanup"])
@@ -1622,7 +1622,7 @@ def path(args):
     AGP.print_header(fwagp, comment=comment)
 
     for s in natsorted(solutions, key=lambda x: x.object):
-        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
+        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize, evidence="map")
     fwagp.close()
 
     logging.debug("AGP file written to `%s`.", agpfile)

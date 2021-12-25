@@ -6,6 +6,8 @@
 import os.path as op
 import sys
 
+import numpy as np
+
 from setuptools import setup, find_packages, Extension
 from setuptools.command.test import test as testCommand
 from setup_helper import SetupHelper
@@ -53,13 +55,13 @@ h.install_requirements(requires=["cython", "numpy"])
 
 # Build the ext
 try:
-    import numpy as np
     from Cython.Distutils import build_ext
 
     cmdclass.update({"build_ext": build_ext})
-    include_dirs.append(np.get_include())
 except ImportError:
     print("Cython not installed. Skip compiling Cython extensions.")
+
+include_dirs.append(np.get_include())
 
 ext_modules = [
     Extension(

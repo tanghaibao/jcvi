@@ -28,6 +28,8 @@ from jcvi.utils.range import range_intersect
 from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, need_update
 
 
+Supported_AGP_Version = "2.1"
+AGP_Version_Pragma = "##agp-version " + Supported_AGP_Version
 Valid_component_type = list("ADFGNOPUW")
 
 Valid_gap_type = (
@@ -358,6 +360,7 @@ class AGP(LineFile):
     def print_header(
         cls, fw=sys.stdout, organism=None, taxid=None, source=None, comment=None
     ):
+        print(AGP_Version_Pragma, file=fw)
         # these comments are entirely optional, modeled after maize AGP
         if organism:
             print("# ORGANISM: {0}".format(organism), file=fw)

@@ -12,6 +12,8 @@ import pytest
         ("PMOO", {}, "P"),
         ("contig_xvv", {"contig_xvv"}, "X-"),
         ("chr01", {}, "1"),
+        ("Ttru_Chr1", {}, "1"),
+        ("pseudochromosome_1", {}, "1"),
     ],
 )
 def test_make_circle_name(sid, rev, expected):

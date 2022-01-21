@@ -749,7 +749,7 @@ def parse_fasta(infile, upper=False):
 
 def iter_clean_fasta(fastafile):
     for header, seq in parse_fasta(fastafile):
-        seq = "".join(x for x in seq if x in string.letters or x == "*")
+        seq = "".join(x for x in seq if x in string.ascii_letters or x == "*")
         yield header, seq
 
 

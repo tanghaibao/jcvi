@@ -9,6 +9,7 @@ import shutil
 import logging
 import string
 import hashlib
+from packaging import version
 
 from itertools import groupby, zip_longest
 from more_itertools import grouper, pairwise
@@ -749,7 +750,10 @@ def parse_fasta(infile, upper=False):
 
 def iter_clean_fasta(fastafile):
     for header, seq in parse_fasta(fastafile):
-        seq = "".join(x for x in seq if x in string.letters or x == "*")
+        if version.parse(str(sys.version_info[0])) >= version.parse("3"):
+            seq = "".join(x for x in seq if x in string.ascii_letters or x == "*")
+        else:
+            seq = "".join(x for x in seq if x in string.letters or x == "*")
         yield header, seq
 
 

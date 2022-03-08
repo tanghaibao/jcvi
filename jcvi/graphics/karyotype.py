@@ -184,7 +184,13 @@ class Track(object):
         return self.label
 
     def draw(
-        self, roundrect=False, plot_label=True, plot_circles=True, pad=0.03, vpad=0.09
+        self,
+        roundrect=False,
+        keep_chrlabels=False,
+        plot_label=True,
+        plot_circles=True,
+        pad=0.03,
+        vpad=0.09,
     ):
         if self.empty:
             return
@@ -213,7 +219,7 @@ class Track(object):
                 roundrect=roundrect,
             )
             hc.set_transform(tr)
-            si = make_circle_name(sid, self.rev)
+            si = sid if keep_chrlabels else make_circle_name(sid, self.rev)
             xx = (xstart + xend) / 2
             xstart = xend + gap
 
@@ -339,6 +345,7 @@ class Karyotype(object):
         sizes=None,
         heightpad=0,
         roundrect=False,
+        keep_chrlabels=False,
         plot_label=True,
         plot_circles=True,
         shadestyle="curve",
@@ -387,7 +394,10 @@ class Karyotype(object):
 
         for tr in tracks:
             tr.draw(
-                roundrect=roundrect, plot_label=plot_label, plot_circles=plot_circles
+                roundrect=roundrect,
+                keep_chrlabels=keep_chrlabels,
+                plot_label=plot_label,
+                plot_circles=plot_circles,
             )
 
         self.tracks = tracks
@@ -401,6 +411,12 @@ def main():
         default=False,
         action="store_true",
         help="Use base pair position instead of gene rank",
+    )
+    p.add_option(
+        "--keep-chrlabels",
+        default=False,
+        action="store_true",
+        help="Keep chromosome labels",
     )
     p.add_option(
         "--nocircles",
@@ -429,6 +445,7 @@ def main():
         root,
         seqidsfile,
         layoutfile,
+        keep_chrlabels=opts.keep_chrlabels,
         plot_circles=(not opts.nocircles),
         shadestyle=opts.shadestyle,
         generank=(not opts.basepair),

@@ -1637,6 +1637,8 @@ def path(args):
         plotall(
             [
                 inputbed,
+                "-w",
+                opts.weightsfile,
                 "--links={0}".format(opts.links),
                 "--figsize={0}".format(opts.figsize),
             ]

@@ -1100,7 +1100,7 @@ def movie(args):
     sizes = Sizes(scaffoldsfasta).mapping
     ffmpeg = "ffmpeg"
     mkdir(ffmpeg)
-    score = cur_score = None
+    score = None
     i = 1
     for header, block in read_block(fp, ">"):
         s, tag, label = header[1:].split()
@@ -1355,7 +1355,7 @@ def print_tour(fw, object, tag, label, tour, recode=False):
         tour = recode_tour(tour)
     if fw:
         print(">{0} ({1}) {2}".format(object, tag, label), file=fw)
-        print(" ".join("".join(x) for x in tour), file=fw)
+        print(" ".join("".join(x) for x in list(tour)), file=fw)
 
 
 def recode_tour(tour):
@@ -1985,6 +1985,7 @@ def plot(args):
         while height / len(ax.get_yticks()) < 0.03 and len(ax.get_yticks()) >= 2:
             ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
         yticklabels = [int(x) for x in ax.get_yticks()]
+        ax.set_yticks(yticklabels)
         ax.set_yticklabels(yticklabels, family="Helvetica")
         if rho < 0:
             ax.invert_yaxis()

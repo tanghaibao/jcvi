@@ -171,7 +171,7 @@ class ScaffoldOO(object):
         print_tour(fwtour, self.object, tag, "INIT", tour, recode=True)
         signs = self.assign_orientation()
         assert len(signs) == len(scaffolds)
-        tour = zip(scaffolds, signs)
+        tour = list(zip(scaffolds, signs))
         scaffolds_oo = dict(tour)
         print_tour(fwtour, self.object, tag, "FLIP", tour, recode=True)
         tour = self.assign_order()
@@ -1100,7 +1100,7 @@ def movie(args):
     sizes = Sizes(scaffoldsfasta).mapping
     ffmpeg = "ffmpeg"
     mkdir(ffmpeg)
-    score = cur_score = None
+    score = None
     i = 1
     for header, block in read_block(fp, ">"):
         s, tag, label = header[1:].split()
@@ -1985,6 +1985,7 @@ def plot(args):
         while height / len(ax.get_yticks()) < 0.03 and len(ax.get_yticks()) >= 2:
             ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
         yticklabels = [int(x) for x in ax.get_yticks()]
+        ax.set_yticks(yticklabels)
         ax.set_yticklabels(yticklabels, family="Helvetica")
         if rho < 0:
             ax.invert_yaxis()

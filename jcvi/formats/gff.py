@@ -1030,8 +1030,6 @@ def gb(args):
     Convert GFF3 to Genbank format. Recipe taken from:
     <http://www.biostars.org/p/2492/>
     """
-    from Bio.Alphabet import generic_dna
-
     try:
         from BCBio import GFF
     except ImportError:
@@ -1048,7 +1046,7 @@ def gb(args):
     gff_file, fasta_file = args
     pf = op.splitext(gff_file)[0]
     out_file = pf + ".gb"
-    fasta_input = SeqIO.to_dict(SeqIO.parse(fasta_file, "fasta", generic_dna))
+    fasta_input = SeqIO.to_dict(SeqIO.parse(fasta_file, "fasta"))
     gff_iter = GFF.parse(gff_file, fasta_input)
     SeqIO.write(gff_iter, out_file, "genbank")
 

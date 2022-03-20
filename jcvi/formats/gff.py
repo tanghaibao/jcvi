@@ -80,6 +80,7 @@ class GffLine(object):
         self,
         sline,
         key="ID",
+        parent_key="Parent",
         gff3=True,
         line_index=None,
         strict=True,
@@ -117,6 +118,7 @@ class GffLine(object):
         )
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
+        self.parent_key = parent_key  # usually it's `Parent=xxxxx;`
         self.gff3 = gff3
 
         if append_ftype and self.key in self.attributes:
@@ -248,7 +250,11 @@ class GffLine(object):
 
     @property
     def parent(self):
-        return self.attributes["Parent"][0] if "Parent" in self.attributes else None
+        return (
+            self.attributes[self.parent_key][0]
+            if self.parent_key in self.attributes
+            else None
+        )
 
     @property
     def span(self):
@@ -301,6 +307,7 @@ class Gff(LineFile):
         self,
         filename,
         key="ID",
+        parent_key="Parent",
         strict=True,
         append_source=False,
         append_ftype=False,
@@ -317,6 +324,7 @@ class Gff(LineFile):
             gff = Gff(
                 self.filename,
                 key=key,
+                parent_key=parent_key,
                 strict=True,
                 append_source=append_source,
                 append_ftype=append_ftype,
@@ -328,6 +336,7 @@ class Gff(LineFile):
                 self.gffstore.append(g)
         else:
             self.key = key
+            self.parent_key = parent_key
             self.strict = strict
             self.append_source = append_source
             self.append_ftype = append_ftype
@@ -371,6 +380,7 @@ class Gff(LineFile):
                 yield GffLine(
                     row,
                     key=self.key,
+                    parent_key=self.parent_key,
                     line_index=idx,
                     strict=self.strict,
                     append_source=self.append_source,
@@ -1020,8 +1030,6 @@ def gb(args):
     Convert GFF3 to Genbank format. Recipe taken from:
     <http://www.biostars.org/p/2492/>
     """
-    from Bio.Alphabet import generic_dna
-
     try:
         from BCBio import GFF
     except ImportError:
@@ -1038,7 +1046,7 @@ def gb(args):
     gff_file, fasta_file = args
     pf = op.splitext(gff_file)[0]
     out_file = pf + ".gb"
-    fasta_input = SeqIO.to_dict(SeqIO.parse(fasta_file, "fasta", generic_dna))
+    fasta_input = SeqIO.to_dict(SeqIO.parse(fasta_file, "fasta"))
     gff_iter = GFF.parse(gff_file, fasta_input)
     SeqIO.write(gff_iter, out_file, "genbank")
 
@@ -2994,6 +3002,11 @@ def bed(args):
         action="store_true",
         help="Only retains a single transcript per gene",
     )
+    p.add_option(
+        "--parent_key",
+        default="Parent",
+        help="Parent gene key to group with --primary_only",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -3007,6 +3020,7 @@ def bed(args):
     source = opts.source or set()
     span = opts.span
     primary_only = opts.primary_only
+    parent_key = opts.parent_key
 
     if opts.type:
         type = set(x.strip() for x in opts.type.split(","))
@@ -3016,6 +3030,7 @@ def bed(args):
     gff = Gff(
         gffile,
         key=key,
+        parent_key=parent_key,
         append_source=opts.append_source,
         append_ftype=opts.append_ftype,
         score_attrib=opts.score_attrib,
@@ -3046,7 +3061,9 @@ def bed(args):
     sorted = not opts.nosort
     b.print_to_file(opts.outfile, sorted=sorted)
     logging.debug(
-        "Extracted {0} features (type={1} id={2})".format(len(b), ",".join(type), key)
+        "Extracted {} features (type={} id={} parent={})".format(
+            len(b), ",".join(type), key, parent_key
+        )
     )
     if primary_only:
         logging.debug("Skipped non-primary: %d", skipped_non_primary)

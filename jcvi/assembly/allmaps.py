@@ -171,7 +171,7 @@ class ScaffoldOO(object):
         print_tour(fwtour, self.object, tag, "INIT", tour, recode=True)
         signs = self.assign_orientation()
         assert len(signs) == len(scaffolds)
-        tour = zip(scaffolds, signs)
+        tour = list(zip(scaffolds, signs))
         scaffolds_oo = dict(tour)
         print_tour(fwtour, self.object, tag, "FLIP", tour, recode=True)
         tour = self.assign_order()
@@ -1355,7 +1355,7 @@ def print_tour(fw, object, tag, label, tour, recode=False):
         tour = recode_tour(tour)
     if fw:
         print(">{0} ({1}) {2}".format(object, tag, label), file=fw)
-        print(" ".join("".join(x) for x in list(tour)), file=fw)
+        print(" ".join("".join(x) for x in tour), file=fw)
 
 
 def recode_tour(tour):

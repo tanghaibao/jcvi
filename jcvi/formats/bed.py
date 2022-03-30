@@ -471,9 +471,46 @@ def main():
         ("density", "calculates density of features per seqid"),
         ("tiling", "compute the minimum tiling path"),
         ("format", "reformat BED file"),
+        ("closest", "find closest BED feature"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def closest(args):
+    """
+    %prog closest input.bed features.bed
+
+    Find the closest feature in `features.bed` to `input.bed`.
+    `features.bed` must be sorted using `jcvi.formats.bed sort`.
+    """
+    from pybedtools import BedTool
+
+    p = OptionParser(closest.__doc__)
+    p.add_option("--maxdist", default=5000, help="Maximum distance")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    inputbed, featuresbed = args
+    maxdist = opts.maxdist
+    sort([inputbed, "-i"])
+    inputs = BedTool(inputbed)
+    features = BedTool(featuresbed)
+    nearby = inputs.closest(features, d=True, t="first", stream=True)
+    accn_column = inputs.field_count() + features.field_count() - 3
+    for f in nearby:
+        seqid = f[0]
+        start = f[1]
+        end = f[2]
+        accn = f[3]
+        feat = f[accn_column].split(":")[0]
+        dist = int(f[-1])
+        if dist > maxdist:
+            feat = "."
+        print("\t".join((seqid, start, end, "{}:{}".format(accn, feat))))
 
 
 def format(args):
@@ -2276,6 +2313,12 @@ def sort(args):
         action="store_true",
         help="Sort based on the accessions",
     )
+    p.add_option(
+        "--num",
+        default=False,
+        action="store_true",
+        help="Numerically sort seqid column, e.g. chr1,chr2,...",
+    )
     p.set_outfile(outfile=None)
     p.set_tmpdir()
     opts, args = p.parse_args(args)
@@ -2285,6 +2328,11 @@ def sort(args):
 
     (bedfile,) = args
     inplace = opts.inplace
+
+    if opts.num:
+        bed = Bed(bedfile)
+        bed.print_to_file(opts.outfile or "stdout", sorted=True)
+        return
 
     if not inplace and ".sorted." in bedfile:
         return bedfile

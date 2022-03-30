@@ -86,6 +86,7 @@ class GffLine(object):
         strict=True,
         append_source=False,
         append_ftype=False,
+        append_attrib=None,
         score_attrib=False,
         keep_attr_order=True,
         compute_signature=False,
@@ -135,6 +136,11 @@ class GffLine(object):
             # column in bed file
             self.attributes[self.key][0] = ":".join(
                 (self.source, self.attributes[self.key][0])
+            )
+
+        if append_attrib and append_attrib in self.attributes:
+            self.attributes[self.key][0] = ":".join(
+                (self.attributes[self.key][0], self.attributes[append_attrib][0])
             )
 
         if (
@@ -311,6 +317,7 @@ class Gff(LineFile):
         strict=True,
         append_source=False,
         append_ftype=False,
+        append_attrib=None,
         score_attrib=False,
         keep_attr_order=True,
         make_gff_store=False,
@@ -340,6 +347,7 @@ class Gff(LineFile):
             self.strict = strict
             self.append_source = append_source
             self.append_ftype = append_ftype
+            self.append_attrib = append_attrib
             self.score_attrib = score_attrib
             self.keep_attr_order = keep_attr_order
             self.compute_signature = compute_signature
@@ -385,6 +393,7 @@ class Gff(LineFile):
                     strict=self.strict,
                     append_source=self.append_source,
                     append_ftype=self.append_ftype,
+                    append_attrib=self.append_attrib,
                     score_attrib=self.score_attrib,
                     keep_attr_order=self.keep_attr_order,
                     compute_signature=self.compute_signature,
@@ -2991,6 +3000,11 @@ def bed(args):
         help="Append GFF feature type to extracted key value",
     )
     p.add_option(
+        "--append_attrib",
+        default=None,
+        help="Append attribute to extracted key value",
+    )
+    p.add_option(
         "--nosort",
         default=False,
         action="store_true",
@@ -3033,6 +3047,7 @@ def bed(args):
         parent_key=parent_key,
         append_source=opts.append_source,
         append_ftype=opts.append_ftype,
+        append_attrib=opts.append_attrib,
         score_attrib=opts.score_attrib,
     )
     b = Bed()

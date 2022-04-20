@@ -356,6 +356,7 @@ def main():
         ("compare", "compare cnv output to ground truths"),
         # Plots
         ("gcdepth", "plot GC content vs depth for genomic bins"),
+        ("validate", "validate CNV calls by plotting RDR/BAF/CN"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -712,12 +713,12 @@ def sweep(args):
         sys.exit(not p.print_help())
 
     workdir, sample_key = args
-    golden_ratio = (1 + 5 ** 0.5) / 2
+    golden_ratio = (1 + 5**0.5) / 2
     cmd = "python -m jcvi.variation.cnv hmm {} {}".format(workdir, sample_key)
     cmd += " --mu {:.5f} --sigma {:.3f} --threshold {:.3f}"
-    mus = [0.00012 * golden_ratio ** x for x in range(10)]
-    sigmas = [0.0012 * golden_ratio ** x for x in range(20)]
-    thresholds = [0.1 * golden_ratio ** x for x in range(10)]
+    mus = [0.00012 * golden_ratio**x for x in range(10)]
+    sigmas = [0.0012 * golden_ratio**x for x in range(20)]
+    thresholds = [0.1 * golden_ratio**x for x in range(10)]
     print(mus, file=sys.stderr)
     print(sigmas, file=sys.stderr)
     print(thresholds, file=sys.stderr)
@@ -1159,6 +1160,160 @@ def cn(args):
 
         shutil.rmtree(sampledir)
         shutil.rmtree(cndir)
+
+
+def validate(args):
+    """
+    %prog validate sample.bcc sample.vcf.gz
+
+    Plot RDR/BAF/CN for validation of CNV calls in `sample.vcf.gz`.
+    """
+    p = OptionParser(validate.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    import logging
+    import pandas as pd
+    import holoviews as hv
+    import hvplot.pandas
+
+    hv.extension("bokeh")
+
+    from cyvcf2 import VCF
+    from dataclasses import dataclass
+    from io import StringIO
+
+    bccfile, vcffile = args
+    df = pd.read_csv(bccfile, sep="\t")
+
+    @dataclass
+    class CNV:
+        chr: str
+        start: int
+        end: int
+        type: str
+        name: str
+        is_pass: bool
+        cn: int
+
+    sample = op.basename(bccfile).split(".", 1)[0]
+    vcf_reader = VCF(vcffile)
+    records = []
+    for record in vcf_reader:
+        name = record.ID
+        fields = name.split(":")
+        dragen, type, chr, start_end = name.split(":")
+        start, end = [int(x) for x in start_end.split("-")]
+        is_pass = "PASS" in record.FILTERS
+        (cn,) = record.format("CN")[0]
+        record = CNV(chr, start, end, type, name, is_pass, cn)
+        records.append(record)
+
+    logging.info("A total of %d records imported", len(records))
+    rf = pd.DataFrame(x.__dict__ for x in records)
+    # hg19
+    s = """
+    chr	size
+    chr1	249250621
+    chr2	243199373
+    chr3	198022430
+    chr4	191154276
+    chr5	180915260
+    chr6	171115067
+    chr7	159138663
+    chr8	146364022
+    chr9	141213431
+    chr10	135534747
+    chr11	135006516
+    chr12	133851895
+    chr13	115169878
+    chr14	107349540
+    chr15	102531392
+    chr16	90354753
+    chr17	81195210
+    chr18	78077248
+    chr19	59128983
+    chr20	63025520
+    chr21	48129895
+    chr22	51304566
+    chrX	155270560
+    chrY	59373566"""
+    sizes = pd.read_csv(StringIO(s), delim_whitespace=True)
+    b = np.cumsum(sizes["size"])
+    a = pd.Series(b[:-1])
+    a.index += 1
+    sizes["cumsize"] = pd.concat([pd.Series([0]), a])
+    jf = pd.merge(df, sizes, how="left", left_on=["#chr"], right_on=["chr"])
+    jf["pos"] = jf["start"] + jf["cumsize"]
+    rfx = pd.merge(rf, sizes, how="left", left_on=["chr"], right_on=["chr"])
+    rfx["pos"] = rfx["start"] + rfx["cumsize"]
+    rfx["pos_end"] = rfx["end"] + rfx["cumsize"]
+    xlim = (0, 2881033286)
+    rdr = jf.hvplot.scatter(
+        x="pos",
+        y="rdr",
+        logy=True,
+        xlim=xlim,
+        ylim=(0.5, 4),
+        s=1,
+        width=1440,
+        height=360,
+        c="chr",
+        title=f"{sample}, Tumor RD/Normal RD (RDR)",
+        legend=False,
+    )
+    baf = jf.hvplot.scatter(
+        x="pos",
+        y="baf",
+        xlim=xlim,
+        ylim=(0, 0.5),
+        s=1,
+        width=1440,
+        height=360,
+        c="chr",
+        title=f"{sample}, B-Allele Fraction (BAF)",
+        legend=False,
+    )
+    rfx_gain = rfx[(rfx["type"] == "GAIN") & rfx["is_pass"]]
+    rfx_loss = rfx[(rfx["type"] == "LOSS") & rfx["is_pass"]]
+    rfx_ref = rfx[(rfx["type"] == "REF") & rfx["is_pass"]]
+    seg_gain = hv.Segments(
+        rfx_gain, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_ref = hv.Segments(
+        rfx_ref, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_loss = hv.Segments(
+        rfx_loss, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_gain.opts(color="r", line_width=5, tools=["hover"])
+    seg_ref.opts(color="k", line_width=5, tools=["hover"])
+    seg_loss.opts(color="b", line_width=5, tools=["hover"])
+    comp = seg_gain * seg_ref * seg_loss
+    for _, row in sizes.iterrows():
+        chr = row["chr"]
+        cb = row["cumsize"]
+        vline = hv.VLine(cb).opts(color="lightgray", line_width=1)
+        ctext1 = hv.Text(
+            cb, 0.5, chr.replace("chr", ""), halign="left", valign="bottom"
+        )
+        ctext2 = hv.Text(cb, 0, chr.replace("chr", ""), halign="left", valign="bottom")
+        rdr = rdr * vline * ctext1
+        baf = baf * vline * ctext2
+        comp = comp * vline
+    comp.opts(
+        width=1440,
+        height=180,
+        xlim=xlim,
+        ylim=(0, 10),
+        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF",
+    )
+    cc = (rdr + baf + comp).cols(1)
+    htmlfile = f"{sample}.html"
+    hv.save(cc, htmlfile)
+    logging.info("Report written to `%s`", htmlfile)
 
 
 if __name__ == "__main__":

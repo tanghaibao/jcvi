@@ -1273,7 +1273,19 @@ def validate(args):
         width=1440,
         height=360,
         c="chr",
-        title=f"{sample}, B-Allele Fraction (BAF)",
+        title=f"{sample}, Germline Variant B-Allele Fraction (BAF)",
+        legend=False,
+    )
+    vaf = jf.hvplot.scatter(
+        x="pos",
+        y="tumor_vaf",
+        xlim=xlim,
+        ylim=(0, 1),
+        s=1,
+        width=1440,
+        height=180,
+        c="chr",
+        title=f"{sample}, Somatic Variant Allele Fraction (VAF)",
         legend=False,
     )
     rfx_gain = rfx[(rfx["type"] == "GAIN") & rfx["is_pass"]]
@@ -1302,6 +1314,7 @@ def validate(args):
         ctext2 = hv.Text(cb, 0, chr.replace("chr", ""), halign="left", valign="bottom")
         rdr = rdr * vline * ctext1
         baf = baf * vline * ctext2
+        vaf = vaf * vline
         comp = comp * vline
     comp.opts(
         width=1440,
@@ -1310,7 +1323,7 @@ def validate(args):
         ylim=(0, 10),
         title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF",
     )
-    cc = (rdr + baf + comp).cols(1)
+    cc = (rdr + baf + vaf + comp).cols(1)
     htmlfile = f"{sample}.html"
     hv.save(cc, htmlfile)
     logging.info("Report written to `%s`", htmlfile)

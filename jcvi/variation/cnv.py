@@ -1199,11 +1199,27 @@ def validate(args):
         cn: int
 
     sample = op.basename(bccfile).split(".", 1)[0]
+    # Get purity and model
+    model = {
+        "ModelSource": None,
+        "EstimatedTumorPurity": None,
+        # "DiploidCoverage": None,
+        "OverallPloidy": None,
+    }
+    import gzip
+
+    for row in gzip.open(vcffile):
+        row = row.decode("utf-8")
+        if not row.startswith("##"):
+            continue
+        a, b = row[2:].split("=", 1)
+        if a in model:
+            model[a] = b
+
     vcf_reader = VCF(vcffile)
     records = []
     for record in vcf_reader:
         name = record.ID
-        fields = name.split(":")
         dragen, type, chr, start_end = name.split(":")
         start, end = [int(x) for x in start_end.split("-")]
         is_pass = "PASS" in record.FILTERS
@@ -1259,7 +1275,7 @@ def validate(args):
         ylim=(0.5, 4),
         s=1,
         width=1440,
-        height=360,
+        height=300,
         c="chr",
         title=f"{sample}, Tumor RD/Normal RD (RDR)",
         legend=False,
@@ -1271,7 +1287,7 @@ def validate(args):
         ylim=(0, 0.5),
         s=1,
         width=1440,
-        height=360,
+        height=300,
         c="chr",
         title=f"{sample}, Germline Variant B-Allele Fraction (BAF)",
         legend=False,
@@ -1290,7 +1306,7 @@ def validate(args):
     )
     rfx_gain = rfx[(rfx["type"] == "GAIN") & rfx["is_pass"]]
     rfx_loss = rfx[(rfx["type"] == "LOSS") & rfx["is_pass"]]
-    rfx_ref = rfx[(rfx["type"] == "REF") & rfx["is_pass"]]
+    rfx_ref = rfx[(rfx["type"] != "GAIN") & (rfx["type"] != "LOSS") & rfx["is_pass"]]
     seg_gain = hv.Segments(
         rfx_gain, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
     )
@@ -1316,12 +1332,13 @@ def validate(args):
         baf = baf * vline * ctext2
         vaf = vaf * vline
         comp = comp * vline
+    model_kv = " ".join(f"{k}={v}" for k, v in model.items())
     comp.opts(
         width=1440,
-        height=180,
+        height=240,
         xlim=xlim,
         ylim=(0, 10),
-        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF",
+        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: Others\n{model_kv}",
     )
     cc = (rdr + baf + vaf + comp).cols(1)
     htmlfile = f"{sample}.html"

@@ -1306,20 +1306,30 @@ def validate(args):
     )
     rfx_gain = rfx[(rfx["type"] == "GAIN") & rfx["is_pass"]]
     rfx_loss = rfx[(rfx["type"] == "LOSS") & rfx["is_pass"]]
-    rfx_ref = rfx[(rfx["type"] != "GAIN") & (rfx["type"] != "LOSS") & rfx["is_pass"]]
+    rfx_ref = rfx[(rfx["type"] == "REF") & rfx["is_pass"]]
+    rfx_cnloh = rfx[(rfx["type"] == "CNLOH") & rfx["is_pass"]]
+    rfx_gainloh = rfx[(rfx["type"] == "GAINLOH") & rfx["is_pass"]]
     seg_gain = hv.Segments(
         rfx_gain, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
-    )
-    seg_ref = hv.Segments(
-        rfx_ref, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
     )
     seg_loss = hv.Segments(
         rfx_loss, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
     )
+    seg_ref = hv.Segments(
+        rfx_ref, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_cnloh = hv.Segments(
+        rfx_cnloh, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_gainloh = hv.Segments(
+        rfx_gainloh, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
     seg_gain.opts(color="r", line_width=5, tools=["hover"])
-    seg_ref.opts(color="k", line_width=5, tools=["hover"])
     seg_loss.opts(color="b", line_width=5, tools=["hover"])
-    comp = seg_gain * seg_ref * seg_loss
+    seg_ref.opts(color="k", line_width=5, tools=["hover"])
+    seg_cnloh.opts(color="m", line_width=5, tools=["hover"])
+    seg_gainloh.opts(color="c", line_width=5, tools=["hover"])
+    comp = seg_gain * seg_ref * seg_loss * seg_cnloh * seg_gainloh
     for _, row in sizes.iterrows():
         chr = row["chr"]
         cb = row["cumsize"]
@@ -1338,7 +1348,7 @@ def validate(args):
         height=240,
         xlim=xlim,
         ylim=(0, 10),
-        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: Others\n{model_kv}",
+        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH\n{model_kv}",
     )
     cc = (rdr + baf + vaf + comp).cols(1)
     htmlfile = f"{sample}.html"

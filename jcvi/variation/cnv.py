@@ -1169,6 +1169,12 @@ def validate(args):
     Plot RDR/BAF/CN for validation of CNV calls in `sample.vcf.gz`.
     """
     p = OptionParser(validate.__doc__)
+    p.add_option(
+        "--no-rdr-logy",
+        default=False,
+        action="store_true",
+        help="Do not make y-axis of RDR log-scale",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1186,6 +1192,7 @@ def validate(args):
     from io import StringIO
 
     bccfile, vcffile = args
+    rdr_logy = not opts.no_rdr_logy
     df = pd.read_csv(bccfile, sep="\t")
 
     @dataclass
@@ -1267,12 +1274,13 @@ def validate(args):
     rfx["pos"] = rfx["start"] + rfx["cumsize"]
     rfx["pos_end"] = rfx["end"] + rfx["cumsize"]
     xlim = (0, 2881033286)
+    rdr_ylim = (0.5, 4) if rdr_logy else (0, 8)
     rdr = jf.hvplot.scatter(
         x="pos",
         y="rdr",
-        logy=True,
+        logy=rdr_logy,
         xlim=xlim,
-        ylim=(0.5, 4),
+        ylim=rdr_ylim,
         s=1,
         width=1440,
         height=300,

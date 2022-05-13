@@ -1169,6 +1169,12 @@ def validate(args):
     Plot RDR/BAF/CN for validation of CNV calls in `sample.vcf.gz`.
     """
     p = OptionParser(validate.__doc__)
+    p.add_option(
+        "--no-rdr-logy",
+        default=False,
+        action="store_true",
+        help="Do not make y-axis of RDR log-scale",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1186,6 +1192,7 @@ def validate(args):
     from io import StringIO
 
     bccfile, vcffile = args
+    rdr_logy = not opts.no_rdr_logy
     df = pd.read_csv(bccfile, sep="\t")
 
     @dataclass
@@ -1199,11 +1206,27 @@ def validate(args):
         cn: int
 
     sample = op.basename(bccfile).split(".", 1)[0]
+    # Get purity and model
+    model = {
+        "ModelSource": None,
+        "EstimatedTumorPurity": None,
+        # "DiploidCoverage": None,
+        "OverallPloidy": None,
+    }
+    import gzip
+
+    for row in gzip.open(vcffile):
+        row = row.decode("utf-8")
+        if not row.startswith("##"):
+            continue
+        a, b = row[2:].split("=", 1)
+        if a in model:
+            model[a] = b
+
     vcf_reader = VCF(vcffile)
     records = []
     for record in vcf_reader:
         name = record.ID
-        fields = name.split(":")
         dragen, type, chr, start_end = name.split(":")
         start, end = [int(x) for x in start_end.split("-")]
         is_pass = "PASS" in record.FILTERS
@@ -1251,15 +1274,16 @@ def validate(args):
     rfx["pos"] = rfx["start"] + rfx["cumsize"]
     rfx["pos_end"] = rfx["end"] + rfx["cumsize"]
     xlim = (0, 2881033286)
+    rdr_ylim = (0.5, 4) if rdr_logy else (0, 8)
     rdr = jf.hvplot.scatter(
         x="pos",
         y="rdr",
-        logy=True,
+        logy=rdr_logy,
         xlim=xlim,
-        ylim=(0.5, 4),
+        ylim=rdr_ylim,
         s=1,
         width=1440,
-        height=360,
+        height=300,
         c="chr",
         title=f"{sample}, Tumor RD/Normal RD (RDR)",
         legend=False,
@@ -1271,7 +1295,7 @@ def validate(args):
         ylim=(0, 0.5),
         s=1,
         width=1440,
-        height=360,
+        height=300,
         c="chr",
         title=f"{sample}, Germline Variant B-Allele Fraction (BAF)",
         legend=False,
@@ -1291,19 +1315,29 @@ def validate(args):
     rfx_gain = rfx[(rfx["type"] == "GAIN") & rfx["is_pass"]]
     rfx_loss = rfx[(rfx["type"] == "LOSS") & rfx["is_pass"]]
     rfx_ref = rfx[(rfx["type"] == "REF") & rfx["is_pass"]]
+    rfx_cnloh = rfx[(rfx["type"] == "CNLOH") & rfx["is_pass"]]
+    rfx_gainloh = rfx[(rfx["type"] == "GAINLOH") & rfx["is_pass"]]
     seg_gain = hv.Segments(
         rfx_gain, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
-    )
-    seg_ref = hv.Segments(
-        rfx_ref, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
     )
     seg_loss = hv.Segments(
         rfx_loss, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
     )
+    seg_ref = hv.Segments(
+        rfx_ref, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_cnloh = hv.Segments(
+        rfx_cnloh, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_gainloh = hv.Segments(
+        rfx_gainloh, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
     seg_gain.opts(color="r", line_width=5, tools=["hover"])
-    seg_ref.opts(color="k", line_width=5, tools=["hover"])
     seg_loss.opts(color="b", line_width=5, tools=["hover"])
-    comp = seg_gain * seg_ref * seg_loss
+    seg_ref.opts(color="k", line_width=5, tools=["hover"])
+    seg_cnloh.opts(color="m", line_width=5, tools=["hover"])
+    seg_gainloh.opts(color="c", line_width=5, tools=["hover"])
+    comp = seg_gain * seg_ref * seg_loss * seg_cnloh * seg_gainloh
     for _, row in sizes.iterrows():
         chr = row["chr"]
         cb = row["cumsize"]
@@ -1316,12 +1350,13 @@ def validate(args):
         baf = baf * vline * ctext2
         vaf = vaf * vline
         comp = comp * vline
+    model_kv = " ".join(f"{k}={v}" for k, v in model.items())
     comp.opts(
         width=1440,
-        height=180,
+        height=240,
         xlim=xlim,
         ylim=(0, 10),
-        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF",
+        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH\n{model_kv}",
     )
     cc = (rdr + baf + vaf + comp).cols(1)
     htmlfile = f"{sample}.html"

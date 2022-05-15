@@ -22,11 +22,58 @@ def main():
         ("freebayes", "call snps using freebayes"),
         ("mpileup", "call snps using samtools-mpileup"),
         ("gatk", "call snps using GATK"),
-        ("somatic", "generate series of SPEEDSESQ-somatic commands"),
+        ("somatic", "generate series of SPEEDSEQ-somatic commands"),
         ("mappability", "generate 50mer mappability for reference genome"),
+        ("refalt", "generate reference and alternate allele counts"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def extract_ref_alt(variants: list[str], bam_file: str) -> dict:
+    """
+    Extract reference and alternate allele counts from a BAM file.
+    """
+    import pysam
+    from collections import defaultdict
+
+    samfile = pysam.AlignmentFile(bam_file, "rb")
+    ref_alt_counts = {}
+    for variant in variants:
+        chr, start, ref, alt = variant.split(":")
+        start = int(start) - 1
+        end = start + 1
+        s = defaultdict(int)
+        for column in samfile.pileup(chr, start, end, truncate=True):
+            for read in column.pileups:
+                c = read.alignment.query_sequence[read.query_position]
+                s[c] += 1
+        print(variant, s)
+        ref_alt_counts[variant] = s
+
+    return ref_alt_counts
+
+
+def refalt(args):
+    """
+    %prog refalt variants_file *.bam
+
+    Generate reference and alternate allele counts for variants.
+    Variants are list of positions, e.g.
+    chr1:100:A
+    chr2:200:C
+    """
+    p = OptionParser(refalt.__doc__)
+    p.set_cpus()
+    opts, args = p.parse_args(args)
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    variants = args[0]
+    bams = args[1:]
+    variants = [x.strip() for x in open(variants)]
+    ref_alt_counts = extract_ref_alt(variants, bams[0])
 
 
 def mappability(args):

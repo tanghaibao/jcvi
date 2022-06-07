@@ -7,6 +7,7 @@ import sys
 import logging
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("numexpr").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.INFO)
 
 from functools import partial

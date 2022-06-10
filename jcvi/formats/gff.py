@@ -3190,8 +3190,8 @@ def load(args):
     p.add_option(
         "--feature",
         dest="feature",
-        help="feature type to extract. e.g. `--feature=CDS` or "
-        + "`--feature=upstream:TSS:500`",
+        help="feature to extract (e.g. `--feature=CDS`). Extract "
+        + "up- or downstream using [upstream|downstream]:[TSS|TrSS|TES|TrES]:[length]"
     )
     p.add_option(
         "--avoidFeatures",

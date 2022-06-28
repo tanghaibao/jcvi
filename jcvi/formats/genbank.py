@@ -12,7 +12,6 @@ import logging
 from collections import defaultdict
 
 from Bio import SeqIO
-from Bio.Seq import Seq
 
 from jcvi.formats.base import must_open, FileShredder, BaseFile, get_number
 from jcvi.formats.gff import GffLine
@@ -143,17 +142,20 @@ class GenBank(dict):
 
         if filenames is not None:
             self.accessions = [op.basename(f).split(".")[0] for f in filenames]
-            d = dict(SeqIO.to_dict(SeqIO.parse(f, "gb")).items()[0] for f in filenames)
-            for (k, v) in d.iteritems():
+            d = dict(
+                next(iter(SeqIO.to_dict(SeqIO.parse(f, "gb")).items()))
+                for f in filenames
+            )
+            for (k, v) in d.items():
                 self[k.split(".")[0]] = v
 
         elif idfile is not None:
             gbdir = self._get_records()
             d = dict(
-                SeqIO.to_dict(SeqIO.parse(f, "gb")).items()[0]
+                next(iter(SeqIO.to_dict(SeqIO.parse(f, "gb")).items()))
                 for f in glob(gbdir + "/*.gb")
             )
-            for (k, v) in d.iteritems():
+            for (k, v) in d.items():
                 self[k.split(".")[0]] = v
 
         else:
@@ -221,7 +223,11 @@ class GenBank(dict):
                 else:
                     strand = "+"
                 score = "."
-                accn = "{0}_{1}".format(seqid, genecount)
+                accn = (
+                    feature.qualifiers[LT][0]
+                    if LT in feature.qualifiers
+                    else "{}_{}".format(seqid, genecount)
+                )
 
                 start = str(start).lstrip("><")
                 stop = str(stop).lstrip("><")
@@ -248,24 +254,13 @@ class GenBank(dict):
                 if consecutivecds:
                     genecount += 1
                 consecutivecds = 1
-                accn = "{0}_{1}".format(seqid, genecount)
+                accn = (
+                    feature.qualifiers[LT][0]
+                    if LT in feature.qualifiers
+                    else "{}_{}".format(seqid, genecount)
+                )
 
-                if len(feature.sub_features) == 0:
-                    seq = feature.extract(gbrec.seq)
-                else:
-                    seq = []
-                    for subf in sorted(
-                        feature.sub_features,
-                        key=lambda x: x.location.start.position * x.strand,
-                    ):
-                        seq.append(str(subf.extract(gbrec.seq)))
-                    seq = "".join(seq)
-                    if Seq(seq).translate().count("*") > 1:
-                        seq = []
-                        for subf in feature.sub_features:
-                            seq.append(str(subf.extract(gbrec.seq)))
-                        seq = "".join(seq)
-                    seq = Seq(seq)
+                seq = feature.extract(gbrec.seq)
 
                 fwcds.write(">{0}\n{1}\n".format(accn, seq))
                 fwpep.write(">{0}\n{1}\n".format(accn, seq.translate()))
@@ -276,7 +271,7 @@ class GenBank(dict):
             fwcds = must_open(output + ".cds", "w")
             fwpep = must_open(output + ".pep", "w")
 
-        for recid, rec in self.iteritems():
+        for recid, rec in self.items():
             if individual:
                 mkdir(output)
                 fwbed = must_open(op.join(output, recid + ".bed"), "w")
@@ -453,7 +448,7 @@ def getgenes(args):
 
 def print_locus_quals(locus_tag, locus, quals_ftypes):
     """
-    Given a locus_tag and dict of feaures, print out 3-column output:
+    Given a locus_tag and dict of features, print out 3-column output:
         locus_tag, qualifier, value
 
     Replace locus_tag with protein_id if processing an "mRNA" or "CDS"

@@ -49,11 +49,6 @@ class MultiGenBank(BaseFile):
             for f in rf:
                 self.print_gffline(gff_fw, f, seqid)
                 nfeats += 1
-
-                for sf in f.sub_features:
-                    self.print_gffline(gff_fw, sf, seqid, parent=f)
-                    nfeats += 1
-
             nrecs += 1
 
         logging.debug(

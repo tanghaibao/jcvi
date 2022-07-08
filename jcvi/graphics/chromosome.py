@@ -56,7 +56,9 @@ class Chromosome(BaseGlyph):
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
         if patch:
             rr = r * 0.9  # Shrink a bit for the patches
-            for i in range(0, len(patch), 2):
+            # First patch is colored if there is an even number of patches, otherwise not colored
+            start = len(patch) % 2
+            for i in range(start, len(patch), 2):
                 if i + 1 > len(patch) - 1:
                     continue
                 p1, p2 = patch[i], patch[i + 1]
@@ -68,7 +70,7 @@ class Chromosome(BaseGlyph):
 
     def get_pts(self, x, y1, y2, width):
         w = width / 2
-        r = width / (3 ** 0.5)
+        r = width / (3**0.5)
 
         pts = []
         pts += plot_cap((x, y1 + r), np.radians(range(210, 330)), r)
@@ -131,7 +133,9 @@ class HorizontalChromosome(BaseGlyph):
                 self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))
         if patch:
             rr = r * 0.9  # Shrink a bit for the patches
-            for i in range(0, len(patch), 2):
+            # First patch is colored if there is an even number of patches, otherwise not colored
+            start = len(patch) % 2
+            for i in range(start, len(patch), 2):
                 if i + 1 > len(patch) - 1:
                     continue
                 p1, p2 = patch[i], patch[i + 1]
@@ -143,7 +147,7 @@ class HorizontalChromosome(BaseGlyph):
 
     def get_pts(self, x1, x2, y, height):
         h = height / 2
-        r = height / (3 ** 0.5)
+        r = height / (3**0.5)
 
         if x2 - x1 < 2 * height:  # rectangle for small chromosomes
             return [[x1, y + h], [x1, y - h], [x2, y - h], [x2, y + h]], r

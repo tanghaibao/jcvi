@@ -56,7 +56,7 @@ class Chromosome(BaseGlyph):
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
         if patch:
             rr = r * 0.9  # Shrink a bit for the patches
-            			if (len(patch) % 2) == 0: #if even number of patches run Oringal code
+            if (len(patch) % 2) == 0: #if even number of patches run Oringal code
 	            for i in range(0, len(patch), 2):
 	                if i + 1 > len(patch) - 1:
 	                    continue

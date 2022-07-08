@@ -56,13 +56,23 @@ class Chromosome(BaseGlyph):
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
         if patch:
             rr = r * 0.9  # Shrink a bit for the patches
-            for i in range(0, len(patch), 2):
-                if i + 1 > len(patch) - 1:
-                    continue
-                p1, p2 = patch[i], patch[i + 1]
-                self.append(
-                    Rectangle((x - rr, p1), 2 * rr, p2 - p1, lw=0, fc=patchcolor)
-                )
+            			if (len(patch) % 2) == 0: #if even number of patches run Oringal code
+	            for i in range(0, len(patch), 2):
+	                if i + 1 > len(patch) - 1:
+	                    continue
+	                p1, p2 = patch[i], patch[i + 1]
+	                self.append(
+	                    Rectangle((x - rr, p1), 2 * rr, p2 - p1, lw=0, fc=patchcolor)
+	                )
+
+			else: #if odd number of patches run edited code
+				for i in range(0, len(patch), 2):
+	                if i + 1 > len(patch) - 1:
+	                    continue
+	                p1, p2 = patch[i + 1], patch[i + 2]
+	                self.append(
+	                    Rectangle((x - rr, p1), 2 * rr, p2 - p1, lw=0, fc=patchcolor)
+	                )
 
         self.add_patches()
 
@@ -131,13 +141,23 @@ class HorizontalChromosome(BaseGlyph):
                 self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))
         if patch:
             rr = r * 0.9  # Shrink a bit for the patches
-            for i in range(0, len(patch), 2):
-                if i + 1 > len(patch) - 1:
-                    continue
-                p1, p2 = patch[i], patch[i + 1]
-                self.append(
-                    Rectangle((p1, y - rr), p2 - p1, 2 * rr, lw=0, fc=patchcolor)
-                )
+            if (len(patch) % 2) == 0: #if even number of patches run Oringal code
+	            for i in range(0, len(patch), 2):
+	                if i + 1 > len(patch) - 1:
+	                    continue
+	                p1, p2 = patch[i], patch[i + 1]
+	                self.append(
+	                    Rectangle((p1, y - rr), p2 - p1, 2 * rr, lw=0, fc=patchcolor)
+	                )   
+ 
+			else: #if odd number of patches run edited code
+	            for i in range(0, len(patch), 2):
+	                if i + 1 > len(patch) - 1:
+	                    continue
+	                p1, p2 = patch[i + 1], patch[i + 2]
+	                self.append(
+	                    Rectangle((p1, y - rr), p2 - p1, 2 * rr, lw=0, fc=patchcolor)
+	                )
 
         self.add_patches()
 

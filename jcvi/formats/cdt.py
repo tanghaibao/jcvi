@@ -44,7 +44,7 @@ class CDT(BaseFile):
         assert eweight[0] == "EWEIGHT"
 
         self.gnames = [x[:2] for x in reader]
-        self.anames = zip(aid, gid)[4:]
+        self.anames = list(zip(aid, gid))[4:]
 
     def get_gtr_tree(self):
 

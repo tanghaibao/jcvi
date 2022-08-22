@@ -2134,9 +2134,13 @@ def extract(args):
     else:
         start, stop = None, None
 
-    assert start < stop or None in (
-        start,
-        stop,
+    assert (
+        None
+        in (
+            start,
+            stop,
+        )
+        or start < stop
     ), "start must be < stop, you have ({0}, {1})".format(start, stop)
     feature["strand"] = strand
 

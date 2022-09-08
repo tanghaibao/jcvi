@@ -1177,10 +1177,13 @@ def validate(args):
     )
     opts, args = p.parse_args(args)
 
-    if len(args) != 3:
+    if len(args) != 2:
         sys.exit(not p.print_help())
 
     import logging
+
+    logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
     import pandas as pd
     import holoviews as hv
     import hvplot.pandas
@@ -1191,7 +1194,10 @@ def validate(args):
     from dataclasses import dataclass
     from io import StringIO
 
-    bccfile, vcffile, cell_prev_file = args
+    (
+        bccfile,
+        vcffile,
+    ) = args
     rdr_logy = not opts.no_rdr_logy
     df = pd.read_csv(bccfile, sep="\t")
 
@@ -1274,11 +1280,6 @@ def validate(args):
     rfx["pos"] = rfx["start"] + rfx["cumsize"]
     rfx["pos_end"] = rfx["end"] + rfx["cumsize"]
 
-    logging.info("Loading `%s` for cellular prevalence", cell_prev_file)
-    cf = pd.read_csv(cell_prev_file, sep="\t")
-    wf = pd.merge(cf, sizes, how="left", left_on="chr", right_on="chr")
-    wf["pos"] = wf["start"] + wf["cumsize"]
-
     xlim = (0, 2881033286)
     rdr_ylim = (0.5, 4) if rdr_logy else (0, 8)
     rdr = jf.hvplot.scatter(
@@ -1318,37 +1319,6 @@ def validate(args):
         title=f"{sample}, Somatic Variant Allele Fraction (VAF)",
         legend=False,
     )
-    ml_cell_prev = wf.hvplot.scatter(
-        x="pos",
-        y="ml_cell_prevalence",
-        xlim=xlim,
-        ylim=(0, 1),
-        s=1,
-        width=1440,
-        height=180,
-        c="chr",
-        title=f"{sample}, ML Cellular Prevalence Estimate",
-        legend=False,
-    )
-    pyclone_cell_prev = wf.hvplot.scatter(
-        x="pos",
-        y="pyclone_cell_prevalence",
-        xlim=xlim,
-        ylim=(0, 1),
-        s=1,
-        width=1440,
-        height=180,
-        c="chr",
-        title=f"{sample}, PyClone Cellular Prevalence Estimate",
-        legend=False,
-    )
-    ml_vs_pyclone = wf.hvplot.violin(
-        "ml_cell_prevalence",
-        by="pyclone_cell_prevalence",
-        width=720,
-        height=180,
-        title=f"{sample}, ML Cellular Prevalance vs PyClone Cellular Prevalance",
-    )
     rfx_gain = rfx[(rfx["type"] == "GAIN") & rfx["is_pass"]]
     rfx_loss = rfx[(rfx["type"] == "LOSS") & rfx["is_pass"]]
     rfx_ref = rfx[(rfx["type"] == "REF") & rfx["is_pass"]]
@@ -1387,8 +1357,6 @@ def validate(args):
         baf = baf * vline * ctext2
         comp = comp * vline
         vaf = vaf * vline
-        ml_cell_prev = ml_cell_prev * vline * ctext2
-        pyclone_cell_prev = pyclone_cell_prev * vline * ctext2
     model_kv = " ".join(f"{k}={v}" for k, v in model.items())
     comp.opts(
         width=1440,
@@ -1397,9 +1365,7 @@ def validate(args):
         ylim=(0, 10),
         title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH\n{model_kv}",
     )
-    cc = (
-        rdr + baf + comp + vaf + ml_cell_prev + pyclone_cell_prev + ml_vs_pyclone
-    ).cols(1)
+    cc = (rdr + baf + comp + vaf).cols(1)
     htmlfile = f"{sample}.html"
     hv.save(cc, htmlfile)
     logging.info("Report written to `%s`", htmlfile)

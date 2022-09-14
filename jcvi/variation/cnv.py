@@ -26,6 +26,7 @@ from jcvi.utils.aws import glob_s3, push_to_s3, sync_from_s3
 from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, mkdir, popen, sh
 
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 autosomes = ["chr{}".format(x) for x in range(1, 23)]
 sexsomes = ["chrX", "chrY"]
@@ -358,6 +359,7 @@ def main():
         # Plots
         ("gcdepth", "plot GC content vs depth for genomic bins"),
         ("validate", "validate CNV calls by plotting RDR/BAF/CN"),
+        ("wes_vs_wgs", "plot WES vs WGS CNV calls"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -1176,7 +1178,7 @@ class CNV:
 
 def validate(args):
     """
-    %prog validate sample.bcc sample.cnv.vcf.gz sample.pyclone
+    %prog validate sample.bcc sample.cnv.vcf.gz
 
     Plot RDR/BAF/CN for validation of CNV calls in `sample.vcf.gz`.
     """
@@ -1192,11 +1194,6 @@ def validate(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    import logging
-
-    logging.getLogger("matplotlib").setLevel(logging.WARNING)
-
-    import pandas as pd
     import holoviews as hv
     import hvplot.pandas
 
@@ -1391,6 +1388,21 @@ def get_purity_and_model(vcffile: str) -> dict[str, str]:
         if a in model:
             model[a] = b
     return model
+
+
+def wes_vs_wgs(args):
+    """
+    %prog wes_vs_wgs sample.bcc sample.wes.cnv.vcf.gz sample.wgs.cnv.vcf.gz
+
+    Compare WES and WGS CNVs.
+    """
+    p = OptionParser(wes_vs_wgs.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    bccfile, wesfile, wgsfile = args
 
 
 if __name__ == "__main__":

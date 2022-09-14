@@ -14,6 +14,7 @@ import pandas as pd
 import pysam
 
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from itertools import groupby
 from multiprocessing import Pool
 from random import choice
@@ -1162,6 +1163,17 @@ def cn(args):
         shutil.rmtree(cndir)
 
 
+@dataclass
+class CNV:
+    chr: str
+    start: int
+    end: int
+    type: str
+    name: str
+    is_pass: bool
+    cn: int
+
+
 def validate(args):
     """
     %prog validate sample.bcc sample.cnv.vcf.gz sample.pyclone
@@ -1190,10 +1202,6 @@ def validate(args):
 
     hv.extension("bokeh")
 
-    from cyvcf2 import VCF
-    from dataclasses import dataclass
-    from io import StringIO
-
     (
         bccfile,
         vcffile,
@@ -1201,75 +1209,11 @@ def validate(args):
     rdr_logy = not opts.no_rdr_logy
     df = pd.read_csv(bccfile, sep="\t")
 
-    @dataclass
-    class CNV:
-        chr: str
-        start: int
-        end: int
-        type: str
-        name: str
-        is_pass: bool
-        cn: int
-
     sample = op.basename(bccfile).split(".", 1)[0]
-    # Get purity and model
-    model = {
-        "ModelSource": None,
-        "EstimatedTumorPurity": None,
-        # "DiploidCoverage": None,
-        "OverallPloidy": None,
-    }
-    import gzip
-
-    for row in gzip.open(vcffile):
-        row = row.decode("utf-8")
-        if not row.startswith("##"):
-            continue
-        a, b = row[2:].split("=", 1)
-        if a in model:
-            model[a] = b
-
-    vcf_reader = VCF(vcffile)
-    records = []
-    for record in vcf_reader:
-        name = record.ID
-        dragen, type, chr, start_end = name.split(":")
-        start, end = [int(x) for x in start_end.split("-")]
-        is_pass = "PASS" in record.FILTERS
-        (cn,) = record.format("CN")[0]
-        record = CNV(chr, start, end, type, name, is_pass, cn)
-        records.append(record)
-
-    logging.info("A total of %d records imported", len(records))
+    model = get_purity_and_model(vcffile)
+    records = get_CNV_records(vcffile)
     rf = pd.DataFrame(x.__dict__ for x in records)
-    # hg19
-    s = """
-    chr	size
-    chr1	249250621
-    chr2	243199373
-    chr3	198022430
-    chr4	191154276
-    chr5	180915260
-    chr6	171115067
-    chr7	159138663
-    chr8	146364022
-    chr9	141213431
-    chr10	135534747
-    chr11	135006516
-    chr12	133851895
-    chr13	115169878
-    chr14	107349540
-    chr15	102531392
-    chr16	90354753
-    chr17	81195210
-    chr18	78077248
-    chr19	59128983
-    chr20	63025520
-    chr21	48129895
-    chr22	51304566
-    chrX	155270560
-    chrY	59373566"""
-    sizes = pd.read_csv(StringIO(s), delim_whitespace=True)
+    sizes, xlim = get_hg19_chr_sizes_and_xlim()
     b = np.cumsum(sizes["size"])
     a = pd.Series(b[:-1])
     a.index += 1
@@ -1280,7 +1224,6 @@ def validate(args):
     rfx["pos"] = rfx["start"] + rfx["cumsize"]
     rfx["pos_end"] = rfx["end"] + rfx["cumsize"]
 
-    xlim = (0, 2881033286)
     rdr_ylim = (0.5, 4) if rdr_logy else (0, 8)
     rdr = jf.hvplot.scatter(
         x="pos",
@@ -1369,6 +1312,85 @@ def validate(args):
     htmlfile = f"{sample}.html"
     hv.save(cc, htmlfile)
     logging.info("Report written to `%s`", htmlfile)
+
+
+def get_hg19_chr_sizes_and_xlim() -> tuple[pd.DataFrame, tuple[int, int]]:
+    """
+    Get chromosome sizes for hg19
+    """
+    from io import StringIO
+
+    # hg19
+    s = """
+    chr	size
+    chr1	249250621
+    chr2	243199373
+    chr3	198022430
+    chr4	191154276
+    chr5	180915260
+    chr6	171115067
+    chr7	159138663
+    chr8	146364022
+    chr9	141213431
+    chr10	135534747
+    chr11	135006516
+    chr12	133851895
+    chr13	115169878
+    chr14	107349540
+    chr15	102531392
+    chr16	90354753
+    chr17	81195210
+    chr18	78077248
+    chr19	59128983
+    chr20	63025520
+    chr21	48129895
+    chr22	51304566
+    chrX	155270560
+    chrY	59373566"""
+    sizes = pd.read_csv(StringIO(s), delim_whitespace=True)
+    return sizes, (0, 2881033286)
+
+
+def get_CNV_records(vcffile: str) -> list[CNV]:
+    """
+    Get CNV records from a VCF file.
+    """
+    from cyvcf2 import VCF
+
+    vcf_reader = VCF(vcffile)
+    records = []
+    for record in vcf_reader:
+        name = record.ID
+        dragen, type, chr, start_end = name.split(":")
+        start, end = [int(x) for x in start_end.split("-")]
+        is_pass = "PASS" in record.FILTERS
+        (cn,) = record.format("CN")[0]
+        record = CNV(chr, start, end, type, name, is_pass, cn)
+        records.append(record)
+    logging.info("A total of %d records imported", len(records))
+    return records
+
+
+def get_purity_and_model(vcffile: str) -> dict[str, str]:
+    """
+    Get purity and model from VCF header.
+    """
+    model = {
+        "ModelSource": None,
+        "EstimatedTumorPurity": None,
+        # "DiploidCoverage": None,
+        "OverallPloidy": None,
+    }
+    import gzip
+
+    for row in gzip.open(vcffile):
+        row = row.decode("utf-8")
+        if not row.startswith("##"):
+            continue
+        a, b = row[2:].split("=", 1)
+        if a in model:
+            model[a] = b
+    return model
 
 
 if __name__ == "__main__":

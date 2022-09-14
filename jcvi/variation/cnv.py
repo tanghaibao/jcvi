@@ -517,7 +517,7 @@ def parse_segments(vcffile):
     chr1    788879  Canvas:GAIN:chr1:788880-821005  N       <CNV>   2       q10
     SVTYPE=CNV;END=821005;CNVLEN=32126      RC:BC:CN:MCC    157:4:3:2
     """
-    from cStringIO import StringIO
+    from io import StringIO
     from cyvcf2 import VCF
 
     output = StringIO()
@@ -1207,9 +1207,6 @@ def validate(args):
     df = pd.read_csv(bccfile, sep="\t")
 
     sample = op.basename(bccfile).split(".", 1)[0]
-    model = get_purity_and_model(vcffile)
-    records = get_CNV_records(vcffile)
-    rf = pd.DataFrame(x.__dict__ for x in records)
     sizes, xlim = get_hg19_chr_sizes_and_xlim()
     b = np.cumsum(sizes["size"])
     a = pd.Series(b[:-1])
@@ -1217,9 +1214,7 @@ def validate(args):
     sizes["cumsize"] = pd.concat([pd.Series([0]), a])
     jf = pd.merge(df, sizes, how="left", left_on="#chr", right_on="chr")
     jf["pos"] = jf["start"] + jf["cumsize"]
-    rfx = pd.merge(rf, sizes, how="left", left_on="chr", right_on="chr")
-    rfx["pos"] = rfx["start"] + rfx["cumsize"]
-    rfx["pos_end"] = rfx["end"] + rfx["cumsize"]
+    model, rfx = get_model_and_dataframe(sizes, vcffile)
 
     rdr_ylim = (0.5, 4) if rdr_logy else (0, 8)
     rdr = jf.hvplot.scatter(
@@ -1311,6 +1306,21 @@ def validate(args):
     logging.info("Report written to `%s`", htmlfile)
 
 
+def get_model_and_dataframe(
+    vcffile: str, sizes: pd.DataFrame
+) -> tuple[dict, pd.DataFrame]:
+    """
+    Get the model and dataframe from the VCF file.
+    """
+    model = get_purity_and_model(vcffile)
+    records = get_CNV_records(vcffile)
+    rf = pd.DataFrame(x.__dict__ for x in records)
+    rfx = pd.merge(rf, sizes, how="left", left_on="chr", right_on="chr")
+    rfx["pos"] = rfx["start"] + rfx["cumsize"]
+    rfx["pos_end"] = rfx["end"] + rfx["cumsize"]
+    return model, rfx
+
+
 def get_hg19_chr_sizes_and_xlim() -> tuple[pd.DataFrame, tuple[int, int]]:
     """
     Get chromosome sizes for hg19
@@ -1397,12 +1407,86 @@ def wes_vs_wgs(args):
     Compare WES and WGS CNVs.
     """
     p = OptionParser(wes_vs_wgs.__doc__)
+    p.add_option(
+        "--no-rdr-logy",
+        default=False,
+        action="store_true",
+        help="Do not make y-axis of RDR log-scale",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
 
+    import holoviews as hv
+    import hvplot.pandas
+
+    hv.extension("bokeh")
+
     bccfile, wesfile, wgsfile = args
+    df = pd.read_csv(bccfile, sep="\t")
+    rdr_logy = not opts.no_rdr_logy
+
+    sample = op.basename(bccfile).split(".", 1)[0]
+    sizes, xlim = get_hg19_chr_sizes_and_xlim()
+    b = np.cumsum(sizes["size"])
+    a = pd.Series(b[:-1])
+    a.index += 1
+    sizes["cumsize"] = pd.concat([pd.Series([0]), a])
+    jf = pd.merge(df, sizes, how="left", left_on="#chr", right_on="chr")
+    jf["pos"] = jf["start"] + jf["cumsize"]
+
+    wes_model, wes_rfx = get_model_and_dataframe(wesfile, sizes)
+    wgs_model, wgs_rfx = get_model_and_dataframe(wgsfile, sizes)
+
+    rdr_ylim = (0.5, 4) if rdr_logy else (0, 8)
+    rdr = jf.hvplot.scatter(
+        x="pos",
+        y="rdr",
+        logy=rdr_logy,
+        xlim=xlim,
+        ylim=rdr_ylim,
+        s=1,
+        width=1440,
+        height=240,
+        c="chr",
+        title=f"{sample}, Tumor RD/Normal RD (RDR)",
+        legend=False,
+    )
+    wes_model = " ".join(f"{k}={v}" for k, v in wes_model.items())
+    wes_cn = wes_rfx.hvplot.line(
+        x="pos",
+        y="cn",
+        width=1440,
+        height=240,
+        xlim=xlim,
+        ylim=(0, 10),
+        title=f"WES {sample}\n{wes_model}",
+    )
+    wgs_model = " ".join(f"{k}={v}" for k, v in wgs_model.items())
+    wgs_cn = wgs_rfx.hvplot.line(
+        x="pos",
+        y="cn",
+        width=1440,
+        height=240,
+        xlim=xlim,
+        ylim=(0, 10),
+        title=f"WES {sample}\n{wgs_model}",
+    )
+    for _, row in sizes.iterrows():
+        chr = row["chr"]
+        cb = row["cumsize"]
+        vline = hv.VLine(cb).opts(color="lightgray", line_width=1)
+        ctext1 = hv.Text(
+            cb, 0.5, chr.replace("chr", ""), halign="left", valign="bottom"
+        )
+        rdr = rdr * vline * ctext1
+        wes_cn = wes_cn * vline
+        wgs_cn = wgs_cn * vline
+    cc = (rdr + wes_cn + wgs_cn).cols(1)
+    htmlfile = f"{sample}.html"
+    hv.save(cc, htmlfile)
+    logging.info("Report written to `%s`", htmlfile)
 
 
 if __name__ == "__main__":

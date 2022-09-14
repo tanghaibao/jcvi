@@ -1254,6 +1254,39 @@ def validate(args):
         title=f"{sample}, Somatic Variant Allele Fraction (VAF)",
         legend=False,
     )
+    comp = get_segments(rfx)
+    for _, row in sizes.iterrows():
+        chr = row["chr"]
+        cb = row["cumsize"]
+        vline = hv.VLine(cb).opts(color="lightgray", line_width=1)
+        ctext1 = hv.Text(
+            cb, 0.5, chr.replace("chr", ""), halign="left", valign="bottom"
+        )
+        ctext2 = hv.Text(cb, 0, chr.replace("chr", ""), halign="left", valign="bottom")
+        rdr = rdr * vline * ctext1
+        baf = baf * vline * ctext2
+        comp = comp * vline
+        vaf = vaf * vline
+    model_kv = " ".join(f"{k}={v}" for k, v in model.items())
+    comp.opts(
+        width=1440,
+        height=240,
+        xlim=xlim,
+        ylim=(0, 10),
+        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH\n{model_kv}",
+    )
+    cc = (rdr + baf + comp + vaf).cols(1)
+    htmlfile = f"{sample}.html"
+    hv.save(cc, htmlfile)
+    logging.info("Report written to `%s`", htmlfile)
+
+
+def get_segments(rfx: pd.DataFrame):
+    """
+    Return a holoviews object for segments.
+    """
+    import holoviews as hv
+
     rfx_gain = rfx[(rfx["type"] == "GAIN") & rfx["is_pass"]]
     rfx_loss = rfx[(rfx["type"] == "LOSS") & rfx["is_pass"]]
     rfx_ref = rfx[(rfx["type"] == "REF") & rfx["is_pass"]]
@@ -1280,30 +1313,7 @@ def validate(args):
     seg_cnloh.opts(color="m", line_width=5, tools=["hover"])
     seg_gainloh.opts(color="c", line_width=5, tools=["hover"])
     comp = seg_gain * seg_ref * seg_loss * seg_cnloh * seg_gainloh
-    for _, row in sizes.iterrows():
-        chr = row["chr"]
-        cb = row["cumsize"]
-        vline = hv.VLine(cb).opts(color="lightgray", line_width=1)
-        ctext1 = hv.Text(
-            cb, 0.5, chr.replace("chr", ""), halign="left", valign="bottom"
-        )
-        ctext2 = hv.Text(cb, 0, chr.replace("chr", ""), halign="left", valign="bottom")
-        rdr = rdr * vline * ctext1
-        baf = baf * vline * ctext2
-        comp = comp * vline
-        vaf = vaf * vline
-    model_kv = " ".join(f"{k}={v}" for k, v in model.items())
-    comp.opts(
-        width=1440,
-        height=240,
-        xlim=xlim,
-        ylim=(0, 10),
-        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH\n{model_kv}",
-    )
-    cc = (rdr + baf + comp + vaf).cols(1)
-    htmlfile = f"{sample}.html"
-    hv.save(cc, htmlfile)
-    logging.info("Report written to `%s`", htmlfile)
+    return comp
 
 
 def get_model_and_dataframe(
@@ -1454,25 +1464,9 @@ def wes_vs_wgs(args):
         legend=False,
     )
     wes_model = " ".join(f"{k}={v}" for k, v in wes_model.items())
-    wes_cn = wes_rfx.hvplot.line(
-        x="pos",
-        y="cn",
-        width=1440,
-        height=240,
-        xlim=xlim,
-        ylim=(0, 10),
-        title=f"WES {sample}\n{wes_model}",
-    )
+    wes_comp = get_segments(wes_rfx)
     wgs_model = " ".join(f"{k}={v}" for k, v in wgs_model.items())
-    wgs_cn = wgs_rfx.hvplot.line(
-        x="pos",
-        y="cn",
-        width=1440,
-        height=240,
-        xlim=xlim,
-        ylim=(0, 10),
-        title=f"WES {sample}\n{wgs_model}",
-    )
+    wgs_comp = get_segments(wgs_rfx)
     for _, row in sizes.iterrows():
         chr = row["chr"]
         cb = row["cumsize"]
@@ -1481,9 +1475,19 @@ def wes_vs_wgs(args):
             cb, 0.5, chr.replace("chr", ""), halign="left", valign="bottom"
         )
         rdr = rdr * vline * ctext1
-        wes_cn = wes_cn * vline
-        wgs_cn = wgs_cn * vline
-    cc = (rdr + wes_cn + wgs_cn).cols(1)
+        wes_comp = wes_comp * vline
+        wgs_comp = wgs_comp * vline
+    cc = (rdr + wes_comp + wgs_comp).cols(1)
+    for label, c, model_kv in zip(
+        ("WES", "WGS"), (wes_comp, wgs_comp), (wes_model, wgs_model)
+    ):
+        c.opts(
+            width=1440,
+            height=240,
+            xlim=xlim,
+            ylim=(0, 10),
+            title=f"{label} {sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH\n{model_kv}",
+        )
     htmlfile = f"{sample}.html"
     hv.save(cc, htmlfile)
     logging.info("Report written to `%s`", htmlfile)

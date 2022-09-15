@@ -1467,6 +1467,7 @@ def wes_vs_wgs(args):
         c="chr",
         title=f"{sample}, Tumor RD/Normal RD (RDR)",
         legend=False,
+        ylabel="Read depth ratio",
     )
     wes_model = " ".join(f"{k}={v}" for k, v in wes_model.items())
     wes_comp = get_segments(wes_rfx)

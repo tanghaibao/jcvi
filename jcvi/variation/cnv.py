@@ -1292,6 +1292,7 @@ def get_segments(rfx: pd.DataFrame):
     rfx_ref = rfx[(rfx["type"] == "REF") & rfx["is_pass"]]
     rfx_cnloh = rfx[(rfx["type"] == "CNLOH") & rfx["is_pass"]]
     rfx_gainloh = rfx[(rfx["type"] == "GAINLOH") & rfx["is_pass"]]
+    rfx_nonpass = rfx[~rfx["is_pass"]]
     seg_gain = hv.Segments(
         rfx_gain, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
     )
@@ -1307,12 +1308,16 @@ def get_segments(rfx: pd.DataFrame):
     seg_gainloh = hv.Segments(
         rfx_gainloh, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
     )
+    seg_nonpass = hv.Segments(
+        rfx_nonpass, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
     seg_gain.opts(color="r", line_width=5, tools=["hover"])
     seg_loss.opts(color="b", line_width=5, tools=["hover"])
     seg_ref.opts(color="k", line_width=5, tools=["hover"])
     seg_cnloh.opts(color="m", line_width=5, tools=["hover"])
     seg_gainloh.opts(color="c", line_width=5, tools=["hover"])
-    comp = seg_gain * seg_ref * seg_loss * seg_cnloh * seg_gainloh
+    seg_nonpass.opts(color="lightgray", line_width=5, tools=["hover"])
+    comp = seg_gain * seg_ref * seg_loss * seg_cnloh * seg_gainloh * seg_nonpass
     return comp
 
 
@@ -1486,7 +1491,7 @@ def wes_vs_wgs(args):
             height=240,
             xlim=xlim,
             ylim=(0, 10),
-            title=f"{label} {sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH\n{model_kv}",
+            title=f"{label} {sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH, Gray: NON-PASS\n{model_kv}",
         )
     htmlfile = f"{sample}.html"
     hv.save(cc, htmlfile)

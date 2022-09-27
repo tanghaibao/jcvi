@@ -40,6 +40,29 @@ from jcvi.apps.base import glob, listify, datadir, sample_N, which
 logging.getLogger().setLevel(logging.DEBUG)
 
 
+CHARS = {
+    "&": r"\&",
+    "%": r"\%",
+    "$": r"\$",
+    "#": r"\#",
+    "_": r"\_",
+    "{": r"\{",
+    "}": r"\}",
+}
+
+GRAPHIC_FORMATS = (
+    "emf",
+    "eps",
+    "pdf",
+    "png",
+    "ps",
+    "raw",
+    "rgba",
+    "svg",
+    "svgz",
+)
+
+
 def is_usetex():
     """Check if latex command is available"""
     return bool(which("latex")) and bool(which("lp"))
@@ -129,17 +152,6 @@ class AbstractLayout(LineFile):
 
     def __str__(self):
         return "\n".join(str(x) for x in self)
-
-
-CHARS = {
-    "&": r"\&",
-    "%": r"\%",
-    "$": r"\$",
-    "#": r"\#",
-    "_": r"\_",
-    "{": r"\{",
-    "}": r"\}",
-}
 
 
 def linear_blend(from_color, to_color, fraction=0.5):
@@ -273,6 +285,24 @@ def panel_labels(ax, labels, size=16):
         if rcParams["text.usetex"]:
             panel_label = r"$\textbf{{{0}}}$".format(panel_label)
         ax.text(xx, yy, panel_label, size=size, ha="center", va="center")
+
+
+def update_figname(figname: str, format: str) -> str:
+    """Update the name of a figure to include the format.
+
+    Args:
+        figname (str): Path to the figure
+        format (str): Figure format, must be one of GRAPHIC_FORMATS
+
+    Returns:
+        str: New file path
+    """
+    _, ext = op.splitext(figname)
+    if ext.strip(".") in GRAPHIC_FORMATS:  # User suffix has precedence
+        return figname
+    # When the user has not supplied a format in the filename, use the requested format
+    assert format in GRAPHIC_FORMATS, "Invalid format"
+    return figname + "." + format
 
 
 def savefig(figname, dpi=150, iopts=None, cleanup=True):

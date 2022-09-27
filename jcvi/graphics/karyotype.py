@@ -29,7 +29,7 @@ from jcvi.formats.bed import Bed
 from jcvi.graphics.chromosome import HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Shade
-from jcvi.graphics.base import mpl, plt, savefig, markup, AbstractLayout
+from jcvi.graphics.base import AbstractLayout, markup, mpl, plt, savefig, update_figname
 
 
 class LayoutLine(object):
@@ -430,6 +430,7 @@ def main():
         choices=Shade.Styles,
         help="Style of syntenic wedges",
     )
+    p.set_outfile("karyotype.pdf")
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 2:
@@ -455,8 +456,7 @@ def main():
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    pf = "karyotype"
-    image_name = pf + "." + iopts.format
+    image_name = update_figname(opts.outfile, iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

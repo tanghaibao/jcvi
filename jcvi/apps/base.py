@@ -515,19 +515,8 @@ class OptionParser(OptionP):
         """
         Add image format options for given command line programs.
         """
-        from jcvi.graphics.base import ImageOptions, setup_theme
+        from jcvi.graphics.base import GRAPHIC_FORMATS, ImageOptions, setup_theme
 
-        allowed_format = (
-            "emf",
-            "eps",
-            "pdf",
-            "png",
-            "ps",
-            "raw",
-            "rgba",
-            "svg",
-            "svgz",
-        )
         allowed_fonts = ("Helvetica", "Palatino", "Schoolbook", "Arial")
         allowed_styles = ("darkgrid", "whitegrid", "dark", "white", "ticks")
         allowed_diverge = (
@@ -557,7 +546,7 @@ class OptionParser(OptionP):
         group.add_option(
             "--format",
             default=format,
-            choices=allowed_format,
+            choices=GRAPHIC_FORMATS,
             help="Generate image of format",
         )
         group.add_option(

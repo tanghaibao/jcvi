@@ -55,7 +55,7 @@ h.install_requirements(requires=["cython", "numpy"])
 
 # Build the ext
 try:
-    from Cython.Distutils import build_ext
+    from Cython.Build import build_ext
 
     cmdclass.update({"build_ext": build_ext})
 except ImportError:

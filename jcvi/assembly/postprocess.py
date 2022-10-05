@@ -33,7 +33,14 @@ from jcvi.formats.base import must_open
 from jcvi.utils.cbook import depends
 from jcvi.assembly.base import n50
 from jcvi.apps.align import run_megablast
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, need_update
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    cleanup,
+    mkdir,
+    need_update,
+    sh,
+)
 
 
 def main():
@@ -150,8 +157,7 @@ def circular(args):
     if opts.flip:
         seq = seq.reverse_complement()
 
-    for f in (aseqfile, bseqfile):
-        os.remove(f)
+    cleanup(aseqfile, bseqfile)
 
     fw = must_open(opts.outfile, "w")
     rec = SeqRecord(seq, id=key, description="")
@@ -523,9 +529,7 @@ def overlap(args):
     n50([finalfasta])
 
     errlog = "error.log"
-    for f in (fastafile, blastfile, errlog):
-        if op.exists(f):
-            os.remove(f)
+    cleanup(fastafile, blastfile, errlog)
 
 
 if __name__ == "__main__":

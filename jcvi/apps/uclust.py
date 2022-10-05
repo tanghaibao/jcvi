@@ -747,7 +747,7 @@ def L2(E, P, N):
                 one = 2.0 * P[l] * P[j]
                 two = scipy.stats.binom.pmf(s - i - k, s, (2.0 * E) / 3.0)
                 three = scipy.stats.binom.pmf(i, k + i, 0.5)
-                four = 1.0 - (sum([q ** 2.0 for q in P]))
+                four = 1.0 - (sum([q**2.0 for q in P]))
                 h.append(one * two * (three / four))
     return sum(h)
 
@@ -789,8 +789,7 @@ def estimateHE(args):
 
     (clustSfile,) = args
     HEfile = clustSfile.rsplit(".", 1)[0] + ".HE"
-    if not need_update(clustSfile, HEfile):
-        logging.debug("File `{0}` found. Computation skipped.".format(HEfile))
+    if not need_update(clustSfile, HEfile, warn=True):
         return HEfile
 
     D = []

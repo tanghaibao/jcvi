@@ -954,36 +954,33 @@ class OptionParser(OptionP):
 
     def set_home(self, prog, default=None):
         tag = "--{0}_home".format(prog)
-        default = (
-            default
-            or {
-                "amos": "~/code/amos-code",
-                "trinity": "~/export/trinityrnaseq-2.0.6",
-                "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
-                "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
-                "maker": "~/export/maker",
-                "augustus": "~/export/maker/exe/augustus",
-                "pasa": "~/export/PASApipeline-2.0.2",
-                "gatk": "~/export",
-                "gmes": "~/export/gmes",
-                "gt": "~/export/genometools",
-                "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
-                "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
-                "pbjelly": "~/export/PBSuite_15.2.20",
-                "picard": "~/export/picard-tools-1.138",
-                "khmer": "~/export/khmer",
-                "tassel": "/usr/local/projects/MTG4/packages/tassel",
-                "tgi": "~/export/seqclean-x86_64",
-                "eddyyeh": "/home/shared/scripts/eddyyeh",
-                "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
-                "fermi": "~/export/fermi",
-                "lobstr": "/mnt/software/lobSTR",
-                "shapeit": "/mnt/software/shapeit",
-                "impute": "/mnt/software/impute",
-                "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
-                "minimac": "/mnt/software/Minimac3/bin",
-            }.get(prog, None)
-        )
+        default = default or {
+            "amos": "~/code/amos-code",
+            "trinity": "~/export/trinityrnaseq-2.0.6",
+            "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
+            "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
+            "maker": "~/export/maker",
+            "augustus": "~/export/maker/exe/augustus",
+            "pasa": "~/export/PASApipeline-2.0.2",
+            "gatk": "~/export",
+            "gmes": "~/export/gmes",
+            "gt": "~/export/genometools",
+            "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
+            "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
+            "pbjelly": "~/export/PBSuite_15.2.20",
+            "picard": "~/export/picard-tools-1.138",
+            "khmer": "~/export/khmer",
+            "tassel": "/usr/local/projects/MTG4/packages/tassel",
+            "tgi": "~/export/seqclean-x86_64",
+            "eddyyeh": "/home/shared/scripts/eddyyeh",
+            "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
+            "fermi": "~/export/fermi",
+            "lobstr": "/mnt/software/lobSTR",
+            "shapeit": "/mnt/software/shapeit",
+            "impute": "/mnt/software/impute",
+            "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
+            "minimac": "/mnt/software/Minimac3/bin",
+        }.get(prog, None)
         if default is None:  # Last attempt at guessing the path
             try:
                 default = op.dirname(which(prog))
@@ -1318,19 +1315,38 @@ def last_updated(a):
     return time.time() - op.getmtime(a)
 
 
-def need_update(a, b):
+def need_update(a: str, b: str, warn: bool = False) -> bool:
     """
     Check if file a is newer than file b and decide whether or not to update
     file b. Can generalize to two lists.
+
+    Args:
+        a: file or list of files
+        b: file or list of files
+        warn: whether or not to print warning message
+
+    Returns:
+        True if file a is newer than file b
     """
     a = listify(a)
     b = listify(b)
 
-    return (
+    should_update = (
         any((not op.exists(x)) for x in b)
         or all((os.stat(x).st_size == 0 for x in b))
         or any(is_newer_file(x, y) for x in a for y in b)
     )
+    if (not should_update) and warn:
+        logging.debug("File `{}` found. Computation skipped.".format(", ".join(b)))
+    return should_update
+
+
+def cleanup(*args):
+    """
+    Remove a bunch of files in args; ignore if not found.
+    """
+    for path in flatten(args):
+        remove_if_exists(path)
 
 
 def get_today():
@@ -1462,8 +1478,8 @@ def getfilesize(filename, ratio=None):
     # Heuristic
     heuristicsize = rawsize / ratio
     while size < heuristicsize:
-        size += 2 ** 32
-    if size > 2 ** 32:
+        size += 2**32
+    if size > 2**32:
         logging.warning("Gzip file estimated uncompressed size: {0}.".format(size))
 
     return size

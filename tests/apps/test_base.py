@@ -3,6 +3,7 @@
 
 import os
 import os.path as op
+import time
 
 
 def test_sample_N():
@@ -75,3 +76,40 @@ def test_ls_ftp():
     assert "saccharomyces_cerevisiae" in valid_species
     assert "gorilla_gorilla" in valid_species
     assert len(valid_species) == 67
+
+
+def test_cleanup():
+    from jcvi.apps.base import cleanup
+    from jcvi.formats.base import write_file
+
+    write_file("a", "content_a", skipcheck=True)
+    write_file("b", "content_b", skipcheck=True)
+    write_file("c", "content_c", skipcheck=True)
+    cleanup("a", ["b", "c"])
+    assert not op.exists("a")
+    assert not op.exists("b")
+    assert not op.exists("c")
+
+
+def test_need_update():
+    from jcvi.apps.base import cleanup, need_update
+    from jcvi.formats.base import write_file
+
+    cleanup("a", "b", "c")
+    assert need_update("does_not_exist.txt", "does_not_exist.txt")
+
+    write_file("a", "content_a", skipcheck=True)
+    assert not need_update("a", "a")
+
+    time.sleep(0.1)
+    write_file("b", "content_b", skipcheck=True)
+    assert need_update("b", "a")
+    assert not need_update("a", "b")
+
+    time.sleep(0.1)
+    write_file("c", "content_c", skipcheck=True)
+    assert need_update("c", ["a", "b"])
+    assert need_update(["c", "b"], "a")
+    assert not need_update("a", ["b", "c"])
+    assert need_update(["a", "b"], ["c", "d"])
+    cleanup("a", "b", "c")

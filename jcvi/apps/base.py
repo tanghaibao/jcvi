@@ -1305,7 +1305,9 @@ def parse_multi_values(param):
 
 
 def listify(a):
-    """Convert something to a list if it is not already a list."""
+    """
+    Convert something to a list if it is not already a list.
+    """
     return a if (isinstance(a, list) or isinstance(a, tuple)) else [a]
 
 

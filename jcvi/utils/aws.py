@@ -480,7 +480,9 @@ def ls_s3(s3_store_obj_name, recursive=False):
 
 
 def check_exists_s3(s3_store_obj_name: str, warn=False) -> bool:
-    """Check if s3 object exists"""
+    """
+    Check if s3 object exists.
+    """
     s3_store_obj_name = s3ify(s3_store_obj_name)
     cmd = "aws s3 ls {0} | wc -l".format(s3_store_obj_name)
     counts = int(popen(cmd).read())

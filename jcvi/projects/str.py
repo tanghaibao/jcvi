@@ -23,6 +23,11 @@ from Bio.SeqRecord import SeqRecord
 from itertools import product
 from natsort import natsorted
 
+try:
+    import vcf
+except ImportError:
+    pass
+
 from jcvi.graphics.base import (
     FancyArrow,
     normalize_axes,
@@ -56,8 +61,6 @@ ignore = ("AR",)
 
 class TREDPARSEvcf(object):
     def __init__(self, vcffile):
-        import vcf
-
         samplekey = op.basename(vcffile).split(".")[0]
         reader = vcf.Reader(open(vcffile, "rb"))
         res = "-1/-1"

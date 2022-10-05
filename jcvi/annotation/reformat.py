@@ -24,6 +24,7 @@ from jcvi.apps.base import (
     ActionDispatcher,
     need_update,
     popen,
+    remove_if_exists,
     sh,
 )
 
@@ -918,7 +919,7 @@ def consolidate(nbedfile, obedfile, cbedfile):
             b.accn = ";".join(accns)
         print(b, file=fp)
     fp.close()
-    os.remove(tmpfile)
+    remove_if_exists(tmpfile)
 
     sort([cbedfile, "-i"])
 

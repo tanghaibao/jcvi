@@ -25,7 +25,15 @@ from jcvi.utils.range import (
     range_distance,
     range_intersect,
 )
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, popen
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    cleanup,
+    need_update,
+    popen,
+    remove_if_exists,
+    sh,
+)
 
 
 class BedLine(object):
@@ -1762,8 +1770,7 @@ def evaluate(args):
     print(be, file=sys.stderr)
 
     if query:
-        for b in subbeds:
-            os.remove(b)
+        cleanup(subbeds)
 
     return be
 
@@ -2199,8 +2206,7 @@ def report_pairs(
             title=title,
             ascii=ascii,
         )
-        if op.exists(insertsfile):
-            os.remove(insertsfile)
+        remove_if_exists(insertsfile)
 
     return s
 

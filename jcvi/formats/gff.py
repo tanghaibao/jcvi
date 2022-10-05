@@ -25,6 +25,7 @@ from jcvi.apps.base import (
     mkdir,
     parse_multi_values,
     need_update,
+    remove_if_exists,
     sh,
 )
 
@@ -3093,8 +3094,7 @@ def make_index(gff_file):
     db_file = gff_file + ".db"
 
     if need_update(gff_file, db_file):
-        if op.exists(db_file):
-            os.remove(db_file)
+        remove_if_exists(db_file)
         logging.debug("Indexing `{0}`".format(gff_file))
         gffutils.create_db(gff_file, db_file, merge_strategy="create_unique")
     else:
@@ -3158,9 +3158,9 @@ def load(args):
     To get 500bp downstream of a gene's Transcription End Site (TES), do this:
     $ %prog load athaliana.gff athaliana.fa --feature=downstream:TES:500
 
-    To get up- or downstream sequences of a certain max length not overlapping 
+    To get up- or downstream sequences of a certain max length not overlapping
     with the next feature, use `--avoidFeatures`. Features may be avoided on both
-    strands or on the strand containing each feature, use either "both_strands" or 
+    strands or on the strand containing each feature, use either "both_strands" or
     "strand_specific"
     $ %prog load athaliana.gff athaliana.fa --feature=downstream:TES:500 --avoidFeatures=both_strands
     """
@@ -3198,8 +3198,8 @@ def load(args):
     p.add_option(
         "--avoidFeatures",
         default=None,
-        choices=["both_strands","strand_specific"],
-        help="Specify whether or not to avoid up or downstream features"
+        choices=["both_strands", "strand_specific"],
+        help="Specify whether or not to avoid up or downstream features",
     )
     p.add_option(
         "--id_attribute",
@@ -3344,10 +3344,10 @@ def load(args):
 
             overlap = None
             if opts.avoidFeatures:
-                stranded = (opts.avoidFeatures == "strand_specific")
+                stranded = opts.avoidFeatures == "strand_specific"
                 start, stop, overlap = update_coords_avoidFeatures(
                     stranded, opts.feature, site, fLen, start, stop, feat, g
-                ) 
+                )
 
             if not start or not stop or overlap:
                 continue
@@ -3361,15 +3361,11 @@ def load(args):
                 )
             )
 
-            (s, e) = (
-                (start, stop)
-                if feat.strand == "+"
-                else (stop, start)
-            )
+            (s, e) = (start, stop) if feat.strand == "+" else (stop, start)
             seq_loc = str(feat.seqid) + ":" + str(s) + "-" + str(e)
             desc = sep.join(
                 str(x)
-                for x in (desc, seq_loc, "FLANKLEN=" + str(abs(stop-start)+1))
+                for x in (desc, seq_loc, "FLANKLEN=" + str(abs(stop - start) + 1))
             )
         else:
             children = []
@@ -3440,9 +3436,7 @@ def parse_feature_param(feature):
     parents, children = None, None
     if re.match(r"upstream", feature) or re.match(r"downstream", feature):
         parents, children = "mRNA", "CDS"
-        feature, site, fLen = re.search(
-            r"([A-z]+):([A-z]+):(\S+)", feature
-        ).groups()
+        feature, site, fLen = re.search(r"([A-z]+):([A-z]+):(\S+)", feature).groups()
 
         if not is_number(fLen):
             flag, error_msg = (
@@ -3546,7 +3540,6 @@ def get_coords(feature, site, fLen, seqlen, feat, children_list, gffdb):
                 else (cds_start - fLen, cds_start - 1)
             )
 
-
     if feat.strand == "+" and start < 1:
         start = 1
     elif feat.strand == "-" and stop > seqlen:
@@ -3565,31 +3558,30 @@ def get_coords(feature, site, fLen, seqlen, feat, children_list, gffdb):
 
     return start, stop
 
-def update_coords_avoidFeatures(stranded, feature, site, fLen, start, stop, feat, gffdb):
+
+def update_coords_avoidFeatures(
+    stranded, feature, site, fLen, start, stop, feat, gffdb
+):
     """
-    Subroutine takes start and stop coordinates for a given feature and updates the 
-    coordinates to avoid overlapping with unrelated up- or downstream features. 
-    
+    Subroutine takes start and stop coordinates for a given feature and updates the
+    coordinates to avoid overlapping with unrelated up- or downstream features.
+
     This is done on a strand-dependent or -independent manner based on the value of
-    --avoidFeatures. 
-    
-    Returns, updated start and stop coordinates for loading sequences. 
-    
-    Genes with overlapping neighbor features raise a flag and the feature is skipped. 
+    --avoidFeatures.
+
+    Returns, updated start and stop coordinates for loading sequences.
+
+    Genes with overlapping neighbor features raise a flag and the feature is skipped.
     """
     flag = None
     collisions = []
-    s = (
-        feat.strand
-        if stranded
-        else (None)
-        )
-    
+    s = feat.strand if stranded else (None)
+
     allChildren = []
     for c in gffdb.children(feat.parent):
         allChildren.append(c.id)
 
-    for r in gffdb.region(seqid=feat.seqid, start=start, end=stop, strand=s): 
+    for r in gffdb.region(seqid=feat.seqid, start=start, end=stop, strand=s):
         if r.id in allChildren or r.id == feat.parent:
             continue
 
@@ -3601,7 +3593,7 @@ def update_coords_avoidFeatures(stranded, feature, site, fLen, start, stop, feat
             collisions.append(r.start)
         elif feature == "downstream" and feat.strand == "-":
             collisions.append(r.end)
-    
+
     if site in ["TrSS", "TrES"]:
         children = []
         for c in gffdb.children(feat.id, 1):
@@ -3625,7 +3617,7 @@ def update_coords_avoidFeatures(stranded, feature, site, fLen, start, stop, feat
             if start > feat_start:
                 flag = 1
         elif feature == "upstream" and feat.strand == "-":
-            stop = min(collisions) 
+            stop = min(collisions)
             if stop < feat_end:
                 flag = 1
         elif feature == "downstream" and feat.strand == "+":
@@ -3635,22 +3627,24 @@ def update_coords_avoidFeatures(stranded, feature, site, fLen, start, stop, feat
         elif feature == "downstream" and feat.strand == "-":
             start = max(collisions)
             if start > feat_start:
-                flag=1
-        
+                flag = 1
+
         if flag:
-            print("Overlap detected while searching {0}. Skipping {1}:{2} strand:{3}".format(
-                feature, feat.parent, feat.id, feat.strand
-            ),file=sys.stderr)
-        else:
             print(
-                "[avoidFeatures] a feature {0} of {1} is within {2} bp. Using {0} length of {3} bp".format(
-                    feature, feat.id, fLen, abs(start-stop)+1
+                "Overlap detected while searching {0}. Skipping {1}:{2} strand:{3}".format(
+                    feature, feat.parent, feat.id, feat.strand
                 ),
                 file=sys.stderr,
             )
- 
-    return start, stop, flag
+        else:
+            print(
+                "[avoidFeatures] a feature {0} of {1} is within {2} bp. Using {0} length of {3} bp".format(
+                    feature, feat.id, fLen, abs(start - stop) + 1
+                ),
+                file=sys.stderr,
+            )
 
+    return start, stop, flag
 
 
 def bed12(args):

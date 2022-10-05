@@ -9,7 +9,7 @@ import sys
 from string import Template
 
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, remove_if_exists, sh
 
 
 class RTemplate(object):
@@ -41,8 +41,7 @@ class RTemplate(object):
             # I have no idea why using ggsave, there is one extra image
             # generated, but here I remove it
             rplotspdf = "Rplots.pdf"
-            if op.exists(rplotspdf):
-                os.remove(rplotspdf)
+            remove_if_exists(rplotspdf)
 
 
 def main():

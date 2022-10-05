@@ -8,7 +8,6 @@ import os.path as op
 import os
 import csv
 import sys
-import vcf
 import logging
 import shutil
 import json

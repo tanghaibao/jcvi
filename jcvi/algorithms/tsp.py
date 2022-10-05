@@ -18,7 +18,7 @@ from itertools import combinations
 from more_itertools import pairwise
 
 from jcvi.formats.base import FileShredder, must_open
-from jcvi.apps.base import mkdir, which, sh
+from jcvi.apps.base import mkdir, remove_if_exists, sh, which
 
 
 INF = 10000
@@ -44,7 +44,7 @@ class TSPDataModel:
         weights = [x[-1] for x in self.edges]
         max_x, min_x = max(weights), min(weights)
         inf = 2 * max(abs(max_x), abs(min_x))
-        factor = 10 ** precision
+        factor = 10**precision
         logging.debug(
             "TSP rescale: max_x=%d, min_x=%d, inf=%d, factor=%d",
             max_x,
@@ -195,8 +195,7 @@ class Concorde(object):
 
     def run_concorde(self, tspfile, seed=666):
         outfile = op.join(self.work_dir, "data.sol")
-        if op.exists(outfile):
-            os.remove(outfile)
+        remove_if_exists(outfile)
 
         cc = "concorde"
         assert which(cc), (

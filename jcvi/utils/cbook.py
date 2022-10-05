@@ -63,11 +63,8 @@ def depends(func):
                 )
 
         outfilename = kwargs[outfile]
-        if need_update(infilename, outfilename):
+        if not need_update(infilename, outfilename, warn=True):
             return func(*args, **kwargs)
-        else:
-            msg = "File `{0}` exists. Computation skipped.".format(outfilename)
-            logging.debug(msg)
 
         outfilename = listify(outfilename)
 

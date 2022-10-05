@@ -156,8 +156,7 @@ class FileMerger(object):
 
     def merge(self, checkexists=False):
         outfile = self.outfile
-        if checkexists and not need_update(self.filelist, outfile):
-            logging.debug("File `{0}` exists. Merge skipped.".format(outfile))
+        if checkexists and not need_update(self.filelist, outfile, warn=True):
             return
 
         files = " ".join(self.filelist)

@@ -280,13 +280,11 @@ def run_mito(
     realign = minibam.rsplit(".", 1)[0] + ".realign"
     realignbam = realign + ".bam"
     margs = " -v -t {} -o {}".format(opts.cpus, realign)
-    if need_update(minibam, realign + ".bam"):
+    if need_update(minibam, realign + ".bam", warn=True):
         cmd = speedseq_bin + " realign"
         cmd += margs
         cmd += " {} {}".format(chrMfa, minibam)
         sh(cmd)
-    else:
-        logging.debug("{} found. Skipped.".format(realignbam))
 
     if realignonly:
         return
@@ -307,7 +305,7 @@ def run_mito(
         push_to_s3(store, depthfile)
 
     vcffile = realign + ".sv.vcf.gz"
-    if need_update(realignbam, vcffile):
+    if need_update(realignbam, vcffile, warn=True):
         cmd = speedseq_bin + " sv"
         cmd += margs
         cmd += " -R {}".format(chrMfa)
@@ -316,8 +314,6 @@ def run_mito(
             realignbam, realign + ".discordants.bam", realign + ".splitters.bam"
         )
         sh(cmd)
-    else:
-        logging.debug("{} found. Skipped.".format(vcffile))
 
     if store:
         push_to_s3(store, vcffile)

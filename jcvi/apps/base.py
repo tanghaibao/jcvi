@@ -1346,7 +1346,8 @@ def cleanup(*args):
     Remove a bunch of files in args; ignore if not found.
     """
     for path in flatten(args):
-        remove_if_exists(path)
+        if op.exists(path):
+            os.remove(path)
 
 
 def get_today():
@@ -1447,16 +1448,6 @@ def download(
         FileShredder([target])
 
     return final_filename
-
-
-def remove_if_exists(filename):
-    """Check if a file exists and if so remove it
-
-    Args:
-        filename (str): Path to the local file.
-    """
-    if op.exists(filename):
-        os.remove(filename)
 
 
 def getfilesize(filename, ratio=None):

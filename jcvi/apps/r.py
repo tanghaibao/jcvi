@@ -9,7 +9,7 @@ import sys
 from string import Template
 
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, remove_if_exists, sh
+from jcvi.apps.base import OptionParser, ActionDispatcher, cleanup, sh
 
 
 class RTemplate(object):
@@ -37,11 +37,11 @@ class RTemplate(object):
 
         sh("Rscript %s" % path)
         if clean:
-            os.remove(path)
+            cleanup(path)
             # I have no idea why using ggsave, there is one extra image
             # generated, but here I remove it
             rplotspdf = "Rplots.pdf"
-            remove_if_exists(rplotspdf)
+            cleanup(rplotspdf)
 
 
 def main():

@@ -16,7 +16,14 @@ from itertools import islice
 from jcvi.formats.base import BaseFile
 from jcvi.assembly.base import FastqNamings, Library
 from jcvi.apps.grid import Jobs
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, remove_if_exists, sh, glob
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    cleanup,
+    glob,
+    need_update,
+    sh,
+)
 
 
 class PairsFile(BaseFile):
@@ -148,7 +155,7 @@ def dump(args):
     pf = "j" if "jump" in fastbfile else "f"
 
     statsfile = "{0}.lib_stats".format(pf)
-    remove_if_exists(statsfile)
+    cleanup(statsfile)
 
     cmd = "SplitReadsByLibrary READS_IN={0}".format(fastbfile)
     cmd += " READS_OUT={0} QUALS=True".format(pf)

@@ -12,6 +12,7 @@ from jcvi.formats.base import LineFile
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
+    cleanup,
     need_update,
     sh,
     get_abs_path,
@@ -84,7 +85,7 @@ class Sizes(LineFile):
     def close(self, clean=False):
         self.fp.close()
         if clean:
-            os.remove(self.filename)
+            cleanup(self.filename)
 
     @property
     def mapping(self):

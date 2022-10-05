@@ -14,6 +14,7 @@ from Bio import SeqIO
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
+    cleanup,
     sh,
     need_update,
     mkdir,
@@ -1193,8 +1194,7 @@ def mergecsv(args):
     tsvfiles = args
     outfile = opts.outfile
 
-    if op.exists(outfile):
-        os.remove(outfile)
+    cleanup(outfile)
 
     fw = must_open(opts.outfile, "w")
     for i, tsvfile in enumerate(tsvfiles):

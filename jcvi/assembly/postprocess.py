@@ -381,7 +381,7 @@ def scaffold(args):
         order_to_agp(bname, ctgorder, sizes, fwagp)
 
     fwagp.close()
-    os.remove(bedfile)
+    cleanup(bedfile)
 
     fastafile = "final.fasta"
     build([newagpfile, ctgfasta, fastafile])

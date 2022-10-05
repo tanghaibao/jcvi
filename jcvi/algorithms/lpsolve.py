@@ -37,7 +37,7 @@ import networkx as nx
 
 from jcvi.utils.cbook import fill
 from jcvi.formats.base import flexible_cast
-from jcvi.apps.base import cleanup, mkdir, remove_if_exists, sh
+from jcvi.apps.base import cleanup, mkdir, sh
 from jcvi.algorithms.tsp import populate_edge_weights, node_to_edge
 
 
@@ -308,7 +308,7 @@ class SCIPSolver(AbstractMIPSolver):
     def run(self, lpfile):
 
         outfile = self.work_dir + "/data.lp.out"  # verbose output
-        remove_if_exists(outfile)
+        cleanup(outfile)
 
         cmd = "scip -f {0} -l {1}".format(lpfile, outfile)
 

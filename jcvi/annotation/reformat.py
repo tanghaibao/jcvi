@@ -22,9 +22,9 @@ from jcvi.apps.base import (
     OptionParser,
     OptionGroup,
     ActionDispatcher,
+    cleanup,
     need_update,
     popen,
-    remove_if_exists,
     sh,
 )
 
@@ -919,7 +919,7 @@ def consolidate(nbedfile, obedfile, cbedfile):
             b.accn = ";".join(accns)
         print(b, file=fp)
     fp.close()
-    remove_if_exists(tmpfile)
+    cleanup(tmpfile)
 
     sort([cbedfile, "-i"])
 

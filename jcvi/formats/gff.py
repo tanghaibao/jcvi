@@ -22,10 +22,10 @@ from jcvi.apps.base import (
     OptionParser,
     OptionGroup,
     ActionDispatcher,
+    cleanup,
     mkdir,
-    parse_multi_values,
     need_update,
-    remove_if_exists,
+    parse_multi_values,
     sh,
 )
 
@@ -3094,7 +3094,7 @@ def make_index(gff_file):
     db_file = gff_file + ".db"
 
     if need_update(gff_file, db_file):
-        remove_if_exists(db_file)
+        cleanup(db_file)
         logging.debug("Indexing `{0}`".format(gff_file))
         gffutils.create_db(gff_file, db_file, merge_strategy="create_unique")
     else:

@@ -25,7 +25,13 @@ from jcvi.formats.fasta import Fasta
 from jcvi.formats.bed import Bed
 from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
-from jcvi.apps.base import OptionParser, OptionGroup, ActionDispatcher, need_update
+from jcvi.apps.base import (
+    OptionParser,
+    OptionGroup,
+    ActionDispatcher,
+    cleanup,
+    need_update,
+)
 
 
 Supported_AGP_Version = "2.1"
@@ -2051,13 +2057,13 @@ def tidy(args):
     trimmed_agpfile = build(
         [agpfile, componentfasta, tmpfasta, "--newagp", "--novalidate"]
     )
-    os.remove(tmpfasta)
+    cleanup(tmpfasta)
     agpfile = trimmed_agpfile
     agpfile = reindex([agpfile, "--inplace"])
 
     # Step 2: Merge adjacent gaps
     merged_agpfile = gaps([agpfile, "--merge"])
-    os.remove(agpfile)
+    cleanup(agpfile)
 
     # Step 3: Trim gaps at the end of object
     agpfile = merged_agpfile
@@ -2074,7 +2080,7 @@ def tidy(args):
             logging.debug("Trim trailing Ns({0}) of {1}".format(g.gap_length, object))
         print("\n".join(str(x) for x in a), file=fw)
     fw.close()
-    os.remove(agpfile)
+    cleanup(agpfile)
 
     # Step 4: Final reindex
     agpfile = newagpfile

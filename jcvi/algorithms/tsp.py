@@ -18,7 +18,7 @@ from itertools import combinations
 from more_itertools import pairwise
 
 from jcvi.formats.base import FileShredder, must_open
-from jcvi.apps.base import mkdir, remove_if_exists, sh, which
+from jcvi.apps.base import cleanup, mkdir, sh, which
 
 
 INF = 10000
@@ -195,7 +195,7 @@ class Concorde(object):
 
     def run_concorde(self, tspfile, seed=666):
         outfile = op.join(self.work_dir, "data.sol")
-        remove_if_exists(outfile)
+        cleanup(outfile)
 
         cc = "concorde"
         assert which(cc), (

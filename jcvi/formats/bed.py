@@ -31,7 +31,6 @@ from jcvi.apps.base import (
     cleanup,
     need_update,
     popen,
-    remove_if_exists,
     sh,
 )
 
@@ -2206,7 +2205,7 @@ def report_pairs(
             title=title,
             ascii=ascii,
         )
-        remove_if_exists(insertsfile)
+        cleanup(insertsfile)
 
     return s
 

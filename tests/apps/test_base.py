@@ -1,9 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import os
 import os.path as op
 import time
+
+import pytest
 
 
 def test_sample_N():
@@ -34,24 +35,24 @@ def test_sample_N():
 
 
 def test_download():
-    from jcvi.apps.base import download, remove_if_exists
+    from jcvi.apps.base import cleanup, download
     from jcvi.apps.vecscreen import ECOLI_URL, UNIVEC_URL
 
     ret = download("http://www.google.com")
     assert ret == "index.html"
-    remove_if_exists(ret)
+    cleanup(ret)
 
     ret = download(ECOLI_URL, filename="ecoli.fa.gz")
     assert ret == "ecoli.fa.gz"
-    remove_if_exists(ret)
+    cleanup(ret)
 
     ret = download(UNIVEC_URL, filename="univec.fa.gz")
     assert ret == "univec.fa.gz"
-    remove_if_exists(ret)
+    cleanup(ret)
 
     ret = download(UNIVEC_URL)
     assert ret == "UniVec_Core"
-    remove_if_exists(ret)
+    cleanup(ret)
 
 
 def test_ls_ftp():
@@ -62,6 +63,23 @@ def test_ls_ftp():
     assert "saccharomyces_cerevisiae" in valid_species
     assert "gorilla_gorilla" in valid_species
     assert len(valid_species) == 67
+
+
+@pytest.mark.parametrize(
+    "input_list,output_list",
+    [
+        ([], []),
+        ([1], [1]),
+        ([1, [2]], [1, 2]),
+        ([1, [2, "33"]], [1, 2, "33"]),
+        ([1, [2, "33"], ("45",)], [1, 2, "33", "45"]),
+        ([[["aaa"], "bbb"], [[[["ccc"]]]]], ["aaa", "bbb", "ccc"]),
+    ],
+)
+def test_flatten(input_list, output_list):
+    from jcvi.apps.base import flatten
+
+    assert flatten(input_list) == output_list
 
 
 def test_cleanup():

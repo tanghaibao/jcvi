@@ -11,7 +11,7 @@ import sys
 import logging
 import fnmatch
 
-from more_itertools import flatten
+from collections.abc import Iterable
 from http.client import HTTPSConnection
 from urllib.parse import urlencode
 from configparser import (
@@ -1305,6 +1305,7 @@ def parse_multi_values(param):
 
 
 def listify(a):
+    """Convert something to a list if it is not already a list."""
     return a if (isinstance(a, list) or isinstance(a, tuple)) else [a]
 
 
@@ -1339,6 +1340,20 @@ def need_update(a: str, b: str, warn: bool = False) -> bool:
     if (not should_update) and warn:
         logging.debug("File `{}` found. Computation skipped.".format(", ".join(b)))
     return should_update
+
+
+def flatten(input_list: list) -> list:
+    """
+    Flatten a list of lists and stop at the first non-list element.
+    """
+    ans = []
+    for i in input_list:
+        if isinstance(i, Iterable) and not isinstance(i, str):
+            for subc in flatten(i):
+                ans.append(subc)
+        else:
+            ans.append(i)
+    return ans
 
 
 def cleanup(*args):
@@ -1923,7 +1938,7 @@ def notify(args):
     g1.add_option(
         "--api",
         default="pushover",
-        choices=list(flatten(available_push_api.values())),
+        choices=flatten(available_push_api.values()),
         help="Specify API used to send the push notification",
     )
     g1.add_option(
@@ -2063,7 +2078,7 @@ def waitpid(args):
     """
     import shlex
 
-    valid_notif_methods.extend(list(flatten(available_push_api.values())))
+    valid_notif_methods.extend(flatten(available_push_api.values()))
 
     p = OptionParser(waitpid.__doc__)
     p.add_option(

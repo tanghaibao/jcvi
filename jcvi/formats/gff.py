@@ -8,7 +8,6 @@ import logging
 import re
 
 from collections import defaultdict
-from more_itertools import flatten
 from urllib.parse import quote, unquote
 
 from jcvi.utils.cbook import AutoVivification
@@ -23,6 +22,7 @@ from jcvi.apps.base import (
     OptionGroup,
     ActionDispatcher,
     cleanup,
+    flatten,
     mkdir,
     need_update,
     parse_multi_values,
@@ -473,7 +473,7 @@ def make_attributes(s, gff3=True, keep_attr_order=True):
             d[key].append(val)
 
     for key, val in d.items():
-        d[key] = list(flatten([v.split(",") for v in val]))
+        d[key] = flatten([v.split(",") for v in val])
 
     return d
 

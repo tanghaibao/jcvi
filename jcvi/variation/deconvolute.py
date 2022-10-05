@@ -11,14 +11,13 @@ import logging
 from collections import namedtuple
 from itertools import product, groupby, islice
 from multiprocessing import Pool
-from more_itertools import flatten
 
 from Bio.Data.IUPACData import ambiguous_dna_values
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
 from jcvi.formats.base import FileMerger, must_open
 from jcvi.formats.fastq import FastqPairedIterator
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob
+from jcvi.apps.base import OptionParser, ActionDispatcher, flatten, mkdir, glob
 
 
 def main():

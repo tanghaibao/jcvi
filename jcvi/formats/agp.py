@@ -14,7 +14,7 @@ import logging
 from copy import deepcopy
 from collections import defaultdict
 from itertools import groupby, zip_longest
-from more_itertools import pairwise, flatten
+from more_itertools import pairwise
 
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
@@ -30,6 +30,7 @@ from jcvi.apps.base import (
     OptionGroup,
     ActionDispatcher,
     cleanup,
+    flatten,
     need_update,
 )
 

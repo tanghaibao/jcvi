@@ -15,7 +15,7 @@ import networkx as nx
 from collections import Counter, defaultdict
 from functools import partial
 from itertools import combinations, product
-from more_itertools import flatten, pairwise
+from more_itertools import pairwise
 
 from jcvi import __version__ as version
 from jcvi.algorithms.formula import reject_outliers, spearmanr
@@ -39,6 +39,7 @@ from jcvi.apps.base import (
     OptionParser,
     OptionGroup,
     ActionDispatcher,
+    flatten,
     sh,
     need_update,
     get_today,

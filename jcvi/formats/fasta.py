@@ -23,7 +23,7 @@ from jcvi.formats.bed import Bed
 from jcvi.utils.cbook import percentage
 from jcvi.utils.console import printf
 from jcvi.utils.table import write_csv
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, cleanup, need_update
 
 
 class Fasta(BaseFile, dict):
@@ -2637,7 +2637,7 @@ def gaps(args):
             logging.debug("AGP file written to `{0}`.".format(cagpfile))
 
             build([oagpfile, inputfasta, splitfile])
-            os.remove(sizesagpfile)
+            cleanup(sizesagpfile)
 
         return splitfile, oagpfile, cagpfile
 

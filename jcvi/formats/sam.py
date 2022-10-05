@@ -25,6 +25,7 @@ from jcvi.apps.base import (
     ActionDispatcher,
     Popen,
     PIPE,
+    cleanup,
     need_update,
     sh,
     mkdir,
@@ -260,7 +261,7 @@ def fastq(args):
     sh(cmd)
 
     if os.stat(singletons).st_size == 0:  # singleton file is empty
-        os.remove(singletons)
+        cleanup(singletons)
     return a, b
 
 

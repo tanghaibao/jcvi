@@ -23,6 +23,11 @@ from Bio.SeqRecord import SeqRecord
 from itertools import product
 from natsort import natsorted
 
+try:
+    import vcf
+except ImportError:
+    pass
+
 from jcvi.graphics.base import (
     FancyArrow,
     normalize_axes,

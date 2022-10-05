@@ -23,7 +23,15 @@ from jcvi.formats.blast import BlastSlow, BlastLine
 from jcvi.formats.coords import Overlap_types
 from jcvi.apps.fetch import entrez
 from jcvi.apps.grid import WriteJobs
-from jcvi.apps.base import OptionParser, ActionDispatcher, popen, mkdir, sh, need_update
+from jcvi.apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    cleanup,
+    popen,
+    mkdir,
+    sh,
+    need_update,
+)
 
 
 GoodPct = 98
@@ -877,7 +885,7 @@ def flip(args):
             rec.seq = rec.seq.reverse_complement()
 
         SeqIO.write([rec], fo, "fasta")
-        os.remove(tmpfasta)
+        cleanup(tmpfasta)
 
 
 def batchoverlap(args):

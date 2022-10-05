@@ -15,6 +15,7 @@ from jcvi.utils.cbook import depends, human_size
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
+    cleanup,
     download,
     sh,
     mkdir,
@@ -511,7 +512,7 @@ def trim(args):
         TrimUnzipped = "Trimmomatic-" + tv
         if not op.exists(TrimUnzipped):
             sh("unzip " + path)
-        os.remove(path)
+        cleanup(path)
         path = op.join(TrimUnzipped, TrimJar)
 
     assert op.exists(path), "Couldn't find Trimmomatic jar file at `{0}`".format(path)

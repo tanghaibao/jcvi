@@ -21,6 +21,7 @@ from jcvi.apps.base import (
     ActionDispatcher,
     OptionParser,
     Popen,
+    cleanup,
     getpath,
     iglob,
     mkdir,
@@ -985,7 +986,7 @@ def my_hist(ax, l, interval, max_r, color="g", marker=".", fill=False, kde=False
 
 
 def lognormpdf(bins, mu, sigma):
-    return np.exp(-((np.log(bins) - mu) ** 2) / (2 * sigma ** 2)) / (
+    return np.exp(-((np.log(bins) - mu) ** 2) / (2 * sigma**2)) / (
         bins * sigma * sqrt(2 * pi)
     )
 
@@ -1031,7 +1032,7 @@ def get_mixture(data, components):
         sigmas.append(b)
         probs.append(c)
 
-    os.remove(fw.name)
+    cleanup(fw.name)
     return probs, mus, sigmas
 
 

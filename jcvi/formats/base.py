@@ -14,6 +14,7 @@ from Bio import SeqIO
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
+    cleanup,
     sh,
     need_update,
     mkdir,
@@ -155,8 +156,7 @@ class FileMerger(object):
 
     def merge(self, checkexists=False):
         outfile = self.outfile
-        if checkexists and not need_update(self.filelist, outfile):
-            logging.debug("File `{0}` exists. Merge skipped.".format(outfile))
+        if checkexists and not need_update(self.filelist, outfile, warn=True):
             return
 
         files = " ".join(self.filelist)
@@ -1193,8 +1193,7 @@ def mergecsv(args):
     tsvfiles = args
     outfile = opts.outfile
 
-    if op.exists(outfile):
-        os.remove(outfile)
+    cleanup(outfile)
 
     fw = must_open(opts.outfile, "w")
     for i, tsvfile in enumerate(tsvfiles):

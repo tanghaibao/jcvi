@@ -8,7 +8,6 @@ import logging
 import re
 
 from collections import defaultdict
-from more_itertools import flatten
 from urllib.parse import quote, unquote
 
 from jcvi.utils.cbook import AutoVivification
@@ -22,10 +21,11 @@ from jcvi.apps.base import (
     OptionParser,
     OptionGroup,
     ActionDispatcher,
+    cleanup,
+    flatten,
     mkdir,
-    parse_multi_values,
     need_update,
-    remove_if_exists,
+    parse_multi_values,
     sh,
 )
 
@@ -473,7 +473,7 @@ def make_attributes(s, gff3=True, keep_attr_order=True):
             d[key].append(val)
 
     for key, val in d.items():
-        d[key] = list(flatten([v.split(",") for v in val]))
+        d[key] = flatten([v.split(",") for v in val])
 
     return d
 
@@ -3094,7 +3094,7 @@ def make_index(gff_file):
     db_file = gff_file + ".db"
 
     if need_update(gff_file, db_file):
-        remove_if_exists(db_file)
+        cleanup(db_file)
         logging.debug("Indexing `{0}`".format(gff_file))
         gffutils.create_db(gff_file, db_file, merge_strategy="create_unique")
     else:

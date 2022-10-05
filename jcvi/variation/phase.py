@@ -6,7 +6,11 @@ Read-based phasing.
 """
 import sys
 import logging
-import vcf
+
+try:
+    import vcf
+except ImportError:
+    pass
 import pysam
 
 from jcvi.apps.base import OptionParser, ActionDispatcher

@@ -92,7 +92,7 @@ def cat(args):
 
     if opts.cleanup:
         logging.debug("Cleaning up {} files".format(len(args)))
-        cleanup(*args)
+        cleanup(args)
 
 
 if __name__ == "__main__":

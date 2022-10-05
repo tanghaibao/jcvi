@@ -1345,7 +1345,7 @@ def cleanup(*args):
     """
     Remove a bunch of files in args; ignore if not found.
     """
-    for path in args:
+    for path in flatten(args):
         remove_if_exists(path)
 
 

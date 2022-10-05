@@ -56,6 +56,8 @@ ignore = ("AR",)
 
 class TREDPARSEvcf(object):
     def __init__(self, vcffile):
+        import vcf
+
         samplekey = op.basename(vcffile).split(".")[0]
         reader = vcf.Reader(open(vcffile, "rb"))
         res = "-1/-1"

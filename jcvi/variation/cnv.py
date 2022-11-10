@@ -1214,7 +1214,7 @@ def validate(args):
     sizes["cumsize"] = pd.concat([pd.Series([0]), a])
     jf = pd.merge(df, sizes, how="left", left_on="#chr", right_on="chr")
     jf["pos"] = jf["start"] + jf["cumsize"]
-    model, rfx = get_model_and_dataframe(sizes, vcffile)
+    model, rfx = get_model_and_dataframe(vcffile, sizes)
 
     rdr_ylim = (0.5, 4) if rdr_logy else (0, 8)
     rdr = jf.hvplot.scatter(

@@ -63,7 +63,7 @@ def depends(func):
                 )
 
         outfilename = kwargs[outfile]
-        if not need_update(infilename, outfilename, warn=True):
+        if need_update(infilename, outfilename, warn=True):
             return func(*args, **kwargs)
 
         outfilename = listify(outfilename)

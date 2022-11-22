@@ -1,3 +1,4 @@
+import os.path as op
 import pytest
 
 
@@ -27,3 +28,20 @@ def test_seqid_parse(seqid, sep, stdpf, output):
     from jcvi.utils.cbook import seqid_parse
 
     assert seqid_parse(seqid, sep, stdpf) == output
+
+
+def test_depends():
+    from jcvi.apps.base import cleanup
+    from jcvi.utils.cbook import depends
+
+    @depends
+    def func1(infile="a", outfile="b"):
+        assert op.exists(infile)
+        with open(outfile, "w"):
+            pass
+
+    with open("a", "w"):
+        pass
+    func1(infile="a", outfile="b")
+    assert op.exists("b")
+    cleanup("a", "b")

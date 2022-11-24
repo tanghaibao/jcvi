@@ -82,7 +82,7 @@ class LayoutLine(object):
 
 
 class Layout(AbstractLayout):
-    def __init__(self, filename, delimiter=","):
+    def __init__(self, filename, delimiter=",", seed: Optional[int] = None):
         super(Layout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
@@ -107,7 +107,7 @@ class Layout(AbstractLayout):
             else:
                 self.append(LayoutLine(row, delimiter=delimiter))
 
-        self.assign_colors()
+        self.assign_colors(seed=seed)
 
 
 class Shade(object):
@@ -387,12 +387,13 @@ class Synteny(object):
         shadestyle="curve",
         glyphstyle="arrow",
         glyphcolor: BasePalette = OrientationPalette(),
+        seed: Optional[int] = None,
     ):
         _, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
         order = bed.order
         bf = BlockFile(datafile)
-        self.layout = lo = Layout(layoutfile)
+        self.layout = lo = Layout(layoutfile, seed=seed)
         switch = DictFile(switch, delimiter="\t") if switch else None
         if extra_features:
             extra_features = Bed(extra_features)
@@ -637,6 +638,7 @@ def main():
         shadestyle=opts.shadestyle,
         glyphstyle=opts.glyphstyle,
         glyphcolor=opts.glyphcolor,
+        seed=iopts.seed,
     )
 
     root.set_xlim(0, 1)

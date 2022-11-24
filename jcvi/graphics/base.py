@@ -33,6 +33,7 @@ from matplotlib.patches import (
     FancyBboxPatch,
 )
 from matplotlib.path import Path
+from typing import Optional
 
 from jcvi.formats.base import LineFile
 from jcvi.apps.base import glob, listify, datadir, sample_N, which
@@ -138,7 +139,7 @@ class AbstractLayout(LineFile):
             if not getattr(x, attrib):
                 setattr(x, attrib, c)
 
-    def assign_colors(self, seed=None):
+    def assign_colors(self, seed: Optional[int] = None):
         number = len(self)
         palette = set2_n if number <= 8 else set3_n
         # Restrict palette numbers between [3, 12]

@@ -23,6 +23,8 @@ e, 0, 1, athaliana.grape.4x1.simple
 import sys
 import logging
 
+from typing import Optional
+
 from jcvi.apps.base import OptionParser
 from jcvi.compara.synteny import SimpleFile
 from jcvi.formats.bed import Bed
@@ -58,7 +60,9 @@ class LayoutLine(object):
 
 
 class Layout(AbstractLayout):
-    def __init__(self, filename, delimiter=",", generank=False, seed=None):
+    def __init__(
+        self, filename, delimiter=",", generank=False, seed: Optional[int] = None
+    ):
         super(Layout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
@@ -349,7 +353,7 @@ class Karyotype(object):
         plot_label=True,
         plot_circles=True,
         shadestyle="curve",
-        seed=None,
+        seed: Optional[int] = None,
     ):
         layout = Layout(layoutfile, generank=generank, seed=seed)
 

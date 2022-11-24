@@ -276,6 +276,7 @@ def dotplot(
         logging.debug("Capping values within [{0:.1f}, {1:.1f}]".format(vmin, vmax))
 
     block_id = 0
+    block_color = "k"
     for row in fp:
         atoms = row.split()
         if row[0] == "#":

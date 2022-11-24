@@ -58,7 +58,7 @@ class LayoutLine(object):
 
 
 class Layout(AbstractLayout):
-    def __init__(self, filename, delimiter=",", generank=False):
+    def __init__(self, filename, delimiter=",", generank=False, seed=None):
         super(Layout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
@@ -80,7 +80,7 @@ class Layout(AbstractLayout):
             else:
                 self.append(LayoutLine(row, delimiter=delimiter, generank=generank))
 
-        self.assign_colors()
+        self.assign_colors(seed=seed)
 
     def parse_blocks(self, simplefile, i):
         order = self[i].order
@@ -349,8 +349,9 @@ class Karyotype(object):
         plot_label=True,
         plot_circles=True,
         shadestyle="curve",
+        seed=None,
     ):
-        layout = Layout(layoutfile, generank=generank)
+        layout = Layout(layoutfile, generank=generank, seed=seed)
 
         fp = open(seqidsfile)
         # Strip the reverse orientation tag for e.g. chr3-
@@ -450,6 +451,7 @@ def main():
         plot_circles=(not opts.nocircles),
         shadestyle=opts.shadestyle,
         generank=(not opts.basepair),
+        seed=iopts.seed,
     )
 
     root.set_xlim(0, 1)

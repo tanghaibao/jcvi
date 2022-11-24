@@ -24,6 +24,7 @@ from configparser import (
 from socket import gethostname
 from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
+from typing import Any, Collection, List, Optional
 
 from natsort import natsorted
 from rich.logging import Console, RichHandler
@@ -511,6 +512,7 @@ class OptionParser(OptionP):
         font="Helvetica",
         style="darkgrid",
         cmap="jet",
+        seed: Optional[int] = None,
     ):
         """
         Add image format options for given command line programs.
@@ -564,6 +566,12 @@ class OptionParser(OptionP):
         group.add_option("--cmap", default=cmap, help="Use this color map")
         group.add_option(
             "--notex", default=False, action="store_true", help="Do not use tex"
+        )
+        group.add_option(
+            "--seed",
+            default=seed,
+            type="int",
+            help="Random seed when assigning colors (supported only for some plots)",
         )
 
         if args is None:
@@ -2225,7 +2233,7 @@ def inspect(object):
         print("{}: {}".format(k, details), file=sys.stderr)
 
 
-def sample_N(a, N, seed=None):
+def sample_N(a: Collection[Any], N: int, seed: Optional[int] = None) -> List[Any]:
     """When size of N is > size of a, random.sample() will emit an error:
     ValueError: sample larger than population
 

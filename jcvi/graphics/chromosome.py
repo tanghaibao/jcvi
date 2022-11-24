@@ -563,7 +563,7 @@ def draw_chromosomes(
     ncolors = max(3, min(len(classes), 12))
     palette = set1_n if ncolors <= 8 else set3_n
     colorset = palette(number=ncolors)
-    colorset = sample_N(colorset, len(classes))
+    colorset = sample_N(colorset, len(classes), seed=iopts.seed)
     class_colors = dict(zip(classes, colorset))
     class_colors.update(preset_colors)
     logging.debug("Assigned colors: {}".format(class_colors))

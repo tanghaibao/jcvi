@@ -12,6 +12,7 @@ import sys
 from functools import partial
 from itertools import combinations, product
 from math import exp, log, pi, sqrt
+from typing import Optional
 
 import numpy as np
 from Bio import AlignIO, SeqIO
@@ -155,7 +156,7 @@ class LayoutLine(object):
 
 
 class Layout(AbstractLayout):
-    def __init__(self, filename, delimiter=","):
+    def __init__(self, filename, delimiter=",", seed: Optional[int] = None):
         super(Layout, self).__init__(filename)
         if not op.exists(filename):
             ksfiles = iglob(".", "*.ks")
@@ -174,8 +175,8 @@ class Layout(AbstractLayout):
                 continue
             self.append(LayoutLine(row, delimiter=delimiter))
 
-        self.assign_colors()
-        self.assign_markers()
+        self.assign_colors(seed=seed)
+        self.assign_markers(seed=seed)
 
 
 class KsPlot(object):
@@ -288,7 +289,7 @@ def multireport(args):
     ks_max = opts.vmax
     bins = opts.bins
     fill = opts.fill
-    layout = Layout(layoutfile)
+    layout = Layout(layoutfile, seed=iopts.seed)
     print(layout, file=sys.stderr)
 
     fig = plt.figure(1, (iopts.w, iopts.h))

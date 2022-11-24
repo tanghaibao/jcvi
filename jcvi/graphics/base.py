@@ -33,6 +33,7 @@ from matplotlib.patches import (
     FancyBboxPatch,
 )
 from matplotlib.path import Path
+from typing import Optional
 
 from jcvi.formats.base import LineFile
 from jcvi.apps.base import glob, listify, datadir, sample_N, which
@@ -74,6 +75,7 @@ class ImageOptions(object):
         self.dpi = opts.dpi
         self.format = opts.format
         self.cmap = cm.get_cmap(opts.cmap)
+        self.seed = opts.seed
         self.opts = opts
 
     def __str__(self):
@@ -137,17 +139,17 @@ class AbstractLayout(LineFile):
             if not getattr(x, attrib):
                 setattr(x, attrib, c)
 
-    def assign_colors(self):
+    def assign_colors(self, seed: Optional[int] = None):
         number = len(self)
         palette = set2_n if number <= 8 else set3_n
         # Restrict palette numbers between [3, 12]
         palette_number = max(3, min(number, 12))
         colorset = palette(palette_number)
-        colorset = sample_N(colorset, number)
+        colorset = sample_N(colorset, number, seed=seed)
         self.assign_array("color", colorset)
 
-    def assign_markers(self):
-        markerset = sample_N(mpl.lines.Line2D.filled_markers, len(self))
+    def assign_markers(self, seed: Optional[int] = None):
+        markerset = sample_N(mpl.lines.Line2D.filled_markers, len(self), seed=seed)
         self.assign_array("marker", markerset)
 
     def __str__(self):
@@ -235,7 +237,7 @@ def set2_n(number=8):
     # Get Set2 from ColorBrewer, a set of colors deemed colorblind-safe and
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
     # State University. These colors look lovely together, and are less
-    # saturated than those colors in Set1. For more on ColorBrewer, see:
+    # saturated than those colors in Set1.
     return get_map("Set2", "qualitative", number).hex_colors
 
 

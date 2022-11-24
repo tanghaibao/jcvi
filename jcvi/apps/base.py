@@ -512,7 +512,7 @@ class OptionParser(OptionP):
         font="Helvetica",
         style="darkgrid",
         cmap="jet",
-        seed=None,
+        seed: Optional[int] = None,
     ):
         """
         Add image format options for given command line programs.
@@ -569,7 +569,7 @@ class OptionParser(OptionP):
         )
         group.add_option(
             "--seed",
-            default=None,
+            default=seed,
             type="int",
             help="Random seed when assigning colors (supported only for some plots)",
         )

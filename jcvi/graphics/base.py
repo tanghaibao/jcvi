@@ -148,7 +148,7 @@ class AbstractLayout(LineFile):
         colorset = sample_N(colorset, number, seed=seed)
         self.assign_array("color", colorset)
 
-    def assign_markers(self, seed=None):
+    def assign_markers(self, seed: Optional[int] = None):
         markerset = sample_N(mpl.lines.Line2D.filled_markers, len(self), seed=seed)
         self.assign_array("marker", markerset)
 

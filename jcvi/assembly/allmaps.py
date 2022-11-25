@@ -675,7 +675,7 @@ class Weights(DictFile):
         common_mapnames = set(self.maps) & set(mapnames)
         if not common_mapnames:
             logging.error(
-                "No common names found between {} and {}", self.maps, mapnames
+                "No common names found between %s and %s", self.maps, mapnames
             )
             sys.exit(1)
         return max(

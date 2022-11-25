@@ -124,10 +124,12 @@ def test_set_image_options():
 
     with pytest.raises(Exception):
         p_fails = OptionParser(__doc__)
+        p_fails.add_option("--cov", default="jcvi", help="pytest coverage")
         p_fails.add_option("--dpi", default=300, type="int", help="DPI")
         p_fails.set_image_options()
 
     # This should be fine
     p = OptionParser(__doc__)
+    p.add_option("--cov", default="jcvi", help="pytest coverage")
     p.add_option("--seed", default=300, type="int", help="seed")
     p.set_image_options()

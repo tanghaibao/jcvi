@@ -567,12 +567,14 @@ class OptionParser(OptionP):
         group.add_option(
             "--notex", default=False, action="store_true", help="Do not use tex"
         )
-        group.add_option(
-            "--seed",
-            default=seed,
-            type="int",
-            help="Random seed when assigning colors (supported only for some plots)",
-        )
+        # https://github.com/tanghaibao/jcvi/issues/515#issuecomment-1327305211
+        if not group.has_option("--seed"):
+            group.add_option(
+                "--seed",
+                default=seed,
+                type="int",
+                help="Random seed when assigning colors (supported only for some plots)",
+            )
 
         if args is None:
             args = sys.argv[1:]

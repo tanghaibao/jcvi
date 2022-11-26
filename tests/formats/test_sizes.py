@@ -24,5 +24,4 @@ def test_sizes():
     assert sizes.cumsizes_mapping["chr1"] == 0
     assert sizes.cumsizes_mapping["chr2"] == 4
     assert sizes.cumsizes_mapping["chr3"] == 12
-    for path in (fastafile, sizes.filename):
-        cleanup(path)
+    cleanup(fastafile, sizes.filename)

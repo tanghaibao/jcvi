@@ -180,7 +180,7 @@ def expand(args):
     from jcvi.formats.fasta import Fasta, SeqIO
     from jcvi.formats.fastq import readlen, first, fasta
     from jcvi.formats.blast import Blast
-    from jcvi.formats.base import FileShredder
+    from jcvi.apps.base import cleanup
     from jcvi.apps.bowtie import align, get_samfile
     from jcvi.apps.align import blast
 
@@ -251,7 +251,7 @@ def expand(args):
     SeqIO.write(recs, fw, "fasta")
     fw.close()
 
-    FileShredder([samfile, logfile, mapped, reads, fastafile, qualfile, blastfile, pf])
+    cleanup(samfile, logfile, mapped, reads, fastafile, qualfile, blastfile, pf)
     logging.debug(
         "Annotated seqs (n={0}) written to `{1}`.".format(len(recs), annotatedfasta)
     )

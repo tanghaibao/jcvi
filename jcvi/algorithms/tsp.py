@@ -7,9 +7,7 @@ algorithms.lpsolve.tsp(). See also:
 https://developers.google.com/optimization/routing/tsp
 """
 import os.path as op
-import os
 import logging
-import shutil
 import numpy as np
 
 from collections import defaultdict
@@ -17,7 +15,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from more_itertools import pairwise
 
-from jcvi.formats.base import FileShredder, must_open
+from jcvi.formats.base import must_open
 from jcvi.apps.base import cleanup, mkdir, sh, which
 
 
@@ -155,9 +153,9 @@ class Concorde(object):
         self.tour = self.parse_output(outfile)
 
         if clean:
-            shutil.rmtree(work_dir)
+            cleanup(work_dir)
             residual_output = ["data.sol", "data.res", "Odata.res"]
-            FileShredder(residual_output, verbose=False)
+            cleanup(residual_output)
 
     def print_to_tsplib(self, tspfile, precision=0):
         """

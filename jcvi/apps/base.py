@@ -24,7 +24,7 @@ from configparser import (
 from socket import gethostname
 from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
-from typing import Any, Collection, List, Optional
+from typing import Any, Collection, List, Optional, Union
 
 from natsort import natsorted
 from rich.logging import Console, RichHandler
@@ -1278,7 +1278,7 @@ def mkdir(dirname, overwrite=False):
     """
     if op.isdir(dirname):
         if overwrite:
-            shutil.rmtree(dirname)
+            cleanup(dirname)
             os.mkdir(dirname)
             logging.debug("Overwrite folder `{0}`.".format(dirname))
         else:
@@ -1354,7 +1354,7 @@ def need_update(a: str, b: str, warn: bool = False) -> bool:
     return should_update
 
 
-def flatten(input_list: list) -> list:
+def flatten(input_list: Iterable) -> list:
     """
     Flatten a list of lists and stop at the first non-list element.
     """
@@ -1368,13 +1368,16 @@ def flatten(input_list: list) -> list:
     return ans
 
 
-def cleanup(*args):
+def cleanup(*args: Union[str, Iterable]) -> None:
     """
     Remove a bunch of files in args; ignore if not found.
     """
     for path in flatten(args):
         if op.exists(path):
-            os.remove(path)
+            if op.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
 
 
 def get_today():
@@ -1424,7 +1427,6 @@ def download(
     """
     from urllib.parse import urlsplit
     from subprocess import CalledProcessError
-    from jcvi.formats.base import FileShredder
 
     scheme, netloc, path, query, fragment = urlsplit(url)
     basepath = op.basename(path)
@@ -1448,7 +1450,7 @@ def download(
     if op.exists(final_filename):
         if debug:
             msg = "File `{}` exists. Download skipped.".format(final_filename)
-            logging.error(msg)
+            logging.info(msg)
         success = True
     else:
         from jcvi.utils.ez_setup import get_best_downloader
@@ -1466,13 +1468,13 @@ def download(
         if success and handle_gzip:
             if need_gunzip:
                 sh("gzip -dc {}".format(target), outfile=filename)
-                FileShredder([target])
+                cleanup(target)
             elif need_gzip:
                 sh("gzip -c {}".format(target), outfile=filename)
-                FileShredder([target])
+                cleanup(target)
 
     if not success:
-        FileShredder([target])
+        cleanup(target)
 
     return final_filename
 

@@ -9,7 +9,6 @@ import os
 import csv
 import sys
 import logging
-import shutil
 import json
 import numpy as np
 import pandas as pd
@@ -45,7 +44,7 @@ from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
 from jcvi.apps.base import datafile, sh
 from jcvi.assembly.sim import eagle, wgsim
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
+from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, iglob, mkdir
 
 
 # Huntington risk allele
@@ -1587,7 +1586,7 @@ def simulate(args):
         sh("mv {}.bai ../{}.bam.bai".format(indexed_samfile, pf))
 
         os.chdir(cwd)
-        shutil.rmtree(pf)
+        cleanup(pf)
 
     os.chdir(basecwd)
 

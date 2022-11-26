@@ -25,9 +25,7 @@ The input lp_data is assumed in .lp format, see below
 [0, 1]
 """
 import logging
-import os
 import os.path as op
-import shutil
 
 from dataclasses import dataclass
 from io import StringIO
@@ -219,7 +217,7 @@ class AbstractMIPSolver(object):
         raise NotImplementedError
 
     def cleanup(self):
-        shutil.rmtree(self.work_dir)
+        cleanup(self.work_dir)
 
 
 class GLPKSolver(AbstractMIPSolver):

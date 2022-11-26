@@ -143,7 +143,6 @@ class ScaffoldOO(object):
         function=(lambda x: x.rank),
         linkage=min,
         fwtour=None,
-        skipconcorde=False,
         ngen=500,
         npop=100,
         cpus=8,
@@ -159,7 +158,6 @@ class ScaffoldOO(object):
         self.weights = weights
         self.function = function
         self.linkage = linkage
-        self.skipconcorde = skipconcorde
 
         self.prepare_linkage_groups()  # populate all data
         for mlg in self.lgs:
@@ -299,18 +297,7 @@ class ScaffoldOO(object):
         for a, b, d in G.edges(data=True):
             edges.append((a, b, d["weight"]))
 
-        if self.skipconcorde:
-            logging.debug("concorde-TSP skipped. Use default scaffold ordering.")
-            tour = scaffolds[:]
-            return tour
-        try:
-            tour = hamiltonian(edges, directed=True, precision=2)
-            assert tour[0] == START and tour[-1] == END
-            tour = tour[1:-1]
-        except:
-            logging.debug("concorde-TSP failed. Use default scaffold ordering.")
-            tour = scaffolds[:]
-        return tour
+        return scaffolds[:]
 
     def assign_order(self):
         """
@@ -1428,12 +1415,6 @@ def path(args):
         help="Do not visualize the alignments",
     )
     p.add_option(
-        "--skipconcorde",
-        default=False,
-        action="store_true",
-        help="Skip TSP optimizer, can speed up large cases",
-    )
-    p.add_option(
         "--renumber",
         default=False,
         action="store_true",
@@ -1475,7 +1456,6 @@ def path(args):
     partitionsfile = opts.partitions
     gapsize = opts.gapsize
     mincount = opts.mincount
-    skipconcorde = opts.skipconcorde
     ngen = opts.ngen
     npop = opts.npop
     cpus = opts.cpus
@@ -1592,7 +1572,6 @@ def path(args):
             function=function,
             linkage=linkage,
             fwtour=fwtour,
-            skipconcorde=skipconcorde,
             ngen=ngen,
             npop=npop,
             cpus=cpus,

@@ -41,8 +41,8 @@ from jcvi.utils.range import (
     range_closest,
     range_interleave,
 )
-from jcvi.formats.base import FileMerger, FileShredder
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from jcvi.formats.base import FileMerger
+from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, sh
 
 
 def main():
@@ -411,7 +411,7 @@ def insert(args):
 
     # Clean-up
     toclean = [gpbedfile, agpfile, maskedagpfile, maskedbedfile]
-    FileShredder(toclean)
+    cleanup(toclean)
 
 
 def gaps(args):
@@ -880,7 +880,7 @@ def refine(args):
     FileMerger(beds, outfile=refinedbed).merge()
 
     # Clean-up
-    FileShredder(toclean)
+    cleanup(toclean)
 
     return refinedbed
 

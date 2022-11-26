@@ -94,7 +94,7 @@ def mergeclean(args):
     formats.sam.merge() several times.
     """
     from itertools import groupby
-    from jcvi.formats.base import FileShredder
+    from jcvi.apps.base import cleanup
 
     p = OptionParser(mergeclean.__doc__)
     p.set_sep(sep="_", help="Separator to group per prefix")
@@ -114,7 +114,7 @@ def mergeclean(args):
         newest_f = max(fs, key=mtime)
         print("|".join(fs), "=>", newest_f, file=sys.stderr)
         fs.remove(newest_f)
-        FileShredder(fs)
+        cleanup(fs)
 
 
 def merge_counts(ss, outfile):

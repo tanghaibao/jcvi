@@ -7,8 +7,8 @@ Run EMBOSS programs.
 import sys
 import multiprocessing as mp
 
-from jcvi.apps.base import OptionParser, ActionDispatcher
-from jcvi.formats.base import FileShredder, must_open
+from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup
+from jcvi.formats.base import must_open
 
 
 class NeedleHeader(object):
@@ -42,7 +42,7 @@ def _needle(fa, fb, needlefile, a, b, results):
     )
     _, _ = needle_cline()
     nh = NeedleHeader(needlefile)
-    FileShredder([fa, fb, needlefile], verbose=False)
+    cleanup(fa, fb, needlefile)
     r = ["\t".join((a, b, nh.identity, nh.score))]
 
     results.extend(r)

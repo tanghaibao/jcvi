@@ -13,10 +13,10 @@ from collections import defaultdict
 
 from Bio import SeqIO
 
-from jcvi.formats.base import must_open, FileShredder, BaseFile, get_number
+from jcvi.formats.base import BaseFile, get_number, must_open
 from jcvi.formats.gff import GffLine
 from jcvi.apps.fetch import entrez
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, glob
+from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, glob, mkdir, sh
 
 
 MT = "mol_type"
@@ -277,7 +277,7 @@ class GenBank(dict):
             GenBank.write_genes_fasta(rec, fwcds, fwpep)
 
         if not pep:
-            FileShredder([fwpep.name])
+            cleanup(fwpep.name)
 
     def write_fasta(self, output="gbfasta", individual=False):
         if not individual:

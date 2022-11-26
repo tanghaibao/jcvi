@@ -83,7 +83,7 @@ def test_flatten(input_list, output_list):
 
 
 def test_cleanup():
-    from jcvi.apps.base import cleanup
+    from jcvi.apps.base import cleanup, mkdir
     from jcvi.formats.base import write_file
 
     write_file("a", "content_a", skipcheck=True)
@@ -93,6 +93,13 @@ def test_cleanup():
     assert not op.exists("a")
     assert not op.exists("b")
     assert not op.exists("c")
+
+    # Test cleanup with a directory
+    mkdir("adir")
+    write_file("bs", "content_bs", skipcheck=True)
+    cleanup("adir", "bs")
+    assert not op.exists("adir")
+    assert not op.exists("bs")
 
 
 def test_need_update():

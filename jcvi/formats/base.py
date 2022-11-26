@@ -130,18 +130,6 @@ class SetFile(BaseFile, set):
             self.update(keys)
 
 
-class FileShredder(object):
-    """
-    Same as rm -f *
-    """
-
-    def __init__(self, filelist, verbose=True):
-
-        filelist = [x for x in filelist if x and op.exists(x)]
-        cmd = "rm -rf {0}".format(" ".join(filelist))
-        sh(cmd, log=verbose)
-
-
 class FileMerger(object):
     """
     Same as cat * > filename
@@ -1125,7 +1113,7 @@ def subset(args):
             print(ss[0].join(files[0][key]), file=fw)
 
     if nargs > 2:
-        FileShredder([file2])
+        cleanup(file2)
 
 
 def setop(args):

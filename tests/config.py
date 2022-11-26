@@ -14,16 +14,16 @@ This testing functionality was adapted from the implementation developed by http
 
 import sys
 import os.path as op
-from shutil import rmtree as rmdir_
 import glob
 import re
 import tempfile
 import gzip
 import time
-
 import yaml
 
 from importlib import import_module
+from shutil import rmtree as rmdir_
+from typing import Optional, Tuple
 
 # https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
 
@@ -150,20 +150,14 @@ def test_script(
             reference = op.join(work_dir, reference)
             if not fail and not op.exists(reference):
                 fail = True
-                log_msg = "Error: reference file `{0}` does not exist ({1}): {2}".format(
-                    reference, tmp_dir, cmd
+                log_msg = (
+                    "Error: reference file `{0}` does not exist ({1}): {2}".format(
+                        reference, tmp_dir, cmd
+                    )
                 )
 
             if not fail:
-                for outline, refline in zip(_read(output), _read(reference)):
-                    if (
-                        outline != refline
-                    ):  # perform line-by-line comparison of output against reference
-                        fail = True
-                        log_msg = "Error: files `{}` and `{}` are not the same\n+ {}\n- {}\n".format(
-                            output, reference, outline, refline
-                        )
-                        break
+                fail, log_msg = compare_line_by_line(output, reference)
 
     assert not fail, log_msg
 
@@ -172,6 +166,23 @@ def test_script(
     LOG.flush()
 
     rmdir_(tmp_dir)
+
+
+def compare_line_by_line(output: str, reference: str) -> Tuple[bool, Optional[str]]:
+    """Compare two files line by line"""
+    fail, log_msg = False, None
+    for outline, refline in zip(_read(output), _read(reference)):
+        if (
+            outline != refline
+        ):  # perform line-by-line comparison of output against reference
+            fail = True
+            log_msg = (
+                "Error: files `{}` and `{}` are not the same\n+ {}\n- {}\n".format(
+                    output, reference, outline, refline
+                )
+            )
+            break
+    return fail, log_msg
 
 
 def _fname_resolver(fname, tmp_dir=None, work_dir=None):

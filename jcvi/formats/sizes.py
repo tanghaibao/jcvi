@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import os
 import os.path as op
 import sys
 import logging
@@ -13,10 +12,8 @@ from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
     cleanup,
-    need_update,
-    sh,
     get_abs_path,
-    which,
+    need_update,
 )
 
 
@@ -36,18 +33,12 @@ class Sizes(LineFile):
             sizesname = filename + ".sizes"
             filename = get_abs_path(filename)
             if need_update(filename, sizesname):
-                cmd = "faSize"
-                if which(cmd):
-                    cmd += " -detailed {0}".format(filename)
-                    sh(cmd, outfile=sizesname)
-                else:
-                    from jcvi.formats.fasta import Fasta
+                from jcvi.formats.fasta import Fasta
 
-                    f = Fasta(filename)
-                    fw = open(sizesname, "w")
+                f = Fasta(filename)
+                with open(sizesname, "w") as fw:
                     for k, size in f.itersizes_ordered():
                         print("\t".join((k, str(size))), file=fw)
-                    fw.close()
 
             filename = sizesname
 

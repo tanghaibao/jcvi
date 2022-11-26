@@ -12,10 +12,13 @@ import logging
 import numpy as np
 import networkx as nx
 
+from cmmodule.utils import read_chain_file
+from cmmodule.mapbed import crossmap_bed_file
 from collections import Counter, defaultdict
 from functools import partial
 from itertools import combinations, product
 from more_itertools import pairwise
+from typing import Optional
 
 from jcvi import __version__ as version
 from jcvi.algorithms.formula import reject_outliers, spearmanr
@@ -143,7 +146,6 @@ class ScaffoldOO(object):
         function=(lambda x: x.rank),
         linkage=min,
         fwtour=None,
-        skipconcorde=False,
         ngen=500,
         npop=100,
         cpus=8,
@@ -159,7 +161,6 @@ class ScaffoldOO(object):
         self.weights = weights
         self.function = function
         self.linkage = linkage
-        self.skipconcorde = skipconcorde
 
         self.prepare_linkage_groups()  # populate all data
         for mlg in self.lgs:
@@ -299,18 +300,7 @@ class ScaffoldOO(object):
         for a, b, d in G.edges(data=True):
             edges.append((a, b, d["weight"]))
 
-        if self.skipconcorde:
-            logging.debug("concorde-TSP skipped. Use default scaffold ordering.")
-            tour = scaffolds[:]
-            return tour
-        try:
-            tour = hamiltonian(edges, directed=True, precision=2)
-            assert tour[0] == START and tour[-1] == END
-            tour = tour[1:-1]
-        except:
-            logging.debug("concorde-TSP failed. Use default scaffold ordering.")
-            tour = scaffolds[:]
-        return tour
+        return scaffolds[:]
 
     def assign_order(self):
         """
@@ -1428,19 +1418,12 @@ def path(args):
         help="Do not visualize the alignments",
     )
     p.add_option(
-        "--skipconcorde",
-        default=False,
-        action="store_true",
-        help="Skip TSP optimizer, can speed up large cases",
-    )
-    p.add_option(
         "--renumber",
         default=False,
         action="store_true",
         help="Renumber chromosome based on decreasing sizes",
     )
     p.set_cpus(cpus=16)
-    add_crossmap_options(p)
 
     q = OptionGroup(p, "Genetic algorithm options")
     p.add_option_group(q)
@@ -1475,7 +1458,6 @@ def path(args):
     partitionsfile = opts.partitions
     gapsize = opts.gapsize
     mincount = opts.mincount
-    skipconcorde = opts.skipconcorde
     ngen = opts.ngen
     npop = opts.npop
     cpus = opts.cpus
@@ -1592,7 +1574,6 @@ def path(args):
             function=function,
             linkage=linkage,
             fwtour=fwtour,
-            skipconcorde=skipconcorde,
             ngen=ngen,
             npop=npop,
             cpus=cpus,
@@ -1631,10 +1612,7 @@ def path(args):
     logging.debug("AGP file written to `%s`.", agpfile)
     logging.debug("Tour file written to `%s`.", tourfile)
 
-    build_args = [inputbed, fastafile]
-    if opts.crossmap:
-        build_args.append("--crossmap")
-    build(build_args)
+    build([inputbed, fastafile])
 
     summaryfile = pf + ".summary.txt"
     summary([inputbed, fastafile, "--outfile={0}".format(summaryfile)])
@@ -1721,6 +1699,20 @@ def summary(args):
     print(tabulate(r, sep=sep, align=align), file=fw)
 
 
+def liftover(
+    chain_file: str,
+    in_file: str,
+    out_file: str,
+    unmapfile: Optional[str],
+    cstyle: str = "l",
+):
+    """
+    Lifts over a bed file from one assembly to another using a chain file.
+    """
+    mapTree, _, _ = read_chain_file(chain_file)
+    crossmap_bed_file(mapTree, in_file, out_file, unmapfile=unmapfile, cstyle=cstyle)
+
+
 def build(args):
     """
     %prog build input.bed scaffolds.fasta
@@ -1737,7 +1729,6 @@ def build(args):
         action="store_true",
         help="Clean up bulky FASTA files, useful for plotting",
     )
-    add_crossmap_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1773,15 +1764,12 @@ def build(args):
 
     liftedbed = mapbed.rsplit(".", 1)[0] + ".lifted.bed"
     if need_update((mapbed, chainfile), liftedbed):
-        if opts.crossmap:
-            cmd = "CrossMap.py bed --chromid l {0} {1} {2}".format(
-                chainfile, mapbed, liftedbed
-            )
-        else:
-            cmd = "liftOver -minMatch=1 {0} {1} {2} unmapped".format(
-                mapbed, chainfile, liftedbed
-            )
-        sh(cmd, check=True)
+        logging.debug(
+            "Lifting markers from positions in `%s` to new positions in `%s`",
+            mapbed,
+            liftedbed,
+        )
+        liftover(chainfile, mapbed, liftedbed, unmapfile="unmapped", cstyle="l")
 
     if opts.cleanup:
         cleanup(
@@ -1795,16 +1783,6 @@ def build(args):
         )
 
     sort([liftedbed, "-i"])  # Sort bed in place
-
-
-def add_crossmap_options(p):
-    """Add crossmap options to OptionParser object."""
-    p.add_option(
-        "--crossmap",
-        default=False,
-        action="store_true",
-        help="Use crossmap to lift over the markers (CrossMap.py must be in PATH)",
-    )
 
 
 def add_allmaps_plot_options(p):

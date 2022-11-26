@@ -8,7 +8,6 @@ import logging
 import numpy as np
 
 from jcvi.formats.base import LineFile
-from jcvi.formats.fasta import Fasta
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
@@ -34,6 +33,8 @@ class Sizes(LineFile):
             sizesname = filename + ".sizes"
             filename = get_abs_path(filename)
             if need_update(filename, sizesname):
+                from jcvi.formats.fasta import Fasta
+
                 f = Fasta(filename)
                 with open(sizesname, "w") as fw:
                     for k, size in f.itersizes_ordered():

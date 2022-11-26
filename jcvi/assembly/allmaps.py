@@ -1439,6 +1439,7 @@ def path(args):
         help="Renumber chromosome based on decreasing sizes",
     )
     p.set_cpus(cpus=16)
+    add_crossmap_options(p)
 
     q = OptionGroup(p, "Genetic algorithm options")
     p.add_option_group(q)
@@ -1629,7 +1630,10 @@ def path(args):
     logging.debug("AGP file written to `%s`.", agpfile)
     logging.debug("Tour file written to `%s`.", tourfile)
 
-    build([inputbed, fastafile])
+    build_args = [inputbed, fastafile]
+    if opts.crossmap:
+        build_args.append("--crossmap")
+    build(build_args)
 
     summaryfile = pf + ".summary.txt"
     summary([inputbed, fastafile, "--outfile={0}".format(summaryfile)])
@@ -1732,6 +1736,7 @@ def build(args):
         action="store_true",
         help="Clean up bulky FASTA files, useful for plotting",
     )
+    add_crossmap_options(p)
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1767,9 +1772,14 @@ def build(args):
 
     liftedbed = mapbed.rsplit(".", 1)[0] + ".lifted.bed"
     if need_update((mapbed, chainfile), liftedbed):
-        cmd = "liftOver -minMatch=1 {0} {1} {2} unmapped".format(
-            mapbed, chainfile, liftedbed
-        )
+        if opts.crossmap:
+            cmd = "CrossMap.py bed --chromid l {0} {1} {2}".format(
+                chainfile, mapbed, liftedbed
+            )
+        else:
+            cmd = "liftOver -minMatch=1 {0} {1} {2} unmapped".format(
+                mapbed, chainfile, liftedbed
+            )
         sh(cmd, check=True)
 
     if opts.cleanup:
@@ -1786,6 +1796,16 @@ def build(args):
         )
 
     sort([liftedbed, "-i"])  # Sort bed in place
+
+
+def add_crossmap_options(p):
+    """Add crossmap options to OptionParser object."""
+    p.add_option(
+        "--crossmap",
+        default=False,
+        action="store_true",
+        help="Use crossmap to lift over the markers (CrossMap.py must be in PATH)",
+    )
 
 
 def add_allmaps_plot_options(p):

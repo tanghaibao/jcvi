@@ -1278,7 +1278,7 @@ def mkdir(dirname, overwrite=False):
     """
     if op.isdir(dirname):
         if overwrite:
-            shutil.rmtree(dirname)
+            cleanup(dirname)
             os.mkdir(dirname)
             logging.debug("Overwrite folder `{0}`.".format(dirname))
         else:

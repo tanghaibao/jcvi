@@ -7,9 +7,7 @@ algorithms.lpsolve.tsp(). See also:
 https://developers.google.com/optimization/routing/tsp
 """
 import os.path as op
-import os
 import logging
-import shutil
 import numpy as np
 
 from collections import defaultdict
@@ -155,7 +153,7 @@ class Concorde(object):
         self.tour = self.parse_output(outfile)
 
         if clean:
-            shutil.rmtree(work_dir)
+            cleanup(work_dir)
             residual_output = ["data.sol", "data.res", "Odata.res"]
             cleanup(residual_output)
 

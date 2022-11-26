@@ -89,17 +89,23 @@ def test_cleanup():
     write_file("a", "content_a", skipcheck=True)
     write_file("b", "content_b", skipcheck=True)
     write_file("c", "content_c", skipcheck=True)
+    paths = ["a", "b", "c"]
+    for path in paths:
+        assert op.exists(path)
     cleanup("a", ["b", "c"])
-    assert not op.exists("a")
-    assert not op.exists("b")
-    assert not op.exists("c")
+    for path in paths:
+        assert not op.exists(path)
 
     # Test cleanup with a directory
     mkdir("adir")
+    mkdir("bdir")
     write_file("bs", "content_bs", skipcheck=True)
-    cleanup("adir", "bs")
-    assert not op.exists("adir")
-    assert not op.exists("bs")
+    paths = ["adir", "bdir", "bs"]
+    for path in paths:
+        assert op.exists(path)
+    cleanup("adir", ["bdir", "bs"])
+    for path in paths:
+        assert not op.exists(path)
 
 
 def test_need_update():

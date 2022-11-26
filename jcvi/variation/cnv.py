@@ -1159,10 +1159,9 @@ def cn(args):
             push_to_s3(upload, segfile)
 
     if opts.cleanup:
-        import shutil
+        from jcvi.apps.base import cleanup
 
-        shutil.rmtree(sampledir)
-        shutil.rmtree(cndir)
+        cleanup(cndir, sampledir)
 
 
 @dataclass

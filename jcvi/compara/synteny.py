@@ -20,7 +20,7 @@ from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name, human_size
 from jcvi.utils.range import Range, range_chain
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup
 
 
 class AnchorFile(BaseFile):
@@ -796,7 +796,7 @@ def assemble(args):
             print("\t".join(slots), file=fw)
 
     # Cleanup
-    shutil.rmtree(workdir)
+    cleanup(workdir)
 
 
 def colinear_evaluate_weights(tour, data):

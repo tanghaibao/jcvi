@@ -8,7 +8,6 @@ The VCLUST implementation borrows ideas and code from PyRAD. PyRAD link:
 <https://github.com/dereneaton/pyrad>
 """
 import os.path as op
-import shutil
 import sys
 import logging
 import numpy as np
@@ -32,10 +31,11 @@ from jcvi.utils.table import write_csv
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
+    cleanup,
     datadir,
+    iglob,
     listify,
     mkdir,
-    iglob,
     need_update,
     sh,
 )
@@ -862,7 +862,7 @@ def parallel_musclewrap(clustfile, cpus, minsamp=0):
     clustnames = [x.replace(".clust", ".clustS") for x in fs.names]
     clustSfile = clustfile.replace(".clust", ".clustS")
     FileMerger(clustnames, outfile=clustSfile).merge()
-    shutil.rmtree(outdir)
+    cleanup(outdir)
 
 
 def filter_samples(names, seqs, sep="."):

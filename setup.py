@@ -2,14 +2,11 @@
 
 """Package setup"""
 
-import numpy as np
-import versioneer
-
 from Cython.Build import build_ext
 from setuptools import setup, Extension
 
-cmdclass = versioneer.get_cmdclass()
-cmdclass.update({"build_ext": build_ext})
+import numpy as np
+
 ext_modules = [
     Extension(
         "jcvi.assembly.chic",
@@ -23,4 +20,7 @@ ext_modules = [
 ]
 
 if __name__ == "__main__":
-    setup(cmdclass=cmdclass, ext_modules=ext_modules)
+    setup(
+        cmdclass={"build_ext": build_ext},
+        ext_modules=ext_modules,
+    )

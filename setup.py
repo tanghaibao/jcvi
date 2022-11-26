@@ -2,11 +2,11 @@
 
 """Package setup"""
 
-import numpy as np
-import versioneer
-
 from Cython.Build import build_ext
 from setuptools import setup, Extension
+
+import numpy as np
+import versioneer
 
 cmdclass = versioneer.get_cmdclass()
 cmdclass.update({"build_ext": build_ext})
@@ -23,4 +23,8 @@ ext_modules = [
 ]
 
 if __name__ == "__main__":
-    setup(cmdclass=cmdclass, ext_modules=ext_modules)
+    setup(
+        cmdclass=cmdclass,
+        ext_modules=ext_modules,
+        version=versioneer.get_version(),
+    )

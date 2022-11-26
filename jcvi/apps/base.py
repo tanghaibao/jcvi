@@ -1450,7 +1450,7 @@ def download(
     if op.exists(final_filename):
         if debug:
             msg = "File `{}` exists. Download skipped.".format(final_filename)
-            logging.error(msg)
+            logging.info(msg)
         success = True
     else:
         from jcvi.utils.ez_setup import get_best_downloader

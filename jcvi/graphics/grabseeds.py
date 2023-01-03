@@ -25,6 +25,7 @@ from jcvi.graphics.base import (
 
 from PIL.Image import open as iopen
 from pytesseract import image_to_string
+
 from wand.image import Image
 from webcolors import rgb_to_hex, normalize_integer_triplet
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
@@ -33,7 +34,8 @@ from skimage.color import gray2rgb, rgb2gray
 from skimage.filters import roberts, sobel
 from skimage.feature import canny, peak_local_max
 from skimage.measure import regionprops, label
-from skimage.morphology import disk, closing, watershed
+from skimage.morphology import disk, closing
+from skimage.segmentation import watershed
 from skimage.segmentation import clear_border
 
 from jcvi.utils.webcolors import closest_color
@@ -64,7 +66,7 @@ class Seed(object):
         self.length = int(round(props.major_axis_length))
         self.width = int(round(props.minor_axis_length))
         self.props = props
-        self.circularity = 4 * pi * props.area / props.perimeter ** 2
+        self.circularity = 4 * pi * props.area / props.perimeter**2
         self.rgb = rgb
         self.colorname = closest_color(rgb)
         self.datetime = exif.get("exif:DateTimeOriginal", "none")
@@ -147,7 +149,7 @@ def main():
 def total_error(x, colormap):
     xs = np.reshape(x, (3, 3))
     error_squared = sum([np.linalg.norm(np.dot(xs, o) - e) ** 2 for o, e in colormap])
-    return error_squared ** 0.5
+    return error_squared**0.5
 
 
 def calibrate(args):
@@ -417,7 +419,7 @@ def convert_background(pngfile, new_background):
             for pixel in pixel_color:
                 if pixel > stdRGB:
                     pixel_values.append(pixel)
-            obcolor[t] = sum(pixel_values) / len(pixel_values)
+            obcolor[t] = sum(pixel_values) // len(pixel_values)
 
         # Get background color using average color and standard deviation
         for t in range(3):
@@ -426,7 +428,7 @@ def convert_background(pngfile, new_background):
             for i in pixel_color:
                 if (i > (obcolor[t] - stdRGB)) and (i < (obcolor[t] + stdRGB)):
                     seed_pixel_values.append(i)
-            obcolor[t] = sum(seed_pixel_values) / len(seed_pixel_values)
+            obcolor[t] = sum(seed_pixel_values) // len(seed_pixel_values)
         # Selection of colors based on option parser
         nbcolor = [None, None, None]
         if new_background == "INVERSE":
@@ -491,9 +493,9 @@ def convert_image(
         w, h = img.size
         if min(w, h) > resize:
             if w < h:
-                nw, nh = resize, resize * h / w
+                nw, nh = resize, resize * h // w
             else:
-                nw, nh = resize * w / h, resize
+                nw, nh = resize * w // h, resize
             img.resize(nw, nh)
             logging.debug(
                 "Image `{0}` resized from {1}px:{2}px to {3}px:{4}px".format(
@@ -692,7 +694,7 @@ def seeds(args):
             (minc, minr), maxc - minc, maxr - minr, fill=False, ec="w", lw=1
         )
         ax3.add_patch(rect)
-        mc, mr = (minc + maxc) / 2, (minr + maxr) / 2
+        mc, mr = (minc + maxc) // 2, (minr + maxr) // 2
         ax3.text(mc, mr, "{0}".format(i), color="w", ha="center", va="center", size=6)
 
     for ax in (ax2, ax3):

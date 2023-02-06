@@ -28,7 +28,7 @@ from typing import Optional
 from jcvi.apps.base import OptionParser
 from jcvi.compara.synteny import SimpleFile
 from jcvi.formats.bed import Bed
-from jcvi.graphics.chromosome import HorizontalChromosome
+from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Shade
 from jcvi.graphics.base import AbstractLayout, markup, mpl, plt, savefig, update_figname
@@ -132,9 +132,8 @@ class Track(object):
         height=0.01,
         lw=1,
         draw=True,
-        roundrect=False,
+        chrstyle="auto",
     ):
-
         self.empty = t.empty
         if t.empty:
             return
@@ -182,14 +181,14 @@ class Track(object):
         self.lw = lw
 
         if draw:
-            self.draw(roundrect=roundrect)
+            self.draw(chrstyle=chrstyle)
 
     def __str__(self):
         return self.label
 
     def draw(
         self,
-        roundrect=False,
+        chrstyle="auto",
         keep_chrlabels=False,
         plot_label=True,
         plot_circles=True,
@@ -220,7 +219,7 @@ class Track(object):
                 height=self.height,
                 lw=self.lw,
                 fc=color,
-                roundrect=roundrect,
+                style=chrstyle,
             )
             hc.set_transform(tr)
             si = sid if keep_chrlabels else make_circle_name(sid, self.rev)
@@ -348,11 +347,11 @@ class Karyotype(object):
         generank=True,
         sizes=None,
         heightpad=0,
-        roundrect=False,
         keep_chrlabels=False,
         plot_label=True,
         plot_circles=True,
         shadestyle="curve",
+        chrstyle="auto",
         seed: Optional[int] = None,
     ):
         layout = Layout(layoutfile, generank=generank, seed=seed)
@@ -399,7 +398,7 @@ class Karyotype(object):
 
         for tr in tracks:
             tr.draw(
-                roundrect=roundrect,
+                chrstyle=chrstyle,
                 keep_chrlabels=keep_chrlabels,
                 plot_label=plot_label,
                 plot_circles=plot_circles,
@@ -435,6 +434,12 @@ def main():
         choices=Shade.Styles,
         help="Style of syntenic wedges",
     )
+    p.add_option(
+        "--chrstyle",
+        default="auto",
+        choices=Chromosome.Styles,
+        help="Style of chromosome labels",
+    )
     p.set_outfile("karyotype.pdf")
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
@@ -454,6 +459,7 @@ def main():
         keep_chrlabels=opts.keep_chrlabels,
         plot_circles=(not opts.nocircles),
         shadestyle=opts.shadestyle,
+        chrstyle=opts.chrstyle,
         generank=(not opts.basepair),
         seed=iopts.seed,
     )

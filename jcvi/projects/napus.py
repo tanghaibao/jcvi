@@ -74,7 +74,6 @@ class F4ALayout(LineFile):
 
 
 def main():
-
     actions = (
         ("ploidy", "plot napus macro-synteny (requires data)"),
         ("expr", "plot expression values between homeologs (requires data)"),
@@ -324,7 +323,6 @@ def fig3(args):
         generank=False,
         sizes=sizes,
         heightpad=r,
-        roundrect=True,
         plot_label=False,
     )
 

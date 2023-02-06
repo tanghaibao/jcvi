@@ -59,7 +59,7 @@ class Bezier(object):
         b = 3 * (p2 - p1) - c
         a = p3 - p0 - c - b
 
-        tsquared = t ** 2
+        tsquared = t**2
         tcubic = tsquared * t
         return a * tcubic + b * tsquared + c * t + p0
 
@@ -68,7 +68,6 @@ class RoundLabel(object):
     """Round rectangle around the text label"""
 
     def __init__(self, ax, x1, x2, t, lw=0, fill=False, fc="lavender", **kwargs):
-
         ax.text(
             x1,
             x2,
@@ -83,7 +82,6 @@ class RoundRect(object):
     """Round rectangle directly"""
 
     def __init__(self, ax, xy, width, height, shrink=0.1, label=None, **kwargs):
-
         shrink *= height
         x, y = xy
         pts = []
@@ -121,7 +119,6 @@ class DoubleSquare(object):
     """Square with a double-line margin"""
 
     def __init__(self, ax, x, y, radius=0.01, **kwargs):
-
         d = radius * 1.5
         ax.add_patch(Rectangle((x - d, y - d), 2 * d, 2 * d, fc="w", ec="k", zorder=10))
         d = radius
@@ -132,7 +129,6 @@ class DoubleCircle(object):
     """Circle with a double-line margin"""
 
     def __init__(self, ax, x, y, radius=0.01, **kwargs):
-
         ax.add_patch(CirclePolygon((x, y), radius * 1.4, resolution=50, fc="w", ec="k"))
         ax.add_patch(CirclePolygon((x, y), radius, resolution=50, **kwargs))
 
@@ -171,7 +167,6 @@ class TextCircle(object):
         fontweight="bold",
         **kwargs
     ):
-
         width, height = get_asymmetry(ax, radius)
         circle = Ellipse((x, y), width, height, fc=fc, ec=fc, zorder=zorder, **kwargs)
         ax.add_patch(circle)
@@ -260,7 +255,6 @@ class BaseGlyph(list):
 
 
 class Glyph(BaseGlyph):
-
     Styles = ("box", "arrow")
     Palette = ("orientation", "orthogroup")
     ArrowStyle = "Simple,head_length=1.5,head_width=7,tail_width=7"
@@ -335,7 +329,6 @@ class ExonGlyph(BaseGlyph):
     """Multiple rectangles linked together."""
 
     def __init__(self, ax, x, y, mrnabed, exonbeds, height=0.03, ratio=1, align="left"):
-
         super(ExonGlyph, self).__init__(ax)
         start, end = mrnabed.start, mrnabed.end
         xa = lambda a: x + (a - start) * ratio
@@ -364,7 +357,6 @@ class GeneGlyph(BaseGlyph):
         shadow=False,
         **kwargs
     ):
-
         super(GeneGlyph, self).__init__(ax)
         # Figure out the polygon vertices first
         orientation = 1 if x1 < x2 else -1
@@ -560,7 +552,6 @@ def plot_cap(center, t, r):
 
 
 def main():
-
     actions = (
         ("demo", "run a demo to showcase some common usages of various glyphs"),
         ("gff", "draw exons for genes based on gff files"),

@@ -9,6 +9,7 @@ import logging
 import sys
 from itertools import groupby
 from math import ceil
+from typing import Tuple
 
 import numpy as np
 
@@ -27,10 +28,14 @@ from jcvi.graphics.base import (
     set1_n,
     set3_n,
 )
-from jcvi.graphics.glyph import BaseGlyph, RoundRect, plot_cap
+from jcvi.graphics.glyph import BaseGlyph, plot_cap
 
 
 class Chromosome(BaseGlyph):
+    # Chromosome styles: rect - rectangle, roundrect - rounded rectangle, auto -
+    # automatically pick the best style
+    Styles = ("auto", "rect", "roundrect")
+
     def __init__(
         self,
         ax,
@@ -95,42 +100,21 @@ class HorizontalChromosome(BaseGlyph):
         lw=1,
         fc=None,
         zorder=2,
-        roundrect=False,
+        style="auto",
     ):
         """
         Horizontal version of the Chromosome glyph above.
         """
+        assert style in Chromosome.Styles, f"Unknown style `{style}`"
+
         x1, x2 = sorted((x1, x2))
         super(HorizontalChromosome, self).__init__(ax)
-        pts, r = self.get_pts(x1, x2, y, height)
-        if roundrect:
-            RoundRect(
-                ax,
-                (x1, y - height * 0.5),
-                x2 - x1,
-                height,
-                fill=False,
-                lw=lw,
-                ec=ec,
-                zorder=zorder + 1,
-            )
-        else:
-            self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
+        pts, r = self.get_pts(x1, x2, y, height, style=style)
+        self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder + 1))
 
         if fc:
-            pts, r = self.get_pts(x1, x2, y, height / 2)
-            if roundrect:
-                RoundRect(
-                    ax,
-                    (x1, y - height / 4),
-                    x2 - x1,
-                    height / 2,
-                    fc=fc,
-                    lw=0,
-                    zorder=zorder,
-                )
-            else:
-                self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))
+            pts, r = self.get_pts(x1, x2, y, height / 2, style=style)
+            self.append(Polygon(pts, fc=fc, lw=0, zorder=zorder))
         if patch:
             rr = r * 0.9  # Shrink a bit for the patches
             # First patch is colored if there is an even number of patches, otherwise not colored
@@ -145,11 +129,13 @@ class HorizontalChromosome(BaseGlyph):
 
         self.add_patches()
 
-    def get_pts(self, x1, x2, y, height):
+    def get_pts(self, x1, x2, y, height, style="auto") -> Tuple[list, float]:
         h = height / 2
         r = height / (3**0.5)
 
-        if x2 - x1 < 2 * height:  # rectangle for small chromosomes
+        if style == "rect" or (
+            style == "auto" and x2 - x1 < 2 * height
+        ):  # rectangle for small chromosomes
             return [[x1, y + h], [x1, y - h], [x2, y - h], [x2, y + h]], r
 
         pts = []
@@ -205,7 +191,6 @@ class ChromosomeMap(object):
         subtitle,
         patchstart=None,
     ):
-
         width, height = xend - xstart, yend - ystart
 
         y = ystart - pad

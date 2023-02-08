@@ -30,7 +30,7 @@ from jcvi.compara.synteny import SimpleFile
 from jcvi.formats.bed import Bed
 from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
-from jcvi.graphics.synteny import Shade
+from jcvi.graphics.synteny import Shade, ymid_offset
 from jcvi.graphics.base import AbstractLayout, markup, mpl, plt, savefig, update_figname
 
 
@@ -76,7 +76,7 @@ class Layout(AbstractLayout):
                 if len(args) == 5 and args[4]:
                     samearc = args[4]
                 else:
-                    samearc = "below"
+                    samearc = None
                 i, j = int(i), int(j)
                 assert args[0] == "e"
                 blocks = self.parse_blocks(fn, i)
@@ -288,27 +288,20 @@ class ShadeManager(object):
         self.style = style
         for i, j, blocks, samearc in layout.edges:
             # if same track (duplication shades), shall we draw above or below?
-            # samearc = "above" if i == j and i == 0 else "below"
             self.draw_blocks(
                 ax, blocks, tracks[i], tracks[j], samearc=samearc, heightpad=heightpad
             )
 
-    def draw_blocks(self, ax, blocks, atrack, btrack, samearc="below", heightpad=0):
+    def draw_blocks(
+        self, ax, blocks, atrack, btrack, samearc: Optional[str], heightpad=0
+    ):
         for a, b, c, d, _, _, highlight in blocks:
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
             if p[0] is None or q[0] is None:
                 continue
 
-            ymid = (atrack.y + btrack.y) / 2
-            px, qx = p[0][0], q[0][0]
-            xdist = abs(px - qx) if px and qx else 0.5
-            pad = 0.09 * xdist / 0.5
-            if atrack.y == btrack.y:
-                if samearc == "below":
-                    ymid = atrack.y - pad
-                else:
-                    ymid = atrack.y + pad
+            ymid_pad = ymid_offset(samearc)
             if heightpad:
                 if atrack.y < btrack.y:
                     p[0][1] = p[1][1] = atrack.y + heightpad
@@ -323,7 +316,7 @@ class ShadeManager(object):
                 ax,
                 p,
                 q,
-                ymid,
+                ymid_pad,
                 highlight=highlight,
                 alpha=1,
                 fc="gainsboro",

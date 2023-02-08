@@ -118,7 +118,7 @@ class Shade(object):
         ax,
         a,
         b,
-        ymid,
+        ymid_pad: float = 0.0,
         highlight=False,
         style="curve",
         ec="k",
@@ -133,7 +133,7 @@ class Shade(object):
             ax: matplotlib Axes
             a (tuple of floats): ((start_x, start_y), (end_x, end_y))
             b (tuple of floats): ((start_x, start_y), (end_x, end_y))
-            ymid (float): y-mid position for curve style only
+            ymid_pad (float): Adjustment to y-mid position of Bezier controls, curve style only
             highlight (bool, optional): Plot this shade if color is specified. Defaults to False.
             style (str, optional): Style. Defaults to "curve", must be one of
             ("curve", "line")
@@ -151,10 +151,13 @@ class Shade(object):
         ax2, ay2 = a2
         bx1, by1 = b1
         bx2, by2 = b2
+        if ax1 is None or ax2 is None or bx1 is None or bx2 is None:
+            logging.error("Shade: None found in coordinates")
+            return
         M, C4, L, CP = Path.MOVETO, Path.CURVE4, Path.LINETO, Path.CLOSEPOLY
         if style == "curve":
-            ymid1 = (ay1 + by1) / 2
-            ymid2 = (ay2 + by2) / 2
+            ymid1 = (ay1 + by1) / 2 + ymid_pad
+            ymid2 = (ay2 + by2) / 2 + ymid_pad
             pathdata = [
                 (M, a1),
                 (C4, (ax1, ymid1)),
@@ -454,7 +457,7 @@ class Synteny(object):
             gg.update(dict(((i, k), v) for k, v in r.gg.items()))
             ymids.append(r.y)
 
-        def offset(samearc):
+        def offset(samearc: Optional[str]):
             if samearc == "above":
                 return 2 * pad
             if samearc == "above2":
@@ -463,24 +466,27 @@ class Synteny(object):
                 return -2 * pad
             if samearc == "below2":
                 return -4 * pad
+            return 0
 
         for i, j, blockcolor, samearc in lo.edges:
+            ymid_pad = offset(samearc)
             for ga, gb, h in bf.iter_pairs(i, j):
                 a, b = gg[(i, ga)], gg[(j, gb)]
-                if samearc is not None:
-                    ymid = ymids[i] + offset(samearc)
-                else:
-                    ymid = (ymids[i] + ymids[j]) / 2
-                Shade(root, a, b, ymid, fc=blockcolor, lw=0, alpha=1, style=shadestyle)
+                Shade(
+                    root, a, b, ymid_pad, fc=blockcolor, lw=0, alpha=1, style=shadestyle
+                )
 
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
                 a, b = gg[(i, ga)], gg[(j, gb)]
-                if samearc is not None:
-                    ymid = ymids[i] + offset(samearc)
-                else:
-                    ymid = (ymids[i] + ymids[j]) / 2
                 Shade(
-                    root, a, b, ymid, alpha=1, highlight=h, zorder=2, style=shadestyle
+                    root,
+                    a,
+                    b,
+                    ymid_pad,
+                    alpha=1,
+                    highlight=h,
+                    zorder=2,
+                    style=shadestyle,
                 )
 
         if scalebar:

@@ -300,15 +300,12 @@ class ShadeManager(object):
             if p[0] is None or q[0] is None:
                 continue
 
-            ymid = (atrack.y + btrack.y) / 2
             px, qx = p[0][0], q[0][0]
             xdist = abs(px - qx) if px and qx else 0.5
             pad = 0.09 * xdist / 0.5
+            ymid_pad = 0
             if atrack.y == btrack.y:
-                if samearc == "below":
-                    ymid = atrack.y - pad
-                else:
-                    ymid = atrack.y + pad
+                ymid_pad = -pad if samearc == "below" else pad
             if heightpad:
                 if atrack.y < btrack.y:
                     p[0][1] = p[1][1] = atrack.y + heightpad
@@ -323,7 +320,7 @@ class ShadeManager(object):
                 ax,
                 p,
                 q,
-                ymid,
+                ymid_pad,
                 highlight=highlight,
                 alpha=1,
                 fc="gainsboro",

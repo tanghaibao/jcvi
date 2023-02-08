@@ -153,14 +153,16 @@ class Shade(object):
         bx2, by2 = b2
         M, C4, L, CP = Path.MOVETO, Path.CURVE4, Path.LINETO, Path.CLOSEPOLY
         if style == "curve":
+            ymid1 = (ay1 + by1) / 2
+            ymid2 = (ay2 + by2) / 2
             pathdata = [
                 (M, a1),
-                (C4, (ax1, ymid)),
-                (C4, (bx1, ymid)),
+                (C4, (ax1, ymid1)),
+                (C4, (bx1, ymid1)),
                 (C4, b1),
                 (L, b2),
-                (C4, (bx2, ymid)),
-                (C4, (ax2, ymid)),
+                (C4, (bx2, ymid2)),
+                (C4, (ax2, ymid2)),
                 (C4, a2),
                 (CP, a1),
             ]

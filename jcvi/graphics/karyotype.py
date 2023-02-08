@@ -76,7 +76,7 @@ class Layout(AbstractLayout):
                 if len(args) == 5 and args[4]:
                     samearc = args[4]
                 else:
-                    samearc = "below"
+                    samearc = None
                 i, j = int(i), int(j)
                 assert args[0] == "e"
                 blocks = self.parse_blocks(fn, i)
@@ -292,17 +292,16 @@ class ShadeManager(object):
                 ax, blocks, tracks[i], tracks[j], samearc=samearc, heightpad=heightpad
             )
 
-    def draw_blocks(self, ax, blocks, atrack, btrack, samearc="below", heightpad=0):
+    def draw_blocks(
+        self, ax, blocks, atrack, btrack, samearc: Optional[str], heightpad=0
+    ):
         for a, b, c, d, _, _, highlight in blocks:
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
             if p[0] is None or q[0] is None:
                 continue
 
-            px, qx = p[0][0], q[0][0]
-            xdist = abs(px - qx) if px and qx else 0.5
-            pad = 0.09 * xdist / 0.5
-            ymid_pad = ymid_offset(samearc, pad)
+            ymid_pad = ymid_offset(samearc)
             if heightpad:
                 if atrack.y < btrack.y:
                     p[0][1] = p[1][1] = atrack.y + heightpad

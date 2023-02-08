@@ -152,7 +152,7 @@ class Shade(object):
         bx1, by1 = b1
         bx2, by2 = b2
         if ax1 is None or ax2 is None or bx1 is None or bx2 is None:
-            logging.error("Shade: None found in coordinates")
+            logging.warning("Shade: None found in coordinates, skipping")
             return
         M, C4, L, CP = Path.MOVETO, Path.CURVE4, Path.LINETO, Path.CLOSEPOLY
         if style == "curve":
@@ -372,7 +372,10 @@ class Region(object):
 
 
 def ymid_offset(samearc: Optional[str], pad: float = 0.05):
-    """Adjustment to ymid for samearc"""
+    """
+    Adjustment to ymid, this is useful to adjust the appearance of the Bezier
+    curves between the tracks.
+    """
     if samearc == "above":
         return 2 * pad
     if samearc == "above2":
@@ -471,7 +474,7 @@ class Synteny(object):
             ymids.append(r.y)
 
         for i, j, blockcolor, samearc in lo.edges:
-            ymid_pad = ymid_offset(samearc)
+            ymid_pad = ymid_offset(samearc, pad)
             for ga, gb, h in bf.iter_pairs(i, j):
                 a, b = gg[(i, ga)], gg[(j, gb)]
                 Shade(

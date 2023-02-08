@@ -30,7 +30,7 @@ from jcvi.compara.synteny import SimpleFile
 from jcvi.formats.bed import Bed
 from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
-from jcvi.graphics.synteny import Shade
+from jcvi.graphics.synteny import Shade, ymid_offset
 from jcvi.graphics.base import AbstractLayout, markup, mpl, plt, savefig, update_figname
 
 
@@ -288,7 +288,6 @@ class ShadeManager(object):
         self.style = style
         for i, j, blocks, samearc in layout.edges:
             # if same track (duplication shades), shall we draw above or below?
-            # samearc = "above" if i == j and i == 0 else "below"
             self.draw_blocks(
                 ax, blocks, tracks[i], tracks[j], samearc=samearc, heightpad=heightpad
             )
@@ -303,9 +302,7 @@ class ShadeManager(object):
             px, qx = p[0][0], q[0][0]
             xdist = abs(px - qx) if px and qx else 0.5
             pad = 0.09 * xdist / 0.5
-            ymid_pad = 0
-            if atrack.y == btrack.y:
-                ymid_pad = -pad if samearc == "below" else pad
+            ymid_pad = ymid_offset(samearc, pad)
             if heightpad:
                 if atrack.y < btrack.y:
                     p[0][1] = p[1][1] = atrack.y + heightpad

@@ -371,6 +371,19 @@ class Region(object):
         return x1, x2, a, b
 
 
+def ymid_offset(samearc: Optional[str], pad: float = 0.05):
+    """Adjustment to ymid for samearc"""
+    if samearc == "above":
+        return 2 * pad
+    if samearc == "above2":
+        return 4 * pad
+    if samearc == "below":
+        return -2 * pad
+    if samearc == "below2":
+        return -4 * pad
+    return 0
+
+
 class Synteny(object):
     def __init__(
         self,
@@ -457,19 +470,8 @@ class Synteny(object):
             gg.update(dict(((i, k), v) for k, v in r.gg.items()))
             ymids.append(r.y)
 
-        def offset(samearc: Optional[str]):
-            if samearc == "above":
-                return 2 * pad
-            if samearc == "above2":
-                return 4 * pad
-            if samearc == "below":
-                return -2 * pad
-            if samearc == "below2":
-                return -4 * pad
-            return 0
-
         for i, j, blockcolor, samearc in lo.edges:
-            ymid_pad = offset(samearc)
+            ymid_pad = ymid_offset(samearc)
             for ga, gb, h in bf.iter_pairs(i, j):
                 a, b = gg[(i, ga)], gg[(j, gb)]
                 Shade(

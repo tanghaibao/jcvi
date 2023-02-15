@@ -21,6 +21,8 @@ import sys
 import logging
 import numpy as np
 
+from typing import Optional
+
 from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.formats.base import DictFile
@@ -80,7 +82,7 @@ class LayoutLine(object):
 
 
 class Layout(AbstractLayout):
-    def __init__(self, filename, delimiter=","):
+    def __init__(self, filename, delimiter=",", seed: Optional[int] = None):
         super(Layout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
@@ -105,7 +107,7 @@ class Layout(AbstractLayout):
             else:
                 self.append(LayoutLine(row, delimiter=delimiter))
 
-        self.assign_colors()
+        self.assign_colors(seed=seed)
 
 
 class Shade(object):
@@ -116,7 +118,7 @@ class Shade(object):
         ax,
         a,
         b,
-        ymid,
+        ymid_pad: float = 0.0,
         highlight=False,
         style="curve",
         ec="k",
@@ -131,7 +133,7 @@ class Shade(object):
             ax: matplotlib Axes
             a (tuple of floats): ((start_x, start_y), (end_x, end_y))
             b (tuple of floats): ((start_x, start_y), (end_x, end_y))
-            ymid (float): y-mid position for curve style only
+            ymid_pad (float): Adjustment to y-mid position of Bezier controls, curve style only
             highlight (bool, optional): Plot this shade if color is specified. Defaults to False.
             style (str, optional): Style. Defaults to "curve", must be one of
             ("curve", "line")
@@ -149,16 +151,21 @@ class Shade(object):
         ax2, ay2 = a2
         bx1, by1 = b1
         bx2, by2 = b2
+        if ax1 is None or ax2 is None or bx1 is None or bx2 is None:
+            logging.warning("Shade: None found in coordinates, skipping")
+            return
         M, C4, L, CP = Path.MOVETO, Path.CURVE4, Path.LINETO, Path.CLOSEPOLY
         if style == "curve":
+            ymid1 = (ay1 + by1) / 2 + ymid_pad
+            ymid2 = (ay2 + by2) / 2 + ymid_pad
             pathdata = [
                 (M, a1),
-                (C4, (ax1, ymid)),
-                (C4, (bx1, ymid)),
+                (C4, (ax1, ymid1)),
+                (C4, (bx1, ymid1)),
                 (C4, b1),
                 (L, b2),
-                (C4, (bx2, ymid)),
-                (C4, (ax2, ymid)),
+                (C4, (bx2, ymid2)),
+                (C4, (ax2, ymid2)),
                 (C4, a2),
                 (CP, a1),
             ]
@@ -184,6 +191,7 @@ class Region(object):
         switch=None,
         chr_label=True,
         loc_label=True,
+        gene_labels: Optional[set] = None,
         genelabelsize=0,
         pad=0.05,
         vpad=0.015,
@@ -263,7 +271,7 @@ class Region(object):
                 zorder=zorder,
             )
             gp.set_transform(tr)
-            if genelabelsize:
+            if genelabelsize and (not gene_labels or gene_name in gene_labels):
                 ax.text(
                     (x1 + x2) / 2,
                     y + height / 2 + genelabelsize * vpad / 3,
@@ -363,6 +371,22 @@ class Region(object):
         return x1, x2, a, b
 
 
+def ymid_offset(samearc: Optional[str], pad: float = 0.05):
+    """
+    Adjustment to ymid, this is useful to adjust the appearance of the Bezier
+    curves between the tracks.
+    """
+    if samearc == "above":
+        return 2 * pad
+    if samearc == "above2":
+        return 4 * pad
+    if samearc == "below":
+        return -2 * pad
+    if samearc == "below2":
+        return -4 * pad
+    return 0
+
+
 class Synteny(object):
     def __init__(
         self,
@@ -376,6 +400,7 @@ class Synteny(object):
         extra_features=None,
         chr_label=True,
         loc_label=True,
+        gene_labels: Optional[set] = None,
         genelabelsize=0,
         pad=0.05,
         vpad=0.015,
@@ -383,12 +408,13 @@ class Synteny(object):
         shadestyle="curve",
         glyphstyle="arrow",
         glyphcolor: BasePalette = OrientationPalette(),
+        seed: Optional[int] = None,
     ):
         _, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
         order = bed.order
         bf = BlockFile(datafile)
-        self.layout = lo = Layout(layoutfile)
+        self.layout = lo = Layout(layoutfile, seed=seed)
         switch = DictFile(switch, delimiter="\t") if switch else None
         if extra_features:
             extra_features = Bed(extra_features)
@@ -433,6 +459,7 @@ class Synteny(object):
                 bed,
                 scale,
                 switch,
+                gene_labels=gene_labels,
                 genelabelsize=genelabelsize,
                 chr_label=chr_label,
                 loc_label=loc_label,
@@ -446,33 +473,25 @@ class Synteny(object):
             gg.update(dict(((i, k), v) for k, v in r.gg.items()))
             ymids.append(r.y)
 
-        def offset(samearc):
-            if samearc == "above":
-                return 2 * pad
-            if samearc == "above2":
-                return 4 * pad
-            if samearc == "below":
-                return -2 * pad
-            if samearc == "below2":
-                return -4 * pad
-
         for i, j, blockcolor, samearc in lo.edges:
+            ymid_pad = ymid_offset(samearc, pad)
             for ga, gb, h in bf.iter_pairs(i, j):
                 a, b = gg[(i, ga)], gg[(j, gb)]
-                if samearc is not None:
-                    ymid = ymids[i] + offset(samearc)
-                else:
-                    ymid = (ymids[i] + ymids[j]) / 2
-                Shade(root, a, b, ymid, fc=blockcolor, lw=0, alpha=1, style=shadestyle)
+                Shade(
+                    root, a, b, ymid_pad, fc=blockcolor, lw=0, alpha=1, style=shadestyle
+                )
 
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
                 a, b = gg[(i, ga)], gg[(j, gb)]
-                if samearc is not None:
-                    ymid = ymids[i] + offset(samearc)
-                else:
-                    ymid = (ymids[i] + ymids[j]) / 2
                 Shade(
-                    root, a, b, ymid, alpha=1, highlight=h, zorder=2, style=shadestyle
+                    root,
+                    a,
+                    b,
+                    ymid_pad,
+                    alpha=1,
+                    highlight=h,
+                    zorder=2,
+                    style=shadestyle,
                 )
 
         if scalebar:
@@ -569,6 +588,10 @@ def main():
     p.add_option("--tree", help="Display trees on the bottom of the figure")
     p.add_option("--extra", help="Extra features in BED format")
     p.add_option(
+        "--genelabels",
+        help='Show only these gene labels, separated by comma. Example: "At1g12340,At5g54690"',
+    )
+    p.add_option(
         "--genelabelsize",
         default=0,
         type="int",
@@ -608,6 +631,7 @@ def main():
     datafile, bedfile, layoutfile = args
     switch = opts.switch
     tree = opts.tree
+    gene_labels = None if not opts.genelabels else set(opts.genelabels.split(","))
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -621,11 +645,13 @@ def main():
         switch=switch,
         tree=tree,
         extra_features=opts.extra,
+        gene_labels=gene_labels,
         genelabelsize=opts.genelabelsize,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
         glyphstyle=opts.glyphstyle,
         glyphcolor=opts.glyphcolor,
+        seed=iopts.seed,
     )
 
     root.set_xlim(0, 1)

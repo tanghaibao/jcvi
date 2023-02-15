@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 """
-Scripts for the ALLMAPS manuscript (un-published)
+Scripts for the ALLMAPS manuscript
 """
 import sys
 import numpy as np
@@ -104,7 +104,7 @@ def resamplestats(args):
 
     rates = []
     for i in range(-N + 1, 1, 1):
-        summaryfile = "{0}.{1}.summary.txt".format(pf, 2 ** i)
+        summaryfile = "{0}.{1}.summary.txt".format(pf, 2**i)
         fp = open(summaryfile)
         lines = fp.readlines()
         # Total bases    580,791,244 (80.8%)    138,298,666 (19.2%)

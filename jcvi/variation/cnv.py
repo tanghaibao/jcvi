@@ -14,6 +14,7 @@ import pandas as pd
 import pysam
 
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from itertools import groupby
 from multiprocessing import Pool
 from random import choice
@@ -25,6 +26,7 @@ from jcvi.utils.aws import glob_s3, push_to_s3, sync_from_s3
 from jcvi.utils.cbook import percentage
 from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, mkdir, popen, sh
 
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 autosomes = ["chr{}".format(x) for x in range(1, 23)]
 sexsomes = ["chrX", "chrY"]
@@ -356,6 +358,8 @@ def main():
         ("compare", "compare cnv output to ground truths"),
         # Plots
         ("gcdepth", "plot GC content vs depth for genomic bins"),
+        ("validate", "validate CNV calls by plotting RDR/BAF/CN"),
+        ("wes_vs_wgs", "plot WES vs WGS CNV calls"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -513,7 +517,7 @@ def parse_segments(vcffile):
     chr1    788879  Canvas:GAIN:chr1:788880-821005  N       <CNV>   2       q10
     SVTYPE=CNV;END=821005;CNVLEN=32126      RC:BC:CN:MCC    157:4:3:2
     """
-    from cStringIO import StringIO
+    from io import StringIO
     from cyvcf2 import VCF
 
     output = StringIO()
@@ -712,12 +716,12 @@ def sweep(args):
         sys.exit(not p.print_help())
 
     workdir, sample_key = args
-    golden_ratio = (1 + 5 ** 0.5) / 2
+    golden_ratio = (1 + 5**0.5) / 2
     cmd = "python -m jcvi.variation.cnv hmm {} {}".format(workdir, sample_key)
     cmd += " --mu {:.5f} --sigma {:.3f} --threshold {:.3f}"
-    mus = [0.00012 * golden_ratio ** x for x in range(10)]
-    sigmas = [0.0012 * golden_ratio ** x for x in range(20)]
-    thresholds = [0.1 * golden_ratio ** x for x in range(10)]
+    mus = [0.00012 * golden_ratio**x for x in range(10)]
+    sigmas = [0.0012 * golden_ratio**x for x in range(20)]
+    thresholds = [0.1 * golden_ratio**x for x in range(10)]
     print(mus, file=sys.stderr)
     print(sigmas, file=sys.stderr)
     print(thresholds, file=sys.stderr)
@@ -1155,10 +1159,343 @@ def cn(args):
             push_to_s3(upload, segfile)
 
     if opts.cleanup:
-        import shutil
+        from jcvi.apps.base import cleanup
 
-        shutil.rmtree(sampledir)
-        shutil.rmtree(cndir)
+        cleanup(cndir, sampledir)
+
+
+@dataclass
+class CNV:
+    chr: str
+    start: int
+    end: int
+    type: str
+    name: str
+    is_pass: bool
+    cn: int
+
+
+def validate(args):
+    """
+    %prog validate sample.bcc sample.cnv.vcf.gz
+
+    Plot RDR/BAF/CN for validation of CNV calls in `sample.vcf.gz`.
+    """
+    p = OptionParser(validate.__doc__)
+    p.add_option(
+        "--no-rdr-logy",
+        default=False,
+        action="store_true",
+        help="Do not make y-axis of RDR log-scale",
+    )
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    import holoviews as hv
+    import hvplot.pandas
+
+    hv.extension("bokeh")
+
+    (
+        bccfile,
+        vcffile,
+    ) = args
+    rdr_logy = not opts.no_rdr_logy
+    df = pd.read_csv(bccfile, sep="\t")
+
+    sample = op.basename(bccfile).split(".", 1)[0]
+    sizes, xlim = get_hg19_chr_sizes_and_xlim()
+    b = np.cumsum(sizes["size"])
+    a = pd.Series(b[:-1])
+    a.index += 1
+    sizes["cumsize"] = pd.concat([pd.Series([0]), a])
+    jf = pd.merge(df, sizes, how="left", left_on="#chr", right_on="chr")
+    jf["pos"] = jf["start"] + jf["cumsize"]
+    model, rfx = get_model_and_dataframe(vcffile, sizes)
+
+    rdr_ylim = (0.5, 4) if rdr_logy else (0, 8)
+    rdr = jf.hvplot.scatter(
+        x="pos",
+        y="rdr",
+        logy=rdr_logy,
+        xlim=xlim,
+        ylim=rdr_ylim,
+        s=1,
+        width=1440,
+        height=240,
+        c="chr",
+        title=f"{sample}, Tumor RD/Normal RD (RDR)",
+        legend=False,
+    )
+    baf = jf.hvplot.scatter(
+        x="pos",
+        y="baf",
+        xlim=xlim,
+        ylim=(0, 0.5),
+        s=1,
+        width=1440,
+        height=240,
+        c="chr",
+        title=f"{sample}, Germline Variant B-Allele Fraction (BAF)",
+        legend=False,
+    )
+    vaf = jf.hvplot.scatter(
+        x="pos",
+        y="tumor_vaf",
+        xlim=xlim,
+        ylim=(0, 1),
+        s=1,
+        width=1440,
+        height=180,
+        c="chr",
+        title=f"{sample}, Somatic Variant Allele Fraction (VAF)",
+        legend=False,
+    )
+    comp = get_segments(rfx)
+    for _, row in sizes.iterrows():
+        chr = row["chr"]
+        cb = row["cumsize"]
+        vline = hv.VLine(cb).opts(color="lightgray", line_width=1)
+        ctext1 = hv.Text(
+            cb, 0.5, chr.replace("chr", ""), halign="left", valign="bottom"
+        )
+        ctext2 = hv.Text(cb, 0, chr.replace("chr", ""), halign="left", valign="bottom")
+        rdr = rdr * vline * ctext1
+        baf = baf * vline * ctext2
+        comp = comp * vline
+        vaf = vaf * vline
+    model_kv = " ".join(f"{k}={v}" for k, v in model.items())
+    comp.opts(
+        width=1440,
+        height=240,
+        xlim=xlim,
+        ylim=(0, 10),
+        title=f"{sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH\n{model_kv}",
+    )
+    cc = (rdr + baf + comp + vaf).cols(1)
+    htmlfile = f"{sample}.html"
+    hv.save(cc, htmlfile)
+    logging.info("Report written to `%s`", htmlfile)
+
+
+def get_segments(rfx: pd.DataFrame):
+    """
+    Return a holoviews object for segments.
+    """
+    import holoviews as hv
+
+    rfx_gain = rfx[(rfx["type"] == "GAIN") & rfx["is_pass"]]
+    rfx_loss = rfx[(rfx["type"] == "LOSS") & rfx["is_pass"]]
+    rfx_ref = rfx[(rfx["type"] == "REF") & rfx["is_pass"]]
+    rfx_cnloh = rfx[(rfx["type"] == "CNLOH") & rfx["is_pass"]]
+    rfx_gainloh = rfx[(rfx["type"] == "GAINLOH") & rfx["is_pass"]]
+    rfx_nonpass = rfx[~rfx["is_pass"]]
+    seg_gain = hv.Segments(
+        rfx_gain, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_loss = hv.Segments(
+        rfx_loss, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_ref = hv.Segments(
+        rfx_ref, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_cnloh = hv.Segments(
+        rfx_cnloh, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_gainloh = hv.Segments(
+        rfx_gainloh, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_nonpass = hv.Segments(
+        rfx_nonpass, [hv.Dimension("pos"), hv.Dimension("cn"), "pos_end", "cn"]
+    )
+    seg_gain.opts(color="r", line_width=5, tools=["hover"])
+    seg_loss.opts(color="b", line_width=5, tools=["hover"])
+    seg_ref.opts(color="k", line_width=5, tools=["hover"])
+    seg_cnloh.opts(color="m", line_width=5, tools=["hover"])
+    seg_gainloh.opts(color="c", line_width=5, tools=["hover"])
+    seg_nonpass.opts(color="lightgray", line_width=5, tools=["hover"])
+    comp = seg_gain * seg_ref * seg_loss * seg_cnloh * seg_gainloh * seg_nonpass
+    return comp
+
+
+def get_model_and_dataframe(
+    vcffile: str, sizes: pd.DataFrame
+) -> tuple[dict, pd.DataFrame]:
+    """
+    Get the model and dataframe from the VCF file.
+    """
+    model = get_purity_and_model(vcffile)
+    records = get_CNV_records(vcffile)
+    rf = pd.DataFrame(x.__dict__ for x in records)
+    rfx = pd.merge(rf, sizes, how="left", left_on="chr", right_on="chr")
+    rfx["pos"] = rfx["start"] + rfx["cumsize"]
+    rfx["pos_end"] = rfx["end"] + rfx["cumsize"]
+    return model, rfx
+
+
+def get_hg19_chr_sizes_and_xlim() -> tuple[pd.DataFrame, tuple[int, int]]:
+    """
+    Get chromosome sizes for hg19
+    """
+    from io import StringIO
+
+    # hg19
+    s = """
+    chr	size
+    chr1	249250621
+    chr2	243199373
+    chr3	198022430
+    chr4	191154276
+    chr5	180915260
+    chr6	171115067
+    chr7	159138663
+    chr8	146364022
+    chr9	141213431
+    chr10	135534747
+    chr11	135006516
+    chr12	133851895
+    chr13	115169878
+    chr14	107349540
+    chr15	102531392
+    chr16	90354753
+    chr17	81195210
+    chr18	78077248
+    chr19	59128983
+    chr20	63025520
+    chr21	48129895
+    chr22	51304566
+    chrX	155270560
+    chrY	59373566"""
+    sizes = pd.read_csv(StringIO(s), delim_whitespace=True)
+    return sizes, (0, 2881033286)
+
+
+def get_CNV_records(vcffile: str) -> list[CNV]:
+    """
+    Get CNV records from a VCF file.
+    """
+    from cyvcf2 import VCF
+
+    vcf_reader = VCF(vcffile)
+    records = []
+    for record in vcf_reader:
+        name = record.ID
+        dragen, type, chr, start_end = name.split(":")
+        start, end = [int(x) for x in start_end.split("-")]
+        is_pass = "PASS" in record.FILTERS
+        (cn,) = record.format("CN")[0]
+        record = CNV(chr, start, end, type, name, is_pass, cn)
+        records.append(record)
+    logging.info("A total of %d records imported", len(records))
+    return records
+
+
+def get_purity_and_model(vcffile: str) -> dict[str, str]:
+    """
+    Get purity and model from VCF header.
+    """
+    model = {
+        "ModelSource": None,
+        "EstimatedTumorPurity": None,
+        # "DiploidCoverage": None,
+        "OverallPloidy": None,
+    }
+    import gzip
+
+    for row in gzip.open(vcffile):
+        row = row.decode("utf-8")
+        if not row.startswith("##"):
+            continue
+        a, b = row[2:].split("=", 1)
+        if a in model:
+            model[a] = b
+    return model
+
+
+def wes_vs_wgs(args):
+    """
+    %prog wes_vs_wgs sample.bcc sample.wes.cnv.vcf.gz sample.wgs.cnv.vcf.gz
+
+    Compare WES and WGS CNVs.
+    """
+    p = OptionParser(wes_vs_wgs.__doc__)
+    p.add_option(
+        "--no-rdr-logy",
+        default=False,
+        action="store_true",
+        help="Do not make y-axis of RDR log-scale",
+    )
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    import holoviews as hv
+    import hvplot.pandas
+
+    hv.extension("bokeh")
+
+    bccfile, wesfile, wgsfile = args
+    df = pd.read_csv(bccfile, sep="\t")
+    rdr_logy = not opts.no_rdr_logy
+
+    sample = op.basename(bccfile).split(".", 1)[0]
+    sizes, xlim = get_hg19_chr_sizes_and_xlim()
+    b = np.cumsum(sizes["size"])
+    a = pd.Series(b[:-1])
+    a.index += 1
+    sizes["cumsize"] = pd.concat([pd.Series([0]), a])
+    jf = pd.merge(df, sizes, how="left", left_on="#chr", right_on="chr")
+    jf["pos"] = jf["start"] + jf["cumsize"]
+
+    wes_model, wes_rfx = get_model_and_dataframe(wesfile, sizes)
+    wgs_model, wgs_rfx = get_model_and_dataframe(wgsfile, sizes)
+
+    rdr_ylim = (0.5, 4) if rdr_logy else (0, 8)
+    rdr = jf.hvplot.scatter(
+        x="pos",
+        y="rdr",
+        logy=rdr_logy,
+        xlim=xlim,
+        ylim=rdr_ylim,
+        s=1,
+        width=1440,
+        height=240,
+        c="chr",
+        title=f"{sample}, Tumor RD/Normal RD (RDR)",
+        legend=False,
+        ylabel="Read depth ratio",
+    )
+    wes_model = " ".join(f"{k}={v}" for k, v in wes_model.items())
+    wes_comp = get_segments(wes_rfx)
+    wgs_model = " ".join(f"{k}={v}" for k, v in wgs_model.items())
+    wgs_comp = get_segments(wgs_rfx)
+    for _, row in sizes.iterrows():
+        chr = row["chr"]
+        cb = row["cumsize"]
+        vline = hv.VLine(cb).opts(color="lightgray", line_width=1)
+        ctext1 = hv.Text(
+            cb, 0.5, chr.replace("chr", ""), halign="left", valign="bottom"
+        )
+        rdr = rdr * vline * ctext1
+        wes_comp = wes_comp * vline
+        wgs_comp = wgs_comp * vline
+    cc = (rdr + wes_comp + wgs_comp).cols(1)
+    for label, c, model_kv in zip(
+        ("WES", "WGS"), (wes_comp, wgs_comp), (wes_model, wgs_model)
+    ):
+        c.opts(
+            width=1440,
+            height=240,
+            xlim=xlim,
+            ylim=(0, 10),
+            title=f"{label} {sample}, CNV calls Copy Number (CN) - Red: GAIN, Blue: LOSS, Black: REF, Magenta: CNLOH, Cyan: GAINLOH, Gray: NON-PASS\n{model_kv}",
+        )
+    htmlfile = f"{sample}.html"
+    hv.save(cc, htmlfile)
+    logging.info("Report written to `%s`", htmlfile)
 
 
 if __name__ == "__main__":

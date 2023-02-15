@@ -14,20 +14,21 @@ from urllib.error import HTTPError, URLError
 from Bio import Entrez, SeqIO
 from more_itertools import grouper
 
-from jcvi.formats.base import FileShredder, must_open
+from jcvi.formats.base import must_open
 from jcvi.formats.fasta import print_first_difference
 from jcvi.formats.fastq import fromsra
 from jcvi.utils.cbook import tile
 from jcvi.utils.console import printf
 from jcvi.apps.base import (
-    OptionParser,
     ActionDispatcher,
-    get_email_address,
-    mkdir,
-    ls_ftp,
+    OptionParser,
+    cleanup,
     download,
-    sh,
+    get_email_address,
     last_updated,
+    ls_ftp,
+    mkdir,
+    sh,
     which,
 )
 
@@ -258,7 +259,7 @@ def phytozome(args):
     cookies = get_cookies()
     if cookies is None:
         logging.error("Error fetching cookies ... cleaning up")
-        FileShredder([directory_listing])
+        cleanup(directory_listing)
         sys.exit(1)
 
     # Proceed to use the cookies and download the species list
@@ -272,7 +273,7 @@ def phytozome(args):
         g = GlobusXMLParser(directory_listing)
     except:
         logging.error("Error downloading directory listing ... cleaning up")
-        FileShredder([directory_listing, cookies])
+        cleanup(directory_listing, cookies)
         sys.exit(1)
 
     genomes = g.get_genomes()

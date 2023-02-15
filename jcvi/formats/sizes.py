@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import os
 import os.path as op
 import sys
 import logging
@@ -12,10 +11,9 @@ from jcvi.formats.base import LineFile
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
-    need_update,
-    sh,
+    cleanup,
     get_abs_path,
-    which,
+    need_update,
 )
 
 
@@ -35,18 +33,12 @@ class Sizes(LineFile):
             sizesname = filename + ".sizes"
             filename = get_abs_path(filename)
             if need_update(filename, sizesname):
-                cmd = "faSize"
-                if which(cmd):
-                    cmd += " -detailed {0}".format(filename)
-                    sh(cmd, outfile=sizesname)
-                else:
-                    from jcvi.formats.fasta import Fasta
+                from jcvi.formats.fasta import Fasta
 
-                    f = Fasta(filename)
-                    fw = open(sizesname, "w")
+                f = Fasta(filename)
+                with open(sizesname, "w") as fw:
                     for k, size in f.itersizes_ordered():
                         print("\t".join((k, str(size))), file=fw)
-                    fw.close()
 
             filename = sizesname
 
@@ -84,7 +76,7 @@ class Sizes(LineFile):
     def close(self, clean=False):
         self.fp.close()
         if clean:
-            os.remove(self.filename)
+            cleanup(self.filename)
 
     @property
     def mapping(self):

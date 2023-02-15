@@ -12,16 +12,16 @@ import sys
 import logging
 
 from jcvi.formats.sam import output_bam, get_samfile, mapped
-from jcvi.formats.base import FileShredder
 from jcvi.assembly.automaton import iter_project
 from jcvi.apps.grid import MakeManager
 from jcvi.apps.base import (
-    OptionParser,
     ActionDispatcher,
-    need_update,
-    sh,
+    OptionParser,
+    cleanup,
     get_abs_path,
     mkdir,
+    need_update,
+    sh,
 )
 
 
@@ -181,7 +181,7 @@ def align(args):
         if not bam:
             mopts += ["--sam"]
         mapped(mopts)
-        FileShredder([samfile])
+        cleanup(samfile)
 
     return samfile, None
 

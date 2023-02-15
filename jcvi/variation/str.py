@@ -511,9 +511,7 @@ def run_filter(arg):
     filteredvcf = vcffile.replace(".vcf", ".filtered.vcf")
     try:
         if vcffile.startswith("s3://"):
-            if check_exists_s3(filteredvcf):
-                logging.debug("{} exists. Skipped.".format(filteredvcf))
-            else:
+            if not check_exists_s3(filteredvcf, warn=True):
                 write_filtered(vcffile, lhome, store=store)
                 logging.debug("{} written and uploaded.".format(filteredvcf))
         else:
@@ -975,9 +973,7 @@ def run_compile(arg):
     csvfile = filename + ".csv"
     try:
         if filename.startswith("s3://"):
-            if check_exists_s3(csvfile):
-                logging.debug("{} exists. Skipped.".format(csvfile))
-            else:
+            if not check_exists_s3(csvfile, warn=True):
                 write_csv_ev(filename, filtered, cleanup, store=store)
                 logging.debug("{} written and uploaded.".format(csvfile))
         else:

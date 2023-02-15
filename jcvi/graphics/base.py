@@ -7,6 +7,7 @@ import sys
 import logging
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("numexpr").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.INFO)
 
 from functools import partial
@@ -32,11 +33,35 @@ from matplotlib.patches import (
     FancyBboxPatch,
 )
 from matplotlib.path import Path
+from typing import Optional
 
 from jcvi.formats.base import LineFile
 from jcvi.apps.base import glob, listify, datadir, sample_N, which
 
 logging.getLogger().setLevel(logging.DEBUG)
+
+
+CHARS = {
+    "&": r"\&",
+    "%": r"\%",
+    "$": r"\$",
+    "#": r"\#",
+    "_": r"\_",
+    "{": r"\{",
+    "}": r"\}",
+}
+
+GRAPHIC_FORMATS = (
+    "emf",
+    "eps",
+    "pdf",
+    "png",
+    "ps",
+    "raw",
+    "rgba",
+    "svg",
+    "svgz",
+)
 
 
 def is_usetex():
@@ -50,6 +75,7 @@ class ImageOptions(object):
         self.dpi = opts.dpi
         self.format = opts.format
         self.cmap = cm.get_cmap(opts.cmap)
+        self.seed = opts.seed
         self.opts = opts
 
     def __str__(self):
@@ -113,32 +139,21 @@ class AbstractLayout(LineFile):
             if not getattr(x, attrib):
                 setattr(x, attrib, c)
 
-    def assign_colors(self):
+    def assign_colors(self, seed: Optional[int] = None):
         number = len(self)
         palette = set2_n if number <= 8 else set3_n
         # Restrict palette numbers between [3, 12]
         palette_number = max(3, min(number, 12))
         colorset = palette(palette_number)
-        colorset = sample_N(colorset, number)
+        colorset = sample_N(colorset, number, seed=seed)
         self.assign_array("color", colorset)
 
-    def assign_markers(self):
-        markerset = sample_N(mpl.lines.Line2D.filled_markers, len(self))
+    def assign_markers(self, seed: Optional[int] = None):
+        markerset = sample_N(mpl.lines.Line2D.filled_markers, len(self), seed=seed)
         self.assign_array("marker", markerset)
 
     def __str__(self):
         return "\n".join(str(x) for x in self)
-
-
-CHARS = {
-    "&": r"\&",
-    "%": r"\%",
-    "$": r"\$",
-    "#": r"\#",
-    "_": r"\_",
-    "{": r"\{",
-    "}": r"\}",
-}
 
 
 def linear_blend(from_color, to_color, fraction=0.5):
@@ -222,7 +237,7 @@ def set2_n(number=8):
     # Get Set2 from ColorBrewer, a set of colors deemed colorblind-safe and
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
     # State University. These colors look lovely together, and are less
-    # saturated than those colors in Set1. For more on ColorBrewer, see:
+    # saturated than those colors in Set1.
     return get_map("Set2", "qualitative", number).hex_colors
 
 
@@ -272,6 +287,42 @@ def panel_labels(ax, labels, size=16):
         if rcParams["text.usetex"]:
             panel_label = r"$\textbf{{{0}}}$".format(panel_label)
         ax.text(xx, yy, panel_label, size=size, ha="center", va="center")
+
+
+def update_figname(figname: str, format: str) -> str:
+    """Update the name of a figure to include the format.
+
+    Args:
+        figname (str): Path to the figure
+        format (str): Figure format, must be one of GRAPHIC_FORMATS
+
+    Returns:
+        str: New file path
+    """
+    _, ext = op.splitext(figname)
+    if ext.strip(".") in GRAPHIC_FORMATS:  # User suffix has precedence
+        return figname
+    # When the user has not supplied a format in the filename, use the requested format
+    assert format in GRAPHIC_FORMATS, "Invalid format"
+    return figname + "." + format
+
+
+def update_figname(figname: str, format: str) -> str:
+    """Update the name of a figure to include the format.
+
+    Args:
+        figname (str): Path to the figure
+        format (str): Figure format, must be one of GRAPHIC_FORMATS
+
+    Returns:
+        str: New file path
+    """
+    _, ext = op.splitext(figname)
+    if ext.strip(".") in GRAPHIC_FORMATS:  # User suffix has precedence
+        return figname
+    # When the user has not supplied a format in the filename, use the requested format
+    assert format in GRAPHIC_FORMATS, "Invalid format"
+    return figname + "." + format
 
 
 def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
@@ -344,7 +395,6 @@ available_fonts = [op.basename(x) for x in glob(datadir + "/*.ttf")]
 
 
 def fontprop(ax, name, size=12):
-
     assert name in available_fonts, "Font must be one of {0}.".format(available_fonts)
 
     import matplotlib.font_manager as fm
@@ -397,11 +447,12 @@ def setup_theme(
         pass
 
     if usetex:
-        rc("text", usetex=usetex)
+        rc("text", usetex=True)
     else:
-        logging.error(
+        logging.info(
             "Set text.usetex={}. Font styles may be inconsistent.".format(usetex)
         )
+        rc("text", usetex=False)
 
     if font == "Helvetica":
         rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})

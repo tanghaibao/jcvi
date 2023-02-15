@@ -25,9 +25,7 @@ The input lp_data is assumed in .lp format, see below
 [0, 1]
 """
 import logging
-import os
 import os.path as op
-import shutil
 
 from dataclasses import dataclass
 from io import StringIO
@@ -37,7 +35,7 @@ import networkx as nx
 
 from jcvi.utils.cbook import fill
 from jcvi.formats.base import flexible_cast
-from jcvi.apps.base import sh, mkdir
+from jcvi.apps.base import cleanup, mkdir, sh
 from jcvi.algorithms.tsp import populate_edge_weights, node_to_edge
 
 
@@ -219,7 +217,7 @@ class AbstractMIPSolver(object):
         raise NotImplementedError
 
     def cleanup(self):
-        shutil.rmtree(self.work_dir)
+        cleanup(self.work_dir)
 
 
 class GLPKSolver(AbstractMIPSolver):
@@ -232,9 +230,7 @@ class GLPKSolver(AbstractMIPSolver):
         outfile = op.join(self.work_dir, "data.lp.out")  # verbose output
         listfile = op.join(self.work_dir, "data.lp.list")  # simple output
         # cleanup in case something wrong happens
-        for f in (outfile, listfile):
-            if op.exists(f):
-                os.remove(f)
+        cleanup(outfile, listfile)
 
         cmd = "glpsol --cuts --fpump --lp {0} -o {1} -w {2}".format(
             lpfile, outfile, listfile
@@ -310,8 +306,7 @@ class SCIPSolver(AbstractMIPSolver):
     def run(self, lpfile):
 
         outfile = self.work_dir + "/data.lp.out"  # verbose output
-        if op.exists(outfile):
-            os.remove(outfile)
+        cleanup(outfile)
 
         cmd = "scip -f {0} -l {1}".format(lpfile, outfile)
 

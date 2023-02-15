@@ -8,9 +8,7 @@ import os.path as op
 import os
 import csv
 import sys
-import vcf
 import logging
-import shutil
 import json
 import numpy as np
 import pandas as pd
@@ -23,6 +21,11 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from itertools import product
 from natsort import natsorted
+
+try:
+    import vcf
+except ImportError:
+    pass
 
 from jcvi.graphics.base import (
     FancyArrow,
@@ -41,7 +44,7 @@ from jcvi.apps.grid import Parallel
 from jcvi.apps.bwa import align
 from jcvi.apps.base import datafile, sh
 from jcvi.assembly.sim import eagle, wgsim
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, iglob
+from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, iglob, mkdir
 
 
 # Huntington risk allele
@@ -1583,7 +1586,7 @@ def simulate(args):
         sh("mv {}.bai ../{}.bam.bai".format(indexed_samfile, pf))
 
         os.chdir(cwd)
-        shutil.rmtree(pf)
+        cleanup(pf)
 
     os.chdir(basecwd)
 

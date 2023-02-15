@@ -11,7 +11,7 @@ RUN apt-get install -y libblas-dev liblapack-dev libatlas-base-dev gfortran
 RUN apt-get install -y wget autoconf libssl-dev
 
 RUN pip install boto3 awscli
-RUN pip install pyfaidx pyliftover pyvcf
+RUN pip install pyfaidx pyliftover
 RUN pip install cython
 RUN pip install pandas
 RUN pip install scipy
@@ -29,5 +29,6 @@ RUN pip install matplotlib scikit-image pypdf2 wand Pillow
 RUN apt install curl
 
 # Install jcvi
-RUN pip install git+git://github.com/tanghaibao/jcvi.git
+# https://github.com/tanghaibao/jcvi/issues/509
+RUN pip install jcvi
 WORKDIR /

@@ -11,10 +11,7 @@ import logging
 import numpy as np
 from collections import defaultdict
 
-try:
-    from collections.abc import Iterable
-except ImportError:
-    from collections import Iterable
+from collections.abc import Iterable
 
 from jcvi.algorithms.lis import heaviest_increasing_subsequence as his
 from jcvi.formats.bed import Bed, BedLine
@@ -23,7 +20,7 @@ from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name, human_size
 from jcvi.utils.range import Range, range_chain
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup
 
 
 class AnchorFile(BaseFile):
@@ -801,7 +798,7 @@ def assemble(args):
             print("\t".join(slots), file=fw)
 
     # Cleanup
-    shutil.rmtree(workdir)
+    cleanup(workdir)
 
 
 def colinear_evaluate_weights(tour, data):

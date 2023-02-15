@@ -8,7 +8,6 @@ import logging
 import re
 
 from collections import defaultdict
-from more_itertools import flatten
 from urllib.parse import quote, unquote
 
 from jcvi.utils.cbook import AutoVivification
@@ -22,9 +21,11 @@ from jcvi.apps.base import (
     OptionParser,
     OptionGroup,
     ActionDispatcher,
+    cleanup,
+    flatten,
     mkdir,
-    parse_multi_values,
     need_update,
+    parse_multi_values,
     sh,
 )
 
@@ -80,11 +81,13 @@ class GffLine(object):
         self,
         sline,
         key="ID",
+        parent_key="Parent",
         gff3=True,
         line_index=None,
         strict=True,
         append_source=False,
         append_ftype=False,
+        append_attrib=None,
         score_attrib=False,
         keep_attr_order=True,
         compute_signature=False,
@@ -117,6 +120,7 @@ class GffLine(object):
         )
         # key is not in the gff3 field, this indicates the conversion to accn
         self.key = key  # usually it's `ID=xxxxx;`
+        self.parent_key = parent_key  # usually it's `Parent=xxxxx;`
         self.gff3 = gff3
 
         if append_ftype and self.key in self.attributes:
@@ -133,6 +137,11 @@ class GffLine(object):
             # column in bed file
             self.attributes[self.key][0] = ":".join(
                 (self.source, self.attributes[self.key][0])
+            )
+
+        if append_attrib and append_attrib in self.attributes:
+            self.attributes[self.key][0] = ":".join(
+                (self.attributes[self.key][0], self.attributes[append_attrib][0])
             )
 
         if (
@@ -248,7 +257,11 @@ class GffLine(object):
 
     @property
     def parent(self):
-        return self.attributes["Parent"][0] if "Parent" in self.attributes else None
+        return (
+            self.attributes[self.parent_key][0]
+            if self.parent_key in self.attributes
+            else None
+        )
 
     @property
     def span(self):
@@ -301,9 +314,11 @@ class Gff(LineFile):
         self,
         filename,
         key="ID",
+        parent_key="Parent",
         strict=True,
         append_source=False,
         append_ftype=False,
+        append_attrib=None,
         score_attrib=False,
         keep_attr_order=True,
         make_gff_store=False,
@@ -317,6 +332,7 @@ class Gff(LineFile):
             gff = Gff(
                 self.filename,
                 key=key,
+                parent_key=parent_key,
                 strict=True,
                 append_source=append_source,
                 append_ftype=append_ftype,
@@ -328,9 +344,11 @@ class Gff(LineFile):
                 self.gffstore.append(g)
         else:
             self.key = key
+            self.parent_key = parent_key
             self.strict = strict
             self.append_source = append_source
             self.append_ftype = append_ftype
+            self.append_attrib = append_attrib
             self.score_attrib = score_attrib
             self.keep_attr_order = keep_attr_order
             self.compute_signature = compute_signature
@@ -371,10 +389,12 @@ class Gff(LineFile):
                 yield GffLine(
                     row,
                     key=self.key,
+                    parent_key=self.parent_key,
                     line_index=idx,
                     strict=self.strict,
                     append_source=self.append_source,
                     append_ftype=self.append_ftype,
+                    append_attrib=self.append_attrib,
                     score_attrib=self.score_attrib,
                     keep_attr_order=self.keep_attr_order,
                     compute_signature=self.compute_signature,
@@ -453,7 +473,7 @@ def make_attributes(s, gff3=True, keep_attr_order=True):
             d[key].append(val)
 
     for key, val in d.items():
-        d[key] = list(flatten([v.split(",") for v in val]))
+        d[key] = flatten([v.split(",") for v in val])
 
     return d
 
@@ -1020,8 +1040,6 @@ def gb(args):
     Convert GFF3 to Genbank format. Recipe taken from:
     <http://www.biostars.org/p/2492/>
     """
-    from Bio.Alphabet import generic_dna
-
     try:
         from BCBio import GFF
     except ImportError:
@@ -1038,7 +1056,7 @@ def gb(args):
     gff_file, fasta_file = args
     pf = op.splitext(gff_file)[0]
     out_file = pf + ".gb"
-    fasta_input = SeqIO.to_dict(SeqIO.parse(fasta_file, "fasta", generic_dna))
+    fasta_input = SeqIO.to_dict(SeqIO.parse(fasta_file, "fasta"))
     gff_iter = GFF.parse(gff_file, fasta_input)
     SeqIO.write(gff_iter, out_file, "genbank")
 
@@ -2983,6 +3001,11 @@ def bed(args):
         help="Append GFF feature type to extracted key value",
     )
     p.add_option(
+        "--append_attrib",
+        default=None,
+        help="Append attribute to extracted key value",
+    )
+    p.add_option(
         "--nosort",
         default=False,
         action="store_true",
@@ -2993,6 +3016,11 @@ def bed(args):
         default=False,
         action="store_true",
         help="Only retains a single transcript per gene",
+    )
+    p.add_option(
+        "--parent_key",
+        default="Parent",
+        help="Parent gene key to group with --primary_only",
     )
     p.set_outfile()
 
@@ -3007,6 +3035,7 @@ def bed(args):
     source = opts.source or set()
     span = opts.span
     primary_only = opts.primary_only
+    parent_key = opts.parent_key
 
     if opts.type:
         type = set(x.strip() for x in opts.type.split(","))
@@ -3016,8 +3045,10 @@ def bed(args):
     gff = Gff(
         gffile,
         key=key,
+        parent_key=parent_key,
         append_source=opts.append_source,
         append_ftype=opts.append_ftype,
+        append_attrib=opts.append_attrib,
         score_attrib=opts.score_attrib,
     )
     b = Bed()
@@ -3046,7 +3077,9 @@ def bed(args):
     sorted = not opts.nosort
     b.print_to_file(opts.outfile, sorted=sorted)
     logging.debug(
-        "Extracted {0} features (type={1} id={2})".format(len(b), ",".join(type), key)
+        "Extracted {} features (type={} id={} parent={})".format(
+            len(b), ",".join(type), key, parent_key
+        )
     )
     if primary_only:
         logging.debug("Skipped non-primary: %d", skipped_non_primary)
@@ -3061,8 +3094,7 @@ def make_index(gff_file):
     db_file = gff_file + ".db"
 
     if need_update(gff_file, db_file):
-        if op.exists(db_file):
-            os.remove(db_file)
+        cleanup(db_file)
         logging.debug("Indexing `{0}`".format(gff_file))
         gffutils.create_db(gff_file, db_file, merge_strategy="create_unique")
     else:
@@ -3122,12 +3154,23 @@ def load(args):
     $ %prog load athaliana.gff athaliana.fa --feature=upstream:TSS:500
 
     Switch TSS with TrSS for Translation Start Site.
+
+    To get 500bp downstream of a gene's Transcription End Site (TES), do this:
+    $ %prog load athaliana.gff athaliana.fa --feature=downstream:TES:500
+
+    To get up- or downstream sequences of a certain max length not overlapping
+    with the next feature, use `--avoidFeatures`. Features may be avoided on both
+    strands or on the strand containing each feature, use either "both_strands" or
+    "strand_specific"
+    $ %prog load athaliana.gff athaliana.fa --feature=downstream:TES:500 --avoidFeatures=both_strands
     """
     from datetime import datetime as dt
     from jcvi.formats.fasta import Seq, SeqRecord
 
     # can request output fasta sequence id to be picked from following attributes
     valid_id_attributes = ["ID", "Name", "Parent", "Alias", "Target", "orig_protein_id"]
+
+    valid_avoid_features = ["both_strands", "strand_specific"]
 
     p = OptionParser(load.__doc__)
     p.add_option(
@@ -3147,8 +3190,16 @@ def load(args):
     p.add_option(
         "--feature",
         dest="feature",
-        help="feature type to extract. e.g. `--feature=CDS` or "
-        + "`--feature=upstream:TSS:500`",
+        help="feature type to extract (e.g. `--feature=CDS`). Extract "
+        + "up- or downstream using "
+        + "upstream|downstream:TSS|TrSS|TES|TrES:length "
+        + "(e.g. `--feature=upstream:TSS:500`)",
+    )
+    p.add_option(
+        "--avoidFeatures",
+        default=None,
+        choices=["both_strands", "strand_specific"],
+        help="Specify whether or not to avoid up or downstream features",
     )
     p.add_option(
         "--id_attribute",
@@ -3202,13 +3253,16 @@ def load(args):
             opts.feature,
             opts.parent,
             opts.children,
-            upstream_site,
-            upstream_len,
+            site,
+            fLen,
             flag,
             error_msg,
         ) = parse_feature_param(opts.feature)
         if flag:
             sys.exit(error_msg)
+        if opts.avoidFeatures:
+            if opts.avoidFeatures not in valid_avoid_features:
+                sys.exit("[error] avoidFeatures must be one of {valid_avoid_features}")
 
     parents = set(opts.parents.split(","))
     children_list = set(opts.children.split(","))
@@ -3283,32 +3337,35 @@ def load(args):
             desc = sep.join(str(x) for x in desc_parts)
             desc = "".join(str(x) for x in (sep, desc)).strip()
 
-        if opts.feature == "upstream":
-            upstream_start, upstream_stop = get_upstream_coords(
-                upstream_site, upstream_len, seqlen[feat.seqid], feat, children_list, g
+        if opts.feature == "upstream" or opts.feature == "downstream":
+            start, stop = get_coords(
+                opts.feature, site, fLen, seqlen[feat.seqid], feat, children_list, g
             )
 
-            if not upstream_start or not upstream_stop:
+            overlap = None
+            if opts.avoidFeatures:
+                stranded = opts.avoidFeatures == "strand_specific"
+                start, stop, overlap = update_coords_avoidFeatures(
+                    stranded, opts.feature, site, fLen, start, stop, feat, g
+                )
+
+            if not start or not stop or overlap:
                 continue
 
             feat_seq = f.sequence(
                 dict(
                     chr=feat.seqid,
-                    start=upstream_start,
-                    stop=upstream_stop,
+                    start=start,
+                    stop=stop,
                     strand=feat.strand,
                 )
             )
 
-            (s, e) = (
-                (upstream_start, upstream_stop)
-                if feat.strand == "+"
-                else (upstream_stop, upstream_start)
-            )
-            upstream_seq_loc = str(feat.seqid) + ":" + str(s) + "-" + str(e)
+            (s, e) = (start, stop) if feat.strand == "+" else (stop, start)
+            seq_loc = str(feat.seqid) + ":" + str(s) + "-" + str(e)
             desc = sep.join(
                 str(x)
-                for x in (desc, upstream_seq_loc, "FLANKLEN=" + str(upstream_len))
+                for x in (desc, seq_loc, "FLANKLEN=" + str(abs(stop - start) + 1))
             )
         else:
             children = []
@@ -3367,51 +3424,59 @@ def parse_feature_param(feature):
     Take the --feature param (coming from gff.load() and parse it.
     Returns feature, parents and children terms.
 
-    Also returns length of upstream sequence (and start site) requested
+    Also returns length of up or downstream sequence (and start site) requested
 
     If erroneous, returns a flag and error message to be displayed on exit
     """
-    # can request upstream sequence only from the following valid sites
-    valid_upstream_sites = ["TSS", "TrSS"]
+    # can request up- or downstream sequence only from the following valid sites
+    valid_sites = ["TSS", "TrSS", "TES", "TrES"]
 
-    upstream_site, upstream_len = None, None
+    site, fLen = None, None
     flag, error_msg = None, None
     parents, children = None, None
-    if re.match(r"upstream", feature):
+    if re.match(r"upstream", feature) or re.match(r"downstream", feature):
         parents, children = "mRNA", "CDS"
-        feature, upstream_site, upstream_len = re.search(
-            r"([A-z]+):([A-z]+):(\S+)", feature
-        ).groups()
+        feature, site, fLen = re.search(r"([A-z]+):([A-z]+):(\S+)", feature).groups()
 
-        if not is_number(upstream_len):
+        if not is_number(fLen):
             flag, error_msg = (
                 1,
-                "Error: upstream len `" + upstream_len + "` should be an integer",
+                "Error: len `" + fLen + "` should be an integer",
             )
 
-        upstream_len = int(upstream_len)
-        if upstream_len < 0:
+        fLen = int(fLen)
+        if fLen < 0:
             flag, error_msg = (
                 1,
-                "Error: upstream len `" + str(upstream_len) + "` should be > 0",
+                "Error: len `" + str(fLen) + "` should be > 0",
             )
 
-        if upstream_site not in valid_upstream_sites:
+        if site not in valid_sites:
             flag, error_msg = (
                 1,
-                f"Error: upstream site `{upstream_site}` not valid. Please choose from {valid_upstream_sites}",
+                f"Error: site `{site}` not valid. Please choose from {valid_sites}",
+            )
+        elif feature == "upstream" and site not in ["TSS", "TrSS"]:
+            flag, error_msg = (
+                1,
+                f"Error: site `{site}` not valid for upstream. Please choose from `TSS TrSS`",
+            )
+        elif feature == "downstream" and site not in ["TES", "TrES"]:
+            flag, error_msg = (
+                1,
+                f"Error: site `{site}` not valid for downstream. Please use `TES`",
             )
     elif feature == "CDS":
         parents, children = "mRNA", "CDS"
     else:
         flag, error_msg = 1, "Error: unrecognized option --feature=" + feature
 
-    return feature, parents, children, upstream_site, upstream_len, flag, error_msg
+    return feature, parents, children, site, fLen, flag, error_msg
 
 
-def get_upstream_coords(uSite, uLen, seqlen, feat, children_list, gffdb):
+def get_coords(feature, site, fLen, seqlen, feat, children_list, gffdb):
     """
-    Subroutine takes upstream site, length, reference sequence length,
+    Subroutine takes feature, site, length, reference sequence length,
     parent mRNA feature (GffLine object), list of child feature types
     and a GFFutils.GFFDB object as the input
 
@@ -3422,16 +3487,30 @@ def get_upstream_coords(uSite, uLen, seqlen, feat, children_list, gffdb):
     children (CDS features stored in the sqlite GFFDB) and use child
     feature coords to extract the upstream sequence
 
-    If success, returns the upstream start and stop coordinates
+    If downstream of TES is requested, use parent feature coords to
+    extract the downstream sequence
+
+    If downstream of TrES is requested,  iterates through all the
+    children (CDS features stored in the sqlite GFFDB) and use child
+    feature coords to extract the downstream sequence
+
+    If success, returns the start and stop coordinates
     else, returns None
     """
-    if uSite == "TSS":
-        (upstream_start, upstream_stop) = (
-            (feat.start - uLen, feat.start - 1)
-            if feat.strand == "+"
-            else (feat.end + 1, feat.end + uLen)
-        )
-    elif uSite == "TrSS":
+    if site in ["TSS", "TES"]:
+        if feature == "upstream" and site == "TSS":
+            (start, stop) = (
+                (feat.start - fLen, feat.start - 1)
+                if feat.strand == "+"
+                else (feat.end + 1, feat.end + fLen)
+            )
+        if feature == "downstream" and site == "TES":
+            (start, stop) = (
+                (feat.end + 1, feat.end + fLen)
+                if feat.strand == "+"
+                else (feat.start - fLen, feat.start - 1)
+            )
+    elif site in ["TrSS", "TrES"]:
         children = []
         for c in gffdb.children(feat.id, 1):
 
@@ -3448,28 +3527,124 @@ def get_upstream_coords(uSite, uLen, seqlen, feat, children_list, gffdb):
             return None, None
 
         cds_start, cds_stop = range_minmax(children)
-        (upstream_start, upstream_stop) = (
-            (cds_start - uLen, cds_start - 1)
-            if feat.strand == "+"
-            else (cds_stop + 1, cds_stop + uLen)
-        )
+        if feature == "upstream" and site == "TrSS":
+            (start, stop) = (
+                (cds_start - fLen, cds_start - 1)
+                if feat.strand == "+"
+                else (cds_stop + 1, cds_stop + fLen)
+            )
+        elif feature == "downstream" and site == "TrES":
+            (start, stop) = (
+                (cds_stop + 1, cds_stop + fLen)
+                if feat.strand == "+"
+                else (cds_start - fLen, cds_start - 1)
+            )
 
-    if feat.strand == "+" and upstream_start < 1:
-        upstream_start = 1
-    elif feat.strand == "-" and upstream_stop > seqlen:
-        upstream_stop = seqlen
+    if feat.strand == "+" and start < 1:
+        start = 1
+    elif feat.strand == "-" and stop > seqlen:
+        stop = seqlen
 
-    actual_uLen = upstream_stop - upstream_start + 1
-    if actual_uLen < uLen:
+    actual_len = stop - start + 1
+
+    if actual_len < fLen:
         print(
             "[warning] sequence upstream of {0} ({1} bp) is less than upstream length {2}".format(
-                feat.id, actual_uLen, uLen
+                feat.id, actual_len, fLen
             ),
             file=sys.stderr,
         )
         return None, None
 
-    return upstream_start, upstream_stop
+    return start, stop
+
+
+def update_coords_avoidFeatures(
+    stranded, feature, site, fLen, start, stop, feat, gffdb
+):
+    """
+    Subroutine takes start and stop coordinates for a given feature and updates the
+    coordinates to avoid overlapping with unrelated up- or downstream features.
+
+    This is done on a strand-dependent or -independent manner based on the value of
+    --avoidFeatures.
+
+    Returns, updated start and stop coordinates for loading sequences.
+
+    Genes with overlapping neighbor features raise a flag and the feature is skipped.
+    """
+    flag = None
+    collisions = []
+    s = feat.strand if stranded else (None)
+
+    allChildren = []
+    for c in gffdb.children(feat.parent):
+        allChildren.append(c.id)
+
+    for r in gffdb.region(seqid=feat.seqid, start=start, end=stop, strand=s):
+        if r.id in allChildren or r.id == feat.parent:
+            continue
+
+        if feature == "upstream" and feat.strand == "+":
+            collisions.append(r.end)
+        elif feature == "upstream" and feat.strand == "-":
+            collisions.append(r.start)
+        elif feature == "downstream" and feat.strand == "+":
+            collisions.append(r.start)
+        elif feature == "downstream" and feat.strand == "-":
+            collisions.append(r.end)
+
+    if site in ["TrSS", "TrES"]:
+        children = []
+        for c in gffdb.children(feat.id, 1):
+            if c.featuretype != "CDS":
+                continue
+            children.append((c.start, c.stop))
+
+        if not children:
+            feat_start = feat.start
+            feat_end = feat.end
+        else:
+            feat_start, feat_end = range_minmax(children)
+    else:
+        feat_start = feat.start
+        feat_end = feat.end
+
+    # Identify up- or downstream features that overlap with the current feature. Skip these...
+    if len(collisions) > 0:
+        if feature == "upstream" and feat.strand == "+":
+            start = max(collisions)
+            if start > feat_start:
+                flag = 1
+        elif feature == "upstream" and feat.strand == "-":
+            stop = min(collisions)
+            if stop < feat_end:
+                flag = 1
+        elif feature == "downstream" and feat.strand == "+":
+            stop = min(collisions)
+            if stop < feat_end:
+                flag = 1
+        elif feature == "downstream" and feat.strand == "-":
+            start = max(collisions)
+            if start > feat_start:
+                flag = 1
+
+        if flag:
+            print(
+                "Overlap detected while searching {0}. Skipping {1}:{2} strand:{3}".format(
+                    feature, feat.parent, feat.id, feat.strand
+                ),
+                file=sys.stderr,
+            )
+        else:
+            print(
+                "[avoidFeatures] a feature {0} of {1} is within {2} bp. Using {0} length of {3} bp".format(
+                    feature, feat.id, fLen, abs(start - stop) + 1
+                ),
+                file=sys.stderr,
+            )
+
+    return start, stop, flag
 
 
 def bed12(args):

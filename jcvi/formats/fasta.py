@@ -23,7 +23,7 @@ from jcvi.formats.bed import Bed
 from jcvi.utils.cbook import percentage
 from jcvi.utils.console import printf
 from jcvi.utils.table import write_csv
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+from jcvi.apps.base import OptionParser, ActionDispatcher, cleanup, need_update
 
 
 class Fasta(BaseFile, dict):
@@ -749,7 +749,7 @@ def parse_fasta(infile, upper=False):
 
 def iter_clean_fasta(fastafile):
     for header, seq in parse_fasta(fastafile):
-        seq = "".join(x for x in seq if x in string.letters or x == "*")
+        seq = "".join(x for x in seq if x in string.ascii_letters or x == "*")
         yield header, seq
 
 
@@ -2134,9 +2134,13 @@ def extract(args):
     else:
         start, stop = None, None
 
-    assert start < stop or None in (
-        start,
-        stop,
+    assert (
+        None
+        in (
+            start,
+            stop,
+        )
+        or start < stop
     ), "start must be < stop, you have ({0}, {1})".format(start, stop)
     feature["strand"] = strand
 
@@ -2633,7 +2637,7 @@ def gaps(args):
             logging.debug("AGP file written to `{0}`.".format(cagpfile))
 
             build([oagpfile, inputfasta, splitfile])
-            os.remove(sizesagpfile)
+            cleanup(sizesagpfile)
 
         return splitfile, oagpfile, cagpfile
 

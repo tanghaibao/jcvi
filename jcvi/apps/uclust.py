@@ -8,7 +8,6 @@ The VCLUST implementation borrows ideas and code from PyRAD. PyRAD link:
 <https://github.com/dereneaton/pyrad>
 """
 import os.path as op
-import shutil
 import sys
 import logging
 import numpy as np
@@ -32,10 +31,11 @@ from jcvi.utils.table import write_csv
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
+    cleanup,
     datadir,
+    iglob,
     listify,
     mkdir,
-    iglob,
     need_update,
     sh,
 )
@@ -747,7 +747,7 @@ def L2(E, P, N):
                 one = 2.0 * P[l] * P[j]
                 two = scipy.stats.binom.pmf(s - i - k, s, (2.0 * E) / 3.0)
                 three = scipy.stats.binom.pmf(i, k + i, 0.5)
-                four = 1.0 - (sum([q ** 2.0 for q in P]))
+                four = 1.0 - (sum([q**2.0 for q in P]))
                 h.append(one * two * (three / four))
     return sum(h)
 
@@ -789,8 +789,7 @@ def estimateHE(args):
 
     (clustSfile,) = args
     HEfile = clustSfile.rsplit(".", 1)[0] + ".HE"
-    if not need_update(clustSfile, HEfile):
-        logging.debug("File `{0}` found. Computation skipped.".format(HEfile))
+    if not need_update(clustSfile, HEfile, warn=True):
         return HEfile
 
     D = []
@@ -863,7 +862,7 @@ def parallel_musclewrap(clustfile, cpus, minsamp=0):
     clustnames = [x.replace(".clust", ".clustS") for x in fs.names]
     clustSfile = clustfile.replace(".clust", ".clustS")
     FileMerger(clustnames, outfile=clustSfile).merge()
-    shutil.rmtree(outdir)
+    cleanup(outdir)
 
 
 def filter_samples(names, seqs, sep="."):

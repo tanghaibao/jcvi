@@ -1,4 +1,4 @@
-# cython: boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
+# cython: language_level=2, boundscheck=False, wraparound=False, initializedcheck=False, cdivision=True
 
 """
 Cythonized (fast) version of BlastLine

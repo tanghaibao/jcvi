@@ -11,7 +11,7 @@ import sys
 import logging
 import fnmatch
 
-from more_itertools import flatten
+from collections.abc import Iterable
 from http.client import HTTPSConnection
 from urllib.parse import urlencode
 from configparser import (
@@ -24,6 +24,7 @@ from configparser import (
 from socket import gethostname
 from subprocess import PIPE, call, check_call
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
+from typing import Any, Collection, List, Optional, Union
 
 from natsort import natsorted
 from rich.logging import Console, RichHandler
@@ -511,23 +512,13 @@ class OptionParser(OptionP):
         font="Helvetica",
         style="darkgrid",
         cmap="jet",
+        seed: Optional[int] = None,
     ):
         """
         Add image format options for given command line programs.
         """
-        from jcvi.graphics.base import ImageOptions, setup_theme
+        from jcvi.graphics.base import GRAPHIC_FORMATS, ImageOptions, setup_theme
 
-        allowed_format = (
-            "emf",
-            "eps",
-            "pdf",
-            "png",
-            "ps",
-            "raw",
-            "rgba",
-            "svg",
-            "svgz",
-        )
         allowed_fonts = ("Helvetica", "Palatino", "Schoolbook", "Arial")
         allowed_styles = ("darkgrid", "whitegrid", "dark", "white", "ticks")
         allowed_diverge = (
@@ -557,7 +548,7 @@ class OptionParser(OptionP):
         group.add_option(
             "--format",
             default=format,
-            choices=allowed_format,
+            choices=GRAPHIC_FORMATS,
             help="Generate image of format",
         )
         group.add_option(
@@ -576,6 +567,14 @@ class OptionParser(OptionP):
         group.add_option(
             "--notex", default=False, action="store_true", help="Do not use tex"
         )
+        # https://github.com/tanghaibao/jcvi/issues/515#issuecomment-1327305211
+        if not group.has_option("--seed"):
+            group.add_option(
+                "--seed",
+                default=seed,
+                type="int",
+                help="Random seed when assigning colors (supported only for some plots)",
+            )
 
         if args is None:
             args = sys.argv[1:]
@@ -589,7 +588,7 @@ class OptionParser(OptionP):
 
         return opts, args, ImageOptions(opts)
 
-    def set_dotplot_opts(self, theme=2):
+    def set_dotplot_opts(self, theme: int = 2) -> OptionGroup:
         """Used in compara.catalog and graphics.dotplot"""
         from jcvi.graphics.base import set1
 
@@ -628,6 +627,7 @@ class OptionParser(OptionP):
             ),
         )
         self.add_option_group(group)
+        return group
 
     def set_depth(self, depth=50):
         self.add_option("--depth", default=depth, type="float", help="Desired depth")
@@ -964,36 +964,33 @@ class OptionParser(OptionP):
 
     def set_home(self, prog, default=None):
         tag = "--{0}_home".format(prog)
-        default = (
-            default
-            or {
-                "amos": "~/code/amos-code",
-                "trinity": "~/export/trinityrnaseq-2.0.6",
-                "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
-                "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
-                "maker": "~/export/maker",
-                "augustus": "~/export/maker/exe/augustus",
-                "pasa": "~/export/PASApipeline-2.0.2",
-                "gatk": "~/export",
-                "gmes": "~/export/gmes",
-                "gt": "~/export/genometools",
-                "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
-                "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
-                "pbjelly": "~/export/PBSuite_15.2.20",
-                "picard": "~/export/picard-tools-1.138",
-                "khmer": "~/export/khmer",
-                "tassel": "/usr/local/projects/MTG4/packages/tassel",
-                "tgi": "~/export/seqclean-x86_64",
-                "eddyyeh": "/home/shared/scripts/eddyyeh",
-                "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
-                "fermi": "~/export/fermi",
-                "lobstr": "/mnt/software/lobSTR",
-                "shapeit": "/mnt/software/shapeit",
-                "impute": "/mnt/software/impute",
-                "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
-                "minimac": "/mnt/software/Minimac3/bin",
-            }.get(prog, None)
-        )
+        default = default or {
+            "amos": "~/code/amos-code",
+            "trinity": "~/export/trinityrnaseq-2.0.6",
+            "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
+            "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
+            "maker": "~/export/maker",
+            "augustus": "~/export/maker/exe/augustus",
+            "pasa": "~/export/PASApipeline-2.0.2",
+            "gatk": "~/export",
+            "gmes": "~/export/gmes",
+            "gt": "~/export/genometools",
+            "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
+            "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
+            "pbjelly": "~/export/PBSuite_15.2.20",
+            "picard": "~/export/picard-tools-1.138",
+            "khmer": "~/export/khmer",
+            "tassel": "/usr/local/projects/MTG4/packages/tassel",
+            "tgi": "~/export/seqclean-x86_64",
+            "eddyyeh": "/home/shared/scripts/eddyyeh",
+            "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
+            "fermi": "~/export/fermi",
+            "lobstr": "/mnt/software/lobSTR",
+            "shapeit": "/mnt/software/shapeit",
+            "impute": "/mnt/software/impute",
+            "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
+            "minimac": "/mnt/software/Minimac3/bin",
+        }.get(prog, None)
         if default is None:  # Last attempt at guessing the path
             try:
                 default = op.dirname(which(prog))
@@ -1166,7 +1163,7 @@ def sh(
             if infile.endswith(".gz"):
                 cat = "zcat"
             cmd = "{0} {1} |".format(cat, infile) + cmd
-        if outfile and outfile != "stdout":
+        if outfile and outfile not in ("-", "stdout"):
             if outfile.endswith(".gz"):
                 cmd += " | gzip"
             tag = ">"
@@ -1281,7 +1278,7 @@ def mkdir(dirname, overwrite=False):
     """
     if op.isdir(dirname):
         if overwrite:
-            shutil.rmtree(dirname)
+            cleanup(dirname)
             os.mkdir(dirname)
             logging.debug("Overwrite folder `{0}`.".format(dirname))
         else:
@@ -1318,6 +1315,9 @@ def parse_multi_values(param):
 
 
 def listify(a):
+    """
+    Convert something to a list if it is not already a list.
+    """
     return a if (isinstance(a, list) or isinstance(a, tuple)) else [a]
 
 
@@ -1328,19 +1328,56 @@ def last_updated(a):
     return time.time() - op.getmtime(a)
 
 
-def need_update(a, b):
+def need_update(a: str, b: str, warn: bool = False) -> bool:
     """
     Check if file a is newer than file b and decide whether or not to update
     file b. Can generalize to two lists.
+
+    Args:
+        a: file or list of files
+        b: file or list of files
+        warn: whether or not to print warning message
+
+    Returns:
+        True if file a is newer than file b
     """
     a = listify(a)
     b = listify(b)
 
-    return (
+    should_update = (
         any((not op.exists(x)) for x in b)
         or all((os.stat(x).st_size == 0 for x in b))
         or any(is_newer_file(x, y) for x in a for y in b)
     )
+    if (not should_update) and warn:
+        logging.debug("File `{}` found. Computation skipped.".format(", ".join(b)))
+    return should_update
+
+
+def flatten(input_list: Iterable) -> list:
+    """
+    Flatten a list of lists and stop at the first non-list element.
+    """
+    ans = []
+    for i in input_list:
+        if isinstance(i, Iterable) and not isinstance(i, str):
+            for subc in flatten(i):
+                ans.append(subc)
+        else:
+            ans.append(i)
+    return ans
+
+
+def cleanup(*args: Union[str, Iterable]) -> None:
+    """
+    Remove a bunch of files in args; ignore if not found.
+    """
+    for path in flatten(args):
+        if op.exists(path):
+            if op.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
 
 
 def get_today():
@@ -1390,7 +1427,6 @@ def download(
     """
     from urllib.parse import urlsplit
     from subprocess import CalledProcessError
-    from jcvi.formats.base import FileShredder
 
     scheme, netloc, path, query, fragment = urlsplit(url)
     basepath = op.basename(path)
@@ -1414,7 +1450,7 @@ def download(
     if op.exists(final_filename):
         if debug:
             msg = "File `{}` exists. Download skipped.".format(final_filename)
-            logging.error(msg)
+            logging.info(msg)
         success = True
     else:
         from jcvi.utils.ez_setup import get_best_downloader
@@ -1432,25 +1468,15 @@ def download(
         if success and handle_gzip:
             if need_gunzip:
                 sh("gzip -dc {}".format(target), outfile=filename)
-                FileShredder([target])
+                cleanup(target)
             elif need_gzip:
                 sh("gzip -c {}".format(target), outfile=filename)
-                FileShredder([target])
+                cleanup(target)
 
     if not success:
-        FileShredder([target])
+        cleanup(target)
 
     return final_filename
-
-
-def remove_if_exists(filename):
-    """Check if a file exists and if so remove it
-
-    Args:
-        filename (str): Path to the local file.
-    """
-    if op.exists(filename):
-        os.remove(filename)
 
 
 def getfilesize(filename, ratio=None):
@@ -1472,8 +1498,8 @@ def getfilesize(filename, ratio=None):
     # Heuristic
     heuristicsize = rawsize / ratio
     while size < heuristicsize:
-        size += 2 ** 32
-    if size > 2 ** 32:
+        size += 2**32
+    if size > 2**32:
         logging.warning("Gzip file estimated uncompressed size: {0}.".format(size))
 
     return size
@@ -1926,7 +1952,7 @@ def notify(args):
     g1.add_option(
         "--api",
         default="pushover",
-        choices=list(flatten(available_push_api.values())),
+        choices=flatten(available_push_api.values()),
         help="Specify API used to send the push notification",
     )
     g1.add_option(
@@ -2066,7 +2092,7 @@ def waitpid(args):
     """
     import shlex
 
-    valid_notif_methods.extend(list(flatten(available_push_api.values())))
+    valid_notif_methods.extend(flatten(available_push_api.values()))
 
     p = OptionParser(waitpid.__doc__)
     p.add_option(
@@ -2211,7 +2237,7 @@ def inspect(object):
         print("{}: {}".format(k, details), file=sys.stderr)
 
 
-def sample_N(a, N, seed=None):
+def sample_N(a: Collection[Any], N: int, seed: Optional[int] = None) -> List[Any]:
     """When size of N is > size of a, random.sample() will emit an error:
     ValueError: sample larger than population
 

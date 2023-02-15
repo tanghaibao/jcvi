@@ -22,6 +22,7 @@ from jcvi.apps.base import (
     OptionParser,
     OptionGroup,
     ActionDispatcher,
+    cleanup,
     need_update,
     popen,
     sh,
@@ -918,7 +919,7 @@ def consolidate(nbedfile, obedfile, cbedfile):
             b.accn = ";".join(accns)
         print(b, file=fp)
     fp.close()
-    os.remove(tmpfile)
+    cleanup(tmpfile)
 
     sort([cbedfile, "-i"])
 
@@ -1073,7 +1074,6 @@ def reindex(args):
     from jcvi.formats.gff import make_index
     from jcvi.formats.fasta import Fasta
     from jcvi.apps.emboss import needle
-    from jcvi.formats.base import FileShredder
     from tempfile import mkstemp
 
     p = OptionParser(reindex.__doc__)
@@ -1166,7 +1166,7 @@ def reindex(args):
     if not opts.scores:
         fw.close()
         needle([pairsfile, refpep, pep])
-        FileShredder([pairsfile], verbose=False)
+        cleanup(pairsfile)
         scoresfile = "{0}.scores".format(pairsfile.rsplit(".")[0])
     else:
         scoresfile = opts.scores

@@ -7,13 +7,12 @@ Simulate Illumina sequencing reads.
 import os
 import os.path as op
 import random
-import shutil
 import sys
 import logging
 import math
 
 from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, sh
 
 
 def main():
@@ -149,7 +148,7 @@ def eagle(args):
     os.chdir(cwd)
 
     # Clean-up
-    shutil.rmtree(eagle_dir)
+    cleanup(eagle_dir)
 
 
 def wgsim(args):

@@ -7,9 +7,7 @@ algorithms.lpsolve.tsp(). See also:
 https://developers.google.com/optimization/routing/tsp
 """
 import os.path as op
-import os
 import logging
-import shutil
 import numpy as np
 
 from collections import defaultdict
@@ -17,8 +15,8 @@ from dataclasses import dataclass
 from itertools import combinations
 from more_itertools import pairwise
 
-from jcvi.formats.base import FileShredder, must_open
-from jcvi.apps.base import mkdir, which, sh
+from jcvi.formats.base import must_open
+from jcvi.apps.base import cleanup, mkdir, sh, which
 
 
 INF = 10000
@@ -44,7 +42,7 @@ class TSPDataModel:
         weights = [x[-1] for x in self.edges]
         max_x, min_x = max(weights), min(weights)
         inf = 2 * max(abs(max_x), abs(min_x))
-        factor = 10 ** precision
+        factor = 10**precision
         logging.debug(
             "TSP rescale: max_x=%d, min_x=%d, inf=%d, factor=%d",
             max_x,
@@ -155,9 +153,9 @@ class Concorde(object):
         self.tour = self.parse_output(outfile)
 
         if clean:
-            shutil.rmtree(work_dir)
+            cleanup(work_dir)
             residual_output = ["data.sol", "data.res", "Odata.res"]
-            FileShredder(residual_output, verbose=False)
+            cleanup(residual_output)
 
     def print_to_tsplib(self, tspfile, precision=0):
         """
@@ -195,8 +193,7 @@ class Concorde(object):
 
     def run_concorde(self, tspfile, seed=666):
         outfile = op.join(self.work_dir, "data.sol")
-        if op.exists(outfile):
-            os.remove(outfile)
+        cleanup(outfile)
 
         cc = "concorde"
         assert which(cc), (

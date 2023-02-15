@@ -14,7 +14,7 @@ from natsort import natsorted
 from PyPDF2 import PdfFileMerger, parse_filename_page_ranges
 from PyPDF2.pagerange import PAGE_RANGE_HELP
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from jcvi.apps.base import OptionParser, ActionDispatcher, cleanup
 
 
 def main():
@@ -92,8 +92,7 @@ def cat(args):
 
     if opts.cleanup:
         logging.debug("Cleaning up {} files".format(len(args)))
-        for arg in args:
-            os.remove(arg)
+        cleanup(args)
 
 
 if __name__ == "__main__":

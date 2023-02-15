@@ -12,10 +12,13 @@ import logging
 import numpy as np
 import networkx as nx
 
+from cmmodule.utils import read_chain_file
+from cmmodule.mapbed import crossmap_bed_file
 from collections import Counter, defaultdict
 from functools import partial
 from itertools import combinations, product
-from more_itertools import flatten, pairwise
+from more_itertools import pairwise
+from typing import Optional
 
 from jcvi import __version__ as version
 from jcvi.algorithms.formula import reject_outliers, spearmanr
@@ -27,7 +30,7 @@ from jcvi.algorithms.tsp import hamiltonian
 from jcvi.algorithms.matrix import determine_signs
 from jcvi.algorithms.ec import GA_setup, GA_run
 from jcvi.formats.agp import AGP, order_to_agp, build as agp_build, reindex
-from jcvi.formats.base import DictFile, FileMerger, FileShredder, must_open, read_block
+from jcvi.formats.base import DictFile, FileMerger, must_open, read_block
 from jcvi.formats.bed import Bed, BedLine, natsorted, sort
 from jcvi.formats.chain import fromagp
 from jcvi.formats.sizes import Sizes
@@ -36,14 +39,16 @@ from jcvi.utils.cbook import human_size, percentage
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.table import tabulate
 from jcvi.apps.base import (
-    OptionParser,
-    OptionGroup,
     ActionDispatcher,
-    sh,
-    need_update,
-    get_today,
+    OptionGroup,
+    OptionParser,
     SUPPRESS_HELP,
+    cleanup,
+    flatten,
+    get_today,
     mkdir,
+    need_update,
+    sh,
 )
 
 
@@ -141,7 +146,6 @@ class ScaffoldOO(object):
         function=(lambda x: x.rank),
         linkage=min,
         fwtour=None,
-        skipconcorde=False,
         ngen=500,
         npop=100,
         cpus=8,
@@ -157,7 +161,6 @@ class ScaffoldOO(object):
         self.weights = weights
         self.function = function
         self.linkage = linkage
-        self.skipconcorde = skipconcorde
 
         self.prepare_linkage_groups()  # populate all data
         for mlg in self.lgs:
@@ -171,7 +174,7 @@ class ScaffoldOO(object):
         print_tour(fwtour, self.object, tag, "INIT", tour, recode=True)
         signs = self.assign_orientation()
         assert len(signs) == len(scaffolds)
-        tour = zip(scaffolds, signs)
+        tour = list(zip(scaffolds, signs))
         scaffolds_oo = dict(tour)
         print_tour(fwtour, self.object, tag, "FLIP", tour, recode=True)
         tour = self.assign_order()
@@ -297,18 +300,7 @@ class ScaffoldOO(object):
         for a, b, d in G.edges(data=True):
             edges.append((a, b, d["weight"]))
 
-        if self.skipconcorde:
-            logging.debug("concorde-TSP skipped. Use default scaffold ordering.")
-            tour = scaffolds[:]
-            return tour
-        try:
-            tour = hamiltonian(edges, directed=True, precision=2)
-            assert tour[0] == START and tour[-1] == END
-            tour = tour[1:-1]
-        except:
-            logging.debug("concorde-TSP failed. Use default scaffold ordering.")
-            tour = scaffolds[:]
-        return tour
+        return scaffolds[:]
 
     def assign_order(self):
         """
@@ -674,7 +666,7 @@ class Weights(DictFile):
         common_mapnames = set(self.maps) & set(mapnames)
         if not common_mapnames:
             logging.error(
-                "No common names found between {} and {}", self.maps, mapnames
+                "No common names found between %s and %s", self.maps, mapnames
             )
             sys.exit(1)
         return max(
@@ -1100,7 +1092,7 @@ def movie(args):
     sizes = Sizes(scaffoldsfasta).mapping
     ffmpeg = "ffmpeg"
     mkdir(ffmpeg)
-    score = cur_score = None
+    score = None
     i = 1
     for header, block in read_block(fp, ">"):
         s, tag, label = header[1:].split()
@@ -1118,7 +1110,7 @@ def movie(args):
         image_name = ".".join((seqid, "{0:04d}".format(i), label, "pdf"))
         if need_update(tourfile, image_name):
             fwagp = must_open(agpfile, "w")
-            order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
+            order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize, evidence="map")
             fwagp.close()
             logging.debug("%s written to `%s`.", header, agpfile)
             build([inputbed, scaffoldsfasta, "--cleanup"])
@@ -1426,12 +1418,6 @@ def path(args):
         help="Do not visualize the alignments",
     )
     p.add_option(
-        "--skipconcorde",
-        default=False,
-        action="store_true",
-        help="Skip TSP optimizer, can speed up large cases",
-    )
-    p.add_option(
         "--renumber",
         default=False,
         action="store_true",
@@ -1472,7 +1458,6 @@ def path(args):
     partitionsfile = opts.partitions
     gapsize = opts.gapsize
     mincount = opts.mincount
-    skipconcorde = opts.skipconcorde
     ngen = opts.ngen
     npop = opts.npop
     cpus = opts.cpus
@@ -1589,7 +1574,6 @@ def path(args):
             function=function,
             linkage=linkage,
             fwtour=fwtour,
-            skipconcorde=skipconcorde,
             ngen=ngen,
             npop=npop,
             cpus=cpus,
@@ -1622,7 +1606,7 @@ def path(args):
     AGP.print_header(fwagp, comment=comment)
 
     for s in natsorted(solutions, key=lambda x: x.object):
-        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize, gaptype="map")
+        order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize, evidence="map")
     fwagp.close()
 
     logging.debug("AGP file written to `%s`.", agpfile)
@@ -1637,6 +1621,8 @@ def path(args):
         plotall(
             [
                 inputbed,
+                "-w",
+                opts.weightsfile,
                 "--links={0}".format(opts.links),
                 "--figsize={0}".format(opts.figsize),
             ]
@@ -1713,6 +1699,20 @@ def summary(args):
     print(tabulate(r, sep=sep, align=align), file=fw)
 
 
+def liftover(
+    chain_file: str,
+    in_file: str,
+    out_file: str,
+    unmapfile: Optional[str],
+    cstyle: str = "l",
+):
+    """
+    Lifts over a bed file from one assembly to another using a chain file.
+    """
+    mapTree, _, _ = read_chain_file(chain_file)
+    crossmap_bed_file(mapTree, in_file, out_file, unmapfile=unmapfile, cstyle=cstyle)
+
+
 def build(args):
     """
     %prog build input.bed scaffolds.fasta
@@ -1764,22 +1764,22 @@ def build(args):
 
     liftedbed = mapbed.rsplit(".", 1)[0] + ".lifted.bed"
     if need_update((mapbed, chainfile), liftedbed):
-        cmd = "liftOver -minMatch=1 {0} {1} {2} unmapped".format(
-            mapbed, chainfile, liftedbed
+        logging.debug(
+            "Lifting markers from positions in `%s` to new positions in `%s`",
+            mapbed,
+            liftedbed,
         )
-        sh(cmd, check=True)
+        liftover(chainfile, mapbed, liftedbed, unmapfile="unmapped", cstyle="l")
 
     if opts.cleanup:
-        FileShredder(
-            [
-                chr_fasta,
-                unplaced_fasta,
-                combined_fasta,
-                chainfile,
-                unplaced_agp,
-                combined_fasta + ".sizes",
-                "unmapped",
-            ]
+        cleanup(
+            chr_fasta,
+            unplaced_fasta,
+            combined_fasta,
+            chainfile,
+            unplaced_agp,
+            combined_fasta + ".sizes",
+            "unmapped",
         )
 
     sort([liftedbed, "-i"])  # Sort bed in place
@@ -1983,6 +1983,7 @@ def plot(args):
         while height / len(ax.get_yticks()) < 0.03 and len(ax.get_yticks()) >= 2:
             ax.set_yticks(ax.get_yticks()[::2])  # Sparsify the ticks
         yticklabels = [int(x) for x in ax.get_yticks()]
+        ax.set_yticks(yticklabels)
         ax.set_yticklabels(yticklabels, family="Helvetica")
         if rho < 0:
             ax.invert_yaxis()

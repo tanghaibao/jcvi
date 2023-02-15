@@ -211,8 +211,10 @@ def write_PAD_bed(bedfile, prefix, pads, bed):
     j = 0
     # Assign all genes to new partitions
     for i, x in enumerate(bed):
+        a, b = pads[j]
         if i > b:
             j += 1
+            a, b = pads[j]
         print("\t".join((padnames[j], str(i), str(i + 1), x.accn)), file=fw)
 
     fw.close()

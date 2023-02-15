@@ -12,6 +12,7 @@ import sys
 from functools import partial
 from itertools import combinations, product
 from math import exp, log, pi, sqrt
+from typing import Optional
 
 import numpy as np
 from Bio import AlignIO, SeqIO
@@ -21,6 +22,7 @@ from jcvi.apps.base import (
     ActionDispatcher,
     OptionParser,
     Popen,
+    cleanup,
     getpath,
     iglob,
     mkdir,
@@ -154,7 +156,7 @@ class LayoutLine(object):
 
 
 class Layout(AbstractLayout):
-    def __init__(self, filename, delimiter=","):
+    def __init__(self, filename, delimiter=",", seed: Optional[int] = None):
         super(Layout, self).__init__(filename)
         if not op.exists(filename):
             ksfiles = iglob(".", "*.ks")
@@ -173,8 +175,8 @@ class Layout(AbstractLayout):
                 continue
             self.append(LayoutLine(row, delimiter=delimiter))
 
-        self.assign_colors()
-        self.assign_markers()
+        self.assign_colors(seed=seed)
+        self.assign_markers(seed=seed)
 
 
 class KsPlot(object):
@@ -287,7 +289,7 @@ def multireport(args):
     ks_max = opts.vmax
     bins = opts.bins
     fill = opts.fill
-    layout = Layout(layoutfile)
+    layout = Layout(layoutfile, seed=iopts.seed)
     print(layout, file=sys.stderr)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -985,7 +987,7 @@ def my_hist(ax, l, interval, max_r, color="g", marker=".", fill=False, kde=False
 
 
 def lognormpdf(bins, mu, sigma):
-    return np.exp(-((np.log(bins) - mu) ** 2) / (2 * sigma ** 2)) / (
+    return np.exp(-((np.log(bins) - mu) ** 2) / (2 * sigma**2)) / (
         bins * sigma * sqrt(2 * pi)
     )
 
@@ -1031,7 +1033,7 @@ def get_mixture(data, components):
         sigmas.append(b)
         probs.append(c)
 
-    os.remove(fw.name)
+    cleanup(fw.name)
     return probs, mus, sigmas
 
 

@@ -14,8 +14,8 @@ from Bio import SeqIO
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
+    cleanup,
     sh,
-    debug,
     need_update,
     mkdir,
     popen,
@@ -130,18 +130,6 @@ class SetFile(BaseFile, set):
             self.update(keys)
 
 
-class FileShredder(object):
-    """
-    Same as rm -f *
-    """
-
-    def __init__(self, filelist, verbose=True):
-
-        filelist = [x for x in filelist if x and op.exists(x)]
-        cmd = "rm -rf {0}".format(" ".join(filelist))
-        sh(cmd, log=verbose)
-
-
 class FileMerger(object):
     """
     Same as cat * > filename
@@ -156,19 +144,17 @@ class FileMerger(object):
 
     def merge(self, checkexists=False):
         outfile = self.outfile
-        if checkexists and not need_update(self.filelist, outfile):
-            logging.debug("File `{0}` exists. Merge skipped.".format(outfile))
+        if checkexists and not need_update(self.filelist, outfile, warn=True):
             return
 
         files = " ".join(self.filelist)
         ingz, outgz = self.ingz, self.outgz
         if ingz and outgz:  # can merge gz files directly
-            cmd = "cat {0} > {1}".format(files, outfile)
-            sh(cmd)
+            cmd = "cat {}".format(files)
         else:
             cmd = "zcat" if self.ingz else "cat"
             cmd += " " + files
-            sh(cmd, outfile=outfile)
+        sh(cmd, outfile=outfile)
 
         return outfile
 
@@ -1127,7 +1113,7 @@ def subset(args):
             print(ss[0].join(files[0][key]), file=fw)
 
     if nargs > 2:
-        FileShredder([file2])
+        cleanup(file2)
 
 
 def setop(args):
@@ -1195,8 +1181,7 @@ def mergecsv(args):
     tsvfiles = args
     outfile = opts.outfile
 
-    if op.exists(outfile):
-        os.remove(outfile)
+    cleanup(outfile)
 
     fw = must_open(opts.outfile, "w")
     for i, tsvfile in enumerate(tsvfiles):

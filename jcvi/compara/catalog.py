@@ -653,7 +653,13 @@ def ortholog(args):
         help="Distance to extend from liftover. Defaults to half of --dist",
     )
     p.set_cpus()
-    p.set_dotplot_opts()
+    dotplot_group = p.set_dotplot_opts()
+    dotplot_group.add_option(
+        "--notex", default=False, action="store_true", help="Do not use tex"
+    )
+    dotplot_group.add_option(
+        "--no_dotplot", default=False, action="store_true", help="Do not make dotplot"
+    )
 
     opts, args = p.parse_args(args)
 
@@ -672,22 +678,22 @@ def ortholog(args):
     minsize_flag = "--min_size={}".format(opts.n)
     cpus_flag = "--cpus={}".format(opts.cpus)
 
-    aprefix = afasta.split(".")[0]
-    bprefix = bfasta.split(".")[0]
+    aprefix = op.basename(a)
+    bprefix = op.basename(b)
     pprefix = ".".join((aprefix, bprefix))
     qprefix = ".".join((bprefix, aprefix))
     last = pprefix + ".last"
-    if need_update((afasta, bfasta), last):
+    if need_update((afasta, bfasta), last, warn=True):
         last_main([bfasta, afasta, cpus_flag], dbtype)
 
     if a == b:
         lastself = last + ".P98L0.inverse"
-        if need_update(last, lastself):
+        if need_update(last, lastself, warn=True):
             filter([last, "--hitlen=0", "--pctid=98", "--inverse", "--noself"])
         last = lastself
 
     filtered_last = last + ".filtered"
-    if need_update(last, filtered_last):
+    if need_update(last, filtered_last, warn=True):
         # If we are doing filtering based on another file then we don't run cscore anymore
         dargs = [last, "--cscore={}".format(ccscore)]
         if exclude:
@@ -700,7 +706,7 @@ def ortholog(args):
     lifted_anchors = pprefix + ".lifted.anchors"
     pdf = pprefix + ".pdf"
     if not opts.full:
-        if need_update(filtered_last, lifted_anchors):
+        if need_update(filtered_last, lifted_anchors, warn=True):
             dargs = [
                 filtered_last,
                 anchors,
@@ -715,7 +721,7 @@ def ortholog(args):
             scan(dargs)
         if quota:
             quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])
-        if need_update(anchors, pdf):
+        if need_update(anchors, pdf, warn=True) and not opts.no_dotplot:
             from jcvi.graphics.dotplot import dotplot_main
 
             dargs = [anchors]
@@ -729,21 +735,23 @@ def ortholog(args):
                 dargs += ["--genomenames", opts.genomenames]
             if opts.theme:
                 dargs += ["--theme", opts.theme]
+            if opts.notex:
+                dargs += ["--notex"]
             dotplot_main(dargs)
         return
 
-    if need_update(filtered_last, anchors):
+    if need_update(filtered_last, anchors, warn=True):
         if opts.no_strip_names:
             scan([filtered_last, anchors, dist, "--no_strip_names"])
         else:
             scan([filtered_last, anchors, dist])
 
     ooanchors = pprefix + ".1x1.anchors"
-    if need_update(anchors, ooanchors):
+    if need_update(anchors, ooanchors, warn=True):
         quota_main([anchors, "--quota=1:1", "--screen"])
 
     lifted_anchors = pprefix + ".1x1.lifted.anchors"
-    if need_update((last, ooanchors), lifted_anchors):
+    if need_update((last, ooanchors), lifted_anchors, warn=True):
         if opts.no_strip_names:
             liftover([last, ooanchors, dist, "--no_strip_names"])
         else:
@@ -751,17 +759,17 @@ def ortholog(args):
 
     pblocks = pprefix + ".1x1.blocks"
     qblocks = qprefix + ".1x1.blocks"
-    if need_update(lifted_anchors, [pblocks, qblocks]):
+    if need_update(lifted_anchors, [pblocks, qblocks], warn=True):
         mcscan([abed, lifted_anchors, "--iter=1", "-o", pblocks])
         mcscan([bbed, lifted_anchors, "--iter=1", "-o", qblocks])
 
     rbh = pprefix + ".rbh"
-    if need_update(last, rbh):
+    if need_update(last, rbh, warn=True):
         cscore([last, "-o", rbh])
 
     portho = pprefix + ".ortholog"
     qortho = qprefix + ".ortholog"
-    if need_update([pblocks, qblocks, rbh], [portho, qortho]):
+    if need_update([pblocks, qblocks, rbh], [portho, qortho], warn=True):
         make_ortholog(pblocks, rbh, portho)
         make_ortholog(qblocks, rbh, qortho)
 

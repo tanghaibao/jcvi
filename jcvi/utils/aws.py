@@ -479,11 +479,17 @@ def ls_s3(s3_store_obj_name, recursive=False):
     return contents
 
 
-def check_exists_s3(s3_store_obj_name):
+def check_exists_s3(s3_store_obj_name: str, warn=False) -> bool:
+    """
+    Check if s3 object exists.
+    """
     s3_store_obj_name = s3ify(s3_store_obj_name)
     cmd = "aws s3 ls {0} | wc -l".format(s3_store_obj_name)
     counts = int(popen(cmd).read())
-    return counts != 0
+    exists = counts != 0
+    if exists and warn:
+        logging.debug("{} exists. Skipped.".format(s3_store_obj_name))
+    return exists
 
 
 def aws_configure(profile, key, value):

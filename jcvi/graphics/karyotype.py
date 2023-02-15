@@ -23,13 +23,15 @@ e, 0, 1, athaliana.grape.4x1.simple
 import sys
 import logging
 
+from typing import Optional
+
 from jcvi.apps.base import OptionParser
 from jcvi.compara.synteny import SimpleFile
 from jcvi.formats.bed import Bed
-from jcvi.graphics.chromosome import HorizontalChromosome
+from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
 from jcvi.graphics.glyph import TextCircle
-from jcvi.graphics.synteny import Shade
-from jcvi.graphics.base import mpl, plt, savefig, markup, AbstractLayout
+from jcvi.graphics.synteny import Shade, ymid_offset
+from jcvi.graphics.base import AbstractLayout, markup, mpl, plt, savefig, update_figname
 
 
 class LayoutLine(object):
@@ -58,7 +60,9 @@ class LayoutLine(object):
 
 
 class Layout(AbstractLayout):
-    def __init__(self, filename, delimiter=",", generank=False):
+    def __init__(
+        self, filename, delimiter=",", generank=False, seed: Optional[int] = None
+    ):
         super(Layout, self).__init__(filename)
         fp = open(filename)
         self.edges = []
@@ -72,7 +76,7 @@ class Layout(AbstractLayout):
                 if len(args) == 5 and args[4]:
                     samearc = args[4]
                 else:
-                    samearc = "below"
+                    samearc = None
                 i, j = int(i), int(j)
                 assert args[0] == "e"
                 blocks = self.parse_blocks(fn, i)
@@ -80,7 +84,7 @@ class Layout(AbstractLayout):
             else:
                 self.append(LayoutLine(row, delimiter=delimiter, generank=generank))
 
-        self.assign_colors()
+        self.assign_colors(seed=seed)
 
     def parse_blocks(self, simplefile, i):
         order = self[i].order
@@ -128,9 +132,8 @@ class Track(object):
         height=0.01,
         lw=1,
         draw=True,
-        roundrect=False,
+        chrstyle="auto",
     ):
-
         self.empty = t.empty
         if t.empty:
             return
@@ -178,13 +181,19 @@ class Track(object):
         self.lw = lw
 
         if draw:
-            self.draw(roundrect=roundrect)
+            self.draw(chrstyle=chrstyle)
 
     def __str__(self):
         return self.label
 
     def draw(
-        self, roundrect=False, plot_label=True, plot_circles=True, pad=0.03, vpad=0.09
+        self,
+        chrstyle="auto",
+        keep_chrlabels=False,
+        plot_label=True,
+        plot_circles=True,
+        pad=0.03,
+        vpad=0.09,
     ):
         if self.empty:
             return
@@ -210,10 +219,10 @@ class Track(object):
                 height=self.height,
                 lw=self.lw,
                 fc=color,
-                roundrect=roundrect,
+                style=chrstyle,
             )
             hc.set_transform(tr)
-            si = make_circle_name(sid, self.rev)
+            si = sid if keep_chrlabels else make_circle_name(sid, self.rev)
             xx = (xstart + xend) / 2
             xstart = xend + gap
 
@@ -279,27 +288,20 @@ class ShadeManager(object):
         self.style = style
         for i, j, blocks, samearc in layout.edges:
             # if same track (duplication shades), shall we draw above or below?
-            # samearc = "above" if i == j and i == 0 else "below"
             self.draw_blocks(
                 ax, blocks, tracks[i], tracks[j], samearc=samearc, heightpad=heightpad
             )
 
-    def draw_blocks(self, ax, blocks, atrack, btrack, samearc="below", heightpad=0):
+    def draw_blocks(
+        self, ax, blocks, atrack, btrack, samearc: Optional[str], heightpad=0
+    ):
         for a, b, c, d, _, _, highlight in blocks:
             p = atrack.get_coords(a), atrack.get_coords(b)
             q = btrack.get_coords(c), btrack.get_coords(d)
             if p[0] is None or q[0] is None:
                 continue
 
-            ymid = (atrack.y + btrack.y) / 2
-            px, qx = p[0][0], q[0][0]
-            xdist = abs(px - qx) if px and qx else 0.5
-            pad = 0.09 * xdist / 0.5
-            if atrack.y == btrack.y:
-                if samearc == "below":
-                    ymid = atrack.y - pad
-                else:
-                    ymid = atrack.y + pad
+            ymid_pad = ymid_offset(samearc)
             if heightpad:
                 if atrack.y < btrack.y:
                     p[0][1] = p[1][1] = atrack.y + heightpad
@@ -314,7 +316,7 @@ class ShadeManager(object):
                 ax,
                 p,
                 q,
-                ymid,
+                ymid_pad,
                 highlight=highlight,
                 alpha=1,
                 fc="gainsboro",
@@ -338,12 +340,14 @@ class Karyotype(object):
         generank=True,
         sizes=None,
         heightpad=0,
-        roundrect=False,
+        keep_chrlabels=False,
         plot_label=True,
         plot_circles=True,
         shadestyle="curve",
+        chrstyle="auto",
+        seed: Optional[int] = None,
     ):
-        layout = Layout(layoutfile, generank=generank)
+        layout = Layout(layoutfile, generank=generank, seed=seed)
 
         fp = open(seqidsfile)
         # Strip the reverse orientation tag for e.g. chr3-
@@ -387,7 +391,10 @@ class Karyotype(object):
 
         for tr in tracks:
             tr.draw(
-                roundrect=roundrect, plot_label=plot_label, plot_circles=plot_circles
+                chrstyle=chrstyle,
+                keep_chrlabels=keep_chrlabels,
+                plot_label=plot_label,
+                plot_circles=plot_circles,
             )
 
         self.tracks = tracks
@@ -403,6 +410,12 @@ def main():
         help="Use base pair position instead of gene rank",
     )
     p.add_option(
+        "--keep-chrlabels",
+        default=False,
+        action="store_true",
+        help="Keep chromosome labels",
+    )
+    p.add_option(
         "--nocircles",
         default=False,
         action="store_true",
@@ -414,6 +427,13 @@ def main():
         choices=Shade.Styles,
         help="Style of syntenic wedges",
     )
+    p.add_option(
+        "--chrstyle",
+        default="auto",
+        choices=Chromosome.Styles,
+        help="Style of chromosome labels",
+    )
+    p.set_outfile("karyotype.pdf")
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 2:
@@ -429,17 +449,19 @@ def main():
         root,
         seqidsfile,
         layoutfile,
+        keep_chrlabels=opts.keep_chrlabels,
         plot_circles=(not opts.nocircles),
         shadestyle=opts.shadestyle,
+        chrstyle=opts.chrstyle,
         generank=(not opts.basepair),
+        seed=iopts.seed,
     )
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    pf = "karyotype"
-    image_name = pf + "." + iopts.format
+    image_name = update_figname(opts.outfile, iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

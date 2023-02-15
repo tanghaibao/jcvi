@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import os
 import os.path as op
+import time
+
+import pytest
 
 
 def test_sample_N():
@@ -32,39 +34,25 @@ def test_sample_N():
     assert a == [2, 3, 1, 2]
 
 
-def test_remove_if_exists():
-    from jcvi.apps.base import remove_if_exists
-
-    filename = "test_remove_if_exists.txt"
-    remove_if_exists(filename)  # nothing happens
-
-    with open(filename, "w") as fw:
-        print("0", file=fw)
-
-    assert op.exists(filename)
-    remove_if_exists(filename)
-    assert not op.exists(filename)
-
-
 def test_download():
-    from jcvi.apps.base import download, remove_if_exists
+    from jcvi.apps.base import cleanup, download
     from jcvi.apps.vecscreen import ECOLI_URL, UNIVEC_URL
 
     ret = download("http://www.google.com")
     assert ret == "index.html"
-    remove_if_exists(ret)
+    cleanup(ret)
 
     ret = download(ECOLI_URL, filename="ecoli.fa.gz")
     assert ret == "ecoli.fa.gz"
-    remove_if_exists(ret)
+    cleanup(ret)
 
     ret = download(UNIVEC_URL, filename="univec.fa.gz")
     assert ret == "univec.fa.gz"
-    remove_if_exists(ret)
+    cleanup(ret)
 
     ret = download(UNIVEC_URL)
     assert ret == "UniVec_Core"
-    remove_if_exists(ret)
+    cleanup(ret)
 
 
 def test_ls_ftp():
@@ -75,3 +63,86 @@ def test_ls_ftp():
     assert "saccharomyces_cerevisiae" in valid_species
     assert "gorilla_gorilla" in valid_species
     assert len(valid_species) == 67
+
+
+@pytest.mark.parametrize(
+    "input_list,output_list",
+    [
+        ([], []),
+        ([1], [1]),
+        ([1, [2]], [1, 2]),
+        ([1, [2, "33"]], [1, 2, "33"]),
+        ([1, [2, "33"], ("45",)], [1, 2, "33", "45"]),
+        ([[["aaa"], "bbb"], [[[["ccc"]]]]], ["aaa", "bbb", "ccc"]),
+    ],
+)
+def test_flatten(input_list, output_list):
+    from jcvi.apps.base import flatten
+
+    assert flatten(input_list) == output_list
+
+
+def test_cleanup():
+    from jcvi.apps.base import cleanup, mkdir
+    from jcvi.formats.base import write_file
+
+    write_file("a", "content_a", skipcheck=True)
+    write_file("b", "content_b", skipcheck=True)
+    write_file("c", "content_c", skipcheck=True)
+    paths = ("a", "b", "c")
+    for path in paths:
+        assert op.exists(path)
+    cleanup("a", ["b", "c"])
+    for path in paths:
+        assert not op.exists(path)
+
+    # Test cleanup with a directory
+    mkdir("adir")
+    mkdir("bdir")
+    write_file("bs", "content_bs", skipcheck=True)
+    paths = ("adir", "bdir", "bs")
+    for path in paths:
+        assert op.exists(path)
+    cleanup("adir", ["bdir", "bs"])
+    for path in paths:
+        assert not op.exists(path)
+
+
+def test_need_update():
+    from jcvi.apps.base import cleanup, need_update
+    from jcvi.formats.base import write_file
+
+    cleanup("a", "b", "c")
+    assert need_update("does_not_exist.txt", "does_not_exist.txt")
+
+    write_file("a", "content_a", skipcheck=True)
+    assert not need_update("a", "a")
+
+    time.sleep(0.1)
+    write_file("b", "content_b", skipcheck=True)
+    assert need_update("b", "a")
+    assert not need_update("a", "b")
+
+    time.sleep(0.1)
+    write_file("c", "content_c", skipcheck=True)
+    assert need_update("c", ["a", "b"])
+    assert need_update(["c", "b"], "a")
+    assert not need_update("a", ["b", "c"])
+    assert need_update(["a", "b"], ["c", "d"])
+    cleanup("a", "b", "c")
+
+
+def test_set_image_options():
+    from jcvi.apps.base import OptionParser
+
+    with pytest.raises(Exception):
+        p_fails = OptionParser(__doc__)
+        p_fails.add_option("--cov", default="jcvi", help="pytest coverage")
+        p_fails.add_option("--dpi", default=300, type="int", help="DPI")
+        p_fails.set_image_options()
+
+    # This should be fine
+    p = OptionParser(__doc__)
+    p.add_option("--cov", default="jcvi", help="pytest coverage")
+    p.add_option("--seed", default=300, type="int", help="seed")
+    p.set_image_options()

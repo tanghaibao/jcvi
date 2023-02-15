@@ -334,8 +334,7 @@ def assemble_dir(pf, target, ploidy="1"):
 
     logging.debug("Work on {0}".format(pf))
     asm = [x.replace("final", pf) for x in target]
-    if not need_update(pf, asm):
-        logging.debug("Assembly found: {0}. Skipped.".format(asm))
+    if not need_update(pf, asm, warn=True):
         return
 
     cwd = os.getcwd()
@@ -364,8 +363,7 @@ def correct_pairs(p, pf, tag):
     itag = tag[0]
     cm = ".".join((pf, itag))
     targets = (cm + ".1.corr.fastq", cm + ".2.corr.fastq", pf + ".PE-0.corr.fastq")
-    if not need_update(p, targets):
-        logging.debug("Corrected reads found: {0}. Skipped.".format(targets))
+    if not need_update(p, targets, warn=True):
         return
 
     slink(p, pf, tag)
@@ -389,8 +387,7 @@ def soap_trios(p, pf, tag, extra):
 
     logging.debug("Work on {0} ({1})".format(pf, ",".join(p)))
     asm = "{0}.closed.scafSeq".format(pf)
-    if not need_update(p, asm):
-        logging.debug("Assembly found: {0}. Skipped.".format(asm))
+    if not need_update(p, asm, warn=True):
         return
 
     slink(p, pf, tag, extra)

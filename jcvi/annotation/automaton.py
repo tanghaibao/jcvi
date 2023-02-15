@@ -6,7 +6,6 @@ Automate genome annotation by iterating processing a set of files, individually.
 """
 
 import os.path as op
-import shutil
 import sys
 import logging
 
@@ -16,7 +15,15 @@ from tempfile import mkdtemp
 from jcvi.assembly.automaton import iter_project
 from jcvi.apps.grid import Jobs, MakeManager
 from jcvi.formats.base import FileMerger, split
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, mkdir, sh, iglob
+from jcvi.apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    cleanup,
+    iglob,
+    mkdir,
+    need_update,
+    sh,
+)
 
 
 def main():
@@ -89,7 +96,7 @@ def augustus(args):
     gff3files = [x.rsplit(".", 1)[0] + suffix for x in fs.names]
     outfile = fastafile.rsplit(".", 1)[0] + suffix
     FileMerger(gff3files, outfile=outfile).merge()
-    shutil.rmtree(outdir)
+    cleanup(outdir)
 
     if gff3:
         from jcvi.annotation.reformat import augustus as reformat_augustus

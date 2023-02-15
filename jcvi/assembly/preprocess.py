@@ -15,6 +15,7 @@ from jcvi.utils.cbook import depends, human_size
 from jcvi.apps.base import (
     OptionParser,
     ActionDispatcher,
+    cleanup,
     download,
     sh,
     mkdir,
@@ -179,7 +180,7 @@ def expand(args):
     from jcvi.formats.fasta import Fasta, SeqIO
     from jcvi.formats.fastq import readlen, first, fasta
     from jcvi.formats.blast import Blast
-    from jcvi.formats.base import FileShredder
+    from jcvi.apps.base import cleanup
     from jcvi.apps.bowtie import align, get_samfile
     from jcvi.apps.align import blast
 
@@ -250,7 +251,7 @@ def expand(args):
     SeqIO.write(recs, fw, "fasta")
     fw.close()
 
-    FileShredder([samfile, logfile, mapped, reads, fastafile, qualfile, blastfile, pf])
+    cleanup(samfile, logfile, mapped, reads, fastafile, qualfile, blastfile, pf)
     logging.debug(
         "Annotated seqs (n={0}) written to `{1}`.".format(len(recs), annotatedfasta)
     )
@@ -511,7 +512,7 @@ def trim(args):
         TrimUnzipped = "Trimmomatic-" + tv
         if not op.exists(TrimUnzipped):
             sh("unzip " + path)
-        os.remove(path)
+        cleanup(path)
         path = op.join(TrimUnzipped, TrimJar)
 
     assert op.exists(path), "Couldn't find Trimmomatic jar file at `{0}`".format(path)

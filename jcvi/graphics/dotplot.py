@@ -120,7 +120,6 @@ class Palette(dict):
 
 
 def draw_box(clusters, ax, color="b"):
-
     for cluster in clusters:
         xrect, yrect = zip(*cluster)
         xmin, xmax, ymin, ymax = min(xrect), max(xrect), min(yrect), max(yrect)
@@ -147,16 +146,17 @@ def plot_breaks_and_labels(
     minfont=5,
     stdpf=True,
     chpf=True,
+    usetex: bool = True,
 ):
     xlim = (0, xsize)
     ylim = (ysize, 0)  # invert the y-axis
 
     # Tag to mark whether to plot chr name (skip small ones)
     xchr_labels, ychr_labels = [], []
-    th = TextHandler(fig)
+    th = TextHandler(fig, usetex=usetex)
 
     # plot the chromosome breaks
-    for (seqid, beg, end) in qbreaks:
+    for seqid, beg, end in qbreaks:
         xsize_ratio = abs(end - beg) * 0.8 / xsize
         fontsize = th.select_fontsize(xsize_ratio)
         if chpf:
@@ -166,7 +166,7 @@ def plot_breaks_and_labels(
         if sep:
             ax.plot([beg, beg], ylim, "-", lw=chrlw, color=sepcolor)
 
-    for (seqid, beg, end) in sbreaks:
+    for seqid, beg, end in sbreaks:
         ysize_ratio = abs(end - beg) * 0.8 / ysize
         fontsize = th.select_fontsize(ysize_ratio)
         if chpf:
@@ -255,8 +255,8 @@ def dotplot(
     sepcolor="g",
     stdpf=True,
     chpf=True,
+    usetex: bool = True,
 ):
-
     fp = open(anchorfile)
     # add genome names
     if genomenames:
@@ -339,7 +339,7 @@ def dotplot(
     logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
     qbreaks = qbed.get_breaks()
     sbreaks = sbed.get_breaks()
-    xlim, ylim = plot_breaks_and_labels(
+    xlim, _ = plot_breaks_and_labels(
         fig,
         root,
         ax,
@@ -355,6 +355,7 @@ def dotplot(
         minfont=minfont,
         stdpf=stdpf,
         chpf=chpf,
+        usetex=usetex,
     )
 
     # create a diagonal to separate mirror image for self comparison
@@ -527,6 +528,7 @@ def dotplot_main(args):
         title=opts.title,
         stdpf=(not opts.nostdpf),
         chpf=(not opts.nochpf),
+        usetex=iopts.usetex,
     )
 
     image_name = opts.outfile or (op.splitext(anchorfile)[0] + "." + opts.format)

@@ -38,7 +38,6 @@ def run_blat(
     cpus=16,
     overwrite=True,
 ):
-
     cmd = "pblat -threads={0}".format(cpus) if which("pblat") else "blat"
     cmd += " {0} {1} -out=blast8 {2}".format(db, infile, outfile)
     sh(cmd)
@@ -83,7 +82,6 @@ def run_megablast(
     task="megablast",
     cpus=16,
 ):
-
     assert db, "Need to specify database fasta file."
 
     db = get_abs_path(db)
@@ -123,7 +121,6 @@ def run_blast_filter(infile=None, outfile=None, pctid=95, hitlen=50):
 
 
 def main():
-
     actions = (
         ("blast", "run blastn using query against reference"),
         ("blat", "run blat using query against reference"),
@@ -221,7 +218,7 @@ def nucmer(args):
 
     ref, query = args
     cpus = opts.cpus
-    nrefs = nqueries = opts.chunks or int(cpus ** 0.5)
+    nrefs = nqueries = opts.chunks or int(cpus**0.5)
     refdir = ref.split(".")[0] + "-outdir"
     querydir = query.split(".")[0] + "-outdir"
     reflist = split([ref, refdir, str(nrefs)]).names
@@ -524,6 +521,10 @@ def last(args, dbtype=None):
     getpath = lambda x: op.join(path, x) if path else x
     lastdb_bin = getpath("lastdb")
     lastal_bin = getpath("lastal")
+    for bin in (lastdb_bin, lastal_bin):
+        if not which(bin):
+            logging.fatal("`%s` not found on PATH. Have you installed LAST?", bin)
+            sys.exit(1)
 
     subjectdb = subject.rsplit(".", 1)[0]
     run_lastdb(

@@ -50,7 +50,6 @@ class ActionDispatcher(object):
     """
 
     def __init__(self, actions):
-
         self.actions = actions
         if not actions:
             actions = [(None, None)]
@@ -113,7 +112,6 @@ class ActionDispatcher(object):
 
 class OptionParser(OptionP):
     def __init__(self, doc):
-
         OptionP.__init__(self, doc, epilog=JCVIHELP)
 
     def parse_args(self, args=None):
@@ -517,7 +515,12 @@ class OptionParser(OptionP):
         """
         Add image format options for given command line programs.
         """
-        from jcvi.graphics.base import GRAPHIC_FORMATS, ImageOptions, setup_theme
+        from jcvi.graphics.base import (
+            GRAPHIC_FORMATS,
+            ImageOptions,
+            is_tex_available,
+            setup_theme,
+        )
 
         allowed_fonts = ("Helvetica", "Palatino", "Schoolbook", "Arial")
         allowed_styles = ("darkgrid", "whitegrid", "dark", "white", "ticks")
@@ -584,9 +587,10 @@ class OptionParser(OptionP):
         assert opts.dpi > 0
         assert "x" in opts.figsize
 
-        setup_theme(style=opts.style, font=opts.font, usetex=(not opts.notex))
+        iopts = ImageOptions(opts)
+        setup_theme(style=opts.style, font=opts.font, usetex=iopts.usetex)
 
-        return opts, args, ImageOptions(opts)
+        return opts, args, iopts
 
     def set_dotplot_opts(self, theme: int = 2) -> OptionGroup:
         """Used in compara.catalog and graphics.dotplot"""
@@ -1521,7 +1525,6 @@ debug()
 
 
 def main():
-
     actions = (
         ("less", "enhance the unix `less` command"),
         ("timestamp", "record timestamps for all files in the current folder"),
@@ -1655,7 +1658,6 @@ def touch(args):
 
 
 def snapshot(fp, p, fsize, counts=None):
-
     pos = int(p * fsize)
     print("==>> File `{0}`: {1} ({2}%)".format(fp.name, pos, int(p * 100)))
     fp.seek(pos)

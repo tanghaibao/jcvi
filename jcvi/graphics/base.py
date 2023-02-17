@@ -64,7 +64,7 @@ GRAPHIC_FORMATS = (
 )
 
 
-def is_usetex():
+def is_tex_available() -> bool:
     """Check if latex command is available"""
     return bool(which("latex")) and bool(which("lp"))
 
@@ -76,6 +76,7 @@ class ImageOptions(object):
         self.format = opts.format
         self.cmap = cm.get_cmap(opts.cmap)
         self.seed = opts.seed
+        self.usetex = is_tex_available() and not opts.notex
         self.opts = opts
 
     def __str__(self):
@@ -88,10 +89,10 @@ class ImageOptions(object):
 
 
 class TextHandler(object):
-    def __init__(self, fig):
+    def __init__(self, fig, usetex: bool = True):
         self.heights = []
         try:
-            self.build_height_array(fig)
+            self.build_height_array(fig, usetex=usetex)
         except ValueError as e:
             logging.debug(
                 "Failed to init heights (error: {}). Variable label sizes skipped.".format(
@@ -100,16 +101,16 @@ class TextHandler(object):
             )
 
     @classmethod
-    def get_text_width_height(cls, fig, txt="chr01", size=12, usetex=is_usetex()):
+    def get_text_width_height(cls, fig, txt="chr01", size=12, usetex: bool = True):
         tp = mpl.textpath.TextPath((0, 0), txt, size=size, usetex=usetex)
         bb = tp.get_extents()
         xmin, ymin = fig.transFigure.inverted().transform((bb.xmin, bb.ymin))
         xmax, ymax = fig.transFigure.inverted().transform((bb.xmax, bb.ymax))
         return xmax - xmin, ymax - ymin
 
-    def build_height_array(self, fig, start=1, stop=36):
+    def build_height_array(self, fig, start=1, stop=36, usetex: bool = True):
         for i in range(start, stop + 1):
-            w, h = TextHandler.get_text_width_height(fig, size=i)
+            w, h = TextHandler.get_text_width_height(fig, size=i, usetex=usetex)
             self.heights.append((h, i))
 
     def select_fontsize(self, height, minsize=1, maxsize=12):
@@ -377,7 +378,6 @@ available_fonts = [op.basename(x) for x in glob(datadir + "/*.ttf")]
 
 
 def fontprop(ax, name, size=12):
-
     assert name in available_fonts, "Font must be one of {0}.".format(available_fonts)
 
     import matplotlib.font_manager as fm
@@ -415,7 +415,7 @@ def setup_theme(
     style="darkgrid",
     palette="deep",
     font="Helvetica",
-    usetex=is_usetex(),
+    usetex: bool = True,
 ):
     try:
         import seaborn as sns
@@ -443,9 +443,6 @@ def setup_theme(
         rc("font", **{"family": "serif", "serif": ["Palatino"]})
     elif font == "Schoolbook":
         rc("font", **{"family": "serif", "serif": ["Century Schoolbook L"]})
-
-
-setup_theme()
 
 
 def asciiaxis(x, digit=1):

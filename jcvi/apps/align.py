@@ -10,6 +10,8 @@ import sys
 import shutil
 import logging
 
+from subprocess import CalledProcessError
+
 from jcvi.utils.cbook import depends
 from jcvi.apps.base import (
     OptionParser,
@@ -536,8 +538,7 @@ def last(args, dbtype=None):
     )
 
     u = 2 if opts.mask else 0
-    cmd = "{0} -u {1}".format(lastal_bin, u)
-    cmd += " -P {0} -i3G".format(cpus)
+    cmd = "{0} -u {1} -i3G".format(lastal_bin, u)
     cmd += " -f {0}".format(opts.format)
     cmd += " {0} {1}".format(subjectdb, query)
 
@@ -555,7 +556,15 @@ def last(args, dbtype=None):
         cmd += " " + extra.strip()
 
     lastfile = get_outfile(subject, query, suffix="last", outdir=opts.outdir)
-    sh(cmd, outfile=lastfile)
+    # Make several attempts to run LASTAL
+    try:
+        sh(cmd + f" -P {cpus}", outfile=lastfile, check=True)
+    except CalledProcessError:  # multi-threading disabled
+        try:
+            sh(cmd + f" -P 1", outfile=lastfile, check=True)
+        except CalledProcessError:
+            logging.fatal("Failed to run `lastal`. Aborted.")
+            sys.exit(1)
     return lastfile
 
 

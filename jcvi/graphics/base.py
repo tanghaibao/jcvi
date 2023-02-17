@@ -377,7 +377,6 @@ available_fonts = [op.basename(x) for x in glob(datadir + "/*.ttf")]
 
 
 def fontprop(ax, name, size=12):
-
     assert name in available_fonts, "Font must be one of {0}.".format(available_fonts)
 
     import matplotlib.font_manager as fm
@@ -443,9 +442,6 @@ def setup_theme(
         rc("font", **{"family": "serif", "serif": ["Palatino"]})
     elif font == "Schoolbook":
         rc("font", **{"family": "serif", "serif": ["Century Schoolbook L"]})
-
-
-setup_theme()
 
 
 def asciiaxis(x, digit=1):

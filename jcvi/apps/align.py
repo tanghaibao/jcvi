@@ -560,6 +560,7 @@ def last(args, dbtype=None):
     try:
         sh(cmd + f" -P {cpus} {subjectdb} {query}", outfile=lastfile, check=True)
     except CalledProcessError:  # multi-threading disabled
+        logging.error("Failed to run `lastal` with multi-threading. Trying again.")
         try:
             sh(cmd + f" -P 1 {subjectdb} {query}", outfile=lastfile, check=True)
         except CalledProcessError:

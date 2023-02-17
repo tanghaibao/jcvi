@@ -10,14 +10,17 @@ import sys
 import shutil
 import logging
 
+from subprocess import CalledProcessError
+
 from jcvi.utils.cbook import depends
 from jcvi.apps.base import (
-    OptionParser,
     ActionDispatcher,
-    sh,
+    OptionParser,
+    cleanup,
     get_abs_path,
-    which,
     mkdir,
+    sh,
+    which,
 )
 
 
@@ -38,7 +41,6 @@ def run_blat(
     cpus=16,
     overwrite=True,
 ):
-
     cmd = "pblat -threads={0}".format(cpus) if which("pblat") else "blat"
     cmd += " {0} {1} -out=blast8 {2}".format(db, infile, outfile)
     sh(cmd)
@@ -83,7 +85,6 @@ def run_megablast(
     task="megablast",
     cpus=16,
 ):
-
     assert db, "Need to specify database fasta file."
 
     db = get_abs_path(db)
@@ -123,7 +124,6 @@ def run_blast_filter(infile=None, outfile=None, pctid=95, hitlen=50):
 
 
 def main():
-
     actions = (
         ("blast", "run blastn using query against reference"),
         ("blat", "run blat using query against reference"),
@@ -221,7 +221,7 @@ def nucmer(args):
 
     ref, query = args
     cpus = opts.cpus
-    nrefs = nqueries = opts.chunks or int(cpus ** 0.5)
+    nrefs = nqueries = opts.chunks or int(cpus**0.5)
     refdir = ref.split(".")[0] + "-outdir"
     querydir = query.split(".")[0] + "-outdir"
     reflist = split([ref, refdir, str(nrefs)]).names
@@ -524,6 +524,10 @@ def last(args, dbtype=None):
     getpath = lambda x: op.join(path, x) if path else x
     lastdb_bin = getpath("lastdb")
     lastal_bin = getpath("lastal")
+    for bin in (lastdb_bin, lastal_bin):
+        if not which(bin):
+            logging.fatal("`%s` not found on PATH. Have you installed LAST?", bin)
+            sys.exit(1)
 
     subjectdb = subject.rsplit(".", 1)[0]
     run_lastdb(
@@ -535,10 +539,8 @@ def last(args, dbtype=None):
     )
 
     u = 2 if opts.mask else 0
-    cmd = "{0} -u {1}".format(lastal_bin, u)
-    cmd += " -P {0} -i3G".format(cpus)
+    cmd = "{0} -u {1} -i3G".format(lastal_bin, u)
     cmd += " -f {0}".format(opts.format)
-    cmd += " {0} {1}".format(subjectdb, query)
 
     minlen = opts.minlen
     minid = opts.minid
@@ -554,7 +556,17 @@ def last(args, dbtype=None):
         cmd += " " + extra.strip()
 
     lastfile = get_outfile(subject, query, suffix="last", outdir=opts.outdir)
-    sh(cmd, outfile=lastfile)
+    # Make several attempts to run LASTAL
+    try:
+        sh(cmd + f" -P {cpus} {subjectdb} {query}", outfile=lastfile, check=True)
+    except CalledProcessError:  # multi-threading disabled
+        logging.error("Failed to run `lastal` with multi-threading. Trying again.")
+        try:
+            sh(cmd + f" -P 1 {subjectdb} {query}", outfile=lastfile, check=True)
+        except CalledProcessError:
+            logging.fatal("Failed to run `lastal`. Aborted.")
+            cleanup(lastfile)
+            sys.exit(1)
     return lastfile
 
 

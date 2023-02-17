@@ -155,7 +155,6 @@ class MSTMatrix(object):
 
 
 def main():
-
     actions = (
         ("breakpoint", "find scaffold breakpoints using genetic map"),
         ("ld", "calculate pairwise linkage disequilibrium"),
@@ -307,7 +306,16 @@ def dotplot(args):
     gy, gx = op.basename(csvfile).split(".")[:2]
     gx, gy = shorten(gx, maxchar=30), shorten(gy, maxchar=30)
     xlim, ylim = plot_breaks_and_labels(
-        fig, root, ax, gx, gy, xsize, ysize, qbreaks, sbreaks
+        fig,
+        root,
+        ax,
+        gx,
+        gy,
+        xsize,
+        ysize,
+        qbreaks,
+        sbreaks,
+        usetex=iopts.usetex,
     )
     ax.set_xlim(xlim)
     ax.set_ylim(ylim)
@@ -430,7 +438,7 @@ def ld(args):
     chr_labels = []
     ignore_size = 20
 
-    for (seqid, beg, end) in bed.get_breaks():
+    for seqid, beg, end in bed.get_breaks():
         ignore = abs(end - beg) < ignore_size
         pos = (beg + end) / 2
         chr_labels.append((seqid, pos, ignore))
@@ -662,7 +670,6 @@ OK, BREAK, END = range(3)
 
 
 def check_markers(a, b, maxdiff):
-
     if a.seqid != b.seqid:
         return END, None
     diff = hamming_distance(a.genotype, b.genotype, ignore="-")

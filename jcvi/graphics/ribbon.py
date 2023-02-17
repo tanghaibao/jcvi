@@ -476,7 +476,7 @@ class Synteny(object):
         # Check correct number of orientation values
         if orientation:
             if lo.lines != len(orientation):
-                print("Incorrect number of orientation instructions")
+                logging.error("Incorrect number of orientation instructions")
                 sys.exit(0)
 
         # Import features track
@@ -525,7 +525,7 @@ class Synteny(object):
                 # Pruning removes minor features with < 0.1% of the region
                 if prune_features:
                     fe_pruned = [x for x in fe if x.span >= span / 1000]
-                    print(
+                    logging.info(
                         "Extracted {0} features "
                         "({1} after pruning)".format(len(fe), len(fe_pruned)),
                         file=sys.stderr,
@@ -630,7 +630,7 @@ class Synteny(object):
                 )
 
         if scalebar:
-            print("Build scalebar (scale={})".format(scale), file=sys.stderr)
+            logging.info("Build scalebar (scale={})".format(scale), file=sys.stderr)
             # Find the best length of the scalebar
             ar = [1, 2, 5]
             candidates = (
@@ -828,6 +828,7 @@ def main():
 
     # Check for data files
     if len(args) != 3:
+        logging.error('Requires 3 data file args.')
         sys.exit(not p.print_help())
 
     # Unpack data file paths

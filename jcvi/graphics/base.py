@@ -336,6 +336,7 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
         message = "savefig failed. Reset usetex to False."
         message += "\n{0}".format(str(e))
         logging.error(message)
+        logging.debug(f"Matplotlib backend is: {mpl.get_backend()}")
         rc("text", usetex=False)
         plt.savefig(figname, dpi=dpi, transparent=transparent)
 

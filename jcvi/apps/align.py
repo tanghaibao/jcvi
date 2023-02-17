@@ -14,12 +14,13 @@ from subprocess import CalledProcessError
 
 from jcvi.utils.cbook import depends
 from jcvi.apps.base import (
-    OptionParser,
     ActionDispatcher,
-    sh,
+    OptionParser,
+    cleanup,
     get_abs_path,
-    which,
     mkdir,
+    sh,
+    which,
 )
 
 
@@ -540,7 +541,6 @@ def last(args, dbtype=None):
     u = 2 if opts.mask else 0
     cmd = "{0} -u {1} -i3G".format(lastal_bin, u)
     cmd += " -f {0}".format(opts.format)
-    cmd += " {0} {1}".format(subjectdb, query)
 
     minlen = opts.minlen
     minid = opts.minid
@@ -558,12 +558,13 @@ def last(args, dbtype=None):
     lastfile = get_outfile(subject, query, suffix="last", outdir=opts.outdir)
     # Make several attempts to run LASTAL
     try:
-        sh(cmd + f" -P {cpus}", outfile=lastfile, check=True)
+        sh(cmd + f" -P {cpus} {subjectdb} {query}", outfile=lastfile, check=True)
     except CalledProcessError:  # multi-threading disabled
         try:
-            sh(cmd + f" -P 1", outfile=lastfile, check=True)
+            sh(cmd + f" -P 1 {subjectdb} {query}", outfile=lastfile, check=True)
         except CalledProcessError:
             logging.fatal("Failed to run `lastal`. Aborted.")
+            cleanup(lastfile)
             sys.exit(1)
     return lastfile
 

@@ -1,0 +1,43 @@
+name: jcvidev
+channels:
+  - conda-forge
+  - anaconda
+  - bioconda
+  - defaults
+dependencies:
+  - conda-forge::python=3.10
+  - conda-forge::biopython  
+  - bioconda::bx-python
+  - bioconda::crossmap
+  - bioconda::gffutils
+  - bioconda::goatools
+  - bioconda::pybedtools
+  - bioconda::pyBigWig
+  - bioconda::pysam
+  - boto3
+  - brewer2mpl
+  - coveralls
+  - cython
+  - deap
+  - etetoolkit::ete3
+  - graphviz
+  - jinja2
+  - matplotlib
+  - more-itertools
+  - natsort
+  - networkx
+  - numpy
+  - pip
+  - pypdf2
+  - pytest
+  - pyyaml
+  - rich
+  - scikit-image
+  - scipy
+  - seaborn
+  - webcolors
+  - xlrd
+  - pip:
+    - ftpretty
+    - ortools
+    - latex

@@ -319,6 +319,7 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True):
         message = "savefig failed with message:"
         message += "\n{0}".format(str(e))
         logging.error(message)
+        logging.info("Try running again with --notex option to disable latex.")
         logging.debug(f"Matplotlib backend is: {mpl.get_backend()}")
         logging.debug(f"Attempted save as: {format}")
 

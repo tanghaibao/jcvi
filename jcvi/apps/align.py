@@ -10,7 +10,7 @@ import sys
 import shutil
 import logging
 
-from subprocess import CalledProcessError
+from subprocess import CalledProcessError, STDOUT
 
 from jcvi.utils.cbook import depends
 from jcvi.apps.base import (
@@ -558,12 +558,28 @@ def last(args, dbtype=None):
     lastfile = get_outfile(subject, query, suffix="last", outdir=opts.outdir)
     # Make several attempts to run LASTAL
     try:
-        sh(cmd + f" -P {cpus} {subjectdb} {query}", outfile=lastfile, check=True)
-    except CalledProcessError:  # multi-threading disabled
-        logging.error("Failed to run `lastal` with multi-threading. Trying again.")
+        sh(
+            cmd + f" -P {cpus} {subjectdb} {query}",
+            outfile=lastfile,
+            check=True,
+            redirect_error=STDOUT,
+        )
+    except CalledProcessError as e:  # multi-threading disabled
+        message = "lastal failed with message:"
+        message += "\n{0}".format(e.output.decode())
+        logging.error(message)
         try:
-            sh(cmd + f" -P 1 {subjectdb} {query}", outfile=lastfile, check=True)
-        except CalledProcessError:
+            logging.debug("Failed to run `lastal` with multi-threading. Trying again.")
+            sh(
+                cmd + f" -P 1 {subjectdb} {query}",
+                outfile=lastfile,
+                check=True,
+                redirect_error=STDOUT,
+            )
+        except CalledProcessError as e:
+            message = "lastal failed with message:"
+            message += "\n{0}".format(e.output.decode())
+            logging.error(message)
             logging.fatal("Failed to run `lastal`. Aborted.")
             cleanup(lastfile)
             sys.exit(1)

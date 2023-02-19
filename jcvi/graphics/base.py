@@ -334,12 +334,12 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
     try:
         plt.savefig(figname, dpi=dpi, format=format, transparent=transparent)
     except Exception as e:
-        message = "savefig failed. Reset usetex to False."
+        message = "savefig failed with message:"
         message += "\n{0}".format(str(e))
         logging.error(message)
+        logging.info("Try running again with --notex option to disable latex.")
         logging.debug(f"Matplotlib backend is: {mpl.get_backend()}")
-        rc("text", usetex=False)
-        plt.savefig(figname, dpi=dpi, transparent=transparent)
+        logging.debug(f"Attempted save as: {format}")
 
     msg = "Figure saved to `{0}`".format(figname)
     if iopts:

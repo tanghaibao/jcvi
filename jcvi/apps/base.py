@@ -22,7 +22,7 @@ from configparser import (
     ParsingError,
 )
 from socket import gethostname
-from subprocess import PIPE, call, check_call
+from subprocess import PIPE, call, check_output
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 from typing import Any, Collection, List, Optional, Union
 
@@ -1140,6 +1140,7 @@ def sh(
     silent=False,
     shell="/bin/bash",
     check=False,
+    redirect_error=None,
 ):
     """
     simple wrapper for system calls
@@ -1184,8 +1185,8 @@ def sh(
         if log:
             logging.debug(cmd)
 
-        call_func = check_call if check else call
-        return call_func(cmd, shell=True, executable=shell)
+        call_func = check_output if check else call
+        return call_func(cmd, shell=True, executable=shell, stderr=redirect_error)
 
 
 def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):

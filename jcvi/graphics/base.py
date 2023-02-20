@@ -3,6 +3,7 @@
 
 import copy
 import os.path as op
+from os import remove
 import sys
 import logging
 
@@ -314,14 +315,19 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True):
     except:
         format = "pdf"
     try:
+        logging.debug(f"Matplotlib backend is: {mpl.get_backend()}")
+        logging.debug(f"Attempting save as: {figname}")
         plt.savefig(figname, dpi=dpi, format=format)
     except Exception as e:
         message = "savefig failed with message:"
         message += "\n{0}".format(str(e))
         logging.error(message)
         logging.info("Try running again with --notex option to disable latex.")
-        logging.debug(f"Matplotlib backend is: {mpl.get_backend()}")
-        logging.debug(f"Attempted save as: {format}")
+        if op.exists(figname):
+            if op.getsize(figname) < 1000:
+                logging.debug(f"Cleaning up empty file: {figname}")
+                remove(figname)
+        sys.exit(1)
 
     msg = "Figure saved to `{0}`".format(figname)
     if iopts:

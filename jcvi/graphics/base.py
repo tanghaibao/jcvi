@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import copy
-import os.path as op
 from os import remove
-import sys
+import copy
 import logging
+import os.path as op
+import sys
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("numexpr").setLevel(logging.WARNING)

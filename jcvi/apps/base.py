@@ -588,6 +588,15 @@ class OptionParser(OptionP):
         assert "x" in opts.figsize
 
         iopts = ImageOptions(opts)
+
+        if opts.notex:
+            logging.info("--notex={}. latex use is disabled.".format(opts.notex))
+        elif not is_tex_available():
+            if not bool(which("latex")):
+                logging.info("`latex` not found. latex use is disabled.")
+            if not bool(which("lp")):
+                logging.info("`lp` not found. latex use is disabled.")
+
         setup_theme(style=opts.style, font=opts.font, usetex=iopts.usetex)
 
         return opts, args, iopts

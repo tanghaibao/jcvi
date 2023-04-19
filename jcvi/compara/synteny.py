@@ -21,6 +21,7 @@ from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name, human_size
 from jcvi.utils.range import range_chain
 from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup
+from .base import AnchorFile
 
 
 class BlockFile(BaseFile):

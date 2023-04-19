@@ -1329,6 +1329,9 @@ def anchors(args):
     """
     p = OptionParser(anchors.__doc__)
     p.set_outfile()
+    p.add_option(
+        "--best", default=False, action="store_true", help="Keep only the best hit"
+    )
     opts, args = p.parse_args(args)
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -1339,13 +1342,15 @@ def anchors(args):
     blast = Blast(blastfile)
     found, total = 0, 0
     fw = must_open(opts.outfile, "w")
+    seen = set()
     for rec in blast:
-        if (rec.query, rec.subject) in anchor_pairs or (
-            rec.subject,
-            rec.query,
-        ) in anchor_pairs:
+        pp = (rec.query, rec.subject)
+        if pp in anchor_pairs:
             found += 1
+            if opts.best and pp in seen:
+                continue
             print(rec, file=fw)
+            seen.add(pp)
         total += 1
     logging.info("Found %s", percentage(found, total))
 

@@ -15,7 +15,6 @@ from jcvi.formats.bed import Bed
 from jcvi.formats.base import must_open, BaseFile
 from jcvi.utils.grouper import Grouper
 from jcvi.utils.cbook import gene_name
-from jcvi.compara.synteny import AnchorFile, check_beds
 from jcvi.apps.base import (
     OptionParser,
     glob,
@@ -24,6 +23,8 @@ from jcvi.apps.base import (
     sh,
     mkdir,
 )
+from .base import AnchorFile
+from .synteny import check_beds
 
 
 class OMGFile(BaseFile):

@@ -210,7 +210,7 @@ def filter_exclude(blast_list, exclude=None):
         blast_list (List[BlastLine]): List of BlastLines
         exclude (str, optional): Path to the excluded anchors file. Defaults to None.
     """
-    from jcvi.compara.synteny import AnchorFile
+    from .base import AnchorFile
 
     excluded_pairs = set()
     ac = AnchorFile(exclude)

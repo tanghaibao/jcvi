@@ -128,9 +128,10 @@ def bed(args):
     Convert ANCHORS file to BED format.
     """
     from collections import defaultdict
-    from jcvi.compara.synteny import AnchorFile, check_beds
+    from jcvi.compara.synteny import check_beds
     from jcvi.formats.bed import Bed
     from jcvi.formats.base import get_number
+    from ..compara.base import AnchorFile
 
     p = OptionParser(bed.__doc__)
     p.add_option(

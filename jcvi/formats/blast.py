@@ -18,6 +18,7 @@ from jcvi.utils.range import range_distance
 from jcvi.utils.cbook import percentage
 from jcvi.assembly.base import calculate_A50
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
+from ..compara.base import AnchorFile
 
 
 try:
@@ -373,6 +374,7 @@ def main():
         ("covfilter", "filter BLAST file (based on id% and cov%)"),
         ("cscore", "calculate C-score for BLAST pairs"),
         ("best", "get best BLAST hit per query"),
+        ("anchors", "keep only the BLAST pairs that are in the anchors file"),
         ("pairs", "print paired-end reads of BLAST tabular file"),
         ("bed", "get bed file from BLAST tabular file"),
         ("condense", "group HSPs together for same query-subject pair"),
@@ -1315,6 +1317,37 @@ def pairs(args):
     args[args.index(blastfile)] = bedfile
 
     return jcvi.formats.bed.pairs(args)
+
+
+def anchors(args):
+    """
+    %prog anchors blastfile anchorsfile
+
+    Extract a subset of the BLAST file based on the anchors file. The anchors
+    file is a tab-delimited file with two columns, likely generated from synteny
+    pipeline. This is useful to filter down BLAST.
+    """
+    p = OptionParser(anchors.__doc__)
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blastfile, anchorsfile = args
+    anchor_file = AnchorFile(anchorsfile)
+    anchor_pairs = set((a, b) for a, b, _ in anchor_file.iter_pairs())
+    blast = Blast(blastfile)
+    found, total = 0, 0
+    fw = must_open(opts.outfile, "w")
+    for rec in blast:
+        if (rec.query, rec.subject) in anchor_pairs or (
+            rec.subject,
+            rec.query,
+        ) in anchor_pairs:
+            found += 1
+            print(rec, file=fw)
+        total += 1
+    logging.info("Found %s", percentage(found, total))
 
 
 def best(args):

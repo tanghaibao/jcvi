@@ -13,11 +13,12 @@ from itertools import zip_longest
 from math import sqrt
 from more_itertools import pairwise
 
-from jcvi.compara.synteny import AnchorFile, check_beds
+from jcvi.compara.synteny import check_beds
 from jcvi.formats.base import get_number
 from jcvi.formats.bed import Bed
 from jcvi.utils.grouper import Grouper
 from jcvi.apps.base import OptionParser, ActionDispatcher
+from .base import AnchorFile
 
 
 def main():

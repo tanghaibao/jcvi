@@ -8,12 +8,13 @@ import logging
 import sys
 
 from jcvi.apps.base import ActionDispatcher, OptionParser
-from jcvi.compara.synteny import AnchorFile, check_beds
+from jcvi.compara.synteny import check_beds
 from jcvi.formats.base import get_number
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import normalize_axes, panel_labels, plt, savefig
 from jcvi.graphics.glyph import TextCircle
 from jcvi.graphics.synteny import Synteny, draw_gene_legend
+from ..compara.base import AnchorFile
 
 
 def main():

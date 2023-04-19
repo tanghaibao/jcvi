@@ -1385,6 +1385,9 @@ def summary(args):
 
     Provide summary on id% and cov%, for both query and reference. Often used in
     comparing genomes (based on NUCMER results).
+
+    Columns:
+    filename, qrycovered, refcovered, qryspan, refspan, identicals, AL50
     """
     p = OptionParser(summary.__doc__)
     p.add_option(

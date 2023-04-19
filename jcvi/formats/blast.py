@@ -1387,7 +1387,8 @@ def summary(args):
     comparing genomes (based on NUCMER results).
 
     Columns:
-    filename, qrycovered, refcovered, qryspan, refspan, identicals, AL50
+    filename, identicals, qrycovered, pct_qrycovered, refcovered, pct_refcovered,
+    qryspan, pct_qryspan, refspan, pct_refspan
     """
     p = OptionParser(summary.__doc__)
     p.add_option(

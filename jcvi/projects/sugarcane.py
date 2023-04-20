@@ -10,9 +10,13 @@
 import logging
 import os.path as op
 import sys
-from random import random, sample
-from itertools import groupby
+
 from collections import Counter, defaultdict
+from glob import glob
+from itertools import groupby
+from random import random, sample
+from typing import Dict
+
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -20,6 +24,7 @@ import pandas as pd
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 from jcvi.graphics.base import adjust_spines, markup, normalize_axes, savefig
 from jcvi.utils.validator import validate_in_choices
+from ..formats.blast import Blast
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
@@ -595,18 +600,17 @@ def prepare(args):
     print(sizes)
 
 
-def divergence(args):
-    """
-    %prog divergence SS_SR_SO.summary.txt
+def get_genome_wide_pct(summary: str) -> Dict[tuple, list]:
+    """Collect genome-wide ungapped percent identity.
+    Specifically, from file `SS_SR_SO.summary.txt`.
 
-    Plot divergence between and within SS/SR/SO genomes.
-    """
-    p = OptionParser(divergence.__doc__)
-    _, args = p.parse_args(args)
-    if len(args) != 1:
-        sys.exit(not p.print_help())
+    Args:
+        summary (str): File that contains per chromosome pct identity info,
+        collected via `formats.blast.summary()`.
 
-    (summary,) = args
+    Returns:
+        Dict[tuple, list]: Genome pair to list of pct identities.
+    """
     COLUMNS = "filename, identicals, qry_gapless, qry_gapless_pct, ref_gapless, ref_gapless_pct, qryspan, pct_qryspan, refspan, pct_refspan".split(
         ", "
     )
@@ -630,9 +634,66 @@ def divergence(args):
             row["ref_gapless_pct"],
         )
         data_by_genomes[(genome1, genome2)] += [qry_gapless_pct, ref_gapless_pct]
+    return data_by_genomes
 
+
+def get_anchors_pct(filename: str, min_pct: int = 90, strict: bool = True) -> list:
+    """Collect CDS-wide ungapped percent identity.
+
+    Args:
+        filename (str): Input file name, which is a LAST file.
+
+    Returns:
+        list: List of pct identities from this LAST file.
+    """
+    blast = Blast(filename)
+    pct = []
+    for c in blast:
+        if c.pctid < min_pct:
+            continue
+        identicals = c.hitlen - c.nmismatch - c.ngaps
+        qstart, qstop = c.qstart, c.qstop
+        sstart, sstop = c.sstart, c.sstop
+        qrycovered = qstop - qstart + 1
+        refcovered = sstop - sstart + 1
+        if strict:
+            qrycovered -= c.ngaps
+            refcovered -= c.ngaps
+        pct.append(identicals / qrycovered)
+        pct.append(identicals / refcovered)
+    return pct
+
+
+def divergence(args):
+    """
+    %prog divergence SS_SR_SO.summary.txt anchors
+
+    Plot divergence between and within SS/SR/SO genomes.
+    """
+    p = OptionParser(divergence.__doc__)
+    _, args = p.parse_args(args)
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    (summary, anchors_dir) = args
+    data_by_genomes = get_genome_wide_pct(summary)
     # Print summary statistics
+    print("Genome-wide ungapped percent identity:")
     for (genome1, genome2), pct in sorted(data_by_genomes.items()):
+        print(genome1, genome2, np.mean(pct), np.std(pct))
+
+    # Find CDS matches
+    anchors_last_files = glob(op.join(anchors_dir, "*.anchors.last"))
+    anchors_by_genomes = defaultdict(list)
+    GENOME_NAME_MAPPER = {"robustum": "SR", "officinarum": "SO", "spontaneum": "SS"}
+    for filename in anchors_last_files:
+        genome1, genome2 = op.basename(filename).split(".")[:2]
+        genome1, genome2 = GENOME_NAME_MAPPER[genome1], GENOME_NAME_MAPPER[genome2]
+        pct = get_anchors_pct(filename)
+        anchors_by_genomes[(genome1, genome2)] = pct
+    # Print summary statistics
+    print("CDS anchors ungapped percent identity:")
+    for (genome1, genome2), pct in sorted(anchors_by_genomes.items()):
         print(genome1, genome2, np.mean(pct), np.std(pct))
 
 

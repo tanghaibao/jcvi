@@ -637,7 +637,7 @@ def get_genome_wide_pct(summary: str) -> Dict[tuple, list]:
     return data_by_genomes
 
 
-def get_anchors_pct(filename: str, min_pct: int = 90, strict: bool = True) -> list:
+def get_anchors_pct(filename: str, min_pct: int = 94) -> list:
     """Collect CDS-wide ungapped percent identity.
 
     Args:
@@ -656,11 +656,8 @@ def get_anchors_pct(filename: str, min_pct: int = 90, strict: bool = True) -> li
         sstart, sstop = c.sstart, c.sstop
         qrycovered = qstop - qstart + 1
         refcovered = sstop - sstart + 1
-        if strict:
-            qrycovered -= c.ngaps
-            refcovered -= c.ngaps
-        pct.append(identicals / qrycovered)
-        pct.append(identicals / refcovered)
+        pct.append(identicals * 100 / qrycovered)
+        pct.append(identicals * 100 / refcovered)
     return pct
 
 
@@ -695,6 +692,8 @@ def divergence(args):
     print("CDS anchors ungapped percent identity:")
     for (genome1, genome2), pct in sorted(anchors_by_genomes.items()):
         print(genome1, genome2, np.mean(pct), np.std(pct))
+
+    # Plotting genome-wide divergence
 
 
 def main():

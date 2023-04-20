@@ -13,7 +13,7 @@ import sys
 
 from collections import Counter, defaultdict
 from glob import glob
-from itertools import combinations, groupby
+from itertools import combinations, groupby, product
 from random import random, sample
 from typing import Dict
 
@@ -700,33 +700,45 @@ def divergence(args):
     fig = plt.figure(figsize=(iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
     SPECIES_CONFIG = {
-        "SS": {"label": "S. spontaneum", "pos": (0.5, 0.7)},
+        "SS": {"label": "S. spontaneum", "pos": (0.5, 0.67)},
         "SR": {"label": "S. robustum", "pos": (0.2, 0.3)},
         "SO": {"label": "S. officinarum", "pos": (0.8, 0.3)},
     }
-    for _, config in SPECIES_CONFIG.items():
+    # Get median for each genome pair
+    medians = {}
+    for (g1, g2) in product(SPECIES_CONFIG.keys(), repeat=2):
+        g1, g2 = sorted((g1, g2))
+        d = data_by_genomes[(g1, g2)]
+        medians[(g1, g2)] = np.median(d)
+    for g, config in SPECIES_CONFIG.items():
         x, y = config["pos"]
-        text = markup(f'*{config["label"]}*')
+        text = f'*{config["label"]}*' + f"\n{medians[(g, g)]:.1f} %"
+        text = markup(text)
         root.text(x, y, text, color="darkslategray", ha="center", va="center")
 
     # Connect lines
-    PAD, YPAD = 0.08, 0.05
+    PAD, YPAD = 0.09, 0.045
     for g1, g2 in combinations(SPECIES_CONFIG.keys(), 2):
+        g1, g2 = sorted((g1, g2))
         x1, y1 = SPECIES_CONFIG[g1]["pos"]
         x2, y2 = SPECIES_CONFIG[g2]["pos"]
         x1, x2 = (x1 + PAD, x2 - PAD) if x1 < x2 else (x1 - PAD, x2 + PAD)
         if y1 != y2:
             y1, y2 = (y1 + YPAD, y2 - YPAD) if y1 < y2 else (y1 - YPAD, y2 + YPAD)
-        root.plot([x1, x2], [y1, y2], "k-", lw=4, color="darkslategray")
+        xmid, ymid = (x1 + x2) / 2, (y1 + y2) / 2
+        text = f"{medians[(g1, g2)]:.1f} %"
+        text = markup(text)
+        root.text(xmid, ymid, text, ha="center", va="center", backgroundcolor="w")
+        root.plot([x1, x2], [y1, y2], "-", lw=4, color="darkslategray")
 
     # Pct identity histograms
     PCT_CONFIG = {
-        ("SS", "SS"): {"pos": (0.5, 0.8)},
+        ("SS", "SS"): {"pos": (0.5, 0.82)},
         ("SR", "SR"): {"pos": (0.1, 0.2)},
         ("SO", "SO"): {"pos": (0.9, 0.2)},
-        ("SR", "SS"): {"pos": (0.3, 0.5)},
-        ("SO", "SR"): {"pos": (0.7, 0.5)},
-        ("SO", "SS"): {"pos": (0.5, 0.1)},
+        ("SR", "SS"): {"pos": (0.3 - PAD, 0.55)},
+        ("SO", "SS"): {"pos": (0.7 + PAD, 0.55)},
+        ("SO", "SR"): {"pos": (0.5, 0.18)},
     }
     HIST_WIDTH = 0.15
     for genome_pair, config in PCT_CONFIG.items():
@@ -735,23 +747,21 @@ def divergence(args):
             [x - HIST_WIDTH / 2, y - HIST_WIDTH / 2, HIST_WIDTH, HIST_WIDTH]
         )
         d = data_by_genomes[genome_pair]
-        med = np.median(d)
-        g1, g2 = genome_pair
-        ax.text(
-            0.5,
-            0.9,
-            f"{g1}-{g2}: {med:.1f} %".format(med),
-            transform=ax.transAxes,
-            ha="center",
-            va="center",
-            color="b",
-        )
         sns.histplot(d, ax=ax, bins=5, kde=False)
-        ax.set_xlim(94, 100)
-        ax.set_yticks([])
-        ax.set_ylabel("")
+        ax.set_xlim(95, 100)
+        ax.get_yaxis().set_visible(False)
+        ax.set_xticks([95, 100])
         adjust_spines(ax, ["bottom"], outward=True)
+        ax.spines["bottom"].set_color("lightslategray")
 
+    root.text(
+        0.5,
+        0.95,
+        "Ungapped identities between and within SS/SR/SO genomes",
+        size=14,
+        ha="center",
+        va="center",
+    )
     normalize_axes(root)
     image_name = "SO_SR_SS.pct_id." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

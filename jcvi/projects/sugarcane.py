@@ -13,12 +13,13 @@ import sys
 
 from collections import Counter, defaultdict
 from glob import glob
-from itertools import groupby
+from itertools import combinations, groupby
 from random import random, sample
 from typing import Dict
 
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
 import pandas as pd
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
@@ -414,8 +415,6 @@ def simulate(args):
     understand the mode and the spread of such diversity in the hybrid
     progenies.
     """
-    import seaborn as sns
-
     sns.set_style("darkgrid")
 
     p = OptionParser(simulate.__doc__)
@@ -589,7 +588,7 @@ def prepare(args):
     Calculate lengths from real sugarcane data.
     """
     p = OptionParser(prepare.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
     if len(args) != 2:
         sys.exit(not p.print_help())
 
@@ -667,8 +666,10 @@ def divergence(args):
 
     Plot divergence between and within SS/SR/SO genomes.
     """
+    sns.set_style("white")
+
     p = OptionParser(divergence.__doc__)
-    _, args = p.parse_args(args)
+    _, args, iopts = p.set_image_options(args, figsize="8x8")
     if len(args) != 2:
         sys.exit(not p.print_help())
 
@@ -680,6 +681,7 @@ def divergence(args):
         print(genome1, genome2, np.mean(pct), np.std(pct))
 
     # Find CDS matches
+    """
     anchors_last_files = glob(op.join(anchors_dir, "*.anchors.last"))
     anchors_by_genomes = defaultdict(list)
     GENOME_NAME_MAPPER = {"robustum": "SR", "officinarum": "SO", "spontaneum": "SS"}
@@ -692,8 +694,67 @@ def divergence(args):
     print("CDS anchors ungapped percent identity:")
     for (genome1, genome2), pct in sorted(anchors_by_genomes.items()):
         print(genome1, genome2, np.mean(pct), np.std(pct))
+    """
 
     # Plotting genome-wide divergence
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    SPECIES_CONFIG = {
+        "SS": {"label": "S. spontaneum", "pos": (0.5, 0.7)},
+        "SR": {"label": "S. robustum", "pos": (0.2, 0.3)},
+        "SO": {"label": "S. officinarum", "pos": (0.8, 0.3)},
+    }
+    for _, config in SPECIES_CONFIG.items():
+        x, y = config["pos"]
+        text = markup(f'*{config["label"]}*')
+        root.text(x, y, text, color="darkslategray", ha="center", va="center")
+
+    # Connect lines
+    PAD, YPAD = 0.08, 0.05
+    for g1, g2 in combinations(SPECIES_CONFIG.keys(), 2):
+        x1, y1 = SPECIES_CONFIG[g1]["pos"]
+        x2, y2 = SPECIES_CONFIG[g2]["pos"]
+        x1, x2 = (x1 + PAD, x2 - PAD) if x1 < x2 else (x1 - PAD, x2 + PAD)
+        if y1 != y2:
+            y1, y2 = (y1 + YPAD, y2 - YPAD) if y1 < y2 else (y1 - YPAD, y2 + YPAD)
+        root.plot([x1, x2], [y1, y2], "k-", lw=4, color="darkslategray")
+
+    # Pct identity histograms
+    PCT_CONFIG = {
+        ("SS", "SS"): {"pos": (0.5, 0.8)},
+        ("SR", "SR"): {"pos": (0.1, 0.2)},
+        ("SO", "SO"): {"pos": (0.9, 0.2)},
+        ("SR", "SS"): {"pos": (0.3, 0.5)},
+        ("SO", "SR"): {"pos": (0.7, 0.5)},
+        ("SO", "SS"): {"pos": (0.5, 0.1)},
+    }
+    HIST_WIDTH = 0.15
+    for genome_pair, config in PCT_CONFIG.items():
+        x, y = config["pos"]
+        ax = fig.add_axes(
+            [x - HIST_WIDTH / 2, y - HIST_WIDTH / 2, HIST_WIDTH, HIST_WIDTH]
+        )
+        d = data_by_genomes[genome_pair]
+        med = np.median(d)
+        g1, g2 = genome_pair
+        ax.text(
+            0.5,
+            0.9,
+            f"{g1}-{g2}: {med:.1f} %".format(med),
+            transform=ax.transAxes,
+            ha="center",
+            va="center",
+            color="b",
+        )
+        sns.histplot(d, ax=ax, bins=5, kde=False)
+        ax.set_xlim(94, 100)
+        ax.set_yticks([])
+        ax.set_ylabel("")
+        adjust_spines(ax, ["bottom"], outward=True)
+
+    normalize_axes(root)
+    image_name = "SO_SR_SS.pct_id." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def main():

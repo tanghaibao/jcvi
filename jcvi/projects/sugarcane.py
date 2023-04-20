@@ -12,9 +12,10 @@ import os.path as op
 import sys
 from random import random, sample
 from itertools import groupby
-from collections import Counter
+from collections import Counter, defaultdict
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 from jcvi.graphics.base import adjust_spines, markup, normalize_axes, savefig
@@ -594,11 +595,54 @@ def prepare(args):
     print(sizes)
 
 
+def divergence(args):
+    """
+    %prog divergence SS_SR_SO.summary.txt
+
+    Plot divergence between and within SS/SR/SO genomes.
+    """
+    p = OptionParser(divergence.__doc__)
+    _, args = p.parse_args(args)
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (summary,) = args
+    COLUMNS = "filename, identicals, qry_gapless, qry_gapless_pct, ref_gapless, ref_gapless_pct, qryspan, pct_qryspan, refspan, pct_refspan".split(
+        ", "
+    )
+    df = pd.read_csv(summary, sep="\t", names=COLUMNS)
+    data_by_genomes = defaultdict(list)
+    for _, row in df.iterrows():
+        filename = row["filename"]
+        # e.g. SO_Chr01A.SO_Chr01B.1-1.blast
+        chr1, chr2 = filename.split(".")[:2]
+        genome1, chr1 = chr1.split("_")
+        genome2, chr2 = chr2.split("_")
+        chr1, chr2 = chr1[:5], chr2[:5]
+        if (  # Special casing for SS certain chromosomes that are non-collinear with SO/SR
+            genome1 != "SS"
+            and genome2 == "SS"
+            and chr2 not in ("Chr01", "Chr03", "Chr04")
+        ):
+            continue
+        qry_gapless_pct, ref_gapless_pct = (
+            row["qry_gapless_pct"],
+            row["ref_gapless_pct"],
+        )
+        data_by_genomes[(genome1, genome2)] += [qry_gapless_pct, ref_gapless_pct]
+
+    # Print summary statistics
+    for (genome1, genome2), pct in sorted(data_by_genomes.items()):
+        print(genome1, genome2, np.mean(pct), np.std(pct))
+
+
 def main():
 
     actions = (
         ("prepare", "Calculate lengths from real sugarcane data"),
         ("simulate", "Run simulation on female restitution"),
+        # Plotting scripts to illustrate divergence between and within genomes
+        ("divergence", "Plot divergence between and within SS/SR/SO genomes"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

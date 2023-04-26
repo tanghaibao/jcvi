@@ -10,15 +10,22 @@
 import logging
 import os.path as op
 import sys
+
+from collections import Counter, defaultdict
+from glob import glob
+from itertools import combinations, groupby, product
 from random import random, sample
-from itertools import groupby
-from collections import Counter
+from typing import Dict
+
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 
 from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
 from jcvi.graphics.base import adjust_spines, markup, normalize_axes, savefig
 from jcvi.utils.validator import validate_in_choices
+from ..formats.blast import Blast
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
@@ -408,8 +415,6 @@ def simulate(args):
     understand the mode and the spread of such diversity in the hybrid
     progenies.
     """
-    import seaborn as sns
-
     sns.set_style("darkgrid")
 
     p = OptionParser(simulate.__doc__)
@@ -583,7 +588,7 @@ def prepare(args):
     Calculate lengths from real sugarcane data.
     """
     p = OptionParser(prepare.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
     if len(args) != 2:
         sys.exit(not p.print_help())
 
@@ -594,11 +599,181 @@ def prepare(args):
     print(sizes)
 
 
+def get_genome_wide_pct(summary: str) -> Dict[tuple, list]:
+    """Collect genome-wide ungapped percent identity.
+    Specifically, from file `SS_SR_SO.summary.txt`.
+
+    Args:
+        summary (str): File that contains per chromosome pct identity info,
+        collected via `formats.blast.summary()`.
+
+    Returns:
+        Dict[tuple, list]: Genome pair to list of pct identities.
+    """
+    COLUMNS = "filename, identicals, qry_gapless, qry_gapless_pct, ref_gapless, ref_gapless_pct, qryspan, pct_qryspan, refspan, pct_refspan".split(
+        ", "
+    )
+    df = pd.read_csv(summary, sep="\t", names=COLUMNS)
+    data_by_genomes = defaultdict(list)
+    for _, row in df.iterrows():
+        filename = row["filename"]
+        # e.g. SO_Chr01A.SO_Chr01B.1-1.blast
+        chr1, chr2 = filename.split(".")[:2]
+        genome1, chr1 = chr1.split("_")
+        genome2, chr2 = chr2.split("_")
+        chr1, chr2 = chr1[:5], chr2[:5]
+        if (  # Special casing for SS certain chromosomes that are non-collinear with SO/SR
+            genome1 != "SS"
+            and genome2 == "SS"
+            and chr2 not in ("Chr01", "Chr03", "Chr04")
+        ):
+            continue
+        qry_gapless_pct, ref_gapless_pct = (
+            row["qry_gapless_pct"],
+            row["ref_gapless_pct"],
+        )
+        data_by_genomes[(genome1, genome2)] += [qry_gapless_pct, ref_gapless_pct]
+    return data_by_genomes
+
+
+def get_anchors_pct(filename: str, min_pct: int = 94) -> list:
+    """Collect CDS-wide ungapped percent identity.
+
+    Args:
+        filename (str): Input file name, which is a LAST file.
+
+    Returns:
+        list: List of pct identities from this LAST file.
+    """
+    blast = Blast(filename)
+    pct = []
+    for c in blast:
+        if c.pctid < min_pct:
+            continue
+        identicals = c.hitlen - c.nmismatch - c.ngaps
+        qstart, qstop = c.qstart, c.qstop
+        sstart, sstop = c.sstart, c.sstop
+        qrycovered = qstop - qstart + 1
+        refcovered = sstop - sstart + 1
+        pct.append(identicals * 100 / qrycovered)
+        pct.append(identicals * 100 / refcovered)
+    return pct
+
+
+def divergence(args):
+    """
+    %prog divergence SS_SR_SO.summary.txt anchors
+
+    Plot divergence between and within SS/SR/SO genomes.
+    """
+    sns.set_style("white")
+
+    p = OptionParser(divergence.__doc__)
+    _, args, iopts = p.set_image_options(args, figsize="8x8")
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    (summary, anchors_dir) = args
+    data_by_genomes = get_genome_wide_pct(summary)
+    # Print summary statistics
+    print("Genome-wide ungapped percent identity:")
+    for (genome1, genome2), pct in sorted(data_by_genomes.items()):
+        print(genome1, genome2, np.mean(pct), np.std(pct))
+
+    # Find CDS matches
+    """
+    anchors_last_files = glob(op.join(anchors_dir, "*.anchors.last"))
+    anchors_by_genomes = defaultdict(list)
+    GENOME_NAME_MAPPER = {"robustum": "SR", "officinarum": "SO", "spontaneum": "SS"}
+    for filename in anchors_last_files:
+        genome1, genome2 = op.basename(filename).split(".")[:2]
+        genome1, genome2 = GENOME_NAME_MAPPER[genome1], GENOME_NAME_MAPPER[genome2]
+        pct = get_anchors_pct(filename)
+        anchors_by_genomes[(genome1, genome2)] = pct
+    # Print summary statistics
+    print("CDS anchors ungapped percent identity:")
+    for (genome1, genome2), pct in sorted(anchors_by_genomes.items()):
+        print(genome1, genome2, np.mean(pct), np.std(pct))
+    """
+
+    # Plotting genome-wide divergence
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    SPECIES_CONFIG = {
+        "SS": {"label": "S. spontaneum", "pos": (0.5, 0.67)},
+        "SR": {"label": "S. robustum", "pos": (0.2, 0.3)},
+        "SO": {"label": "S. officinarum", "pos": (0.8, 0.3)},
+    }
+    # Get median for each genome pair
+    medians = {}
+    for (g1, g2) in product(SPECIES_CONFIG.keys(), repeat=2):
+        g1, g2 = sorted((g1, g2))
+        d = data_by_genomes[(g1, g2)]
+        medians[(g1, g2)] = np.median(d)
+    for g, config in SPECIES_CONFIG.items():
+        x, y = config["pos"]
+        text = f'*{config["label"]}*' + f"\n{medians[(g, g)]:.1f} %"
+        text = markup(text)
+        root.text(x, y, text, color="darkslategray", ha="center", va="center")
+
+    # Connect lines
+    PAD, YPAD = 0.09, 0.045
+    for g1, g2 in combinations(SPECIES_CONFIG.keys(), 2):
+        g1, g2 = sorted((g1, g2))
+        x1, y1 = SPECIES_CONFIG[g1]["pos"]
+        x2, y2 = SPECIES_CONFIG[g2]["pos"]
+        x1, x2 = (x1 + PAD, x2 - PAD) if x1 < x2 else (x1 - PAD, x2 + PAD)
+        if y1 != y2:
+            y1, y2 = (y1 + YPAD, y2 - YPAD) if y1 < y2 else (y1 - YPAD, y2 + YPAD)
+        xmid, ymid = (x1 + x2) / 2, (y1 + y2) / 2
+        text = f"{medians[(g1, g2)]:.1f} %"
+        text = markup(text)
+        root.text(xmid, ymid, text, ha="center", va="center", backgroundcolor="w")
+        root.plot([x1, x2], [y1, y2], "-", lw=4, color="darkslategray")
+
+    # Pct identity histograms
+    PCT_CONFIG = {
+        ("SS", "SS"): {"pos": (0.5, 0.82)},
+        ("SR", "SR"): {"pos": (0.1, 0.2)},
+        ("SO", "SO"): {"pos": (0.9, 0.2)},
+        ("SR", "SS"): {"pos": (0.3 - PAD, 0.55)},
+        ("SO", "SS"): {"pos": (0.7 + PAD, 0.55)},
+        ("SO", "SR"): {"pos": (0.5, 0.18)},
+    }
+    HIST_WIDTH = 0.15
+    for genome_pair, config in PCT_CONFIG.items():
+        x, y = config["pos"]
+        ax = fig.add_axes(
+            [x - HIST_WIDTH / 2, y - HIST_WIDTH / 2, HIST_WIDTH, HIST_WIDTH]
+        )
+        d = data_by_genomes[genome_pair]
+        sns.histplot(d, ax=ax, bins=5, kde=False)
+        ax.set_xlim(95, 100)
+        ax.get_yaxis().set_visible(False)
+        ax.set_xticks([95, 100])
+        adjust_spines(ax, ["bottom"], outward=True)
+        ax.spines["bottom"].set_color("lightslategray")
+
+    root.text(
+        0.5,
+        0.95,
+        "Ungapped identities between and within SS/SR/SO genomes",
+        size=14,
+        ha="center",
+        va="center",
+    )
+    normalize_axes(root)
+    image_name = "SO_SR_SS.pct_id." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
 def main():
 
     actions = (
         ("prepare", "Calculate lengths from real sugarcane data"),
         ("simulate", "Run simulation on female restitution"),
+        # Plotting scripts to illustrate divergence between and within genomes
+        ("divergence", "Plot divergence between and within SS/SR/SO genomes"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

@@ -21,9 +21,10 @@ import os.path as op
 import sys
 
 from jcvi.algorithms.lpsolve import MIPDataModel
-from jcvi.compara.synteny import AnchorFile, _score, check_beds
+from jcvi.compara.synteny import _score, check_beds
 from jcvi.formats.base import must_open
 from jcvi.apps.base import OptionParser
+from .base import AnchorFile
 
 
 def get_1D_overlap(eclusters, depth=1):

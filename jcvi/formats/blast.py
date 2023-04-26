@@ -18,6 +18,7 @@ from jcvi.utils.range import range_distance
 from jcvi.utils.cbook import percentage
 from jcvi.assembly.base import calculate_A50
 from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
+from ..compara.base import AnchorFile
 
 
 try:
@@ -373,6 +374,7 @@ def main():
         ("covfilter", "filter BLAST file (based on id% and cov%)"),
         ("cscore", "calculate C-score for BLAST pairs"),
         ("best", "get best BLAST hit per query"),
+        ("anchors", "keep only the BLAST pairs that are in the anchors file"),
         ("pairs", "print paired-end reads of BLAST tabular file"),
         ("bed", "get bed file from BLAST tabular file"),
         ("condense", "group HSPs together for same query-subject pair"),
@@ -1317,6 +1319,42 @@ def pairs(args):
     return jcvi.formats.bed.pairs(args)
 
 
+def anchors(args):
+    """
+    %prog anchors blastfile anchorsfile
+
+    Extract a subset of the BLAST file based on the anchors file. The anchors
+    file is a tab-delimited file with two columns, likely generated from synteny
+    pipeline. This is useful to filter down BLAST.
+    """
+    p = OptionParser(anchors.__doc__)
+    p.set_outfile()
+    p.add_option(
+        "--best", default=False, action="store_true", help="Keep only the best hit"
+    )
+    opts, args = p.parse_args(args)
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blastfile, anchorsfile = args
+    anchor_file = AnchorFile(anchorsfile)
+    anchor_pairs = set((a, b) for a, b, _ in anchor_file.iter_pairs())
+    blast = Blast(blastfile)
+    found, total = 0, 0
+    fw = must_open(opts.outfile, "w")
+    seen = set()
+    for rec in blast:
+        pp = (rec.query, rec.subject)
+        if pp in anchor_pairs:
+            found += 1
+            if opts.best and pp in seen:
+                continue
+            print(rec, file=fw)
+            seen.add(pp)
+        total += 1
+    logging.info("Found %s", percentage(found, total))
+
+
 def best(args):
     """
     %prog best blastfile
@@ -1385,6 +1423,10 @@ def summary(args):
 
     Provide summary on id% and cov%, for both query and reference. Often used in
     comparing genomes (based on NUCMER results).
+
+    Columns:
+    filename, identicals, qrycovered, pct_qrycovered, refcovered, pct_refcovered,
+    qryspan, pct_qryspan, refspan, pct_refspan
     """
     p = OptionParser(summary.__doc__)
     p.add_option(

@@ -33,7 +33,7 @@ import string
 
 from random import sample
 
-from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds, get_orientation
+from jcvi.compara.synteny import batch_scan, check_beds, get_orientation
 from jcvi.utils.cbook import seqid_parse, thousands
 from jcvi.apps.base import OptionParser, need_update
 from jcvi.graphics.base import (
@@ -48,6 +48,7 @@ from jcvi.graphics.base import (
     normalize_axes,
     set1,
 )
+from ..compara.base import AnchorFile
 
 
 class Palette(dict):

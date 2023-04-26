@@ -20,10 +20,11 @@ from math import log
 import numpy as np
 from more_itertools import pairwise
 
-from jcvi.compara.synteny import AnchorFile, check_beds
+from jcvi.compara.synteny import check_beds
 from jcvi.formats.bed import Bed
 from jcvi.formats.blast import BlastLine
 from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from .base import AnchorFile
 
 
 def main():

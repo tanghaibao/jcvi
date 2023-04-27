@@ -322,9 +322,7 @@ def filter(args):
         opts.noself,
     )
     newblastfile = (
-        blastfile + ".P{0}L{1}".format(int(pctid), hitlen)
-        if outfile is None
-        else outfile
+        blastfile + ".P{0}L{1}".format(pctid, hitlen) if outfile is None else outfile
     )
     if inverse:
         newblastfile += ".inverse"

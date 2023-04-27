@@ -453,7 +453,7 @@ class OptionParser(OptionP):
     ):
         if pctid is not None:
             self.add_option(
-                "--pctid", default=pctid, type="int", help="Sequence percent identity"
+                "--pctid", default=pctid, type="float", help="Sequence percent identity"
             )
         if hitlen is not None:
             self.add_option(

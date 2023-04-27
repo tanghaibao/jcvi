@@ -643,6 +643,12 @@ def ortholog(args):
     p.add_option("--quota", help="Quota align parameter")
     p.add_option("--exclude", help="Remove anchors from a previous run")
     p.add_option(
+        "--self_remove",
+        default=98,
+        type="float",
+        help="Remove self hits that are above this percent identity",
+    )
+    p.add_option(
         "--no_strip_names",
         default=False,
         action="store_true",
@@ -687,10 +693,13 @@ def ortholog(args):
     if need_update((afasta, bfasta), last, warn=True):
         last_main([bfasta, afasta, cpus_flag], dbtype)
 
+    self_remove = opts.self_remove
     if a == b:
-        lastself = last + ".P98L0.inverse"
+        lastself = last + f".P{self_remove}L0.inverse"
         if need_update(last, lastself, warn=True):
-            filter([last, "--hitlen=0", "--pctid=98", "--inverse", "--noself"])
+            filter(
+                [last, "--hitlen=0", f"--pctid={self_remove}", "--inverse", "--noself"]
+            )
         last = lastself
 
     filtered_last = last + ".filtered"

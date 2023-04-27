@@ -757,7 +757,7 @@ def divergence(args):
     root.text(
         0.5,
         0.95,
-        "Ungapped identities between and within SS/SR/SO genomes",
+        "Gapless identities between and within SS/SR/SO genomes",
         size=14,
         ha="center",
         va="center",

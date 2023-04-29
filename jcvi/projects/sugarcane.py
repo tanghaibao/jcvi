@@ -662,39 +662,30 @@ def get_anchors_pct(filename: str, min_pct: int = 94) -> list:
 
 def divergence(args):
     """
-    %prog divergence SS_SR_SO.summary.txt anchors
+    %prog divergence SS_SR_SO.summary.txt
 
     Plot divergence between and within SS/SR/SO genomes.
     """
     sns.set_style("white")
 
     p = OptionParser(divergence.__doc__)
-    _, args, iopts = p.set_image_options(args, figsize="8x8")
-    if len(args) != 2:
+    p.add_option("--title", default="Gapless", help="Plot title")
+    p.add_option(
+        "--xmin",
+        default=94,
+        type="int",
+        help="Minimum percent identity in the histogram",
+    )
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+    if len(args) != 1:
         sys.exit(not p.print_help())
 
-    (summary, anchors_dir) = args
+    (summary,) = args
     data_by_genomes = get_genome_wide_pct(summary)
     # Print summary statistics
     print("Genome-wide ungapped percent identity:")
     for (genome1, genome2), pct in sorted(data_by_genomes.items()):
         print(genome1, genome2, np.mean(pct), np.std(pct))
-
-    # Find CDS matches
-    """
-    anchors_last_files = glob(op.join(anchors_dir, "*.anchors.last"))
-    anchors_by_genomes = defaultdict(list)
-    GENOME_NAME_MAPPER = {"robustum": "SR", "officinarum": "SO", "spontaneum": "SS"}
-    for filename in anchors_last_files:
-        genome1, genome2 = op.basename(filename).split(".")[:2]
-        genome1, genome2 = GENOME_NAME_MAPPER[genome1], GENOME_NAME_MAPPER[genome2]
-        pct = get_anchors_pct(filename)
-        anchors_by_genomes[(genome1, genome2)] = pct
-    # Print summary statistics
-    print("CDS anchors ungapped percent identity:")
-    for (genome1, genome2), pct in sorted(anchors_by_genomes.items()):
-        print(genome1, genome2, np.mean(pct), np.std(pct))
-    """
 
     # Plotting genome-wide divergence
     fig = plt.figure(figsize=(iopts.w, iopts.h))
@@ -741,29 +732,33 @@ def divergence(args):
         ("SO", "SR"): {"pos": (0.5, 0.18)},
     }
     HIST_WIDTH = 0.15
+    xmin = opts.xmin
     for genome_pair, config in PCT_CONFIG.items():
         x, y = config["pos"]
         ax = fig.add_axes(
             [x - HIST_WIDTH / 2, y - HIST_WIDTH / 2, HIST_WIDTH, HIST_WIDTH]
         )
         d = data_by_genomes[genome_pair]
-        sns.histplot(d, ax=ax, bins=5, kde=False)
-        ax.set_xlim(95, 100)
+        binwidth = (100 - xmin) / 20
+        sns.histplot(d, ax=ax, binwidth=binwidth, kde=False)
+        ax.set_xlim(xmin, 100)
         ax.get_yaxis().set_visible(False)
-        ax.set_xticks([95, 100])
+        ax.set_xticks([xmin, 100])
         adjust_spines(ax, ["bottom"], outward=True)
         ax.spines["bottom"].set_color("lightslategray")
 
+    title = opts.title
+    italic_title = markup(f"*{title}*")
     root.text(
         0.5,
         0.95,
-        "Gapless identities between and within SS/SR/SO genomes",
+        f"{italic_title} identities between and within SS/SR/SO genomes",
         size=14,
         ha="center",
         va="center",
     )
     normalize_axes(root)
-    image_name = "SO_SR_SS.pct_id." + iopts.format
+    image_name = f"SO_SR_SS.{title}." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

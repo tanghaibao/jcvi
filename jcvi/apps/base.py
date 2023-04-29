@@ -168,24 +168,11 @@ class OptionParser(OptionP):
             help="Run on the grid",
         )
 
-    def set_grid_opts(self, array=False, vcode="99999"):
-        queue_choices = ("default", "fast", "medium", "himem")
-        valid_pcodes = popen("qconf -sprjl", debug=False).read().strip().split("\n")
-        valid_pcodes.append(vcode)
-
+    def set_grid_opts(self, array=False):
         group = OptionGroup(self, "Grid parameters")
-        group.add_option(
-            "-P",
-            dest="pcode",
-            default=vcode,
-            choices=valid_pcodes,
-            help="Specify accounting project code",
-        )
         group.add_option(
             "-l",
             dest="queue",
-            default="default",
-            choices=queue_choices,
             help="Name of the queue",
         )
         group.add_option(

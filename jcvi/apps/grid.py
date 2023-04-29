@@ -420,12 +420,11 @@ class Grid(list):
 
 
 PBS_STANZA = """
-#PBS -q standard
-#PBS -J 1-{0}
-#PBS -l select=1:ncpus={1}:mem=23gb
+#PBS -q {0}
+#PBS -J 1-{1}
+#PBS -l select=1:ncpus={2}:mem=23gb
 #PBS -l pvmem=23gb
 #PBS -l walltime=100:00:00
-#PBS -W group_list=genomeanalytics
 """
 
 arraysh = """
@@ -436,14 +435,14 @@ arraysh_ua = (
     PBS_STANZA
     + """
 cd $PBS_O_WORKDIR
-CMD=`awk "NR==$PBS_ARRAY_INDEX" {2}`
+CMD=`awk "NR==$PBS_ARRAY_INDEX" {3}`
 $CMD"""
 )
 
 
 def get_grid_engine():
     cmd = "qsub --version"
-    ret = popen(cmd, debug=False).read()
+    ret = popen(cmd, debug=False).read().decode("utf-8").upper()
     return "PBS" if "PBS" in ret else "SGE"
 
 
@@ -487,7 +486,7 @@ def array(args):
     contents = (
         arraysh.format(cmds)
         if engine == "SGE"
-        else arraysh_ua.format(N, threaded, cmds)
+        else arraysh_ua.format(opts.queue, N, threaded, cmds)
     )
     write_file(runfile, contents)
 

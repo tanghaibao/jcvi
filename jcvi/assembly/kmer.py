@@ -117,7 +117,7 @@ class KmerSpectrum(BaseFile):
             (i, i) for i in range(1, 9)
         ]  # The first 8 CN are critical often determines ploidy
         for i in (8, 16, 32, 64, 128, 256, 512):  # 14 geometricly sized bins
-            a, b = i + 1, int(round(i * 2 ** 0.5))
+            a, b = i + 1, int(round(i * 2**0.5))
             bins.append((a, b))
             a, b = b + 1, i * 2
             bins.append((a, b))
@@ -645,14 +645,12 @@ def kmc(args):
     Run kmc3 on Illumina reads.
     """
     p = OptionParser(kmc.__doc__)
-    p.add_option("-k", default=21, type="int", help="Kmer size")
+    p.add_option("-k", default=31, type="int", help="Kmer size")
     p.add_option(
-        "--ci", default=2, type="int", help="Exclude kmers with less than ci counts"
+        "--ci", default=3, type="int", help="Exclude kmers with less than ci counts"
     )
-    p.add_option("--cs", default=2, type="int", help="Maximal value of a counter")
-    p.add_option(
-        "--cx", default=None, type="int", help="Exclude kmers with more than cx counts"
-    )
+    p.add_option("--cs", default=3, type="int", help="Maximal value of a counter")
+    p.add_option("--cx", type="int", help="Exclude kmers with more than cx counts")
     p.add_option(
         "--single",
         default=False,
@@ -664,6 +662,9 @@ def kmc(args):
         default=False,
         action="store_true",
         help="Input is FASTA instead of FASTQ",
+    )
+    p.add_option(
+        "--mem", default=48, type="int", help="Max amount of RAM in GB (`kmc -m`)"
     )
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -688,7 +689,7 @@ def kmc(args):
         print("\n".join(p), file=fw)
         fw.close()
 
-        cmd = "kmc -k{} -m64 -t{}".format(K, opts.cpus)
+        cmd = "kmc -k{} -m{} -t{}".format(K, opts.mem, opts.cpus)
         cmd += " -ci{} -cs{}".format(opts.ci, opts.cs)
         if opts.cx:
             cmd += " -cx{}".format(opts.cx)

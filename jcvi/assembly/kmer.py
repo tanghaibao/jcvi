@@ -645,11 +645,11 @@ def kmc(args):
     Run kmc3 on Illumina reads.
     """
     p = OptionParser(kmc.__doc__)
-    p.add_option("-k", default=31, type="int", help="Kmer size")
+    p.add_option("-k", default=27, type="int", help="Kmer size")
     p.add_option(
-        "--ci", default=3, type="int", help="Exclude kmers with less than ci counts"
+        "--ci", default=2, type="int", help="Exclude kmers with less than ci counts"
     )
-    p.add_option("--cs", default=3, type="int", help="Maximal value of a counter")
+    p.add_option("--cs", default=2, type="int", help="Maximal value of a counter")
     p.add_option("--cx", type="int", help="Exclude kmers with more than cx counts")
     p.add_option(
         "--single",

@@ -495,7 +495,7 @@ class KMCComplex(object):
     def __init__(self, indices):
         self.indices = indices
 
-    def write(self, outfile, filename="stdout", action="union", ci: int = 4):
+    def write(self, outfile, filename="stdout", action="union", ci: int = 0):
         assert action in ("union", "intersect")
         op = " + sum " if action == "union" else " * "
         fw = must_open(filename, "w")
@@ -508,8 +508,9 @@ class KMCComplex(object):
             print("{} = {}".format(s, e.rsplit(".", 1)[0]), file=fw)
         print("OUTPUT:", file=fw)
         print("{} = {}".format(outfile, op.join(ss)), file=fw)
-        print("OUTPUT_PARAMS:", file=fw)
-        print(f"-ci{ci}", file=fw)
+        if ci:
+            print("OUTPUT_PARAMS:", file=fw)
+            print(f"-ci{ci}", file=fw)
         fw.close()
 
 
@@ -630,7 +631,7 @@ def kmcop(args):
         "--action", choices=("union", "intersect"), default="union", help="Action"
     )
     p.add_option(
-        "--ci", default=4, type="int", help="Exclude kmers with less than ci counts"
+        "--ci", default=0, type="int", help="Exclude kmers with less than ci counts"
     )
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)

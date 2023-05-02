@@ -507,7 +507,9 @@ class KMCComplex(object):
             ss.append(s)
             print("{} = {}".format(s, e.rsplit(".", 1)[0]), file=fw)
         print("OUTPUT:", file=fw)
-        print("{} = {} -ci{}".format(outfile, op.join(ss), ci), file=fw)
+        print("{} = {}".format(outfile, op.join(ss)), file=fw)
+        print("OUTPUT_PARAMS:", file=fw)
+        print(f"-ci{ci}", file=fw)
         fw.close()
 
 

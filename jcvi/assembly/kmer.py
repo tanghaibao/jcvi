@@ -502,16 +502,17 @@ class KMCComplex(object):
         outfile: str,
         action: str = "union",
         ci: int = 0,
-        batchsize: int = 0,
+        batch: int = 0,
     ):
         assert action in ("union", "intersect")
         op = " + sum " if action == "union" else " * "
         mm = MakeManager()
-        batchsize = batchsize or len(self.indices)
-        if batchsize < len(self.indices):
+        if batch > 1:
             filename = outfile + ".{}.def"
             # Divide indices into batches
             batches = []
+            batchsize = (len(self.indices) + batch - 1) // batch
+            logging.debug("Use batchsize of %d", batchsize)
             for i, indices in enumerate(chunked(self.indices, batchsize)):
                 filename_i = filename.format(i + 1)
                 outfile_i = outfile + ".{}".format(i + 1)
@@ -671,10 +672,10 @@ def kmcop(args):
         "--ci", default=0, type="int", help="Exclude kmers with less than ci counts"
     )
     p.add_option(
-        "--batchsize",
-        default=0,
+        "--batch",
+        default=1,
         type="int",
-        help="Batch size, useful to reduce memory usage",
+        help="Number of batch, useful to reduce memory usage",
     )
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)
@@ -684,7 +685,7 @@ def kmcop(args):
 
     indices = args
     ku = KMCComplex(indices)
-    ku.write(opts.o, action=opts.action, ci=opts.ci, batchsize=opts.batchsize)
+    ku.write(opts.o, action=opts.action, ci=opts.ci, batch=opts.batch)
 
 
 def kmc(args):

@@ -11,6 +11,8 @@ import math
 import numpy as np
 
 from collections import defaultdict
+from more_itertools import chunked
+from typing import List
 
 from jcvi.graphics.base import (
     plt,
@@ -495,14 +497,49 @@ class KMCComplex(object):
     def __init__(self, indices):
         self.indices = indices
 
-    def write(self, outfile, filename="stdout", action="union", ci: int = 0):
+    def write(
+        self,
+        outfile: str,
+        action: str = "union",
+        ci: int = 0,
+        batchsize: int = 0,
+    ):
         assert action in ("union", "intersect")
         op = " + sum " if action == "union" else " * "
+        mm = MakeManager()
+        batchsize = batchsize or len(self.indices)
+        if batchsize < len(self.indices):
+            filename = outfile + ".{}.def"
+            # Divide indices into batches
+            batches = []
+            for i, indices in enumerate(chunked(self.indices, batchsize)):
+                filename_i = filename.format(i + 1)
+                outfile_i = outfile + ".{}".format(i + 1)
+                self.write_definitions(filename_i, indices, outfile_i, op, ci=0)
+                cmd = "kmc_tools complex {}".format(filename_i)
+                outfile_suf = outfile_i + ".kmc_suf"
+                mm.add(indices, outfile_suf, cmd)
+                batches.append(outfile_suf)
+        else:
+            batches = self.indices
+
+        # Merge batches into one
+        filename = outfile + ".def"
+        self.write_definitions(filename, batches, outfile, op, ci)
+        outfile_suf = outfile + ".kmc_suf"
+        mm.add(batches, outfile_suf, "kmc_tools complex {}".format(filename))
+
+        # Write makefile
+        mm.write()
+
+    def write_definitions(
+        self, filename: str, indices: List[str], outfile: str, op: str, ci: int
+    ):
         fw = must_open(filename, "w")
         print("INPUT:", file=fw)
         ss = []
-        pad = len(str(len(self.indices)))
-        for i, e in enumerate(self.indices):
+        pad = len(str(len(indices)))
+        for i, e in enumerate(indices):
             s = "s{0:0{1}d}".format(i + 1, pad)
             ss.append(s)
             print("{} = {}".format(s, e.rsplit(".", 1)[0]), file=fw)
@@ -633,6 +670,12 @@ def kmcop(args):
     p.add_option(
         "--ci", default=0, type="int", help="Exclude kmers with less than ci counts"
     )
+    p.add_option(
+        "--batchsize",
+        default=0,
+        type="int",
+        help="Batch size, useful to reduce memory usage",
+    )
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)
 
@@ -641,7 +684,7 @@ def kmcop(args):
 
     indices = args
     ku = KMCComplex(indices)
-    ku.write(opts.o, action=opts.action, ci=opts.ci)
+    ku.write(opts.o, action=opts.action, ci=opts.ci, batchsize=opts.batchsize)
 
 
 def kmc(args):

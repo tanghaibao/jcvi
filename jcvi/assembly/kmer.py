@@ -740,7 +740,9 @@ def kmc(args):
         fw.close()
 
         cmd = "kmc -k{} -m{} -t{}".format(K, opts.mem, opts.cpus)
-        cmd += " -ci{} -cs{}".format(opts.ci, opts.cs)
+        cmd += " -ci{}".format(opts.ci)
+        if opts.cs:
+            cmd += " -cs{}".format(opts.cs)
         if opts.cx:
             cmd += " -cx{}".format(opts.cx)
         if opts.fasta:

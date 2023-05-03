@@ -547,7 +547,7 @@ class KMCComplex(object):
         op: str,
         ci_in: int,
         ci_out: int,
-        cs: int
+        cs: int,
     ):
         fw = must_open(filename, "w")
         print("INPUT:", file=fw)
@@ -676,6 +676,13 @@ def bed(args):
                 print("\t".join(str(x) for x in (name, i, i + K, kmer)))
 
 
+def nlargest(indices: List[str], sample_n: int):
+    """Choose the largest-sized N from a list of indices."""
+    indices_with_sizes = [(x, op.getsize(x + ".kmc_suf")) for x in indices]
+    indices_with_sizes.sort(key=lambda x: x[1], reverse=True)
+    return [x[0] for x in indices_with_sizes[:sample_n]]
+
+
 def kmcop(args):
     """
     %prog kmcop *.kmc_suf
@@ -686,6 +693,7 @@ def kmcop(args):
     p.add_option(
         "--action", choices=("union", "intersect"), default="union", help="Action"
     )
+    p.add_option("--sample", type="int", help="Subsample to top N kmc db")
     p.add_option(
         "--ci_in",
         default=0,
@@ -712,6 +720,8 @@ def kmcop(args):
         sys.exit(not p.print_help())
 
     indices = args
+    if opts.sample:
+        indices = nlargest(indices, opts.sample)
     ku = KMCComplex(indices)
     ku.write(
         opts.o,

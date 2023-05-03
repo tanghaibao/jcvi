@@ -560,7 +560,7 @@ class KMCComplex(object):
         print("{} = {}".format(outfile, op.join(ss)), file=fw)
         if ci_out:
             print("OUTPUT_PARAMS:", file=fw)
-            print(f"-ci{ci}", file=fw)
+            print(f"-ci{ci_out}", file=fw)
         fw.close()
 
 

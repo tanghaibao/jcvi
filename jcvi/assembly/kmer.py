@@ -503,6 +503,7 @@ class KMCComplex(object):
         action: str = "union",
         ci_in: int = 0,
         ci_out: int = 0,
+        cs: int = 0,
         batch: int = 0,
     ):
         assert action in ("union", "intersect")
@@ -518,7 +519,7 @@ class KMCComplex(object):
                 filename_i = filename.format(i + 1)
                 outfile_i = outfile + ".{}".format(i + 1)
                 self.write_definitions(
-                    filename_i, indices, outfile_i, op, ci_in=ci_in, ci_out=0
+                    filename_i, indices, outfile_i, op, ci_in=ci_in, ci_out=0, cs=cs
                 )
                 cmd = "kmc_tools complex {}".format(filename_i)
                 outfile_suf = outfile_i + ".kmc_suf"
@@ -530,7 +531,7 @@ class KMCComplex(object):
         # Merge batches into one
         filename = outfile + ".def"
         self.write_definitions(
-            filename, batches, outfile, op, ci_in=ci_in, ci_out=ci_out
+            filename, batches, outfile, op, ci_in=ci_in, ci_out=ci_out, cs=cs
         )
         outfile_suf = outfile + ".kmc_suf"
         mm.add(batches, outfile_suf, "kmc_tools complex {}".format(filename))
@@ -546,6 +547,7 @@ class KMCComplex(object):
         op: str,
         ci_in: int,
         ci_out: int,
+        cs: int
     ):
         fw = must_open(filename, "w")
         print("INPUT:", file=fw)
@@ -557,6 +559,8 @@ class KMCComplex(object):
             msg = "{} = {}".format(s, e.rsplit(".", 1)[0])
             if ci_in:
                 msg += f" -ci{ci_in}"
+            if cs:
+                msg += f" -cs{cs}"
             print(msg, file=fw)
         print("OUTPUT:", file=fw)
         print("{} = {}".format(outfile, op.join(ss)), file=fw)
@@ -694,6 +698,7 @@ def kmcop(args):
         type="int",
         help="Exclude output kmers with less than ci_out counts",
     )
+    p.add_option("--cs", default=0, type="int", help="Maximal value of a counter")
     p.add_option(
         "--batch",
         default=1,
@@ -713,6 +718,7 @@ def kmcop(args):
         action=opts.action,
         ci_in=opts.ci_in,
         ci_out=opts.ci_out,
+        cs=opts.cs,
         batch=opts.batch,
     )
 

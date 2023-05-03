@@ -11,6 +11,8 @@ import math
 import numpy as np
 
 from collections import defaultdict
+from more_itertools import chunked
+from typing import List
 
 from jcvi.graphics.base import (
     plt,
@@ -117,7 +119,7 @@ class KmerSpectrum(BaseFile):
             (i, i) for i in range(1, 9)
         ]  # The first 8 CN are critical often determines ploidy
         for i in (8, 16, 32, 64, 128, 256, 512):  # 14 geometricly sized bins
-            a, b = i + 1, int(round(i * 2 ** 0.5))
+            a, b = i + 1, int(round(i * 2**0.5))
             bins.append((a, b))
             a, b = b + 1, i * 2
             bins.append((a, b))
@@ -495,19 +497,72 @@ class KMCComplex(object):
     def __init__(self, indices):
         self.indices = indices
 
-    def write(self, outfile, filename="stdout", action="union"):
+    def write(
+        self,
+        outfile: str,
+        action: str = "union",
+        ci_in: int = 0,
+        ci_out: int = 0,
+        batch: int = 0,
+    ):
         assert action in ("union", "intersect")
         op = " + sum " if action == "union" else " * "
+        mm = MakeManager()
+        if batch > 1:
+            filename = outfile + ".{}.def"
+            # Divide indices into batches
+            batches = []
+            batchsize = (len(self.indices) + batch - 1) // batch
+            logging.debug("Use batchsize of %d", batchsize)
+            for i, indices in enumerate(chunked(self.indices, batchsize)):
+                filename_i = filename.format(i + 1)
+                outfile_i = outfile + ".{}".format(i + 1)
+                self.write_definitions(
+                    filename_i, indices, outfile_i, op, ci_in=ci_in, ci_out=0
+                )
+                cmd = "kmc_tools complex {}".format(filename_i)
+                outfile_suf = outfile_i + ".kmc_suf"
+                mm.add(indices, outfile_suf, cmd)
+                batches.append(outfile_suf)
+        else:
+            batches = self.indices
+
+        # Merge batches into one
+        filename = outfile + ".def"
+        self.write_definitions(
+            filename, batches, outfile, op, ci_in=ci_in, ci_out=ci_out
+        )
+        outfile_suf = outfile + ".kmc_suf"
+        mm.add(batches, outfile_suf, "kmc_tools complex {}".format(filename))
+
+        # Write makefile
+        mm.write()
+
+    def write_definitions(
+        self,
+        filename: str,
+        indices: List[str],
+        outfile: str,
+        op: str,
+        ci_in: int,
+        ci_out: int,
+    ):
         fw = must_open(filename, "w")
         print("INPUT:", file=fw)
         ss = []
-        pad = len(str(len(self.indices)))
-        for i, e in enumerate(self.indices):
+        pad = len(str(len(indices)))
+        for i, e in enumerate(indices):
             s = "s{0:0{1}d}".format(i + 1, pad)
             ss.append(s)
-            print("{} = {}".format(s, e.rsplit(".", 1)[0]), file=fw)
+            msg = "{} = {}".format(s, e.rsplit(".", 1)[0])
+            if ci_in:
+                msg += f" -ci{ci_in}"
+            print(msg, file=fw)
         print("OUTPUT:", file=fw)
         print("{} = {}".format(outfile, op.join(ss)), file=fw)
+        if ci_out:
+            print("OUTPUT_PARAMS:", file=fw)
+            print(f"-ci{ci_out}", file=fw)
         fw.close()
 
 
@@ -617,6 +672,13 @@ def bed(args):
                 print("\t".join(str(x) for x in (name, i, i + K, kmer)))
 
 
+def nlargest(indices: List[str], sample_n: int):
+    """Choose the largest-sized N from a list of indices."""
+    indices_with_sizes = [(x, op.getsize(x)) for x in indices]
+    indices_with_sizes.sort(key=lambda x: x[1], reverse=True)
+    return [x[0] for x in indices_with_sizes[:sample_n]]
+
+
 def kmcop(args):
     """
     %prog kmcop *.kmc_suf
@@ -627,6 +689,25 @@ def kmcop(args):
     p.add_option(
         "--action", choices=("union", "intersect"), default="union", help="Action"
     )
+    p.add_option("--sample", type="int", help="Subsample to top N kmc db")
+    p.add_option(
+        "--ci_in",
+        default=0,
+        type="int",
+        help="Exclude input kmers with less than ci_in counts",
+    )
+    p.add_option(
+        "--ci_out",
+        default=0,
+        type="int",
+        help="Exclude output kmers with less than ci_out counts",
+    )
+    p.add_option(
+        "--batch",
+        default=1,
+        type="int",
+        help="Number of batch, useful to reduce memory usage",
+    )
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)
 
@@ -634,8 +715,16 @@ def kmcop(args):
         sys.exit(not p.print_help())
 
     indices = args
+    if opts.sample:
+        indices = nlargest(indices, opts.sample)
     ku = KMCComplex(indices)
-    ku.write(opts.o, action=opts.action)
+    ku.write(
+        opts.o,
+        action=opts.action,
+        ci_in=opts.ci_in,
+        ci_out=opts.ci_out,
+        batch=opts.batch,
+    )
 
 
 def kmc(args):
@@ -645,14 +734,12 @@ def kmc(args):
     Run kmc3 on Illumina reads.
     """
     p = OptionParser(kmc.__doc__)
-    p.add_option("-k", default=21, type="int", help="Kmer size")
+    p.add_option("-k", default=27, type="int", help="Kmer size")
     p.add_option(
         "--ci", default=2, type="int", help="Exclude kmers with less than ci counts"
     )
-    p.add_option("--cs", default=2, type="int", help="Maximal value of a counter")
-    p.add_option(
-        "--cx", default=None, type="int", help="Exclude kmers with more than cx counts"
-    )
+    p.add_option("--cs", default=0, type="int", help="Maximal value of a counter")
+    p.add_option("--cx", type="int", help="Exclude kmers with more than cx counts")
     p.add_option(
         "--single",
         default=False,
@@ -664,6 +751,9 @@ def kmc(args):
         default=False,
         action="store_true",
         help="Input is FASTA instead of FASTQ",
+    )
+    p.add_option(
+        "--mem", default=48, type="int", help="Max amount of RAM in GB (`kmc -m`)"
     )
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -688,8 +778,10 @@ def kmc(args):
         print("\n".join(p), file=fw)
         fw.close()
 
-        cmd = "kmc -k{} -m64 -t{}".format(K, opts.cpus)
-        cmd += " -ci{} -cs{}".format(opts.ci, opts.cs)
+        cmd = "kmc -k{} -m{} -t{}".format(K, opts.mem, opts.cpus)
+        cmd += " -ci{}".format(opts.ci)
+        if opts.cs:
+            cmd += " -cs{}".format(opts.cs)
         if opts.cx:
             cmd += " -cx{}".format(opts.cx)
         if opts.fasta:

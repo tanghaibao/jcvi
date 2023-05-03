@@ -529,7 +529,9 @@ class KMCComplex(object):
 
         # Merge batches into one
         filename = outfile + ".def"
-        self.write_definitions(filename, batches, outfile, op, ci_in=0, ci_out=ci_out)
+        self.write_definitions(
+            filename, batches, outfile, op, ci_in=ci_in, ci_out=ci_out
+        )
         outfile_suf = outfile + ".kmc_suf"
         mm.add(batches, outfile_suf, "kmc_tools complex {}".format(filename))
 

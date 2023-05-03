@@ -501,7 +501,8 @@ class KMCComplex(object):
         self,
         outfile: str,
         action: str = "union",
-        ci: int = 0,
+        ci_in: int = 0,
+        ci_out: int = 0,
         batch: int = 0,
     ):
         assert action in ("union", "intersect")
@@ -516,7 +517,9 @@ class KMCComplex(object):
             for i, indices in enumerate(chunked(self.indices, batchsize)):
                 filename_i = filename.format(i + 1)
                 outfile_i = outfile + ".{}".format(i + 1)
-                self.write_definitions(filename_i, indices, outfile_i, op, ci=0)
+                self.write_definitions(
+                    filename_i, indices, outfile_i, op, ci_in=ci_in, ci_out=0
+                )
                 cmd = "kmc_tools complex {}".format(filename_i)
                 outfile_suf = outfile_i + ".kmc_suf"
                 mm.add(indices, outfile_suf, cmd)
@@ -526,7 +529,7 @@ class KMCComplex(object):
 
         # Merge batches into one
         filename = outfile + ".def"
-        self.write_definitions(filename, batches, outfile, op, ci)
+        self.write_definitions(filename, batches, outfile, op, ci_in=0, ci_out=ci_out)
         outfile_suf = outfile + ".kmc_suf"
         mm.add(batches, outfile_suf, "kmc_tools complex {}".format(filename))
 
@@ -534,7 +537,13 @@ class KMCComplex(object):
         mm.write()
 
     def write_definitions(
-        self, filename: str, indices: List[str], outfile: str, op: str, ci: int
+        self,
+        filename: str,
+        indices: List[str],
+        outfile: str,
+        op: str,
+        ci_in: int,
+        ci_out: int,
     ):
         fw = must_open(filename, "w")
         print("INPUT:", file=fw)
@@ -543,10 +552,13 @@ class KMCComplex(object):
         for i, e in enumerate(indices):
             s = "s{0:0{1}d}".format(i + 1, pad)
             ss.append(s)
-            print("{} = {}".format(s, e.rsplit(".", 1)[0]), file=fw)
+            msg = "{} = {}".format(s, e.rsplit(".", 1)[0])
+            if ci_in:
+                msg += f" -ci{ci_in}"
+            print(msg, file=fw)
         print("OUTPUT:", file=fw)
         print("{} = {}".format(outfile, op.join(ss)), file=fw)
-        if ci:
+        if ci_out:
             print("OUTPUT_PARAMS:", file=fw)
             print(f"-ci{ci}", file=fw)
         fw.close()
@@ -669,7 +681,16 @@ def kmcop(args):
         "--action", choices=("union", "intersect"), default="union", help="Action"
     )
     p.add_option(
-        "--ci", default=0, type="int", help="Exclude kmers with less than ci counts"
+        "--ci_in",
+        default=0,
+        type="int",
+        help="Exclude input kmers with less than ci_in counts",
+    )
+    p.add_option(
+        "--ci_out",
+        default=0,
+        type="int",
+        help="Exclude output kmers with less than ci_out counts",
     )
     p.add_option(
         "--batch",
@@ -685,7 +706,13 @@ def kmcop(args):
 
     indices = args
     ku = KMCComplex(indices)
-    ku.write(opts.o, action=opts.action, ci=opts.ci, batch=opts.batch)
+    ku.write(
+        opts.o,
+        action=opts.action,
+        ci_in=opts.ci_in,
+        ci_out=opts.ci_out,
+        batch=opts.batch,
+    )
 
 
 def kmc(args):

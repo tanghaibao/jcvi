@@ -726,7 +726,7 @@ def kmc(args):
     p.add_option(
         "--ci", default=2, type="int", help="Exclude kmers with less than ci counts"
     )
-    p.add_option("--cs", default=2, type="int", help="Maximal value of a counter")
+    p.add_option("--cs", default=0, type="int", help="Maximal value of a counter")
     p.add_option("--cx", type="int", help="Exclude kmers with more than cx counts")
     p.add_option(
         "--single",

@@ -680,7 +680,7 @@ def nlargest(indices: List[str], sample_n: int):
     """Choose the largest-sized N from a list of indices."""
     indices_with_sizes = [(x, op.getsize(x)) for x in indices]
     indices_with_sizes.sort(key=lambda x: x[1], reverse=True)
-    return sorted([x[0] for x in indices_with_sizes[:sample_n]])
+    return [x[0] for x in indices_with_sizes[:sample_n]]
 
 
 def kmcop(args):
@@ -719,7 +719,7 @@ def kmcop(args):
     if len(args) < 2:
         sys.exit(not p.print_help())
 
-    indices = sorted(args)
+    indices = args
     if opts.sample:
         indices = nlargest(indices, opts.sample)
     ku = KMCComplex(indices)

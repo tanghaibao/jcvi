@@ -680,14 +680,22 @@ def kmcop(args):
     """
     p = OptionParser(kmcop.__doc__)
     p.add_option(
-        "--action", choices=("union", "intersect"), default="union", help="Action"
+        "--action",
+        choices=("union", "intersect", "reduce"),
+        default="union",
+        help="Action",
     )
-    p.add_option("--sample", type="int", help="Subsample to top N kmc db")
     p.add_option(
         "--ci_in",
         default=0,
         type="int",
         help="Exclude input kmers with less than ci_in counts",
+    )
+    p.add_option(
+        "--cs",
+        default=0,
+        type="int",
+        help="Maximal value of a counter, only used when action is reduce",
     )
     p.add_option(
         "--ci_out",
@@ -721,14 +729,33 @@ def kmcop(args):
                 len(after),
                 ",".join(before - after),
             )
-    ku = KMCComplex(indices)
-    ku.write(
-        opts.o,
-        action=opts.action,
-        ci_in=opts.ci_in,
-        ci_out=opts.ci_out,
-        batch=opts.batch,
-    )
+    if opts.action == "reduce":
+        mm = MakeManager()
+        ci = opts.ci_in
+        cs = opts.cs
+        suf = ""
+        if ci:
+            suf += f"_ci{ci}"
+        if cs:
+            suf += f"_cs{cs}"
+        for index in indices:
+            reduced_index = index.rsplit(".", 1)[0] + suf
+            cmd = f"kmc_tools transform {index} reduce {reduced_index}"
+            if ci:
+                cmd += f" -ci {ci}"
+            if cs:
+                cmd += f" -cs {cs}"
+            mm.add(index, reduced_index, cmd)
+        mm.write()
+    else:
+        ku = KMCComplex(indices)
+        ku.write(
+            opts.o,
+            action=opts.action,
+            ci_in=opts.ci_in,
+            ci_out=opts.ci_out,
+            batch=opts.batch,
+        )
 
 
 def kmc(args):

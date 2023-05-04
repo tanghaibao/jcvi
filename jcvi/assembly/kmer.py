@@ -741,7 +741,7 @@ def kmcop(args):
         for index in indices:
             idx = index.rsplit(".", 1)[0]
             reduced_idx = idx + suf
-            cmd = f"kmc_tools transform {index} reduce {reduced_idx}"
+            cmd = f"kmc_tools transform {idx} reduce {reduced_idx}"
             if ci:
                 cmd += f" -ci{ci}"
             if cs:

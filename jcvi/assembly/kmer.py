@@ -742,9 +742,9 @@ def kmcop(args):
             reduced_index = index.rsplit(".", 1)[0] + suf
             cmd = f"kmc_tools transform {index} reduce {reduced_index}"
             if ci:
-                cmd += f" -ci {ci}"
+                cmd += f" -ci{ci}"
             if cs:
-                cmd += f" -cs {cs}"
+                cmd += f" -cs{cs}"
             mm.add(index, reduced_index, cmd)
         mm.write()
     else:

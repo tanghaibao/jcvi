@@ -672,13 +672,6 @@ def bed(args):
                 print("\t".join(str(x) for x in (name, i, i + K, kmer)))
 
 
-def nlargest(indices: List[str], sample_n: int):
-    """Choose the largest-sized N from a list of indices."""
-    indices_with_sizes = [(x, op.getsize(x)) for x in indices]
-    indices_with_sizes.sort(key=lambda x: x[1], reverse=True)
-    return [x[0] for x in indices_with_sizes[:sample_n]]
-
-
 def kmcop(args):
     """
     %prog kmcop *.kmc_suf
@@ -708,6 +701,7 @@ def kmcop(args):
         type="int",
         help="Number of batch, useful to reduce memory usage",
     )
+    p.add_option("--exclude", help="Exclude accessions from this list")
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)
 
@@ -715,8 +709,18 @@ def kmcop(args):
         sys.exit(not p.print_help())
 
     indices = args
-    if opts.sample:
-        indices = nlargest(indices, opts.sample)
+    if opts.exclude:
+        before = set(indices)
+        exclude_ids = set(x.strip() for x in open(opts.exclude))
+        indices = [x for x in indices if x.rsplit(".", 2)[0] not in exclude_ids]
+        after = set(indices)
+        if before > after:
+            logging.debug(
+                "Excluded accessions %d → %d (%s)",
+                len(before),
+                len(after),
+                ",".join(before - after),
+            )
     ku = KMCComplex(indices)
     ku.write(
         opts.o,

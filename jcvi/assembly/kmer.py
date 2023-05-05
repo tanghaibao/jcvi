@@ -672,13 +672,6 @@ def bed(args):
                 print("\t".join(str(x) for x in (name, i, i + K, kmer)))
 
 
-def nlargest(indices: List[str], sample_n: int):
-    """Choose the largest-sized N from a list of indices."""
-    indices_with_sizes = [(x, op.getsize(x)) for x in indices]
-    indices_with_sizes.sort(key=lambda x: x[1], reverse=True)
-    return [x[0] for x in indices_with_sizes[:sample_n]]
-
-
 def kmcop(args):
     """
     %prog kmcop *.kmc_suf
@@ -687,14 +680,22 @@ def kmcop(args):
     """
     p = OptionParser(kmcop.__doc__)
     p.add_option(
-        "--action", choices=("union", "intersect"), default="union", help="Action"
+        "--action",
+        choices=("union", "intersect", "reduce"),
+        default="union",
+        help="Action",
     )
-    p.add_option("--sample", type="int", help="Subsample to top N kmc db")
     p.add_option(
         "--ci_in",
         default=0,
         type="int",
         help="Exclude input kmers with less than ci_in counts",
+    )
+    p.add_option(
+        "--cs",
+        default=0,
+        type="int",
+        help="Maximal value of a counter, only used when action is reduce",
     )
     p.add_option(
         "--ci_out",
@@ -708,6 +709,7 @@ def kmcop(args):
         type="int",
         help="Number of batch, useful to reduce memory usage",
     )
+    p.add_option("--exclude", help="Exclude accessions from this list")
     p.add_option("-o", default="results", help="Output name")
     opts, args = p.parse_args(args)
 
@@ -715,16 +717,47 @@ def kmcop(args):
         sys.exit(not p.print_help())
 
     indices = args
-    if opts.sample:
-        indices = nlargest(indices, opts.sample)
-    ku = KMCComplex(indices)
-    ku.write(
-        opts.o,
-        action=opts.action,
-        ci_in=opts.ci_in,
-        ci_out=opts.ci_out,
-        batch=opts.batch,
-    )
+    if opts.exclude:
+        before = set(indices)
+        exclude_ids = set(x.strip() for x in open(opts.exclude))
+        indices = [x for x in indices if x.rsplit(".", 2)[0] not in exclude_ids]
+        after = set(indices)
+        if before > after:
+            logging.debug(
+                "Excluded accessions %d → %d (%s)",
+                len(before),
+                len(after),
+                ",".join(before - after),
+            )
+    if opts.action == "reduce":
+        mm = MakeManager()
+        ci = opts.ci_in
+        cs = opts.cs
+        suf = ""
+        if ci:
+            suf += f"_ci{ci}"
+        if cs:
+            suf += f"_cs{cs}"
+        for index in indices:
+            idx = index.rsplit(".", 1)[0]
+            reduced_idx = idx + suf
+            cmd = f"kmc_tools transform {idx} reduce {reduced_idx}"
+            if ci:
+                cmd += f" -ci{ci}"
+            if cs:
+                cmd += f" -cs{cs}"
+            reduced_index = reduced_idx + ".kmc_suf"
+            mm.add(index, reduced_index, cmd)
+        mm.write()
+    else:
+        ku = KMCComplex(indices)
+        ku.write(
+            opts.o,
+            action=opts.action,
+            ci_in=opts.ci_in,
+            ci_out=opts.ci_out,
+            batch=opts.batch,
+        )
 
 
 def kmc(args):

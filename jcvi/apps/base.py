@@ -37,6 +37,20 @@ nobreakbuffer()
 os.environ["LC_ALL"] = "C"
 JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
 
+_logging_debug = logging.debug
+def debug_with_location(message: str):
+    import inspect
+    # get logging level
+    logging_level = logging.getLogger().getEffectiveLevel()
+    if logging_level != logging.DEBUG:
+        return
+    callerframerecord = inspect.stack()[1]
+    frame = callerframerecord[0]
+    info = inspect.getframeinfo(frame)
+    # get caller function name
+    caller = frame.f_code.co_name
+    _logging_debug(f"{info.filename}:{info.lineno}:{caller} {message}")
+logging.debug = debug_with_location
 
 class ActionDispatcher(object):
     """

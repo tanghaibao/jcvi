@@ -10,6 +10,8 @@ import signal
 import sys
 import logging
 import fnmatch
+import functools
+
 
 from collections.abc import Iterable
 from http.client import HTTPSConnection
@@ -37,20 +39,27 @@ nobreakbuffer()
 os.environ["LC_ALL"] = "C"
 JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
 
-_logging_debug = logging.debug
-def debug_with_location(message, *args, **kwargs):
-    import inspect
-    # get logging level
-    logging_level = logging.getLogger().getEffectiveLevel()
-    if logging_level != logging.DEBUG:
-        return
-    callerframerecord = inspect.stack()[1]
-    frame = callerframerecord[0]
-    info = inspect.getframeinfo(frame)
-    # get caller function name
-    caller = frame.f_code.co_name
-    _logging_debug(f"{info.filename}:{info.lineno}:{caller} {message}", *args, **kwargs)
-logging.debug = debug_with_location
+
+def patch_debug(func):
+    @functools.wraps(func)
+    def wraps(*args, **kwargs):
+        import inspect
+        callerframerecord = inspect.stack()[1]
+        frame = callerframerecord[0]
+        info = inspect.getframeinfo(frame)
+        # get caller function name
+        caller = frame.f_code.co_name
+        patch_message = f"{info.filename}:{info.lineno}:{caller}"
+        old_debug = logging.debug
+        def my_debug(message: str, *args, **kwargs):
+            old_debug(f'{patch_message} {message}', *args, **kwargs)
+        logging.debug = my_debug
+        ret = func(*args, **kwargs)
+        logging.debug = old_debug
+        return ret
+
+    return wraps
+
 
 class ActionDispatcher(object):
     """

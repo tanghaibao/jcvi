@@ -64,7 +64,6 @@ class OMGFile(BaseFile):
 
 
 def main():
-
     actions = (
         ("tandem", "identify tandem gene groups within certain distance"),
         ("ortholog", "run a combined synteny and RBH pipeline to call orthologs"),
@@ -613,7 +612,7 @@ def ortholog(args):
     from jcvi.compara.blastfilter import main as blastfilter_main
     from jcvi.compara.quota import main as quota_main
     from jcvi.compara.synteny import scan, mcscan, liftover
-    from jcvi.formats.blast import cscore, filter
+    from jcvi.formats.blast import cscore, filter, filtered_blastfile_name
 
     p = OptionParser(ortholog.__doc__)
     p.add_option(
@@ -695,7 +694,7 @@ def ortholog(args):
 
     self_remove = opts.self_remove
     if a == b:
-        lastself = last + f".P{self_remove}L0.inverse"
+        lastself = filtered_blastfile_name(last, self_remove, 0, inverse=True)
         if need_update(last, lastself, warn=True):
             filter(
                 [last, "--hitlen=0", f"--pctid={self_remove}", "--inverse", "--noself"]
@@ -796,7 +795,6 @@ def tandem_main(
     ofile=sys.stderr,
     genefam=False,
 ):
-
     if genefam:
         N = 1e5
 

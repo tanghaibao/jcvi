@@ -38,7 +38,7 @@ os.environ["LC_ALL"] = "C"
 JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
 
 _logging_debug = logging.debug
-def debug_with_location(message: str):
+def debug_with_location(message, *args, **kwargs):
     import inspect
     # get logging level
     logging_level = logging.getLogger().getEffectiveLevel()
@@ -49,7 +49,7 @@ def debug_with_location(message: str):
     info = inspect.getframeinfo(frame)
     # get caller function name
     caller = frame.f_code.co_name
-    _logging_debug(f"{info.filename}:{info.lineno}:{caller} {message}")
+    _logging_debug(f"{info.filename}:{info.lineno}:{caller} {message}", *args, **kwargs)
 logging.debug = debug_with_location
 
 class ActionDispatcher(object):

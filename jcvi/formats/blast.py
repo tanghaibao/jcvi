@@ -140,7 +140,6 @@ class BlastLineByConversion(BlastLine):
     """
 
     def __init__(self, sline, mode="1" * 12):
-
         if int(mode, 2) == 4095:
             super(BlastLineByConversion, self).__init__(sline)
         elif 3072 <= int(mode, 2) < 4095:
@@ -265,6 +264,22 @@ def get_stats(blastfile, strict=False):
     return alignstats
 
 
+def filtered_blastfile_name(
+    blastfile: str,
+    pctid: float,
+    hitlen: int,
+    inverse: bool = False,
+) -> str:
+    """
+    Return a filtered filename for LAST output, with the given similarity cutoff.
+    """
+    pctid_str = f"{pctid:.1f}".replace(".", "_").replace("_0", "")
+    newblastfile = blastfile + ".P{0}L{1}".format(pctid_str, hitlen)
+    if inverse:
+        newblastfile += ".inverse"
+    return newblastfile
+
+
 def filter(args):
     """
     %prog filter test.blast
@@ -311,7 +326,6 @@ def filter(args):
 
     (blastfile,) = args
     inverse = opts.inverse
-    outfile = opts.outfile
     fp = must_open(blastfile)
 
     score, pctid, hitlen, evalue, noself = (
@@ -321,11 +335,8 @@ def filter(args):
         opts.evalue,
         opts.noself,
     )
-    newblastfile = (
-        blastfile + ".P{0}L{1}".format(pctid, hitlen) if outfile is None else outfile
-    )
-    if inverse:
-        newblastfile += ".inverse"
+    blastfile = opts.outfile or blastfile
+    newblastfile = filtered_blastfile_name(blastfile, pctid, hitlen, inverse)
     fw = must_open(newblastfile, "w")
     for row in fp:
         if row[0] == "#":
@@ -362,7 +373,6 @@ def filter(args):
 
 
 def main():
-
     actions = (
         ("summary", "provide summary on id% and cov%"),
         ("completeness", "print completeness statistics for each query"),
@@ -1148,7 +1158,7 @@ def covfilter(args):
     if opts.list:
         if qspair:
             allpairs = defaultdict(list)
-            for (q, s) in covidstore:
+            for q, s in covidstore:
                 allpairs[q].append((q, s))
                 allpairs[s].append((q, s))
 

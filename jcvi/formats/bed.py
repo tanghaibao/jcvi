@@ -1,15 +1,17 @@
 """
 Classes to handle the .bed files
 """
+import logging
+import math
+import numpy as np
 import os
 import os.path as op
+import shutil
 import sys
-import math
-import logging
-import numpy as np
 
 from collections import defaultdict, OrderedDict
 from itertools import groupby
+from typing import Optional
 
 from more_itertools import pairwise
 from natsort import natsorted, natsort_key
@@ -247,7 +249,6 @@ class Bed(LineFile):
                 yield b
 
     def sub_beds(self):
-
         self.sort(key=self.nullkey)
         # get all the beds on all chromosomes, emitting one at a time
         for bs, sb in groupby(self, key=lambda x: x.seqid):
@@ -343,7 +344,6 @@ class BedpeLine(object):
 
 class BedEvaluate(object):
     def __init__(self, TPbed, FPbed, FNbed, TNbed):
-
         self.TP = Bed(TPbed).sum(unique=True)
         self.FP = Bed(FPbed).sum(unique=True)
         self.FN = Bed(FNbed).sum(unique=True)
@@ -444,7 +444,6 @@ def bed_sum(beds, seqid=None, unique=True):
 
 
 def main():
-
     actions = (
         ("depth", "calculate average depth per feature using coverageBed"),
         ("mergebydepth", "returns union of features beyond certain depth"),
@@ -1508,7 +1507,6 @@ def bins(args):
         b[-1] = last_bin
 
         for bb in subbeds:
-
             start, end = bb.start, bb.end
             startbin = start / binsize
             endbin = end / binsize
@@ -1635,7 +1633,16 @@ def fastaFromBed(bedfile, fastafile, name=False, tab=False, stranded=False):
     return outfile
 
 
-def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=";"):
+def mergeBed(
+    bedfile: str,
+    d: int = 0,
+    sorted: bool = False,
+    nms: bool = False,
+    s: bool = False,
+    scores: Optional[str] = None,
+    delim: str = ";",
+    inplace: bool = False,
+):
     if not sorted:
         bedfile = sort([bedfile, "-i"])
     cmd = "mergeBed -i {0}".format(bedfile)
@@ -1672,6 +1679,9 @@ def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=
 
     if need_update(bedfile, mergebedfile):
         sh(cmd, outfile=mergebedfile)
+
+    if inplace:
+        shutil.move(mergebedfile, bedfile)
     return mergebedfile
 
 

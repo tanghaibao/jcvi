@@ -1310,7 +1310,7 @@ def bed(args):
     fw.close()
     bed_sort([bedfile, "-i"])
     if opts.merge:
-        mergeBed(bedfile, sorted=True, d=opts.merge, inplace=True, nms=True)
+        mergeBed(bedfile, sorted=True, d=opts.merge, inplace=True)
 
     return bedfile
 

@@ -1671,7 +1671,7 @@ def mergeBed(
             scores = "mean"
         cmd += " -scores {0}".format(scores)
 
-    if delim:
+    if nms and delim:
         cmd += ' -delim "{0}"'.format(delim)
 
     pf = bedfile.rsplit(".", 1)[0] if bedfile.endswith(".bed") else bedfile

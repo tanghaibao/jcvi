@@ -478,9 +478,54 @@ def main():
         ("tiling", "compute the minimum tiling path"),
         ("format", "reformat BED file"),
         ("closest", "find closest BED feature"),
+        ("gaps", "define gaps in BED file using complementBed"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gaps(args):
+    """
+    %prog gaps bedfile reference.fasta
+
+    This is used to define gaps in BED file using complementBed. One use case is
+    to define gaps in a BED file that was derived from a pairwise BLAST, for
+    example between two genomes. The reference.fasta is the reference genome.
+    The bedfile contains 'covered' features by BLAST hits, while the output
+    bedfile will contain 'uncovered' (i.e. gap) features, in that case use
+    --missing to note if gap is missing in one or more seqids.
+    """
+    from pybedtools import BedTool
+
+    p = OptionParser(gaps.__doc__)
+    p.add_option(
+        "--na_in",
+        help="Add '_na_in_xxx' to gap name, use comma to separate, "
+        + "e.g. --na_in=chr1,chr2 to note if gap is missing in chr1 or "
+        + "chr2, default is to not add anything. Note that if one of the "
+        + "missing seqids happens to be the seqid of the current feature, "
+        + "it will not be reported.",
+    )
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    inputbed, ref_fasta = args
+    fw = must_open(opts.outfile, "w")
+    na_in = set(opts.na_in.split(",")) if opts.na_in else set()
+    comp = BedTool(inputbed).complement(genome=ref_fasta, L=True, stream=True)
+    for f in comp:
+        seqid = f[0]
+        start = f[1]
+        end = f[2]
+        size = int(end) - int(start)
+        gap_name = f"{seqid}_{start}_L{size}"
+        miss = "_".join(na_in - set([seqid]))
+        if miss:
+            gap_name += f"_na_in_{miss}"
+        print("\t".join((seqid, start, end, gap_name)), file=fw)
 
 
 def closest(args):

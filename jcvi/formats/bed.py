@@ -506,6 +506,7 @@ def gaps(args):
         + "missing seqids happens to be the seqid of the current feature, "
         + "it will not be reported.",
     )
+    p.add_option("--minsize", default=1000, type="int", help="Minimum gap size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -513,19 +514,35 @@ def gaps(args):
         sys.exit(not p.print_help())
 
     inputbed, ref_fasta = args
+    ref_sizes = Sizes(ref_fasta).mapping
+    minsize = opts.minsize
     fw = must_open(opts.outfile, "w")
     na_in = set(opts.na_in.split(",")) if opts.na_in else set()
     comp = BedTool(inputbed).complement(genome=ref_fasta, L=True, stream=True)
+    n_gaps = 0
+    all_gaps = defaultdict(list)
     for f in comp:
         seqid = f[0]
         start = f[1]
         end = f[2]
         size = int(end) - int(start)
+        if size < minsize:
+            continue
+        all_gaps[seqid].append(size)
         gap_name = f"{seqid}_{start}_L{size}"
         miss = "_".join(na_in - set([seqid]))
         if miss:
             gap_name += f"_na_in_{miss}"
         print("\t".join((seqid, start, end, gap_name)), file=fw)
+        n_gaps += 1
+    for seqid, gap_sizes in all_gaps.items():
+        total_gap_size = sum(gap_sizes)
+        logging.debug(
+            "Total gaps in %s: %d, %s",
+            seqid,
+            len(gap_sizes),
+            percentage(total_gap_size, ref_sizes[seqid]),
+        )
 
 
 def closest(args):

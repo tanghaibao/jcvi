@@ -1,15 +1,17 @@
 """
 Classes to handle the .bed files
 """
+import logging
+import math
+import numpy as np
 import os
 import os.path as op
+import shutil
 import sys
-import math
-import logging
-import numpy as np
 
 from collections import defaultdict, OrderedDict
 from itertools import groupby
+from typing import Optional
 
 from more_itertools import pairwise
 from natsort import natsorted, natsort_key
@@ -247,7 +249,6 @@ class Bed(LineFile):
                 yield b
 
     def sub_beds(self):
-
         self.sort(key=self.nullkey)
         # get all the beds on all chromosomes, emitting one at a time
         for bs, sb in groupby(self, key=lambda x: x.seqid):
@@ -343,7 +344,6 @@ class BedpeLine(object):
 
 class BedEvaluate(object):
     def __init__(self, TPbed, FPbed, FNbed, TNbed):
-
         self.TP = Bed(TPbed).sum(unique=True)
         self.FP = Bed(FPbed).sum(unique=True)
         self.FN = Bed(FNbed).sum(unique=True)
@@ -444,7 +444,6 @@ def bed_sum(beds, seqid=None, unique=True):
 
 
 def main():
-
     actions = (
         ("depth", "calculate average depth per feature using coverageBed"),
         ("mergebydepth", "returns union of features beyond certain depth"),
@@ -479,9 +478,71 @@ def main():
         ("tiling", "compute the minimum tiling path"),
         ("format", "reformat BED file"),
         ("closest", "find closest BED feature"),
+        ("gaps", "define gaps in BED file using complementBed"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def gaps(args):
+    """
+    %prog gaps bedfile reference.fasta
+
+    This is used to define gaps in BED file using complementBed. One use case is
+    to define gaps in a BED file that was derived from a pairwise BLAST, for
+    example between two genomes. The reference.fasta is the reference genome.
+    The bedfile contains 'covered' features by BLAST hits, while the output
+    bedfile will contain 'uncovered' (i.e. gap) features, in that case use
+    --missing to note if gap is missing in one or more seqids.
+    """
+    from pybedtools import BedTool
+
+    p = OptionParser(gaps.__doc__)
+    p.add_option(
+        "--na_in",
+        help="Add '_na_in_xxx' to gap name, use comma to separate, "
+        + "e.g. --na_in=chr1,chr2 to note if gap is missing in chr1 or "
+        + "chr2, default is to not add anything. Note that if one of the "
+        + "missing seqids happens to be the seqid of the current feature, "
+        + "it will not be reported.",
+    )
+    p.add_option("--minsize", default=1000, type="int", help="Minimum gap size")
+    p.set_outfile()
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    inputbed, ref_fasta = args
+    ref_sizes = Sizes(ref_fasta).mapping
+    minsize = opts.minsize
+    fw = must_open(opts.outfile, "w")
+    na_in = set(opts.na_in.split(",")) if opts.na_in else set()
+    comp = BedTool(inputbed).complement(genome=ref_fasta, L=True, stream=True)
+    n_gaps = 0
+    all_gaps = defaultdict(list)
+    for f in comp:
+        seqid = f[0]
+        start = f[1]
+        end = f[2]
+        size = int(end) - int(start)
+        if size < minsize:
+            continue
+        all_gaps[seqid].append(size)
+        gap_name = f"{seqid}_{start}_L{size}"
+        miss = "_".join(na_in - set([seqid]))
+        if miss:
+            gap_name += f"_na_in_{miss}"
+        print("\t".join((seqid, start, end, gap_name)), file=fw)
+        n_gaps += 1
+    for seqid, gap_sizes in all_gaps.items():
+        total_gap_size = sum(gap_sizes)
+        logging.debug(
+            "Total gaps in %s: %d, %s",
+            seqid,
+            len(gap_sizes),
+            percentage(total_gap_size, ref_sizes[seqid]),
+        )
 
 
 def closest(args):
@@ -1508,7 +1569,6 @@ def bins(args):
         b[-1] = last_bin
 
         for bb in subbeds:
-
             start, end = bb.start, bb.end
             startbin = start / binsize
             endbin = end / binsize
@@ -1635,7 +1695,16 @@ def fastaFromBed(bedfile, fastafile, name=False, tab=False, stranded=False):
     return outfile
 
 
-def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=";"):
+def mergeBed(
+    bedfile: str,
+    d: int = 0,
+    sorted: bool = False,
+    nms: bool = False,
+    s: bool = False,
+    scores: Optional[str] = None,
+    delim: str = ";",
+    inplace: bool = False,
+):
     if not sorted:
         bedfile = sort([bedfile, "-i"])
     cmd = "mergeBed -i {0}".format(bedfile)
@@ -1664,7 +1733,7 @@ def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=
             scores = "mean"
         cmd += " -scores {0}".format(scores)
 
-    if delim:
+    if nms and delim:
         cmd += ' -delim "{0}"'.format(delim)
 
     pf = bedfile.rsplit(".", 1)[0] if bedfile.endswith(".bed") else bedfile
@@ -1672,6 +1741,9 @@ def mergeBed(bedfile, d=0, sorted=False, nms=False, s=False, scores=None, delim=
 
     if need_update(bedfile, mergebedfile):
         sh(cmd, outfile=mergebedfile)
+
+    if inplace:
+        shutil.move(mergebedfile, bedfile)
     return mergebedfile
 
 

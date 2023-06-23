@@ -75,7 +75,7 @@ class ImageOptions(object):
         self.w, self.h = [int(x) for x in opts.figsize.split("x")]
         self.dpi = opts.dpi
         self.format = opts.format
-        self.cmap = cm.get_cmap(opts.cmap)
+        self.cmap = mpl.colormaps[opts.cmap]
         self.seed = opts.seed
         self.usetex = is_tex_available() and not opts.notex
         self.opts = opts

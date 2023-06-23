@@ -44,6 +44,7 @@ def patch_debug(func):
     @functools.wraps(func)
     def wraps(*args, **kwargs):
         import inspect
+
         callerframerecord = inspect.stack()[1]
         frame = callerframerecord[0]
         info = inspect.getframeinfo(frame)
@@ -51,8 +52,10 @@ def patch_debug(func):
         caller = frame.f_code.co_name
         patch_message = f"{info.filename}:{info.lineno}:{caller}"
         old_debug = logging.debug
+
         def my_debug(message: str, *args, **kwargs):
-            old_debug(f'{patch_message} {message}', *args, **kwargs)
+            old_debug(f"{patch_message} {message}", *args, **kwargs)
+
         logging.debug = my_debug
         ret = func(*args, **kwargs)
         logging.debug = old_debug
@@ -1246,7 +1249,7 @@ def which(program):
     "/bin/cat"
     >>> which("nosuchprogram")
     """
-    fpath, fname = op.split(program)
+    fpath, _ = op.split(program)
     if fpath:
         if is_exe(program):
             return program
@@ -2192,7 +2195,13 @@ def get_config(path):
     return config
 
 
-def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
+def getpath(
+    cmd: str,
+    name: Optional[str] = None,
+    url: Optional[str] = None,
+    cfg: str = "~/.jcvirc",
+    warn: str = "exit",
+) -> Optional[str]:
     """
     Get install locations of common binaries
     First, check ~/.jcvirc file to get the full path
@@ -2215,29 +2224,32 @@ def getpath(cmd, name=None, url=None, cfg="~/.jcvirc", warn="exit"):
         fullpath = config.get(PATH, name)
     except NoSectionError:
         config.add_section(PATH)
-        changed = True
 
     try:
         fullpath = config.get(PATH, name)
     except NoOptionError:
-        msg = "=== Configure path for {0} ===\n".format(name, cfg)
+        msg = f"=== Configure path for {name} ===\n"
         if url:
-            msg += "URL: {0}\n".format(url)
-        msg += "[Directory that contains `{0}`]: ".format(cmd)
+            msg += f"URL: {url}\n"
+        msg += f"[Directory that contains `{cmd}`]: "
         fullpath = input(msg).strip()
-        config.set(PATH, name, fullpath)
-        changed = True
 
     path = op.join(op.expanduser(fullpath), cmd)
-    if warn == "exit":
-        try:
-            assert is_exe(path), "***ERROR: Cannot execute binary `{0}`. ".format(path)
-        except AssertionError as e:
-            sys.exit("{0!s}Please verify and rerun.".format(e))
+    if is_exe(path):
+        config.set(PATH, name, fullpath)
+        changed = True
+    else:
+        err_msg = f"Cannot execute binary `{path}`. Please verify and rerun."
+        if warn == "exit":
+            logging.fatal(err_msg)
+        else:
+            logging.warning(err_msg)
+        return None
 
     if changed:
         configfile = open(cfg, "w")
         config.write(configfile)
+        configfile.close()
         logging.debug("Configuration written to `{0}`.".format(cfg))
 
     return path

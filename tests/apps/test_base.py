@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+import mock
 import os.path as op
 import time
 
@@ -145,4 +146,17 @@ def test_set_image_options():
     p = OptionParser(__doc__)
     p.add_option("--cov", default="jcvi", help="pytest coverage")
     p.add_option("--seed", default=300, type="int", help="seed")
+    p.add_option("-s", default="dummy", action="store_true", help="dummy")
+
     p.set_image_options()
+
+
+def test_getpath():
+    from jcvi.apps.base import getpath
+
+    with mock.patch("builtins.input", lambda _: "e\rvvvvvvvv = zzzzzzzz\n"):
+        assert getpath("not-part-of-path", name="CLUSTALW2", warn="warn") is None
+
+    with mock.patch("builtins.input", lambda _: "/bin"):
+        test_cfg = "test.cfg"
+        assert getpath("rm", name="rm", cfg=test_cfg, warn="warn") == "/bin/rm"

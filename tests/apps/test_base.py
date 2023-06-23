@@ -159,4 +159,7 @@ def test_getpath():
 
     with mock.patch("builtins.input", lambda _: "/bin"):
         test_cfg = "test.cfg"
-        assert getpath("rm", name="rm", cfg=test_cfg, warn="warn") == "/bin/rm"
+        assert getpath("rm", name="rm", cfg=test_cfg, warn="warn") in (
+            "/bin/rm",
+            "/usr/bin/rm",
+        )

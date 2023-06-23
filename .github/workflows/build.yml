@@ -34,5 +34,5 @@ jobs:
 
       - name: Test with pytest
         run: |
-          pip install PyYAML pytest pytest-cov pytest-benchmark
+          pip install PyYAML pytest pytest-cov pytest-benchmark mock
           pytest --cov=jcvi tests

@@ -9,6 +9,7 @@ import logging
 import sys
 from itertools import groupby
 from math import ceil
+from natsort import natsorted
 from typing import Tuple
 
 import numpy as np
@@ -586,7 +587,7 @@ def draw_chromosomes(
     ratio = r / max_chr_len  # canvas / base
 
     # first the chromosomes
-    for a, (chr, clen) in enumerate(sorted(chr_lens.items())):
+    for a, (chr, clen) in enumerate(natsorted(chr_lens.items())):
         xx = xstart + a * xinterval + 0.5 * xwidth
         root.text(xx, ystart + 0.01, str(get_number(chr)), ha="center")
         if centromeres:

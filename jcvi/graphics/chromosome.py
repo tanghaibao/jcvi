@@ -587,8 +587,10 @@ def draw_chromosomes(
     ratio = r / max_chr_len  # canvas / base
 
     # first the chromosomes
+    chr_locations = {}
     for a, (chr, clen) in enumerate(natsorted(chr_lens.items())):
         xx = xstart + a * xinterval + 0.5 * xwidth
+        chr_locations[chr] = xx
         root.text(xx, ystart + 0.01, str(get_number(chr)), ha="center")
         if centromeres:
             yy = ystart - centromeres[chr] * ratio
@@ -598,16 +600,14 @@ def draw_chromosomes(
         else:
             Chromosome(root, xx, ystart, ystart - clen * ratio, width=xwidth)
 
-    chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))
-
     alpha = 1
     # color the regions
     for chr in sorted(chr_lens.keys()):
-        segment_size, excess = 0, 0
+        excess = 0
         bac_list = []
         prev_end, prev_klass = 0, None
+        xx = chr_locations[chr] - 0.5 * xwidth
         for b in bed.sub_bed(chr):
-            idx = chr_idxs[chr]
             klass = b.accn
             if klass == "centromere":
                 continue
@@ -615,7 +615,6 @@ def draw_chromosomes(
             end = b.end
             if start < prev_end + mergedist and klass == prev_klass:
                 start = prev_end
-            xx = xstart + idx * xinterval
             yystart = ystart - end * ratio
             yyend = ystart - start * ratio
             root.add_patch(

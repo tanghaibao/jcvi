@@ -163,7 +163,8 @@ def enrich(args):
 
     nmembers = omggroups.num_members
     logging.debug(
-        "Imported {0} OMG families with {1} members.".format(len(omggroups), nmembers)
+        "Imported {0} OMG families with {1} members.".format(
+            len(omggroups), nmembers)
     )
     assert nmembers == len(seen)
 
@@ -197,10 +198,12 @@ def enrich(args):
         # print leftover_sorted_by_taxa
         solutions = []
         for solution in product(*leftover_sorted_by_taxa.values()):
-            score = sum(weights.get((a, b), 0) for a in solution for b in genes)
+            score = sum(weights.get((a, b), 0)
+                        for a in solution for b in genes)
             if score == 0:
                 continue
-            score += sum(weights.get((a, b), 0) for a, b in combinations(solution, 2))
+            score += sum(weights.get((a, b), 0)
+                         for a, b in combinations(solution, 2))
             solutions.append((score, solution))
             # print solution, score
 
@@ -288,7 +291,8 @@ def sort_layout(thread, listfile, column=0):
     assert len(threaded) == len(imported)
 
     total = sum(1 for x in open(listfile))
-    logging.debug("Total: {0}, currently threaded: {1}".format(total, len(threaded)))
+    logging.debug("Total: {0}, currently threaded: {1}".format(
+        total, len(threaded)))
     fp = open(listfile)
     for row in fp:
         atoms = row.split()
@@ -301,7 +305,8 @@ def sort_layout(thread, listfile, column=0):
         print("\t".join(atoms), file=fw)
 
     fw.close()
-    logging.debug("File `{0}` sorted to `{1}`.".format(outfile, thread.filename))
+    logging.debug("File `{0}` sorted to `{1}`.".format(
+        outfile, thread.filename))
 
 
 def layout(args):
@@ -346,7 +351,8 @@ def layout(args):
 
     details = ", ".join("{0} {1}".format(a, b) for a, b in ngenes)
     total = sum(a for a, b in ngenes)
-    s = "A list of {0} orthologous families that collectively".format(len(data))
+    s = "A list of {0} orthologous families that collectively".format(
+        len(data))
     s += " contain a total of {0} genes ({1})".format(total, details)
     print(s, file=sys.stderr)
 
@@ -406,7 +412,8 @@ def group(args):
             groups.join(a, b)
 
     logging.debug(
-        "Created {0} groups with {1} members.".format(len(groups), groups.num_members)
+        "Created {0} groups with {1} members.".format(
+            len(groups), groups.num_members)
     )
 
     outfile = opts.outfile
@@ -493,7 +500,8 @@ def geneinfo(bed, genomeidx, ploidy):
             chr = "0"
 
         print(
-            "\t".join(str(x) for x in (s.accn, chr, s.start, s.end, s.strand, idx, pd)),
+            "\t".join(str(x)
+                      for x in (s.accn, chr, s.start, s.end, s.strand, idx, pd)),
             file=fwinfo,
         )
     fwinfo.close()
@@ -517,7 +525,8 @@ def omgprepare(args):
     p.add_option(
         "--pctid", default=0, type="int", help="Percent id cutoff for RBH hits"
     )
-    p.add_option("--cscore", default=90, type="int", help="C-score cutoff for RBH hits")
+    p.add_option("--cscore", default=90, type="int",
+                 help="C-score cutoff for RBH hits")
     p.set_stripnames()
     p.set_beds()
 
@@ -546,7 +555,8 @@ def omgprepare(args):
     cscore([blastfile, "-o", cscorefile, "--cutoff=0", "--pct"])
     ac = AnchorFile(anchorfile)
     pairs = set((a, b) for a, b, i in ac.iter_pairs())
-    logging.debug("Imported {0} pairs from `{1}`.".format(len(pairs), anchorfile))
+    logging.debug("Imported {0} pairs from `{1}`.".format(
+        len(pairs), anchorfile))
 
     weightsfile = pf + ".weights"
     fp = open(cscorefile)
@@ -666,6 +676,12 @@ def ortholog(args):
     dotplot_group.add_option(
         "--no_dotplot", default=False, action="store_true", help="Do not make dotplot"
     )
+    p.add_option(
+        "--ignore_zero_anchor",
+        default=False,
+        action="store_true",
+        help="Ignore this pair of ortholog identification instead of throwing an error when performing many pairs of cataloging."
+    )
 
     opts, args = p.parse_args(args)
 
@@ -674,6 +690,7 @@ def ortholog(args):
 
     a, b = args
     dbtype = opts.dbtype
+    ignore_zero_anchor = opts.ignore_zero_anchor
     suffix = ".cds" if dbtype == "nucl" else ".pep"
     abed, afasta = a + ".bed", a + suffix
     bbed, bfasta = b + ".bed", b + suffix
@@ -697,7 +714,8 @@ def ortholog(args):
         lastself = filtered_blastfile_name(last, self_remove, 0, inverse=True)
         if need_update(last, lastself, warn=True):
             filter(
-                [last, "--hitlen=0", f"--pctid={self_remove}", "--inverse", "--noself"]
+                [last, "--hitlen=0",
+                    f"--pctid={self_remove}", "--inverse", "--noself"]
             )
         last = lastself
 
@@ -727,9 +745,18 @@ def ortholog(args):
                 dargs += ["--no_strip_names"]
             if opts.liftover_dist:
                 dargs += ["--liftover_dist={}".format(opts.liftover_dist)]
-            scan(dargs)
+            try:
+                scan(dargs)
+            except ValueError as e:
+                if ignore_zero_anchor:
+                    print(f"{e}")
+                    print("Ignoring this error and continuing...")
+                    return
+                else:
+                    raise ValueError(e)
         if quota:
-            quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])
+            quota_main(
+                [lifted_anchors, "--quota={0}".format(quota), "--screen"])
         if need_update(anchors, pdf, warn=True) and not opts.no_dotplot:
             from jcvi.graphics.dotplot import dotplot_main
 
@@ -878,9 +905,11 @@ def tandem_main(
 
     # generate reports
     print("Proximal paralogues (dist=%d):" % N, file=sys.stderr)
-    print("Total %d genes in %d families" % (ngenes, nfamilies), file=sys.stderr)
+    print("Total %d genes in %d families" %
+          (ngenes, nfamilies), file=sys.stderr)
     print(
-        "Longest families (%d): %s" % (len(longest_family), ",".join(longest_family)),
+        "Longest families (%d): %s" % (
+            len(longest_family), ",".join(longest_family)),
         file=sys.stderr,
     )
 

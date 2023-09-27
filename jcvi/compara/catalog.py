@@ -666,6 +666,12 @@ def ortholog(args):
     dotplot_group.add_option(
         "--no_dotplot", default=False, action="store_true", help="Do not make dotplot"
     )
+    p.add_option(
+        "--ignore_zero_anchor",
+        default=False,
+        action="store_true",
+        help="Ignore this pair of ortholog identification instead of throwing an error when performing many pairs of cataloging."
+    )
 
     opts, args = p.parse_args(args)
 
@@ -674,6 +680,7 @@ def ortholog(args):
 
     a, b = args
     dbtype = opts.dbtype
+    ignore_zero_anchor = opts.ignore_zero_anchor
     suffix = ".cds" if dbtype == "nucl" else ".pep"
     abed, afasta = a + ".bed", a + suffix
     bbed, bfasta = b + ".bed", b + suffix
@@ -727,7 +734,15 @@ def ortholog(args):
                 dargs += ["--no_strip_names"]
             if opts.liftover_dist:
                 dargs += ["--liftover_dist={}".format(opts.liftover_dist)]
-            scan(dargs)
+            try:
+                scan(dargs)
+            except ValueError as e:
+                if ignore_zero_anchor:
+                    logging.debug(f"{e}")
+                    logging.debug("Ignoring this error and continuing...")
+                    return
+                else:
+                    raise ValueError(e)
         if quota:
             quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])
         if need_update(anchors, pdf, warn=True) and not opts.no_dotplot:

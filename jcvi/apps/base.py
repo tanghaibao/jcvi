@@ -10,7 +10,6 @@ import signal
 import sys
 import logging
 import fnmatch
-import functools
 
 
 from collections.abc import Iterable

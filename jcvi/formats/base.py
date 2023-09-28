@@ -5,20 +5,20 @@ import os
 import os.path as op
 import math
 import sys
-import logging
 
 from collections import OrderedDict
 from itertools import groupby, islice, cycle
 
 from Bio import SeqIO
-from jcvi.apps.base import (
+from ..apps.base import (
     OptionParser,
     ActionDispatcher,
     cleanup,
-    sh,
-    need_update,
+    logger,
     mkdir,
+    need_update,
     popen,
+    sh,
 )
 
 
@@ -28,10 +28,9 @@ FastqExt = ("fastq", "fq")
 
 class BaseFile(object):
     def __init__(self, filename):
-
         self.filename = filename
         if filename:
-            logging.debug("Load file `{0}`".format(filename))
+            logger.debug("Load file `%s`", filename)
 
 
 class LineFile(BaseFile, list):
@@ -40,15 +39,12 @@ class LineFile(BaseFile, list):
     """
 
     def __init__(self, filename, comment=None, load=False):
-
         super(LineFile, self).__init__(filename)
 
         if load:
             fp = must_open(filename)
             self.lines = [l.strip() for l in fp if l[0] != comment]
-            logging.debug(
-                "Load {0} lines from `{1}`.".format(len(self.lines), filename)
-            )
+            logger.debug("Load %d lines from `%s`", len(self.lines), filename)
 
 
 class DictFile(BaseFile, OrderedDict):
@@ -66,7 +62,6 @@ class DictFile(BaseFile, OrderedDict):
         keycast=None,
         cast=None,
     ):
-
         BaseFile.__init__(self, filename)
         OrderedDict.__init__(self)
         self.keypos = keypos
@@ -84,7 +79,7 @@ class DictFile(BaseFile, OrderedDict):
 
                 msg = "Must contain >= {0} columns.  {1}.\n".format(ncols, action)
                 msg += "  --> Line {0}: {1}".format(lineno + 1, row)
-                logging.error(msg)
+                logger.error(msg)
                 if strict:
                     sys.exit(1)
                 else:
@@ -100,7 +95,7 @@ class DictFile(BaseFile, OrderedDict):
 
         assert thiscols, "File empty"
         self.ncols = thiscols
-        logging.debug("Imported {0} records from `{1}`.".format(len(self), filename))
+        logger.debug("Imported %d records from `%s`", len(self), filename)
 
     @classmethod
     def num_columns(cls, filename, delimiter=None):
@@ -136,7 +131,6 @@ class FileMerger(object):
     """
 
     def __init__(self, filelist, outfile):
-
         self.filelist = filelist
         self.outfile = outfile
         self.ingz = filelist[0].endswith(".gz")
@@ -166,7 +160,7 @@ class FileSplitter(object):
         self.mode = mode
 
         format = format or self._guess_format(filename)
-        logging.debug("format is %s" % format)
+        logger.debug("format is %s", format)
 
         if format in ("fasta", "fastq"):
             self.klass = "seqio"
@@ -179,7 +173,6 @@ class FileSplitter(object):
         mkdir(outputdir)
 
     def _open(self, filename):
-
         if self.klass == "seqio":
             handle = SeqIO.parse(open(filename), self.format)
         elif self.klass == "clust":
@@ -260,16 +253,14 @@ class FileSplitter(object):
         """
         mode = self.mode
         assert mode in ("batch", "cycle", "optimal")
-        logging.debug("set split mode=%s" % mode)
+        logger.debug("set split mode=%s", mode)
 
         self.names = self.__class__.get_names(self.filename, N)
         if self.outputdir:
             self.names = [op.join(self.outputdir, x) for x in self.names]
 
         if not need_update(self.filename, self.names) and not force:
-            logging.error(
-                "file %s already existed, skip file splitting" % self.names[0]
-            )
+            logger.error("file %s already existed, skip file splitting", self.names[0])
             return
 
         filehandles = [open(x, "w") for x in self.names]
@@ -277,7 +268,7 @@ class FileSplitter(object):
         if mode == "batch":
             for batch, fw in zip(self._batch_iterator(N), filehandles):
                 count = self.write(fw, batch)
-                logging.debug("write %d records to %s" % (count, fw.name))
+                logger.debug("write %d records to %s", count, fw.name)
 
         elif mode == "cycle":
             handle = self._open(self.filename)
@@ -415,7 +406,7 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=Fa
                 else:
                     fp = open(filename, "w")
             else:
-                logging.debug("File `{0}` already exists. Skipped.".format(filename))
+                logger.debug("File `%s` already exists. Skipped.", filename)
                 return None
         else:
             fp = open(filename, mode)
@@ -462,7 +453,7 @@ def write_file(filename, contents, meta=None, skipcheck=False, append=False, tee
 
     fileop = "appended" if append else "written"
     message = "{0} {1} to `{2}`.".format(meta, fileop, filename)
-    logging.debug(message.capitalize())
+    logger.debug(message.capitalize())
     if meta == "run script" and not append:
         sh("chmod u+x {0}".format(filename))
 
@@ -542,7 +533,6 @@ def flexible_cast(s):
 
 
 def main():
-
     actions = (
         ("pairwise", "convert a list of IDs into all pairs"),
         ("split", "split large file into N chunks"),
@@ -821,7 +811,7 @@ def group(args):
             if len(cols) < len(atoms):
                 cols = [x for x in range(len(atoms))]
             if groupby not in cols:
-                logging.error("groupby col index `{0}` is out of range".format(groupby))
+                logger.error("groupby col index `%s` is out of range", groupby)
                 sys.exit()
 
             key = atoms[groupby]
@@ -922,13 +912,13 @@ def split(args):
     fs = FileSplitter(filename, outputdir=outdir, format=opts.format, mode=opts.mode)
 
     if opts.all:
-        logging.debug("option -all override N")
+        logger.debug("option -all override N")
         N = fs.num_records
     else:
         N = min(fs.num_records, int(N))
         assert N > 0, "N must be > 0"
 
-    logging.debug("split file into %d chunks" % N)
+    logger.debug("split file into %d chunks", N)
     fs.split(N)
 
     return fs

@@ -27,7 +27,8 @@ from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 from typing import Any, Collection, List, Optional, Union
 
 from natsort import natsorted
-from rich.logging import Console, RichHandler
+from rich.console import Console
+from rich.logging import RichHandler
 
 from jcvi import __copyright__, __version__
 

@@ -11,7 +11,6 @@ import sys
 import logging
 import fnmatch
 
-
 from collections.abc import Iterable
 from http.client import HTTPSConnection
 from urllib.parse import urlencode

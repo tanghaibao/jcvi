@@ -7,6 +7,11 @@ from os import remove
 import sys
 import logging
 
+logging.getLogger("matplotlib").setLevel(logging.WARNING)
+logging.getLogger("numexpr").setLevel(logging.WARNING)
+logging.getLogger("PIL").setLevel(logging.INFO)
+
+
 from functools import partial
 
 import numpy as np
@@ -32,12 +37,9 @@ from matplotlib.patches import (
 from matplotlib.path import Path
 from typing import Optional
 
-from ..apps.base import datadir, get_logger, glob, listify, logger, sample_N, which
+from ..apps.base import datadir, glob, listify, logger, sample_N, which
 from ..formats.base import LineFile
 
-get_logger("matplotlib").setLevel(logging.WARNING)
-get_logger("numexpr").setLevel(logging.WARNING)
-logging.getLogger("PIL").setLevel(logging.INFO)
 
 CHARS = {
     "&": r"\&",

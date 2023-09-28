@@ -27,7 +27,7 @@ from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 from typing import Any, Collection, List, Optional, Union
 
 from natsort import natsorted
-from rich.logging import RichHandler
+from rich.logging import Console, RichHandler
 
 from jcvi import __copyright__, __version__
 
@@ -36,6 +36,21 @@ nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 nobreakbuffer()
 os.environ["LC_ALL"] = "C"
 JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
+
+
+def debug(level=logging.DEBUG):
+    """
+    Turn on the debugging
+    """
+    logging.basicConfig(
+        level=level,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(console=Console(stderr=True))],
+    )
+
+
+debug()
 
 
 def get_logger(name: str):

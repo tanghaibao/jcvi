@@ -3049,11 +3049,13 @@ def bed(args):
     parent_key = opts.parent_key
     add_chr = opts.add_chr
     ensembl_cds = opts.ensembl_cds
-
     if opts.type:
         type = set(x.strip() for x in opts.type.split(","))
     if opts.source:
         source = set(x.strip() for x in opts.source.split(","))
+    if ensembl_cds:
+        type = {"CDS"}
+        source = {"protein_coding"}
 
     gff = Gff(
         gffile,
@@ -3066,6 +3068,8 @@ def bed(args):
     )
     b = Bed()
     seen_parents = set()  # used with --primary_only
+    seen = set()  # used with --ensembl_cds
+    skipped_identical_range = 0
     skipped_non_primary = 0
 
     for g in gff:
@@ -3091,6 +3095,11 @@ def bed(args):
             bl.accn = "{0}.{1}".format(
                 g.get_attr("transcript_name"), g.get_attr("exon_number")
             )
+            position = (bl.seqid, bl.start, bl.end)
+            if position in seen:
+                skipped_identical_range += 1
+                continue
+            seen.add(position)
 
         b.append(bl)
 
@@ -3103,6 +3112,8 @@ def bed(args):
     )
     if primary_only:
         logging.debug("Skipped non-primary: %d", skipped_non_primary)
+    if ensembl_cds:
+        logging.debug("Skipped due to identical range: %d", skipped_identical_range)
 
 
 def make_index(gff_file):

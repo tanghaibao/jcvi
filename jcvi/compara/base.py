@@ -1,6 +1,6 @@
-import logging
 from collections import defaultdict
 
+from ..apps.base import logger
 from ..formats.base import BaseFile, read_block, must_open
 from ..utils.range import Range
 
@@ -69,9 +69,9 @@ class AnchorFile(BaseFile):
                 print("\t".join((a, b, score)), file=fw)
         fw.close()
 
-        logging.debug("Removed %d existing anchors.", nremoved)
-        logging.debug("Corrected scores for %d anchors.", ncorrected)
-        logging.debug("Anchors written to `%s`.", filename)
+        logger.debug("Removed %d existing anchors", nremoved)
+        logger.debug("Corrected scores for %d anchors", ncorrected)
+        logger.debug("Anchors written to `%s`", filename)
 
     def blast(self, blastfile=None, outfile=None):
         """
@@ -102,7 +102,7 @@ class AnchorFile(BaseFile):
             nlines += 1
         fw.close()
 
-        logging.debug("A total of %d BLAST lines written to `%s`.", nlines, outfile)
+        logger.debug("A total of %d BLAST lines written to `%s`", nlines, outfile)
 
         return outfile
 

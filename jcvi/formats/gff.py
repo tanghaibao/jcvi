@@ -70,6 +70,7 @@ reserved_gff_attributes = (
 )
 multiple_gff_attributes = ("Parent", "Alias", "Dbxref", "Ontology_term")
 safechars = " /:?~#+!$'@()*[]|"
+VALID_HUMAN_CHROMOSMES = set([str(x) for x in range(1, 23)] + ["X", "Y"])
 
 
 class GffLine(object):
@@ -3022,10 +3023,10 @@ def bed(args):
         help="Parent gene key to group with --primary_only",
     )
     p.add_option(
-        "--add_chr",
+        "--human_chr",
         default=False,
         action="store_true",
-        help="Add `chr` prefix to seqid",
+        help="Only allow 1-22XY, and add `chr` prefix to seqid",
     )
     p.add_option(
         "--ensembl_cds",
@@ -3047,7 +3048,7 @@ def bed(args):
     span = opts.span
     primary_only = opts.primary_only
     parent_key = opts.parent_key
-    add_chr = opts.add_chr
+    human_chr = opts.human_chr
     ensembl_cds = opts.ensembl_cds
     if opts.type:
         type = set(x.strip() for x in opts.type.split(","))
@@ -3089,7 +3090,9 @@ def bed(args):
             bl.accn = accn
         if span:
             bl.score = bl.span
-        if add_chr:
+        if human_chr:
+            if bl.seqid not in VALID_HUMAN_CHROMOSMES:
+                continue
             bl.seqid = "chr" + bl.seqid
         if ensembl_cds:
             bl.accn = "{0}.{1}".format(

@@ -10,8 +10,6 @@ import signal
 import sys
 import logging
 import fnmatch
-import functools
-
 
 from collections.abc import Iterable
 from http.client import HTTPSConnection
@@ -29,7 +27,8 @@ from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
 from typing import Any, Collection, List, Optional, Union
 
 from natsort import natsorted
-from rich.logging import Console, RichHandler
+from rich.console import Console
+from rich.logging import RichHandler
 
 from jcvi import __copyright__, __version__
 
@@ -40,28 +39,33 @@ os.environ["LC_ALL"] = "C"
 JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
 
 
-def patch_debug(func):
-    @functools.wraps(func)
-    def wraps(*args, **kwargs):
-        import inspect
+def debug(level=logging.DEBUG):
+    """
+    Turn on the debugging
+    """
+    logging.basicConfig(
+        level=level,
+        format="%(message)s",
+        datefmt="[%X]",
+        handlers=[RichHandler(console=Console(stderr=True))],
+    )
 
-        callerframerecord = inspect.stack()[1]
-        frame = callerframerecord[0]
-        info = inspect.getframeinfo(frame)
-        # get caller function name
-        caller = frame.f_code.co_name
-        patch_message = f"{info.filename}:{info.lineno}:{caller}"
-        old_debug = logging.debug
 
-        def my_debug(message: str, *args, **kwargs):
-            old_debug(f"{patch_message} {message}", *args, **kwargs)
+debug()
 
-        logging.debug = my_debug
-        ret = func(*args, **kwargs)
-        logging.debug = old_debug
-        return ret
 
-    return wraps
+def get_logger(name: str):
+    """Return a logger with a default ColoredFormatter."""
+    logger = logging.getLogger(name)
+    if logger.hasHandlers():
+        logger.handlers.clear()
+    logger.addHandler(RichHandler())
+    logger.propagate = False
+    logger.setLevel(logging.INFO)
+    return logger
+
+
+logger = get_logger("jcvi")
 
 
 class ActionDispatcher(object):
@@ -603,12 +607,12 @@ class OptionParser(OptionP):
         iopts = ImageOptions(opts)
 
         if opts.notex:
-            logging.info("--notex={}. latex use is disabled.".format(opts.notex))
+            logger.info("--notex=%s. latex use is disabled.", opts.notex)
         elif not is_tex_available():
             if not bool(which("latex")):
-                logging.info("`latex` not found. latex use is disabled.")
+                logger.info("`latex` not found. latex use is disabled.")
             if not bool(which("lp")):
-                logging.info("`lp` not found. latex use is disabled.")
+                logger.info("`lp` not found. latex use is disabled.")
 
         setup_theme(style=opts.style, font=opts.font, usetex=iopts.usetex)
 
@@ -1048,9 +1052,9 @@ def ConfigSectionMap(Config, section):
         try:
             cfg[option] = Config.get(section, option)
             if cfg[option] == -1:
-                logging.debug("skip: {0}".format(option))
+                logger.debug("skip: %s", option)
         except:
-            logging.debug("exception on {0}!".format(option))
+            logger.debug("exception on %s!", option)
             cfg[option] = None
     return cfg
 
@@ -1131,7 +1135,7 @@ def dmain(mainfile, type="action"):
 def backup(filename):
     bakname = filename + ".bak"
     if op.exists(filename):
-        logging.debug("Backup `{0}` to `{1}`".format(filename, bakname))
+        logger.debug("Backup `%s` to `%s`", filename, bakname)
         sh("mv {0} {1}".format(filename, bakname))
     return bakname
 
@@ -1205,7 +1209,7 @@ def sh(
             cmd += " &"
 
         if log:
-            logging.debug(cmd)
+            logger.debug(cmd)
 
         call_func = check_output if check else call
         return call_func(cmd, shell=True, executable=shell, stderr=redirect_error)
@@ -1218,7 +1222,7 @@ def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):
     from subprocess import Popen as P
 
     if debug:
-        logging.debug(cmd)
+        logger.debug(cmd)
     # See: <https://blog.nelhage.com/2010/02/a-very-subtle-bug/>
     proc = P(cmd, bufsize=1, stdin=stdin, stdout=stdout, shell=True, executable=shell)
     return proc
@@ -1307,7 +1311,7 @@ def mkdir(dirname, overwrite=False):
         if overwrite:
             cleanup(dirname)
             os.mkdir(dirname)
-            logging.debug("Overwrite folder `{0}`.".format(dirname))
+            logger.debug("Overwrite folder `%s`", dirname)
         else:
             return False  # Nothing is changed
     else:
@@ -1315,7 +1319,7 @@ def mkdir(dirname, overwrite=False):
             os.mkdir(dirname)
         except:
             os.makedirs(dirname)
-        logging.debug("`{0}` not found. Creating new.".format(dirname))
+        logger.debug("`%s` not found. Creating new.", dirname)
 
     return True
 
@@ -1377,7 +1381,7 @@ def need_update(a: str, b: str, warn: bool = False) -> bool:
         or any(is_newer_file(x, y) for x in a for y in b)
     )
     if (not should_update) and warn:
-        logging.debug("File `{}` found. Computation skipped.".format(", ".join(b)))
+        logger.debug("File `%s` found. Computation skipped.", ", ".join(b))
     return should_update
 
 
@@ -1476,8 +1480,7 @@ def download(
     final_filename = filename or target
     if op.exists(final_filename):
         if debug:
-            msg = "File `{}` exists. Download skipped.".format(final_filename)
-            logging.info(msg)
+            logger.info("File `%s` exists. Download skipped.", final_filename)
         success = True
     else:
         from jcvi.utils.ez_setup import get_best_downloader
@@ -1527,24 +1530,9 @@ def getfilesize(filename, ratio=None):
     while size < heuristicsize:
         size += 2**32
     if size > 2**32:
-        logging.warning("Gzip file estimated uncompressed size: {0}.".format(size))
+        logger.warning("Gzip file estimated uncompressed size: %d", size)
 
     return size
-
-
-def debug(level=logging.DEBUG):
-    """
-    Turn on the debugging
-    """
-    logging.basicConfig(
-        level=level,
-        format="%(message)s",
-        datefmt="[%X]",
-        handlers=[RichHandler(console=Console(stderr=True))],
-    )
-
-
-debug()
 
 
 def main():
@@ -1603,7 +1591,7 @@ def expand(args):
     for a in args:
         oa = a.replace("/", "_")
         if oa in seen:
-            logging.debug("Name collision `{0}`, ignored.".format(oa))
+            logger.debug("Name collision `%s`, ignored", oa)
             continue
 
         cmd = "cp -s" if opts.symlink else "mv"
@@ -1995,7 +1983,7 @@ def notify(args):
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
-        logging.error("Please provide a brief message to be sent")
+        logger.error("Please provide a brief message to be sent")
         sys.exit(not p.print_help())
 
     subject = opts.subject
@@ -2005,7 +1993,7 @@ def notify(args):
         toaddr = opts.email.split(",")  # TO address should be in a list
         for addr in toaddr:
             if not is_valid_email(addr):
-                logging.debug("Email address `{0}` is not valid!".format(addr))
+                logger.debug("Email address `%s` is not valid!", addr)
                 sys.exit()
         send_email(fromaddr, toaddr, subject, message)
     else:
@@ -2165,7 +2153,7 @@ def waitpid(args):
             msg = check_output(shlex.split(get_origcmd)).strip()
         _waitpid(pid, interval=opts.interval)
     else:
-        logging.debug("Process with PID {0} does not exist".format(pid))
+        logger.debug("Process with PID %d does not exist", pid)
         sys.exit()
 
     if opts.notify:
@@ -2188,9 +2176,9 @@ def get_config(path):
         config.read(path)
     except ParsingError:
         e = sys.exc_info()[1]
-        logging.error(
-            "There was a problem reading or parsing "
-            "your credentials file: %s" % (e.args[0],),
+        logger.error(
+            "There was a problem reading or parsing your credentials file: %s",
+            e.args[0],
         )
     return config
 
@@ -2241,16 +2229,16 @@ def getpath(
     else:
         err_msg = f"Cannot execute binary `{path}`. Please verify and rerun."
         if warn == "exit":
-            logging.fatal(err_msg)
+            logger.fatal(err_msg)
         else:
-            logging.warning(err_msg)
+            logger.warning(err_msg)
         return None
 
     if changed:
         configfile = open(cfg, "w")
         config.write(configfile)
         configfile.close()
-        logging.debug("Configuration written to `{0}`.".format(cfg))
+        logger.debug("Configuration written to `%s`", cfg)
 
     return path
 

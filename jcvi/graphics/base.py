@@ -11,6 +11,7 @@ logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("numexpr").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.INFO)
 
+
 from functools import partial
 
 import numpy as np
@@ -36,10 +37,8 @@ from matplotlib.patches import (
 from matplotlib.path import Path
 from typing import Optional
 
-from jcvi.formats.base import LineFile
-from jcvi.apps.base import glob, listify, datadir, sample_N, which
-
-logging.getLogger().setLevel(logging.DEBUG)
+from ..apps.base import datadir, glob, listify, logger, sample_N, which
+from ..formats.base import LineFile
 
 
 CHARS = {
@@ -95,10 +94,8 @@ class TextHandler(object):
         try:
             self.build_height_array(fig, usetex=usetex)
         except ValueError as e:
-            logging.debug(
-                "Failed to init heights (error: {}). Variable label sizes skipped.".format(
-                    e
-                )
+            logger.debug(
+                "Failed to init heights (error: %s). Variable label sizes skipped.", e
             )
 
     @classmethod
@@ -204,8 +201,8 @@ def load_image(filename):
         ret[:, :, 2] = ret[:, :, 1] = ret[:, :, 0] = img
         img = ret
     else:
-        h, w, c = img.shape
-    logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(filename, w, h))
+        h, w, _ = img.shape
+    logger.debug("Image `%s` loaded (%dpx x %dpx).", filename, w, h)
     return img
 
 
@@ -315,24 +312,22 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True):
     except:
         format = "pdf"
     try:
-        logging.debug(f"Matplotlib backend is: {mpl.get_backend()}")
-        logging.debug(f"Attempting save as: {figname}")
+        logger.debug("Matplotlib backend is: %s", mpl.get_backend())
+        logger.debug("Attempting save as: %s", figname)
         plt.savefig(figname, dpi=dpi, format=format)
     except Exception as e:
-        message = "savefig failed with message:"
-        message += "\n{0}".format(str(e))
-        logging.error(message)
-        logging.info("Try running again with --notex option to disable latex.")
+        logger.error("savefig failed with message:\n%s", e)
+        logger.info("Try running again with --notex option to disable latex.")
         if op.exists(figname):
             if op.getsize(figname) < 1000:
-                logging.debug(f"Cleaning up empty file: {figname}")
+                logger.debug("Cleaning up empty file: %s", figname)
                 remove(figname)
         sys.exit(1)
 
     msg = "Figure saved to `{0}`".format(figname)
     if iopts:
         msg += " {0}".format(iopts)
-    logging.debug(msg)
+    logger.debug(msg)
 
     if cleanup:
         plt.rcdefaults()
@@ -392,7 +387,7 @@ def fontprop(ax, name, size=12):
     fname = op.join(datadir, name)
     prop = fm.FontProperties(fname=fname, size=size)
 
-    logging.debug("Set font to `{0}` (`{1}`).".format(name, prop.get_file()))
+    logger.debug("Set font to `%s` (`%s`)", name, prop.get_file())
     for text in ax.texts:
         text.set_fontproperties(prop)
 
@@ -439,9 +434,7 @@ def setup_theme(
     if usetex:
         rc("text", usetex=True)
     else:
-        logging.info(
-            "Set text.usetex={}. Font styles may be inconsistent.".format(usetex)
-        )
+        logger.info("Set text.usetex=%s. Font styles may be inconsistent.", usetex)
         rc("text", usetex=False)
 
     if font == "Helvetica":

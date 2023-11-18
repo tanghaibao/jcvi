@@ -497,7 +497,6 @@ def to_range(obj, score=None, id=None, strand=None):
 
 
 def main():
-
     actions = (
         ("addparent", "merge sister features and infer their parent"),
         ("bed", "parse gff and produce bed file for particular feature type"),
@@ -3022,6 +3021,18 @@ def bed(args):
         default="Parent",
         help="Parent gene key to group with --primary_only",
     )
+    p.add_option(
+        "--add_chr",
+        default=False,
+        action="store_true",
+        help="Add `chr` prefix to seqid",
+    )
+    p.add_option(
+        "--ensembl_cds",
+        default=False,
+        action="store_true",
+        help="Use transcript_name.exon_number as accn",
+    )
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -3036,11 +3047,15 @@ def bed(args):
     span = opts.span
     primary_only = opts.primary_only
     parent_key = opts.parent_key
-
+    add_chr = opts.add_chr
+    ensembl_cds = opts.ensembl_cds
     if opts.type:
         type = set(x.strip() for x in opts.type.split(","))
     if opts.source:
         source = set(x.strip() for x in opts.source.split(","))
+    if ensembl_cds:
+        type = {"CDS"}
+        source = {"protein_coding"}
 
     gff = Gff(
         gffile,
@@ -3053,6 +3068,8 @@ def bed(args):
     )
     b = Bed()
     seen_parents = set()  # used with --primary_only
+    seen = set()  # used with --ensembl_cds
+    skipped_identical_range = 0
     skipped_non_primary = 0
 
     for g in gff:
@@ -3072,6 +3089,18 @@ def bed(args):
             bl.accn = accn
         if span:
             bl.score = bl.span
+        if add_chr:
+            bl.seqid = "chr" + bl.seqid
+        if ensembl_cds:
+            bl.accn = "{0}.{1}".format(
+                g.get_attr("transcript_name"), g.get_attr("exon_number")
+            )
+            position = (bl.seqid, bl.start, bl.end)
+            if position in seen:
+                skipped_identical_range += 1
+                continue
+            seen.add(position)
+
         b.append(bl)
 
     sorted = not opts.nosort
@@ -3083,6 +3112,8 @@ def bed(args):
     )
     if primary_only:
         logging.debug("Skipped non-primary: %d", skipped_non_primary)
+    if ensembl_cds:
+        logging.debug("Skipped due to identical range: %d", skipped_identical_range)
 
 
 def make_index(gff_file):
@@ -3134,7 +3165,6 @@ def children(args):
     parents = set(opts.parents.split(","))
 
     for feat in get_parents(gff_file, parents):
-
         cc = [c.id for c in g.children(feat.id, 1)]
         if len(cc) <= 1:
             continue
@@ -3513,7 +3543,6 @@ def get_coords(feature, site, fLen, seqlen, feat, children_list, gffdb):
     elif site in ["TrSS", "TrES"]:
         children = []
         for c in gffdb.children(feat.id, 1):
-
             if c.featuretype not in children_list:
                 continue
             children.append((c.start, c.stop))
@@ -3686,7 +3715,6 @@ def bed12(args):
     fw = must_open(outfile, "w")
 
     for f in g.features_of_type(parent):
-
         chrom = f.chrom
         chromStart = f.start - 1
         chromEnd = f.stop
@@ -3701,7 +3729,6 @@ def bed12(args):
         blocks = []
 
         for c in g.children(name, 1):
-
             cstart, cend = c.start - 1, c.stop
 
             if c.featuretype == block:

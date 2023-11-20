@@ -151,7 +151,7 @@ class Bed(LineFile):
             return
 
         for line in must_open(filename):
-            if line[0] == "#" or (juncs and line.startswith("track name")):
+            if line[0] == "#" or (juncs and line.startswith("track name")) or line.strip()=="":
                 continue
             b = BedLine(line)
             if include and b.accn not in include:

@@ -79,7 +79,10 @@ class LayoutLine(object):
             self.label = args[7].strip()
         else:
             self.label = None
-
+        if len(args) > 8:
+            self.label_fontsize = float(args[8])
+        else:
+            self.label_fontsize = 10
 
 class Layout(AbstractLayout):
     def __init__(self, filename, delimiter=",", seed: Optional[int] = None):
@@ -352,13 +355,13 @@ class Region(object):
             loc_label = label if loc_label else None
             if chr_label:
                 if loc_label:
-                    ax.text(lx, ly + vpad, chr_label, color=layout.color, **kwargs)
+                    ax.text(lx, ly + vpad, chr_label, size=layout.label_fontsize, color=layout.color, **kwargs)
                     ax.text(
                         lx,
                         ly - vpad,
                         loc_label,
                         color="lightslategrey",
-                        size=10,
+                        size=layout.label_fontsize,
                         **kwargs,
                     )
                 else:

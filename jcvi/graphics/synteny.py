@@ -79,7 +79,10 @@ class LayoutLine(object):
             self.label = args[7].strip()
         else:
             self.label = None
-
+        if len(args) > 8:
+            self.label_fontsize = float(args[8])
+        else:
+            self.label_fontsize = 10
 
 class Layout(AbstractLayout):
     def __init__(self, filename, delimiter=",", seed: Optional[int] = None):
@@ -193,6 +196,7 @@ class Region(object):
         loc_label=True,
         gene_labels: Optional[set] = None,
         genelabelsize=0,
+        genelabelrotation=25,
         pad=0.05,
         vpad=0.015,
         extra_features=None,
@@ -277,7 +281,7 @@ class Region(object):
                     y + height / 2 + genelabelsize * vpad / 3,
                     markup(gene_name),
                     size=genelabelsize,
-                    rotation=25,
+                    rotation=genelabelrotation,
                     ha="left",
                     va="center",
                     color="lightslategray",
@@ -352,13 +356,13 @@ class Region(object):
             loc_label = label if loc_label else None
             if chr_label:
                 if loc_label:
-                    ax.text(lx, ly + vpad, chr_label, color=layout.color, **kwargs)
+                    ax.text(lx, ly + vpad, chr_label, size=layout.label_fontsize, color=layout.color, **kwargs)
                     ax.text(
                         lx,
                         ly - vpad,
                         loc_label,
                         color="lightslategrey",
-                        size=10,
+                        size=layout.label_fontsize,
                         **kwargs,
                     )
                 else:
@@ -600,6 +604,13 @@ def main():
         + "Reasonably good values are 2 to 6 [Default: disabled]",
     )
     p.add_option(
+        "--genelabelrotation",
+        default=25,
+        type="int",
+        help="Rotate gene labels at this angle (anti-clockwise), useful for debugging. "
+        + "[Default: 25]",
+    )
+    p.add_option(
         "--scalebar",
         default=False,
         action="store_true",
@@ -647,6 +658,7 @@ def main():
         extra_features=opts.extra,
         gene_labels=gene_labels,
         genelabelsize=opts.genelabelsize,
+        genelabelrotation=opts.genelabelrotation,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
         glyphstyle=opts.glyphstyle,

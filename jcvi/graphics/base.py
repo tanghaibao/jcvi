@@ -34,7 +34,6 @@ from matplotlib.patches import (
     FancyArrowPatch,
     FancyBboxPatch,
 )
-from matplotlib.path import Path
 from typing import Optional
 
 from ..apps.base import datadir, glob, listify, logger, sample_N, which
@@ -313,7 +312,6 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True):
         format = "pdf"
     try:
         logger.debug("Matplotlib backend is: %s", mpl.get_backend())
-        logger.debug("Attempting save as: %s", figname)
         plt.savefig(figname, dpi=dpi, format=format)
     except Exception as e:
         logger.error("savefig failed with message:\n%s", e)
@@ -324,9 +322,9 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True):
                 remove(figname)
         sys.exit(1)
 
-    msg = "Figure saved to `{0}`".format(figname)
+    msg = f"Figure saved to `{figname}`"
     if iopts:
-        msg += " {0}".format(iopts)
+        msg += f" {iopts}"
     logger.debug(msg)
 
     if cleanup:

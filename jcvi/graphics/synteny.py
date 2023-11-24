@@ -22,6 +22,7 @@ from typing import Optional
 
 import numpy as np
 import matplotlib.transforms as transforms
+from matplotlib.path import Path
 
 from ..apps.base import OptionParser, logger
 from ..compara.synteny import BlockFile
@@ -31,7 +32,6 @@ from ..graphics.base import (
     markup,
     plt,
     savefig,
-    Path,
     PathPatch,
     AbstractLayout,
 )

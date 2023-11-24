@@ -5,20 +5,20 @@
 Legacy script to plot distribution of certain classes onto chromosomes. Adapted
 from the script used in the Tang et al. PNAS 2010 paper, sigma figure.
 """
-import logging
 import sys
 from itertools import groupby
 from math import ceil
-from natsort import natsorted
 from typing import Tuple
 
 import numpy as np
 
-from jcvi.apps.base import OptionGroup, OptionParser, datafile, sample_N
-from jcvi.formats.base import DictFile, get_number
-from jcvi.formats.bed import Bed
-from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import (
+from natsort import natsorted
+
+from ..apps.base import OptionGroup, OptionParser, datafile, logger, sample_N
+from ..formats.base import DictFile, get_number
+from ..formats.bed import Bed
+from ..formats.sizes import Sizes
+from ..graphics.base import (
     CirclePolygon,
     Polygon,
     Rectangle,
@@ -29,7 +29,7 @@ from jcvi.graphics.base import (
     set1_n,
     set3_n,
 )
-from jcvi.graphics.glyph import BaseGlyph, plot_cap
+from ..graphics.glyph import BaseGlyph, plot_cap
 
 
 class Chromosome(BaseGlyph):
@@ -236,7 +236,7 @@ class GeneticMap(BaseGlyph):
         # tip = length of the ticks
         y1, y2 = sorted((y1, y2))
         ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
-        max_marker_name, max_chr_len = max(markers, key=lambda x: x[-1])
+        _, max_chr_len = max(markers, key=lambda x: x[-1])
         r = y2 - y1
         ratio = r / max_chr_len
         marker_pos = {}
@@ -314,7 +314,7 @@ def write_ImageMapLine(tlx, tly, brx, bry, w, h, dpi, chr, segment_start, segmen
     """
     tlx, brx = [canvas2px(x, w, dpi) for x in (tlx, brx)]
     tly, bry = [canvas2px(y, h, dpi) for y in (tly, bry)]
-    chr, bac_list = chr.split(":")
+    chr, _ = chr.split(":")
     return (
         '<area shape="rect" coords="'
         + ",".join(str(x) for x in (tlx, tly, brx, bry))
@@ -358,7 +358,7 @@ def draw_cytoband(
     bands = pd.read_csv(filename, sep="\t")
     chrombands = bands[bands["#chrom"] == chrom]
     data = []
-    for i, (chr, start, end, name, gie) in chrombands.iterrows():
+    for _, (chr, start, end, name, gie) in chrombands.iterrows():
         data.append((chr, start, end, name, gie))
     chromsize = max(x[2] for x in data)
     scale = width * 1.0 / chromsize
@@ -541,9 +541,7 @@ def draw_chromosomes(
         mappings = dict((x, x) for x in classes)
         preset_colors = {}
 
-    logging.debug(
-        "A total of {} classes found: {}".format(len(classes), ",".join(classes))
-    )
+    logger.debug("A total of %d classes found: %s", len(classes), ",".join(classes))
 
     # Assign colors to classes
     ncolors = max(3, min(len(classes), 12))
@@ -552,14 +550,14 @@ def draw_chromosomes(
     colorset = sample_N(colorset, len(classes), seed=iopts.seed)
     class_colors = dict(zip(classes, colorset))
     class_colors.update(preset_colors)
-    logging.debug("Assigned colors: {}".format(class_colors))
+    logger.debug("Assigned colors: %s", class_colors)
 
     chr_lens = {}
     centromeres = {}
     if sizes:
         chr_lens = Sizes(sizes).sizes_mapping
     else:
-        for b, blines in groupby(bed, key=(lambda x: x.seqid)):
+        for b, blines in groupby(bed, key=lambda x: x.seqid):
             blines = list(blines)
             maxlen = max(x.end for x in blines)
             chr_lens[b] = maxlen
@@ -630,11 +628,9 @@ def draw_chromosomes(
             prev_end, prev_klass = b.end, klass
 
             if imagemap:
-                """
-                `segment` : size of current BAC being investigated + `excess`
-                `excess`  : left-over bases from the previous BAC, as a result of
-                            iterating over `winsize` regions of `segment`
-                """
+                # `segment` : size of current BAC being investigated + `excess`
+                # `excess`  : left-over bases from the previous BAC, as a result of
+                #             iterating over `winsize` regions of `segment`
                 if excess == 0:
                     segment_start = start
                 segment = (end - start + 1) + excess
@@ -700,7 +696,7 @@ def draw_chromosomes(
     if imagemap:
         print("</map>", file=mapfh)
         mapfh.close()
-        logging.debug("Image map written to `{0}`".format(mapfh.name))
+        logger.debug("Image map written to `%s`", mapfh.name)
 
     if gauge:
         xstart, ystart = 0.9, 0.85

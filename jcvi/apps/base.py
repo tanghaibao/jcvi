@@ -59,7 +59,7 @@ def get_logger(name: str, level: int = logging.DEBUG):
     logger = logging.getLogger(name)
     if logger.hasHandlers():
         logger.handlers.clear()
-    logger.addHandler(RichHandler())
+    logger.addHandler(RichHandler(console=Console(stderr=True)))
     logger.propagate = False
     logger.setLevel(level)
     return logger

@@ -54,14 +54,14 @@ def debug(level=logging.DEBUG):
 debug()
 
 
-def get_logger(name: str):
+def get_logger(name: str, level: int = logging.DEBUG):
     """Return a logger with a default ColoredFormatter."""
     logger = logging.getLogger(name)
     if logger.hasHandlers():
         logger.handlers.clear()
-    logger.addHandler(RichHandler())
+    logger.addHandler(RichHandler(console=Console(stderr=True)))
     logger.propagate = False
-    logger.setLevel(logging.INFO)
+    logger.setLevel(level)
     return logger
 
 

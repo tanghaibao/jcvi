@@ -295,9 +295,15 @@ class Region(object):
             )
             gp.set_transform(tr)
             if genelabelsize and (not gene_labels or gene_name in gene_labels):
+                if genelabelrotation == 0:
+                    text_x = x1 if x1 > x2 else x2
+                    text_y = y
+                else:
+                    text_x = (x1 + x2) / 2
+                    text_y = y + height / 2 + genelabelsize * vpad / 3
                 ax.text(
-                    (x1 + x2) / 2,
-                    y + height / 2 + genelabelsize * vpad / 3,
+                    text_x,
+                    text_y,
                     markup(gene_name),
                     size=genelabelsize,
                     rotation=genelabelrotation,
@@ -661,6 +667,11 @@ def main():
         choices=Shade.Styles,
         help="Style of syntenic wedges",
     )
+    p.add_option(
+        "--outputprefix",
+        default="",
+        help="Prefix for the output file",
+    )
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 3:
@@ -697,6 +708,9 @@ def main():
     root.set_ylim(0, 1)
     root.set_axis_off()
 
+    outputprefix = opts.outputprefix
+    if outputprefix:
+        pf = outputprefix
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 

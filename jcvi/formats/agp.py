@@ -235,10 +235,7 @@ class AGPLine(object):
             ), "component_begin must be <= component_end"
             assert (
                 self.object_span == self.component_span
-            ), "object_span (%d) must be same as component_span (%d)" % (
-                self.object_span,
-                self.component_span,
-            )
+            ), f"object_span ({self.object_span}) must be same as component_span ({self.component_span})"
         else:
             assert self.gap_length >= 1, "gap_length must be >= 1"
             assert (

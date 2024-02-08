@@ -446,6 +446,7 @@ class Synteny(object):
         glyphstyle: str = "arrow",
         glyphcolor: BasePalette = OrientationPalette(),
         seed: Optional[int] = None,
+        prune_features=True,
     ):
         _, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
@@ -465,13 +466,15 @@ class Synteny(object):
                 start, end, _, _, chrom, _, span = ext
                 start, end = start.start, end.end  # start, end coordinates
                 ef = list(extra_features.extract(chrom, start, end))
-
+                
                 # Pruning removes minor features with < 0.1% of the region
-                ef_pruned = [x for x in ef if x.span >= span / 1000]
-                logger.info(
-                    "Extracted %d features (%d after pruning)", len(ef), len(ef_pruned)
-                )
-                extras.append(ef_pruned)
+                if prune_features:
+                    ef_pruned = [x for x in ef if x.span >= span / 1000]
+                    logger.info(f'Extracted {len(ef)} features ({len(ef_pruned)} after pruning)')
+                    extras.append(ef_pruned)
+                else:
+                    ef_all = [x for x in ef]
+                    extras.append(ef_all)
 
         maxspan = max(exts, key=lambda x: x[-1])[-1]
         scale = maxspan / CANVAS_SIZE
@@ -672,6 +675,12 @@ def main():
         default="",
         help="Prefix for the output file",
     )
+    p.add_option(
+        "--noprune",
+        default=True,
+        action="store_false",
+        help="If set, do not exclude small features from annotation track. ",
+    )
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 3:
@@ -702,6 +711,7 @@ def main():
         glyphstyle=opts.glyphstyle,
         glyphcolor=opts.glyphcolor,
         seed=iopts.seed,
+        prune_features=opts.noprune,        
     )
 
     root.set_xlim(0, 1)

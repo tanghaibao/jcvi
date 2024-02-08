@@ -466,15 +466,19 @@ class Synteny(object):
                 start, end, _, _, chrom, _, span = ext
                 start, end = start.start, end.end  # start, end coordinates
                 ef = list(extra_features.extract(chrom, start, end))
-                
+
                 # Pruning removes minor features with < 0.1% of the region
                 if prune_features:
                     ef_pruned = [x for x in ef if x.span >= span / 1000]
-                    logger.info(f'Extracted {len(ef)} features ({len(ef_pruned)} after pruning)')
+                    logger.info(
+                        "Extracted %d features (%d after pruning)",
+                        len(ef),
+                        len(ef_pruned),
+                    )
                     extras.append(ef_pruned)
                 else:
-                    ef_all = [x for x in ef]
-                    extras.append(ef_all)
+                    logger.info("Extracted %d features", len(ef))
+                    extras.append(ef)
 
         maxspan = max(exts, key=lambda x: x[-1])[-1]
         scale = maxspan / CANVAS_SIZE
@@ -677,9 +681,9 @@ def main():
     )
     p.add_option(
         "--noprune",
-        default=True,
-        action="store_false",
-        help="If set, do not exclude small features from annotation track. ",
+        default=False,
+        action="store_true",
+        help="If set, do not exclude small features from annotation track (<1% of region)",
     )
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
@@ -690,6 +694,7 @@ def main():
     switch = opts.switch
     tree = opts.tree
     gene_labels = None if not opts.genelabels else set(opts.genelabels.split(","))
+    prune_features = not opts.noprune
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -711,7 +716,7 @@ def main():
         glyphstyle=opts.glyphstyle,
         glyphcolor=opts.glyphcolor,
         seed=iopts.seed,
-        prune_features=opts.noprune,        
+        prune_features=prune_features,
     )
 
     root.set_xlim(0, 1)

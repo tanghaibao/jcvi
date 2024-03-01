@@ -1,6 +1,7 @@
 """
 Basic support for running library as script
 """
+
 import errno
 import os
 import time
@@ -539,7 +540,13 @@ class OptionParser(OptionP):
             setup_theme,
         )
 
-        allowed_fonts = ("Helvetica", "Palatino", "Schoolbook", "Arial")
+        allowed_fonts = (
+            "Helvetica",
+            "Liberation Sans",
+            "Palatino",
+            "Schoolbook",
+            "Arial",
+        )
         allowed_styles = ("darkgrid", "whitegrid", "dark", "white", "ticks")
         allowed_diverge = (
             "BrBG",

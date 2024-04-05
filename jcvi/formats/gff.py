@@ -3056,7 +3056,6 @@ def bed(args):
         source = set(x.strip() for x in opts.source.split(","))
     if ensembl_cds:
         type = {"CDS"}
-        source = {"protein_coding"}
 
     gff = Gff(
         gffile,
@@ -3095,6 +3094,8 @@ def bed(args):
                 continue
             bl.seqid = "chr" + bl.seqid
         if ensembl_cds:
+            if g.get_attr("gene_biotype") != "protein_coding":
+                continue
             bl.accn = "{0}.{1}".format(
                 g.get_attr("transcript_name"), g.get_attr("exon_number")
             )

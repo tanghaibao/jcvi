@@ -446,6 +446,7 @@ class Synteny(object):
         glyphstyle: str = "arrow",
         glyphcolor: BasePalette = OrientationPalette(),
         seed: Optional[int] = None,
+        prune_features=True,
     ):
         _, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
@@ -467,11 +468,17 @@ class Synteny(object):
                 ef = list(extra_features.extract(chrom, start, end))
 
                 # Pruning removes minor features with < 0.1% of the region
-                ef_pruned = [x for x in ef if x.span >= span / 1000]
-                logger.info(
-                    "Extracted %d features (%d after pruning)", len(ef), len(ef_pruned)
-                )
-                extras.append(ef_pruned)
+                if prune_features:
+                    ef_pruned = [x for x in ef if x.span >= span / 1000]
+                    logger.info(
+                        "Extracted %d features (%d after pruning)",
+                        len(ef),
+                        len(ef_pruned),
+                    )
+                    extras.append(ef_pruned)
+                else:
+                    logger.info("Extracted %d features", len(ef))
+                    extras.append(ef)
 
         maxspan = max(exts, key=lambda x: x[-1])[-1]
         scale = maxspan / CANVAS_SIZE
@@ -672,6 +679,12 @@ def main():
         default="",
         help="Prefix for the output file",
     )
+    p.add_option(
+        "--noprune",
+        default=False,
+        action="store_true",
+        help="If set, do not exclude small features from annotation track (<1% of region)",
+    )
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
     if len(args) != 3:
@@ -681,6 +694,7 @@ def main():
     switch = opts.switch
     tree = opts.tree
     gene_labels = None if not opts.genelabels else set(opts.genelabels.split(","))
+    prune_features = not opts.noprune
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -702,6 +716,7 @@ def main():
         glyphstyle=opts.glyphstyle,
         glyphcolor=opts.glyphcolor,
         seed=iopts.seed,
+        prune_features=prune_features,
     )
 
     root.set_xlim(0, 1)

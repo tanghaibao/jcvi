@@ -7,7 +7,7 @@ import sys
 from collections import Counter
 from dataclasses import dataclass
 from random import sample
-from typing import Optional
+from typing import Dict, Optional
 
 import networkx as nx
 import numpy as np
@@ -34,6 +34,21 @@ class Sample:
         return self.dad is None and self.mom is None
 
 
+@dataclass
+class SampleInbreeding:
+    """
+    Store inbreeding information for a sample.
+    """
+
+    name: str
+    mean_inbreeding: float
+    std_inbreeding: float
+    dosage: Dict[str, float]
+
+    def __str__(self):
+        return f"{self.name}\t{self.mean_inbreeding:.4f}\t{self.std_inbreeding:.4f}\t{self.dosage}"
+
+
 class Pedigree(BaseFile, dict):
     """
     Read a pedigree file and store the information.
@@ -55,7 +70,7 @@ class Pedigree(BaseFile, dict):
                 s = Sample(name, dad, mom)
                 self[s.name] = s
 
-    def to_graph(self) -> nx.DiGraph:
+    def to_graph(self, inbreeding: Dict[str, SampleInbreeding]) -> nx.DiGraph:
         """
         Convert the pedigree to a graph.
         """
@@ -145,6 +160,35 @@ def simulate_one_iteration(ped: Pedigree, ploidy: int) -> GenotypeCollection:
     return genotypes
 
 
+def calculate_inbreeding(
+    ped: Pedigree,
+    ploidy: int,
+    N: int,
+) -> Dict[str, SampleInbreeding]:
+    """
+    Wrapper to calculate inbreeding coefficients for a sample.
+    """
+    all_collections = []
+    for _ in range(N):
+        genotypes = simulate_one_iteration(ped, ploidy)
+        all_collections.append(genotypes)
+
+    results = {}
+    for s in ped:
+        inbreeding_coefs = [
+            genotypes.inbreeding_coef(s) for genotypes in all_collections
+        ]
+        dosages = [genotypes.dosage(s) for genotypes in all_collections]
+        dosage = sum(dosages, Counter())
+        # normalize
+        dosage = {k: round(v / (ploidy * N), 3) for k, v in dosage.items()}
+        mean_inbreeding = float(np.mean(inbreeding_coefs))
+        std_inbreeding = float(np.std(inbreeding_coefs))
+        sample_inbreeding = SampleInbreeding(s, mean_inbreeding, std_inbreeding, dosage)
+        results[s] = sample_inbreeding
+    return results
+
+
 def inbreeding(args):
     """
     %prog inbreeding pedfile
@@ -163,21 +207,9 @@ def inbreeding(args):
     ploidy = opts.ploidy
     N = opts.N
     ped = Pedigree(pedfile)
-    all_collections = []
-    for _ in range(N):
-        genotypes = simulate_one_iteration(ped, ploidy)
-        all_collections.append(genotypes)
-    for s in ped:
-        inbreeding_coefs = [
-            genotypes.inbreeding_coef(s) for genotypes in all_collections
-        ]
-        dosages = [genotypes.dosage(s) for genotypes in all_collections]
-        dosage = sum(dosages, Counter())
-        # normalize
-        dosage = {k: round(v / (ploidy * N), 3) for k, v in dosage.items()}
-        mean_inbreeding = np.mean(inbreeding_coefs)
-        std_inbreeding = np.std(inbreeding_coefs)
-        print(f"{s}\t{mean_inbreeding:.4f}\t{std_inbreeding:.4f}\t{dosage}")
+    inbreeding = calculate_inbreeding(ped, ploidy, N)
+    for _, v in inbreeding.items():
+        print(v)
 
 
 def plot(args):
@@ -187,14 +219,18 @@ def plot(args):
     Plot the pedigree with graphviz.
     """
     p = OptionParser(plot.__doc__)
-    _, args = p.parse_args(args)
+    p.add_option("--ploidy", default=2, type="int", help="Ploidy")
+    p.add_option("--N", default=10000, type="int", help="Number of samples")
+    opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (pedfile,) = args
     ped = Pedigree(pedfile)
-    G = ped.to_graph()
+    inbreeding = calculate_inbreeding(ped, opts.ploidy, opts.N)
+
+    G = ped.to_graph(inbreeding)
     dotfile = f"{pedfile}.dot"
     nx.nx_agraph.write_dot(G, dotfile)
     pdf_file = dotfile + ".pdf"

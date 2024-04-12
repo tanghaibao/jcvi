@@ -63,9 +63,20 @@ class Pedigree(BaseFile, dict):
         for s in self:
             dad, mom = self[s].dad, self[s].mom
             if dad:
-                G.add_edge(dad, s)
+                G.add_edge(dad, s, color="lightslategray", arrowhead="none")
             if mom:
-                G.add_edge(mom, s)
+                G.add_edge(mom, s, color="lightslategray", arrowhead="none")
+        for s in self:
+            G._node[s]["label"] = f"\n\n\n{s}"
+            G._node[s]["shape"] = "circle"
+            G._node[s]["fixedsize"] = "true"
+            G._node[s]["width"] = "0.3"
+            G._node[s]["height"] = "0.3"
+            G._node[s]["style"] = "wedged"
+            G._node[s]["color"] = "none"
+            G._node[s]["fillcolor"] = "red:blue:lightgreen"
+            G._node[s]["fontsize"] = "8"
+            G._node[s]["fontname"] = "Helvetica"
         return G
 
 
@@ -185,7 +196,7 @@ def plot(args):
     ped = Pedigree(pedfile)
     G = ped.to_graph()
     dotfile = f"{pedfile}.dot"
-    nx.drawing.nx_pydot.write_dot(G, dotfile)
+    nx.nx_agraph.write_dot(G, dotfile)
     pdf_file = dotfile + ".pdf"
     sh(f"dot -Tpdf {dotfile} -o {pdf_file}")
     logger.info("Pedigree graph written to `%s`", pdf_file)

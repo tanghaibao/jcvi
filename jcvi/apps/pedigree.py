@@ -87,9 +87,9 @@ class Pedigree(BaseFile, dict):
         colors = dict(zip(terminal_nodes, set3_n(len(terminal_nodes))))
         for s in self:
             inb = inbreeding[s]
-            label = f"\n\n\n{s}"
+            label = s
             if inb.mean_inbreeding > 0.01:
-                label += f"\n({inb.mean_inbreeding:.2f})"
+                label += f"\n(F={inb.mean_inbreeding:.2f})"
             dosage = inb.dosage
             fillcolor = [f"{colors[k]};{v:.2f}" for k, v in dosage.items()]
             fillcolor = ":".join(fillcolor)
@@ -101,12 +101,12 @@ class Pedigree(BaseFile, dict):
             G._node[s]["label"] = label
             G._node[s]["shape"] = "circle"
             G._node[s]["fixedsize"] = "true"
-            G._node[s]["width"] = "0.3"
-            G._node[s]["height"] = "0.3"
+            G._node[s]["width"] = "0.6"
+            G._node[s]["height"] = "0.6"
             G._node[s]["style"] = "wedged"
             G._node[s]["fillcolor"] = fillcolor
             G._node[s]["color"] = "none"
-            G._node[s]["fontsize"] = "8"
+            G._node[s]["fontsize"] = "10"
             G._node[s]["fontname"] = "Helvetica"
         return G
 

@@ -14,6 +14,7 @@ import numpy as np
 
 from ..apps.base import OptionParser, ActionDispatcher, logger, sh
 from ..formats.base import BaseFile
+from ..graphics.base import set3_n
 
 
 @dataclass
@@ -46,7 +47,7 @@ class SampleInbreeding:
     dosage: Dict[str, float]
 
     def __str__(self):
-        return f"{self.name}\t{self.mean_inbreeding:.4f}\t{self.std_inbreeding:.4f}\t{self.dosage}"
+        return f"{self.name}\t{self.mean_inbreeding:.4f}\t{self.std_inbreeding:.4f}"
 
 
 class Pedigree(BaseFile, dict):
@@ -81,15 +82,30 @@ class Pedigree(BaseFile, dict):
                 G.add_edge(dad, s, color="lightslategray", arrowhead="none")
             if mom:
                 G.add_edge(mom, s, color="lightslategray", arrowhead="none")
+        # Map colors to terminal nodes
+        terminal_nodes = [s for s in self if self[s].is_terminal]
+        colors = dict(zip(terminal_nodes, set3_n(len(terminal_nodes))))
         for s in self:
-            G._node[s]["label"] = f"\n\n\n{s}"
+            inb = inbreeding[s]
+            label = f"\n\n\n{s}"
+            if inb.mean_inbreeding > 0.01:
+                label += f"\n({inb.mean_inbreeding:.2f})"
+            dosage = inb.dosage
+            fillcolor = [f"{colors[k]};{v:.2f}" for k, v in dosage.items()]
+            fillcolor = ":".join(fillcolor)
+            # Hack to make the color appear on the wedge
+            if fillcolor.count(";") == 1:
+                fillcolor += ":white"
+            else:
+                fillcolor = fillcolor.rsplit(";", 1)[0]
+            G._node[s]["label"] = label
             G._node[s]["shape"] = "circle"
             G._node[s]["fixedsize"] = "true"
             G._node[s]["width"] = "0.3"
             G._node[s]["height"] = "0.3"
             G._node[s]["style"] = "wedged"
+            G._node[s]["fillcolor"] = fillcolor
             G._node[s]["color"] = "none"
-            G._node[s]["fillcolor"] = "red:blue:lightgreen"
             G._node[s]["fontsize"] = "8"
             G._node[s]["fontname"] = "Helvetica"
         return G
@@ -168,6 +184,7 @@ def calculate_inbreeding(
     """
     Wrapper to calculate inbreeding coefficients for a sample.
     """
+    logger.info("Simulating %d samples with ploidy=%d", N, ploidy)
     all_collections = []
     for _ in range(N):
         genotypes = simulate_one_iteration(ped, ploidy)
@@ -204,10 +221,8 @@ def inbreeding(args):
         sys.exit(not p.print_help())
 
     (pedfile,) = args
-    ploidy = opts.ploidy
-    N = opts.N
     ped = Pedigree(pedfile)
-    inbreeding = calculate_inbreeding(ped, ploidy, N)
+    inbreeding = calculate_inbreeding(ped, opts.ploidy, opts.N)
     for _, v in inbreeding.items():
         print(v)
 
@@ -234,7 +249,8 @@ def plot(args):
     dotfile = f"{pedfile}.dot"
     nx.nx_agraph.write_dot(G, dotfile)
     pdf_file = dotfile + ".pdf"
-    sh(f"dot -Tpdf {dotfile} -o {pdf_file}")
+    file_format = pdf_file.split(".")[-1]
+    sh(f"dot -T{file_format} {dotfile} -o {pdf_file}")
     logger.info("Pedigree graph written to `%s`", pdf_file)
 
 

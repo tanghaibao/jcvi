@@ -9,9 +9,10 @@ from dataclasses import dataclass
 from random import sample
 from typing import Optional
 
+import networkx as nx
 import numpy as np
 
-from ..apps.base import OptionParser, ActionDispatcher
+from ..apps.base import OptionParser, ActionDispatcher, logger, sh
 from ..formats.base import BaseFile
 
 
@@ -53,6 +54,19 @@ class Pedigree(BaseFile, dict):
                 mom = mom if mom != "0" else None
                 s = Sample(name, dad, mom)
                 self[s.name] = s
+
+    def to_graph(self) -> nx.DiGraph:
+        """
+        Convert the pedigree to a graph.
+        """
+        G = nx.DiGraph()
+        for s in self:
+            dad, mom = self[s].dad, self[s].mom
+            if dad:
+                G.add_edge(dad, s)
+            if mom:
+                G.add_edge(mom, s)
+        return G
 
 
 class GenotypeCollection(dict):
@@ -155,8 +169,33 @@ def inbreeding(args):
         print(f"{s}\t{mean_inbreeding:.4f}\t{std_inbreeding:.4f}\t{dosage}")
 
 
+def plot(args):
+    """
+    %prog plot pedfile
+
+    Plot the pedigree with graphviz.
+    """
+    p = OptionParser(plot.__doc__)
+    _, args = p.parse_args(args)
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (pedfile,) = args
+    ped = Pedigree(pedfile)
+    G = ped.to_graph()
+    dotfile = f"{pedfile}.dot"
+    nx.drawing.nx_pydot.write_dot(G, dotfile)
+    pdf_file = dotfile + ".pdf"
+    sh(f"dot -Tpdf {dotfile} -o {pdf_file}")
+    logger.info("Pedigree graph written to `%s`", pdf_file)
+
+
 def main():
-    actions = (("inbreeding", "calculate inbreeding coefficients"),)
+    actions = (
+        ("inbreeding", "calculate inbreeding coefficients"),
+        ("plot", "plot the pedigree with graphviz"),
+    )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 

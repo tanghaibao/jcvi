@@ -222,30 +222,12 @@ def inbreeding(args):
 
     (pedfile,) = args
     ped = Pedigree(pedfile)
-    inbreeding = calculate_inbreeding(ped, opts.ploidy, opts.N)
-    for _, v in inbreeding.items():
+    inb = calculate_inbreeding(ped, opts.ploidy, opts.N)
+    print("Sample\tProportion Inbreeding\tStd dev.")
+    for _, v in inb.items():
         print(v)
 
-
-def plot(args):
-    """
-    %prog plot pedfile
-
-    Plot the pedigree with graphviz.
-    """
-    p = OptionParser(plot.__doc__)
-    p.add_option("--ploidy", default=2, type="int", help="Ploidy")
-    p.add_option("--N", default=10000, type="int", help="Number of samples")
-    opts, args = p.parse_args(args)
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    (pedfile,) = args
-    ped = Pedigree(pedfile)
-    inbreeding = calculate_inbreeding(ped, opts.ploidy, opts.N)
-
-    G = ped.to_graph(inbreeding)
+    G = ped.to_graph(inb)
     dotfile = f"{pedfile}.dot"
     nx.nx_agraph.write_dot(G, dotfile)
     pdf_file = dotfile + ".pdf"
@@ -255,10 +237,7 @@ def plot(args):
 
 
 def main():
-    actions = (
-        ("inbreeding", "calculate inbreeding coefficients"),
-        ("plot", "plot the pedigree with graphviz"),
-    )
+    actions = (("inbreeding", "calculate inbreeding coefficients"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 

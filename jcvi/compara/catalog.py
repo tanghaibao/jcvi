@@ -609,6 +609,7 @@ def ortholog(args):
     match (RBH).
     """
     from jcvi.apps.align import last as last_main
+    from jcvi.apps.align import diamond_blastp_main, blast_main
     from jcvi.compara.blastfilter import main as blastfilter_main
     from jcvi.compara.quota import main as quota_main
     from jcvi.compara.synteny import scan, mcscan, liftover
@@ -621,6 +622,7 @@ def ortholog(args):
         choices=("nucl", "prot"),
         help="Molecule type of subject database",
     )
+
     p.add_option(
         "--full",
         default=False,
@@ -673,6 +675,13 @@ def ortholog(args):
         help="Ignore this pair of ortholog identification instead of throwing an error when performing many pairs of cataloging."
     )
 
+    p.add_option(
+        "--align_soft",
+        default="last",
+        choices=("last", "blast", "diamond_blastp"),
+        help="Sequence alignment software. Default <last> for both <nucl> and <prot>. Users could also use <blast> for both <nucl> and <prot>, or <diamond_blastp> for <prot>.",
+    )
+
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -690,6 +699,7 @@ def ortholog(args):
     dist = "--dist={0}".format(opts.dist)
     minsize_flag = "--min_size={}".format(opts.n)
     cpus_flag = "--cpus={}".format(opts.cpus)
+    align_soft = opts.align_soft
 
     aprefix = op.basename(a)
     bprefix = op.basename(b)
@@ -697,7 +707,16 @@ def ortholog(args):
     qprefix = ".".join((bprefix, aprefix))
     last = pprefix + ".last"
     if need_update((afasta, bfasta), last, warn=True):
-        last_main([bfasta, afasta, cpus_flag], dbtype)
+        if align_soft == "blast":
+            blast_main(
+                [bfasta, afasta, cpus_flag], dbtype
+            )
+        elif dbtype == "prot" and align_soft == "diamond_blastp":
+            diamond_blastp_main(
+                [bfasta, afasta, cpus_flag], dbtype
+            )
+        else:
+            last_main([bfasta, afasta, cpus_flag], dbtype)
 
     self_remove = opts.self_remove
     if a == b:

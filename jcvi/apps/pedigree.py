@@ -64,11 +64,11 @@ class GenotypeCollection(dict):
         """
         Add genotypes for a fixed sample (usually terminal).
         """
-        self[s] = [f"{s}{i:02d}" for i in range(ploidy)]
+        self[s] = [f"{s}_{i:02d}" for i in range(ploidy)]
 
     def cross(self, s: str, dad: str, mom: str, ploidy: int):
         """
-        Cross two samples to generate genotypes for a new sample.
+        Cross two samples to generate genotype for a new sample.
         """
         dad_genotype = self[dad]
         mom_genotype = self[mom]
@@ -81,11 +81,26 @@ class GenotypeCollection(dict):
     def inbreeding_coef(self, s: str) -> float:
         """
         Calculate inbreeding coefficient for a sample.
+
+        Traditional inbreeding coefficient (F) is a measure of the probability
+        that two alleles at a locus are identical by descent. This definition is
+        not applicable for polyploids.
+
+        Here we use a simpler measure of inbreeding coefficient, which is the
+        proportion of alleles that are non-unique in a genotype. Or we should
+        really call it "Proportion inbred".
         """
         genotype = self[s]
         ploidy = len(genotype)
         unique = len(set(genotype))
         return 1 - unique / ploidy
+
+    def dosage(self, s: str) -> Counter:
+        """
+        Calculate dosage for a sample.
+        """
+        genotype = self[s]
+        return Counter(allele.rsplit("_", 1)[0] for allele in genotype)
 
 
 def simulate_one_iteration(ped: Pedigree, ploidy: int) -> GenotypeCollection:
@@ -131,9 +146,13 @@ def inbreeding(args):
         inbreeding_coefs = [
             genotypes.inbreeding_coef(s) for genotypes in all_collections
         ]
+        dosages = [genotypes.dosage(s) for genotypes in all_collections]
+        dosage = sum(dosages, Counter())
+        # normalize
+        dosage = {k: round(v / (ploidy * N), 3) for k, v in dosage.items()}
         mean_inbreeding = np.mean(inbreeding_coefs)
         std_inbreeding = np.std(inbreeding_coefs)
-        print(f"{s}\t{mean_inbreeding:.4f}\t{std_inbreeding:.4f}")
+        print(f"{s}\t{mean_inbreeding:.4f}\t{std_inbreeding:.4f}\t{dosage}")
 
 
 def main():

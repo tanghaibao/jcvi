@@ -84,12 +84,8 @@ class GenotypeCollection(dict):
         """
         genotype = self[s]
         ploidy = len(genotype)
-        pairs = ploidy * (ploidy - 1) // 2
-        counter = Counter(genotype)
-        collisions = 0
-        for count in counter.values():
-            collisions += count * (count - 1) // 2
-        return collisions / pairs
+        unique = len(set(genotype))
+        return 1 - unique / ploidy
 
 
 def simulate_one_iteration(ped: Pedigree, ploidy: int) -> GenotypeCollection:

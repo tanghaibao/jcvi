@@ -721,9 +721,9 @@ def seeds(args):
         major_dx = sin(orientation) * major / 2
         major_dy = cos(orientation) * major / 2
         minor_dx = cos(orientation) * minor / 2
-        minor_dy = sin(orientation) * minor / 2
+        minor_dy = -sin(orientation) * minor / 2
         ax2.plot((x0 - major_dx, x0 + major_dx), (y0 - major_dy, y0 + major_dy), "r-")
-        ax2.plot((x0 - minor_dx, x0 + minor_dx), (y0 + minor_dy, y0 - minor_dy), "r-")
+        ax2.plot((x0 - minor_dx, x0 + minor_dx), (y0 - minor_dy, y0 + minor_dy), "r-")
         ax2.plot(contour[:, 1], contour[:, 0], "y-")
 
         npixels = int(props.area)

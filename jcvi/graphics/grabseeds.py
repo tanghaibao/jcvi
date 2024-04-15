@@ -11,7 +11,7 @@ import sys
 
 from collections import Counter
 from math import sin, cos, pi
-from typing import Any, Optional, Tuple
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
@@ -53,6 +53,8 @@ from ..utils.webcolors import closest_color
 
 np.seterr(all="ignore")
 
+RGBTuple = Tuple[int, int, int]
+
 
 class Seed(object):
     """
@@ -64,7 +66,7 @@ class Seed(object):
         imagename: str,
         accession: str,
         seedno: int,
-        rgb: Tuple[int, int, int],
+        rgb: RGBTuple,
         props: Any,
         exif: dict,
     ):
@@ -139,14 +141,14 @@ class Seed(object):
         self.calibrated = True
 
 
-def rgb_to_triplet(rgb: str) -> Tuple[int]:
+def rgb_to_triplet(rgb: str) -> RGBTuple:
     """
     Convert RGB string to triplet.
     """
-    return tuple([int(x) for x in rgb.split(",")])
+    return tuple([int(x) for x in rgb.split(",")][:3])
 
 
-def triplet_to_rgb(triplet: Tuple[int, int, int]) -> str:
+def triplet_to_rgb(triplet: RGBTuple) -> str:
     """
     Convert triplet to RGB string.
     """
@@ -403,7 +405,7 @@ def p_round(n: int, precision: int = 5) -> int:
     return int(round(n / float(precision))) * precision
 
 
-def pixel_stats(img: str) -> Tuple[int]:
+def pixel_stats(img: List[RGBTuple]) -> RGBTuple:
     """
     Get the most common pixel color.
     """
@@ -444,7 +446,7 @@ def convert_background(pngfile: str, new_background: str):
         stdRGB = np.std(rgbArray) * 0.8
 
         # Get average color
-        obcolor = [None, None, None]
+        obcolor = [0, 0, 0]
         pixel_values = []
         for t in range(3):
             pixel_color = img.getdata(band=t)
@@ -458,13 +460,12 @@ def convert_background(pngfile: str, new_background: str):
             pixel_color = img.getdata(band=t)
             seed_pixel_values = []
             for i in pixel_color:
-                if (i > (obcolor[t] - stdRGB)) and (i < (obcolor[t] + stdRGB)):
+                if obcolor[t] - stdRGB < i < obcolor[t] + stdRGB:
                     seed_pixel_values.append(i)
             obcolor[t] = sum(seed_pixel_values) // len(seed_pixel_values)
         # Selection of colors based on option parser
-        nbcolor = [None, None, None]
+        nbcolor = [0, 0, 0]
         if new_background == "INVERSE":
-            nbcolor = [None, None, None]
             for t in range(3):
                 nbcolor[t] = 255 - obcolor[t]
         elif new_background == "red":
@@ -490,10 +491,12 @@ def convert_background(pngfile: str, new_background: str):
         nbcolor = tuple(nbcolor)
         for i in range(len(pixels)):
             r, g, b = pixels[i]
-            if (obcolor[0] - stdRGB) <= r <= (obcolor[0] + stdRGB):
-                if (obcolor[1] - stdRGB) <= g <= (obcolor[1] + stdRGB):
-                    if (obcolor[2] - stdRGB) <= b <= (obcolor[2] + stdRGB):
-                        pixels[i] = nbcolor
+            if (
+                obcolor[0] - stdRGB <= r <= obcolor[0] + stdRGB
+                and obcolor[1] - stdRGB <= g <= obcolor[1] + stdRGB
+                and obcolor[2] - stdRGB <= b <= obcolor[2] + stdRGB
+            ):
+                pixels[i] = nbcolor
         img.putdata(pixels)
         img.save(newfile, "PNG")
         return newfile

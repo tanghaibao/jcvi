@@ -10,7 +10,7 @@ import string
 import sys
 
 from collections import Counter
-from math import sin, cos, pi
+from math import cos, pi, sin
 from typing import Any, List, Optional, Tuple
 
 import numpy as np
@@ -116,12 +116,15 @@ class Seed(object):
         return "\t".join(str(x) for x in fields)
 
     @classmethod
-    def header(cls, calibrate: bool = False):
+    def header(cls, calibrated: bool = False) -> str:
+        """
+        Return header line for the TSV file.
+        """
         fields = (
             "ImageName DateTime Accession SeedNum Location "
             "Area Circularity Length(px) Width(px) ColorName RGB".split()
         )
-        if calibrate:
+        if calibrated:
             fields += (
                 "PixelCMratio RGBtransform Length(cm)"
                 " Width(cm) CorrectedColorName CorrectedRGB".split()
@@ -200,10 +203,11 @@ def calibrate(args):
     colorcheckerfile = op.join(datadir, "colorchecker.txt")
     colorchecker = []
     expected = 0
-    for row in open(colorcheckerfile):
-        boxes = row.split()
-        colorchecker.append(boxes)
-        expected += len(boxes)
+    with open(colorcheckerfile, encoding="utf-8") as file:
+        for row in file:
+            boxes = row.split()
+            colorchecker.append(boxes)
+            expected += len(boxes)
 
     folder = op.split(imagefile)[0]
     objects = seeds([imagefile, f"--outdir={folder}"] + xargs)
@@ -376,7 +380,7 @@ def batchseeds(args):
         images.append(im)
 
     fw = must_open(outfile, "w")
-    print(Seed.header(calibrate=jsonfile), file=fw)
+    print(Seed.header(calibrated=bool(jsonfile)), file=fw)
     nseeds = 0
     for im in images:
         imargs = [im, "--noheader", f"--outdir={outdir}"] + xargs
@@ -416,7 +420,7 @@ def pixel_stats(img: List[RGBTuple]) -> RGBTuple:
     return imgx
 
 
-def slice(s: str, m: int) -> Tuple[int, int]:
+def slice_to_ints(s: str, m: int) -> Tuple[int, int]:
     """
     Parse slice string.
     """
@@ -441,10 +445,10 @@ def convert_background(pngfile: str, new_background: str):
         pixels = list(img.getdata())
 
         # Get Standard Deviation of RGB
-        rgbArray = []
+        rgb_array = []
         for x in range(255):
-            rgbArray.append(x)
-        stdRGB = np.std(rgbArray) * 0.8
+            rgb_array.append(x)
+        std_rgb = np.std(rgb_array) * 0.8
 
         # Get average color
         obcolor = [0, 0, 0]
@@ -452,7 +456,7 @@ def convert_background(pngfile: str, new_background: str):
         for t in range(3):
             pixel_color = img.getdata(band=t)
             for pixel in pixel_color:
-                if pixel > stdRGB:
+                if pixel > std_rgb:
                     pixel_values.append(pixel)
             obcolor[t] = sum(pixel_values) // len(pixel_values)
 
@@ -461,7 +465,7 @@ def convert_background(pngfile: str, new_background: str):
             pixel_color = img.getdata(band=t)
             seed_pixel_values = []
             for i in pixel_color:
-                if obcolor[t] - stdRGB < i < obcolor[t] + stdRGB:
+                if obcolor[t] - std_rgb < i < obcolor[t] + std_rgb:
                     seed_pixel_values.append(i)
             obcolor[t] = sum(seed_pixel_values) // len(seed_pixel_values)
         # Selection of colors based on option parser
@@ -490,14 +494,12 @@ def convert_background(pngfile: str, new_background: str):
         # Change Background Color
         obcolor = tuple(obcolor)
         nbcolor = tuple(nbcolor)
-        for i in range(len(pixels)):
-            r, g, b = pixels[i]
-            if (
-                obcolor[0] - stdRGB <= r <= obcolor[0] + stdRGB
-                and obcolor[1] - stdRGB <= g <= obcolor[1] + stdRGB
-                and obcolor[2] - stdRGB <= b <= obcolor[2] + stdRGB
+        for idx, pixel in enumerate(pixels):
+            if all(
+                obcolor[c] - std_rgb <= p <= obcolor[c] + std_rgb
+                for c, p in enumerate(pixel)
             ):
-                pixels[i] = nbcolor
+                pixels[idx] = nbcolor
         img.putdata(pixels)
         img.save(newfile, "PNG")
         return newfile
@@ -509,7 +511,7 @@ def convert_image(
     pf: str,
     outdir: str = ".",
     resize: int = 1000,
-    format: str = "jpeg",
+    img_format: str = "jpeg",
     rotate: int = 0,
     rows: str = ":",
     cols: str = ":",
@@ -523,7 +525,7 @@ def convert_image(
     mainfile = op.join(outdir, pf + ".main.jpg")
     labelfile = op.join(outdir, pf + ".label.jpg")
     img = Image(filename=pngfile)
-    exif = dict((k, img.metadata.get(k)) for k in img.metadata if k.startswith("exif:"))
+    exif = dict((k, img.metadata[k]) for k in img.metadata if k.startswith("exif:"))
 
     # Rotation, slicing and cropping of main image
     if rotate:
@@ -539,18 +541,18 @@ def convert_image(
             logger.debug(
                 "Image `%s` resized from %dpx:%dpx to %dpx:%dpx", pngfile, w, h, nw, nh
             )
-    img.format = format
+    img.format = img_format
     img.save(filename=resizefile)
 
     rimg = img.clone()
     if rows != ":" or cols != ":":
         w, h = img.size
-        ra, rb = slice(rows, h)
-        ca, cb = slice(cols, w)
+        ra, rb = slice_to_ints(rows, h)
+        ca, cb = slice_to_ints(cols, w)
         # left, top, right, bottom
         logger.debug("Crop image to %d:%d %d:%d", ra, rb, ca, cb)
         img.crop(ca, ra, cb, rb)
-        img.format = format
+        img.format = img_format
         img.save(filename=mainfile)
     else:
         mainfile = resizefile
@@ -562,11 +564,11 @@ def convert_image(
             labelcols = ":"
         if labelcols and not labelrows:
             labelrows = ":"
-        ra, rb = slice(labelrows, h)
-        ca, cb = slice(labelcols, w)
+        ra, rb = slice_to_ints(labelrows, h)
+        ca, cb = slice_to_ints(labelcols, w)
         logger.debug("Extract label from %d:%d %d:%d", ra, rb, ca, cb)
         rimg.crop(ca, ra, cb, rb)
-        rimg.format = format
+        rimg.format = img_format
         rimg.save(filename=labelfile)
     else:
         labelfile = None
@@ -681,7 +683,7 @@ def seeds(args):
     ax1.set_title("Original picture")
     ax1.imshow(oimg)
 
-    params = r"{0}, $\sigma$={1}, $k$={2}".format(ff, sigma, kernel)
+    params = rf"{ff}, $\sigma$={sigma}, $k$={kernel}"
     if opts.watershed:
         params += ", watershed"
     ax2.set_title(f"Edge detection\n({params})")
@@ -714,7 +716,8 @@ def seeds(args):
             break
 
         contour = find_contours(labels == props.label, 0.5)[0]
-        efds = efd_feature(contour)
+        # TODO: Use EFD as features
+        _ = efd_feature(contour)
         y0, x0 = props.centroid
         orientation = props.orientation
         major, minor = props.major_axis_length, props.minor_axis_length
@@ -762,7 +765,7 @@ def seeds(args):
     yy = 0.8
     fw = must_open(opts.outfile, "w")
     if not opts.noheader:
-        print(Seed.header(calibrate=calib), file=fw)
+        print(Seed.header(calibrated=calib), file=fw)
     for o in objects:
         if calib:
             o.calibrate(pixel_cm_ratio, tr)

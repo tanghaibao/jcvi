@@ -11,6 +11,7 @@ import sys
 
 from collections import Counter
 from math import sin, cos, pi
+from typing import Any, Optional, Tuple
 
 import numpy as np
 
@@ -21,7 +22,7 @@ from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
 from skimage.feature import canny, peak_local_max
 from skimage.filters import roberts, sobel
-from skimage.measure import regionprops, label
+from skimage.measure import find_contours, regionprops, label
 from skimage.morphology import disk, closing
 from skimage.segmentation import clear_border, watershed
 from wand.image import Image
@@ -54,7 +55,19 @@ np.seterr(all="ignore")
 
 
 class Seed(object):
-    def __init__(self, imagename, accession, seedno, rgb, props, exif):
+    """
+    Seed object with metrics.
+    """
+
+    def __init__(
+        self,
+        imagename: str,
+        accession: str,
+        seedno: int,
+        rgb: Tuple[int, int, int],
+        props: Any,
+        exif: dict,
+    ):
         self.imagename = imagename
         self.accession = accession
         self.seedno = seedno
@@ -100,7 +113,7 @@ class Seed(object):
         return "\t".join(str(x) for x in fields)
 
     @classmethod
-    def header(cls, calibrate=False):
+    def header(cls, calibrate: bool = False):
         fields = (
             "ImageName DateTime Accession SeedNum Location "
             "Area Circularity Length(px) Width(px) ColorName RGB".split()
@@ -112,7 +125,10 @@ class Seed(object):
             )
         return "\t".join(fields)
 
-    def calibrate(self, pixel_cm_ratio, tr):
+    def calibrate(self, pixel_cm_ratio: float, tr: np.ndarray):
+        """
+        Calibrate pixel-inch ratio and color adjustment.
+        """
         self.pixelcmratio = f"{pixel_cm_ratio:.2f}"
         self.rgbtransform = ",".join([f"{x:.2f}" for x in tr.flatten()])
         self.correctedlength = f"{self.length / pixel_cm_ratio:.2f}"
@@ -123,11 +139,17 @@ class Seed(object):
         self.calibrated = True
 
 
-def rgb_to_triplet(rgb):
+def rgb_to_triplet(rgb: str) -> Tuple[int]:
+    """
+    Convert RGB string to triplet.
+    """
     return tuple([int(x) for x in rgb.split(",")])
 
 
-def triplet_to_rgb(triplet):
+def triplet_to_rgb(triplet: Tuple[int, int, int]) -> str:
+    """
+    Convert triplet to RGB string.
+    """
     triplet = normalize_integer_triplet(triplet)
     return ",".join(str(int(round(x))) for x in triplet)
 
@@ -143,9 +165,12 @@ def main():
     p.dispatch(globals())
 
 
-def total_error(x, colormap):
+def total_error(x: np.ndarray, colormap: Tuple[Tuple[np.ndarray, np.ndarray]]) -> float:
+    """
+    Calculate total error between observed and expected colors.
+    """
     xs = np.reshape(x, (3, 3))
-    error_squared = sum([np.linalg.norm(np.dot(xs, o) - e) ** 2 for o, e in colormap])
+    error_squared = sum(np.linalg.norm(np.dot(xs, o) - e) ** 2 for o, e in colormap)
     return error_squared**0.5
 
 
@@ -229,6 +254,9 @@ def calibrate(args):
 
 
 def add_seeds_options(p, args):
+    """
+    Add options to the OptionParser for seeds() and batchseeds() functions.
+    """
     g1 = OptionGroup(p, "Image manipulation")
     g1.add_option("--rotate", default=0, type="int", help="Rotate degrees clockwise")
     g1.add_option(
@@ -367,19 +395,28 @@ def batchseeds(args):
     return outfile
 
 
-def p_round(n, precision=5):
+def p_round(n: int, precision: int = 5) -> int:
+    """
+    Round to the nearest precision.
+    """
     precision = int(precision)
     return int(round(n / float(precision))) * precision
 
 
-def pixel_stats(img):
+def pixel_stats(img: str) -> Tuple[int]:
+    """
+    Get the most common pixel color.
+    """
     img = [(p_round(r), p_round(g), p_round(b)) for r, g, b in img]
     c = Counter(img)
     imgx, _ = c.most_common(1)[0]
     return imgx
 
 
-def slice(s, m):
+def slice(s: str, m: int) -> Tuple[int, int]:
+    """
+    Parse slice string.
+    """
     assert ":" in s
     ra, rb = s.split(":")
     ra = 0 if ra == "" else int(ra)
@@ -387,8 +424,11 @@ def slice(s, m):
     return ra, rb
 
 
-def convert_background(pngfile, new_background):
-    """Replace the background color with the specified background color, default is blue"""
+def convert_background(pngfile: str, new_background: str):
+    """
+    Replace the background color with the specified background color, default is
+    blue.
+    """
     if new_background:
         _name, _ext = op.splitext(op.basename(pngfile))
         _name += "_bgxform"
@@ -461,17 +501,20 @@ def convert_background(pngfile, new_background):
 
 
 def convert_image(
-    pngfile,
-    pf,
-    outdir=".",
-    resize=1000,
-    format="jpeg",
-    rotate=0,
-    rows=":",
-    cols=":",
-    labelrows=None,
-    labelcols=None,
-):
+    pngfile: str,
+    pf: str,
+    outdir: str = ".",
+    resize: int = 1000,
+    format: str = "jpeg",
+    rotate: int = 0,
+    rows: str = ":",
+    cols: str = ":",
+    labelrows: Optional[str] = None,
+    labelcols: Optional[str] = None,
+) -> Tuple[str, str, Optional[str], dict]:
+    """
+    Convert image to JPEG format and resize it.
+    """
     resizefile = op.join(outdir, pf + ".resize.jpg")
     mainfile = op.join(outdir, pf + ".main.jpg")
     labelfile = op.join(outdir, pf + ".label.jpg")
@@ -527,7 +570,10 @@ def convert_image(
     return resizefile, mainfile, labelfile, exif
 
 
-def extract_label(labelfile):
+def extract_label(labelfile: str) -> str:
+    """
+    Extract accession number from label image.
+    """
     accession = image_to_string(iopen(labelfile))
     accession = " ".join(accession.split())  # normalize spaces
     accession = "".join(x for x in accession if x in string.printable)

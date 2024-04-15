@@ -495,10 +495,7 @@ def convert_background(pngfile: str, new_background: str):
         obcolor = tuple(obcolor)
         nbcolor = tuple(nbcolor)
         for idx, pixel in enumerate(pixels):
-            if all(
-                obcolor[c] - std_rgb <= p <= obcolor[c] + std_rgb
-                for c, p in enumerate(pixel)
-            ):
+            if all(o - std_rgb <= p <= o + std_rgb for o, p in zip(obcolor, pixel)):
                 pixels[idx] = nbcolor
         img.putdata(pixels)
         img.save(newfile, "PNG")

@@ -34,6 +34,7 @@ from .base import (
     normalize_axes,
     plt,
     savefig,
+    set_helvetica_axis,
 )
 from ..algorithms.formula import reject_outliers, get_kmeans
 from ..apps.base import (
@@ -59,7 +60,7 @@ class Seed(object):
         self.seedno = seedno
         y, x = props.centroid
         self.x, self.y = int(round(x)), int(round(y))
-        self.location = "{0}|{1}".format(self.x, self.y)
+        self.location = f"{self.x}|{self.y}"
         self.area = int(round(props.area))
         self.length = int(round(props.major_axis_length))
         self.width = int(round(props.minor_axis_length))
@@ -69,9 +70,7 @@ class Seed(object):
         self.colorname = closest_color(rgb)
         self.datetime = exif.get("exif:DateTimeOriginal", "none")
         self.rgbtag = triplet_to_rgb(rgb)
-        self.pixeltag = "length={0} width={1} area={2}".format(
-            self.length, self.width, self.area
-        )
+        self.pixeltag = f"length={self.length} width={self.width} area={self.area}"
         self.hashtag = " ".join((self.rgbtag, self.colorname))
         self.calibrated = False
 
@@ -83,7 +82,7 @@ class Seed(object):
             self.seedno,
             self.location,
             self.area,
-            "{0:.2f}".format(self.circularity),
+            f"{self.circularity:.2f}",
             self.length,
             self.width,
             self.colorname,
@@ -114,10 +113,10 @@ class Seed(object):
         return "\t".join(fields)
 
     def calibrate(self, pixel_cm_ratio, tr):
-        self.pixelcmratio = "{0:.2f}".format(pixel_cm_ratio)
-        self.rgbtransform = ",".join(["{0:.2f}".format(x) for x in tr.flatten()])
-        self.correctedlength = "{0:.2f}".format(self.length / pixel_cm_ratio)
-        self.correctedwidth = "{0:.2f}".format(self.width / pixel_cm_ratio)
+        self.pixelcmratio = f"{pixel_cm_ratio:.2f}"
+        self.rgbtransform = ",".join([f"{x:.2f}" for x in tr.flatten()])
+        self.correctedlength = f"{self.length / pixel_cm_ratio:.2f}"
+        self.correctedwidth = f"{self.width / pixel_cm_ratio:.2f}"
         correctedrgb = np.dot(tr, np.array(self.rgb))
         self.correctedrgb = triplet_to_rgb(correctedrgb)
         self.correctedcolorname = closest_color(correctedrgb)
@@ -161,7 +160,7 @@ def calibrate(args):
     """
     xargs = args[2:]
     p = OptionParser(calibrate.__doc__)
-    opts, args, iopts = add_seeds_options(p, args)
+    _, args, _ = add_seeds_options(p, args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -179,12 +178,12 @@ def calibrate(args):
         expected += len(boxes)
 
     folder = op.split(imagefile)[0]
-    objects = seeds([imagefile, "--outdir={0}".format(folder)] + xargs)
+    objects = seeds([imagefile, f"--outdir={folder}"] + xargs)
     nseeds = len(objects)
     logger.debug("Found %d boxes (expected=%d)", nseeds, expected)
     assert (
         expected - 4 <= nseeds <= expected + 4
-    ), "Number of boxes drastically different from {0}".format(expected)
+    ), f"Number of boxes drastically different from {expected}"
 
     # Calculate pixel-cm ratio
     boxes = [t.area for t in objects]
@@ -324,7 +323,7 @@ def batchseeds(args):
     """
     xargs = args[1:]
     p = OptionParser(batchseeds.__doc__)
-    opts, args, iopts = add_seeds_options(p, args)
+    opts, args, _ = add_seeds_options(p, args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -349,9 +348,9 @@ def batchseeds(args):
     print(Seed.header(calibrate=jsonfile), file=fw)
     nseeds = 0
     for im in images:
-        imargs = [im, "--noheader", "--outdir={0}".format(outdir)] + xargs
+        imargs = [im, "--noheader", f"--outdir={outdir}"] + xargs
         if jsonfile:
-            imargs += ["--calibrate={0}".format(jsonfile)]
+            imargs += [f"--calibrate={jsonfile}"]
         objects = seeds(imargs)
         for o in objects:
             print(o, file=fw)
@@ -362,7 +361,7 @@ def batchseeds(args):
 
     pdfs = iglob(outdir, "*.pdf")
     outpdf = folder + "-output.pdf"
-    cat(pdfs + ["--outfile={0}".format(outpdf)])
+    cat(pdfs + [f"--outfile={outpdf}"])
 
     logger.debug("Debugging information written to `%s`.", outpdf)
     return outfile
@@ -376,7 +375,7 @@ def p_round(n, precision=5):
 def pixel_stats(img):
     img = [(p_round(r), p_round(g), p_round(b)) for r, g, b in img]
     c = Counter(img)
-    imgx, count = c.most_common(1)[0]
+    imgx, _ = c.most_common(1)[0]
     return imgx
 
 
@@ -397,7 +396,6 @@ def convert_background(pngfile, new_background):
 
         img = iopen(pngfile)
         pixels = list(img.getdata())
-        h, w = img.size
 
         # Get Standard Deviation of RGB
         rgbArray = []
@@ -580,9 +578,7 @@ def seeds(args):
     oimg = load_image(resizefile)
     img = load_image(mainfile)
 
-    fig, (ax1, ax2, ax3, ax4) = plt.subplots(
-        ncols=4, nrows=1, figsize=(iopts.w, iopts.h)
-    )
+    _, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1, figsize=(iopts.w, iopts.h))
     # Edge detection
     img_gray = rgb2gray(img)
     logger.debug("Running %s edge detection ...", ff)
@@ -628,7 +624,7 @@ def seeds(args):
     params = r"{0}, $\sigma$={1}, $k$={2}".format(ff, sigma, kernel)
     if opts.watershed:
         params += ", watershed"
-    ax2.set_title("Edge detection\n({0})".format(params))
+    ax2.set_title(f"Edge detection\n({params})")
     closed = gray2rgb(closed)
     ax2_img = labels
     if opts.edges:
@@ -691,15 +687,15 @@ def seeds(args):
         )
         ax3.add_patch(rect)
         mc, mr = (minc + maxc) // 2, (minr + maxr) // 2
-        ax3.text(mc, mr, "{0}".format(i), color="w", ha="center", va="center", size=6)
+        ax3.text(mc, mr, f"{i}", color="w", ha="center", va="center", size=6)
 
     for ax in (ax2, ax3):
         ax.set_xlim(0, h)
         ax.set_ylim(w, 0)
 
     # Output identified seed stats
-    ax4.text(0.1, 0.92, "File: {0}".format(latex(filename)), color="g")
-    ax4.text(0.1, 0.86, "Label: {0}".format(latex(accession)), color="m")
+    ax4.text(0.1, 0.92, f"File: {latex(filename)}", color="g")
+    ax4.text(0.1, 0.86, f"Label: {latex(accession)}", color="m")
     yy = 0.8
     fw = must_open(opts.outfile, "w")
     if not opts.noheader:
@@ -722,16 +718,13 @@ def seeds(args):
     ax4.text(
         0.1,
         yy,
-        "(A total of {0} objects displayed)".format(nb_labels),
+        f"(A total of {nb_labels} objects displayed)",
         color="darkslategray",
     )
     normalize_axes(ax4)
 
     for ax in (ax1, ax2, ax3):
-        xticklabels = [int(x) for x in ax.get_xticks()]
-        yticklabels = [int(x) for x in ax.get_yticks()]
-        ax.set_xticklabels(xticklabels, family="Helvetica", size=8)
-        ax.set_yticklabels(yticklabels, family="Helvetica", size=8)
+        set_helvetica_axis(ax)
 
     image_name = op.join(outdir, pf + "." + iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

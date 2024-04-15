@@ -16,6 +16,7 @@ from typing import Any, List, Optional, Tuple
 import numpy as np
 
 from PIL.Image import open as iopen
+from pyefd import elliptic_fourier_descriptors
 from pytesseract import image_to_string
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
@@ -585,6 +586,16 @@ def extract_label(labelfile: str) -> str:
     return accession
 
 
+def efd_feature(contour: np.ndarray, order: int = 20) -> np.ndarray:
+    """
+    To use EFD as features, one can write a small wrapper function.
+
+    Based on: https://pyefd.readthedocs.io/en/latest
+    """
+    coeffs = elliptic_fourier_descriptors(contour, order=order, normalize=True)
+    return coeffs.flatten()[3:]
+
+
 def seeds(args):
     """
     %prog seeds [pngfile|jpgfile]
@@ -703,6 +714,7 @@ def seeds(args):
             break
 
         contour = find_contours(labels == props.label, 0.5)[0]
+        efds = efd_feature(contour)
         y0, x0 = props.centroid
         orientation = props.orientation
         major, minor = props.major_axis_length, props.minor_axis_length

@@ -702,15 +702,17 @@ def seeds(args):
         if i > opts.count:
             break
 
+        contour = find_contours(labels == props.label, 0.5)[0]
         y0, x0 = props.centroid
         orientation = props.orientation
         major, minor = props.major_axis_length, props.minor_axis_length
-        major_dx = cos(orientation) * major / 2
-        major_dy = sin(orientation) * major / 2
-        minor_dx = sin(orientation) * minor / 2
-        minor_dy = cos(orientation) * minor / 2
-        ax2.plot((x0 - major_dx, x0 + major_dx), (y0 + major_dy, y0 - major_dy), "r-")
-        ax2.plot((x0 - minor_dx, x0 + minor_dx), (y0 - minor_dy, y0 + minor_dy), "r-")
+        major_dx = sin(orientation) * major / 2
+        major_dy = cos(orientation) * major / 2
+        minor_dx = cos(orientation) * minor / 2
+        minor_dy = sin(orientation) * minor / 2
+        ax2.plot((x0 - major_dx, x0 + major_dx), (y0 - major_dy, y0 + major_dy), "r-")
+        ax2.plot((x0 - minor_dx, x0 + minor_dx), (y0 + minor_dy, y0 - minor_dy), "r-")
+        ax2.plot(contour[:, 1], contour[:, 0], "y-")
 
         npixels = int(props.area)
         # Sample the center of the blob for color

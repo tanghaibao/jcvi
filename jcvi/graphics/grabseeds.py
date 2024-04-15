@@ -476,7 +476,7 @@ def convert_image(
     mainfile = op.join(outdir, pf + ".main.jpg")
     labelfile = op.join(outdir, pf + ".label.jpg")
     img = Image(filename=pngfile)
-    exif = dict((k, v) for k, v in img.metadata.items() if k.startswith("exif:"))
+    exif = dict((k, img.metadata.get(k)) for k in img.metadata if k.startswith("exif:"))
 
     # Rotation, slicing and cropping of main image
     if rotate:

@@ -181,7 +181,7 @@ def calibrate(args):
     folder = op.split(imagefile)[0]
     objects = seeds([imagefile, "--outdir={0}".format(folder)] + xargs)
     nseeds = len(objects)
-    logger.debug("Found {0} boxes (expected={1})".format(nseeds, expected))
+    logger.debug("Found %d boxes (expected=%d)", nseeds, expected)
     assert (
         expected - 4 <= nseeds <= expected + 4
     ), "Number of boxes drastically different from {0}".format(expected)
@@ -192,10 +192,8 @@ def calibrate(args):
     retained_boxes = [b for r, b in zip(reject, boxes) if not r]
     mbox = np.median(retained_boxes)  # in pixels
     pixel_cm_ratio = (mbox / boxsize) ** 0.5
-    logger.debug(
-        "Median box size: {0} pixels. Measured box size: {1} cm2".format(mbox, boxsize)
-    )
-    logger.debug("Pixel-cm ratio: {0}".format(pixel_cm_ratio))
+    logger.debug("Median box size: %d pixels. Measured box size: %d cm2", mbox, boxsize)
+    logger.debug("Pixel-cm ratio: %.2f", pixel_cm_ratio)
 
     xs = [t.x for t in objects]
     ys = [t.y for t in objects]
@@ -226,7 +224,7 @@ def calibrate(args):
     fw = must_open(jsonfile, "w")
     print(json.dumps(calib, indent=4), file=fw)
     fw.close()
-    logger.debug("Calibration specs written to `{0}`.".format(jsonfile))
+    logger.debug("Calibration specs written to `%s`.", jsonfile)
 
     return jsonfile
 
@@ -359,14 +357,14 @@ def batchseeds(args):
             print(o, file=fw)
         nseeds += len(objects)
     fw.close()
-    logger.debug("Processed {0} images.".format(len(images)))
-    logger.debug("A total of {0} objects written to `{1}`.".format(nseeds, outfile))
+    logger.debug("Processed %d images.", len(images))
+    logger.debug("A total of %d objects written to `%s`.", nseeds, outfile)
 
     pdfs = iglob(outdir, "*.pdf")
     outpdf = folder + "-output.pdf"
     cat(pdfs + ["--outfile={0}".format(outpdf)])
 
-    logger.debug("Debugging information written to `{0}`.".format(outpdf))
+    logger.debug("Debugging information written to `%s`.", outpdf)
     return outfile
 
 
@@ -494,9 +492,7 @@ def convert_image(
                 nw, nh = resize * w // h, resize
             img.resize(nw, nh)
             logger.debug(
-                "Image `{0}` resized from {1}px:{2}px to {3}px:{4}px".format(
-                    pngfile, w, h, nw, nh
-                )
+                "Image `%s` resized from %dpx:%dpx to %dpx:%dpx", pngfile, w, h, nw, nh
             )
     img.format = format
     img.save(filename=resizefile)
@@ -507,7 +503,7 @@ def convert_image(
         ra, rb = slice(rows, h)
         ca, cb = slice(cols, w)
         # left, top, right, bottom
-        logger.debug("Crop image to {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+        logger.debug("Crop image to %d:%d %d:%d", ra, rb, ca, cb)
         img.crop(ca, ra, cb, rb)
         img.format = format
         img.save(filename=mainfile)
@@ -523,7 +519,7 @@ def convert_image(
             labelrows = ":"
         ra, rb = slice(labelrows, h)
         ca, cb = slice(labelcols, w)
-        logger.debug("Extract label from {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+        logger.debug("Extract label from %d:%d %d:%d", ra, rb, ca, cb)
         rimg.crop(ca, ra, cb, rb)
         rimg.format = format
         rimg.save(filename=labelfile)
@@ -589,7 +585,7 @@ def seeds(args):
     )
     # Edge detection
     img_gray = rgb2gray(img)
-    logger.debug("Running {0} edge detection ...".format(ff))
+    logger.debug("Running %s edge detection ...", ff)
     if ff == "canny":
         edges = canny(img_gray, sigma=opts.sigma)
     elif ff == "roberts":
@@ -607,7 +603,7 @@ def seeds(args):
         local_maxi = peak_local_max(distance, threshold_rel=0.05, indices=False)
         coordinates = peak_local_max(distance, threshold_rel=0.05)
         markers, nmarkers = label(local_maxi, return_num=True)
-        logger.debug("Identified {0} watershed markers".format(nmarkers))
+        logger.debug("Identified %d watershed markers", nmarkers)
         labels = watershed(closed, markers, mask=filled)
     else:
         labels = label(filled)
@@ -618,9 +614,11 @@ def seeds(args):
     min_size = int(round(canvas_size * opts.minsize / 100))
     max_size = int(round(canvas_size * opts.maxsize / 100))
     logger.debug(
-        "Find objects with pixels between {0} ({1}%) and {2} ({3}%)".format(
-            min_size, opts.minsize, max_size, opts.maxsize
-        )
+        "Find objects with pixels between %d (%d%%) and %d (%d%%)",
+        min_size,
+        opts.minsize,
+        max_size,
+        opts.maxsize,
     )
 
     # Plotting
@@ -652,7 +650,7 @@ def seeds(args):
     rp = regionprops(labels)
     rp = [x for x in rp if min_size <= x.area <= max_size]
     nb_labels = len(rp)
-    logger.debug("A total of {0} objects identified.".format(nb_labels))
+    logger.debug("A total of %d objects identified.", nb_labels)
     objects = []
     for i, props in enumerate(rp):
         i += 1
@@ -678,9 +676,11 @@ def seeds(args):
         for row in square:
             pixels.extend(row)
         logger.debug(
-            "Seed #{0}: {1} pixels ({2} sampled) - {3:.2f}%".format(
-                i, npixels, len(pixels), 100.0 * npixels / canvas_size
-            )
+            "Seed #%d: %d pixels (%d sampled) - %.2f%%",
+            i,
+            npixels,
+            len(pixels),
+            100.0 * npixels / canvas_size,
         )
 
         rgb = pixel_stats(pixels)

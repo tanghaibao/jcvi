@@ -38,14 +38,14 @@ from .base import (
     savefig,
     set_helvetica_axis,
 )
-from ..algorithms.formula import reject_outliers, get_kmeans
+from ..algorithms.formula import get_kmeans, reject_outliers
 from ..apps.base import (
     OptionParser,
     OptionGroup,
     ActionDispatcher,
-    iglob,
     datadir,
     logger,
+    iglob,
     mkdir,
 )
 from ..formats.base import must_open

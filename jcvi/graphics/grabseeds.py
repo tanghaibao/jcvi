@@ -69,6 +69,7 @@ class Seed(object):
         seedno: int,
         rgb: RGBTuple,
         props: Any,
+        efds: np.ndarray,
         exif: dict,
     ):
         self.imagename = imagename
@@ -81,6 +82,7 @@ class Seed(object):
         self.length = int(round(props.major_axis_length))
         self.width = int(round(props.minor_axis_length))
         self.props = props
+        self.efds = efds
         self.circularity = 4 * pi * props.area / props.perimeter**2
         self.rgb = rgb
         self.colorname = closest_color(rgb)
@@ -113,6 +115,7 @@ class Seed(object):
                 self.correctedcolorname,
                 self.correctedrgb,
             ]
+        fields += [",".join(f"{x:.3f}" for x in self.efds)]
         return "\t".join(str(x) for x in fields)
 
     @classmethod
@@ -129,6 +132,7 @@ class Seed(object):
                 "PixelCMratio RGBtransform Length(cm)"
                 " Width(cm) CorrectedColorName CorrectedRGB".split()
             )
+        fields += ["EllipticFourierDescriptors"]
         return "\t".join(fields)
 
     def calibrate(self, pixel_cm_ratio: float, tr: np.ndarray):
@@ -585,13 +589,14 @@ def extract_label(labelfile: str) -> str:
     return accession
 
 
-def efd_feature(contour: np.ndarray, order: int = 20) -> np.ndarray:
+def efd_feature(contour: np.ndarray) -> np.ndarray:
     """
     To use EFD as features, one can write a small wrapper function.
 
     Based on: https://pyefd.readthedocs.io/en/latest
     """
-    coeffs = elliptic_fourier_descriptors(contour, order=order, normalize=True)
+    coeffs = elliptic_fourier_descriptors(contour, normalize=True)
+    # skip the first three coefficients, which are always 1, 0, 0
     return coeffs.flatten()[3:]
 
 
@@ -713,8 +718,7 @@ def seeds(args):
             break
 
         contour = find_contours(labels == props.label, 0.5)[0]
-        # TODO: Use EFD as features
-        _ = efd_feature(contour)
+        efds = efd_feature(contour)
         y0, x0 = props.centroid
         orientation = props.orientation
         major, minor = props.major_axis_length, props.minor_axis_length
@@ -743,7 +747,7 @@ def seeds(args):
         )
 
         rgb = pixel_stats(pixels)
-        objects.append(Seed(filename, accession, i, rgb, props, exif))
+        objects.append(Seed(filename, accession, i, rgb, props, efds, exif))
         minr, minc, maxr, maxc = props.bbox
         rect = Rectangle(
             (minc, minr), maxc - minc, maxr - minr, fill=False, ec="w", lw=1

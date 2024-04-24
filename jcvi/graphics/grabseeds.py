@@ -132,7 +132,7 @@ class Seed(object):
                 "PixelCMratio RGBtransform Length(cm)"
                 " Width(cm) CorrectedColorName CorrectedRGB".split()
             )
-        fields += [f"EllipticFourierDescriptors" for i in range(1, 11)]
+        fields += ["EllipticFourierDescriptors"]
         return "\t".join(fields)
 
     def calibrate(self, pixel_cm_ratio: float, tr: np.ndarray):

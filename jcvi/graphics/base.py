@@ -420,14 +420,12 @@ def setup_theme(
     usetex: bool = True,
 ):
     try:
-        import seaborn as sns
-
         extra_rc = {
             "lines.linewidth": 1,
             "lines.markeredgewidth": 1,
             "patch.edgecolor": "k",
         }
-        sns.set(context=context, style=style, palette=palette, rc=extra_rc)
+        sns.set_theme(context=context, style=style, palette=palette, rc=extra_rc)
     except (ImportError, SyntaxError):
         pass
 

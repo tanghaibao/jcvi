@@ -733,6 +733,7 @@ def heatmap(args):
     logger.debug("Resolution set to %d", resolution)
     # Load the matrix
     A = np.load(npyfile)
+    total_bins = header["total_bins"]
 
     # Select specific submatrix
     if contig:
@@ -741,7 +742,6 @@ def heatmap(args):
         contig_end = contig_start + contig_size
         A = A[contig_start:contig_end, contig_start:contig_end]
     else:
-        total_bins = header["total_bins"]
         A = A[:total_bins, :total_bins]
 
     # Convert seqids to positions for each group

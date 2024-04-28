@@ -7,16 +7,16 @@ chromosomes.
 """
 import os.path as op
 import sys
-import logging
-import numpy as np
 
 from collections import Counter
 from functools import lru_cache
 from itertools import combinations, groupby
 
-from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
-from jcvi.formats.bed import Bed, fastaFromBed
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+import numpy as np
+
+from ..formats.base import BaseFile, LineFile, must_open, read_block
+from ..formats.bed import Bed, fastaFromBed
+from ..apps.base import OptionParser, ActionDispatcher, logger, need_update
 
 
 MSTheader = """population_type {0}
@@ -65,10 +65,10 @@ class BinMap(BaseFile, dict):
                 else:
                     seqid_spos = marker.rsplit(sep, 1)
                     if len(seqid_spos) != 2:
-                        logging.error(
-                            "Error: `{}` must be in the form e.g. `name{}position`".format(
-                                marker, sep
-                            )
+                        logger.error(
+                            "Error: `%s` must be in the form e.g. `name%sposition`",
+                            marker,
+                            sep,
                         )
                         continue
                     seqid, spos = seqid_spos
@@ -115,10 +115,8 @@ class MSTMap(LineFile):
 
         self.nmarkers = len(self)
         self.nind = len(self[0].genotype)
-        logging.debug(
-            "Map contains {0} markers in {1} individuals".format(
-                self.nmarkers, self.nind
-            )
+        logger.debug(
+            "Map contains %d markers in %d individuals", self.nmarkers, self.nind
         )
 
 
@@ -131,10 +129,8 @@ class MSTMatrix(object):
         self.ngenotypes = len(matrix)
         self.nind = len(markerheader) - 1
         assert self.nind == len(matrix[0]) - 1
-        logging.debug(
-            "Imported {0} markers and {1} individuals.".format(
-                self.ngenotypes, self.nind
-            )
+        logger.debug(
+            "Imported %d markers and %d individuals.", self.ngenotypes, self.nind
         )
 
     def write(self, filename="stdout", header=True):
@@ -157,7 +153,7 @@ class MSTMatrix(object):
 def main():
     actions = (
         ("breakpoint", "find scaffold breakpoints using genetic map"),
-        ("ld", "calculate pairwise linkage disequilibrium"),
+        ("heatmap", "calculate pairwise linkage disequilibrium"),
         ("bed", "convert MSTmap output to bed format"),
         ("fasta", "extract markers based on map"),
         ("anchor", "anchor scaffolds based on map"),
@@ -323,7 +319,7 @@ def dotplot(args):
     title = "Alignment: {} vs {}".format(gx, gy)
     title += " ({} markers)".format(thousands(npairs))
     root.set_title(markup(title), x=0.5, y=0.96, color="k")
-    logging.debug(title)
+    logger.debug(title)
     normalize_axes(root)
 
     image_name = opts.outfile or (csvfile.rsplit(".", 1)[0] + "." + iopts.format)
@@ -362,7 +358,7 @@ def calc_ldscore(a, b):
     return r2
 
 
-def ld(args):
+def heatmap(args):
     """
     %prog ld map
 
@@ -371,7 +367,7 @@ def ld(args):
     from random import sample
     from jcvi.algorithms.matrix import symmetrize
 
-    p = OptionParser(ld.__doc__)
+    p = OptionParser(heatmap.__doc__)
     p.add_option(
         "--subsample",
         default=1000,
@@ -393,18 +389,15 @@ def ld(args):
     if subsample < data.nmarkers:
         data = [data[x] for x in sorted(sample(range(len(data)), subsample))]
     else:
-        logging.debug("Use all markers, --subsample ignored")
+        logger.debug("Use all markers, --subsample ignored")
 
     nmarkers = len(data)
     if need_update(mstmap, (ldmatrix, markerbedfile)):
-        fw = open(markerbedfile, "w")
-        print("\n".join(x.bedline for x in data), file=fw)
-        logging.debug(
-            "Write marker set of size {0} to file `{1}`.".format(
-                nmarkers, markerbedfile
+        with open(markerbedfile, "w") as fw:
+            print("\n".join(x.bedline for x in data), file=fw)
+            logger.debug(
+                "Write marker set of size %d to file `%s`.", nmarkers, markerbedfile
             )
-        )
-        fw.close()
 
         M = np.zeros((nmarkers, nmarkers), dtype=float)
         for i, j in combinations(range(nmarkers), 2):
@@ -414,12 +407,12 @@ def ld(args):
 
         M = symmetrize(M)
 
-        logging.debug("Write LD matrix to file `{0}`.".format(ldmatrix))
+        logger.debug("Write LD matrix to file `%s`.", ldmatrix)
         M.tofile(ldmatrix)
     else:
         nmarkers = len(Bed(markerbedfile))
         M = np.fromfile(ldmatrix, dtype="float").reshape(nmarkers, nmarkers)
-        logging.debug("LD matrix `{0}` exists ({1}x{1}).".format(ldmatrix, nmarkers))
+        logger.debug("LD matrix `%s` exists (%dx%d).", ldmatrix, nmarkers, nmarkers)
 
     from jcvi.graphics.base import plt, savefig, Rectangle, draw_cmap
 
@@ -719,7 +712,7 @@ def breakpoint(args):
 
         good.append(a)
 
-    logging.debug("A total of {0} singleton markers removed.".format(nsingletons))
+    logger.debug("A total of %d singleton markers removed.", nsingletons)
 
     for a, b in pairwise(good):
         label, rr = check_markers(a, b, diff)

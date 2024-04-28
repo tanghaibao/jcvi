@@ -12,6 +12,7 @@ from collections import Counter
 from functools import lru_cache
 from itertools import combinations, groupby
 from random import sample
+from typing import List
 
 import numpy as np
 import seaborn as sns
@@ -20,7 +21,7 @@ from ..apps.base import OptionParser, ActionDispatcher, logger, need_update
 from ..algorithms.matrix import symmetrize
 from ..formats.base import BaseFile, LineFile, must_open, read_block
 from ..formats.bed import Bed, fastaFromBed
-from ..graphics.base import plt, savefig, Rectangle, draw_cmap
+from ..graphics.base import Rectangle, draw_cmap, plt, plot_heatmap, savefig
 
 
 MSTheader = """population_type {0}
@@ -332,7 +333,10 @@ def dotplot(args):
 
 
 @lru_cache(maxsize=None)
-def calc_ldscore(a, b):
+def calc_ldscore(a: List[str], b: List[str]) -> float:
+    """
+    Calculate Linkage disequilibrium (r2) between two genotypes.
+    """
     assert len(a) == len(b), "{0}\n{1}".format(a, b)
     # Assumes markers as A/B
     c = Counter(zip(a, b))

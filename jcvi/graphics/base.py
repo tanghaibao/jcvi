@@ -11,7 +11,6 @@ logging.getLogger("matplotlib").setLevel(logging.WARNING)
 logging.getLogger("numexpr").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.INFO)
 
-
 from functools import partial
 
 import numpy as np
@@ -39,6 +38,7 @@ from typing import Optional, List, Tuple
 
 from ..apps.base import datadir, glob, listify, logger, sample_N, which
 from ..formats.base import LineFile
+from ..utils.cbook import human_size
 
 
 CHARS = {
@@ -333,7 +333,7 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True):
 
 
 # human readable size (Kb, Mb, Gb)
-def human_readable(x, pos, base=False):
+def human_readable(x: Union[str, int], _, base=False):
     x = str(int(x))
     if x.endswith("000000000"):
         x = x[:-9] + "G"
@@ -504,10 +504,9 @@ def plot_heatmap(
     ax,
     M: np.array,
     breaks: List[int],
-    iopts: ImageOptions,
     groups: List[Tuple[int, int, List[Tuple[int, str]], str]] = [],
     plot_breaks: bool = False,
-    title: str = "",
+    binsize: Optional[int] = None,
 ):
     """Plot heatmap illustrating the contact probabilities in Hi-C data.
 
@@ -518,7 +517,7 @@ def plot_heatmap(
         iopts (OptionParser options): Graphical options passed in from commandline
         groups (List, optional): [(start, end, [(position, seqid)], color)]. Defaults to [].
         plot_breaks (bool): Whether to plot white breaks. Defaults to False.
-        title (str): Title of the heatmap at bottom
+        binsize (int, optional): Resolution of the heatmap.
     """
     cmap = sns.cubehelix_palette(rot=0.5, as_cmap=True)
     ax.imshow(M, cmap=cmap, interpolation="none")
@@ -550,13 +549,14 @@ def plot_heatmap(
     ax.set_xticklabels(ax.get_xticks(), family="Helvetica", color="gray")
     ax.set_yticklabels(ax.get_yticks(), family="Helvetica", color="gray", rotation=90)
     ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
-    formatter = ticker.FuncFormatter(
-        lambda x, pos: human_readable(int(x) * binsize, pos, base=True)
-    )
-    ax.xaxis.set_major_formatter(formatter)
-    ax.yaxis.set_major_formatter(formatter)
-    binlabel = "Resolution = {} per bin".format(human_size(binsize, precision=0))
-    ax.set_xlabel(binlabel)
+    if binsize is not None:
+        formatter = ticker.FuncFormatter(
+            lambda x, pos: human_readable(int(x) * binsize, pos, base=True)
+        )
+        ax.xaxis.set_major_formatter(formatter)
+        ax.yaxis.set_major_formatter(formatter)
+        title = f"Resolution = {human_size(binsize, precision=0)} per bin"
+        ax.set_xlabel(title)
 
 
 def discrete_rainbow(N=7, cmap=cm.Set1, usepreset=True, shuffle=False, plot=False):

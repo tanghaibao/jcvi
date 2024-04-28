@@ -25,7 +25,7 @@ from configparser import (
 from socket import gethostname
 from subprocess import PIPE, call, check_output
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
-from typing import Any, Collection, List, Optional, Union
+from typing import Any, Collection, List, Optional, Tuple, Union
 
 from natsort import natsorted
 from rich.console import Console
@@ -39,7 +39,7 @@ nobreakbuffer()
 os.environ["LC_ALL"] = "C"
 JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
 
-TextCollection = Union[str, Iterable[str]]
+TextCollection = Union[str, List[str], Tuple[str]]
 
 
 def debug(level=logging.DEBUG):

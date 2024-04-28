@@ -46,7 +46,7 @@ from ..graphics.base import (
     savefig,
 )
 from ..graphics.dotplot import dotplot
-from ..utils.cbook import gene_name, human_size
+from ..utils.cbook import gene_name
 
 # Map orientations to ints
 FF = {"+": 1, "-": -1, "?": 1}
@@ -782,9 +782,7 @@ def heatmap(args):
     breaks = sorted(breaks)[1:]
     if contig or opts.nobreaks:
         breaks = []
-    binsize = human_size(resolution, precision=0)
-    title = f"Resolution = {binsize} per bin"
-    plot_heatmap(ax, B, breaks, iopts, groups=new_groups, title=title)
+    plot_heatmap(ax, B, breaks, groups=new_groups, binsize=resolution)
 
     # Title
     pf = npyfile.rsplit(".", 1)[0]
@@ -1639,7 +1637,7 @@ def movieframe(args):
     ax2_root = fig.add_axes([0.5, 0, 0.5, 1])  # dot plot canvas
 
     # Left axis: heatmap
-    plot_heatmap(ax1, M, breaks, iopts)
+    plot_heatmap(ax1, M, breaks, binsize=BINSIZE)
 
     # Right axis: synteny
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorsfile, p, opts, sorted=False)

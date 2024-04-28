@@ -25,7 +25,7 @@ from configparser import (
 from socket import gethostname
 from subprocess import PIPE, call, check_output
 from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
-from typing import Any, Collection, List, Optional, Union
+from typing import Any, Collection, List, Optional, Tuple, Union
 
 from natsort import natsorted
 from rich.console import Console
@@ -38,6 +38,8 @@ nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 nobreakbuffer()
 os.environ["LC_ALL"] = "C"
 JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
+
+TextCollection = Union[str, List[str], Tuple[str, ...]]
 
 
 def debug(level=logging.DEBUG):
@@ -1352,21 +1354,21 @@ def parse_multi_values(param):
     return values
 
 
-def listify(a):
+def listify(a: TextCollection) -> TextCollection:
     """
     Convert something to a list if it is not already a list.
     """
-    return a if (isinstance(a, list) or isinstance(a, tuple)) else [a]
+    return a if isinstance(a, (list, tuple)) else [a]  # type: ignore
 
 
-def last_updated(a):
+def last_updated(a: str) -> float:
     """
     Check the time since file was last updated.
     """
     return time.time() - op.getmtime(a)
 
 
-def need_update(a: str, b: str, warn: bool = False) -> bool:
+def need_update(a: TextCollection, b: TextCollection, warn: bool = False) -> bool:
     """
     Check if file a is newer than file b and decide whether or not to update
     file b. Can generalize to two lists.

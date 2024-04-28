@@ -7,16 +7,25 @@ chromosomes.
 """
 import os.path as op
 import sys
-import logging
-import numpy as np
 
-from collections import Counter
-from functools import lru_cache
 from itertools import combinations, groupby
+from random import sample
 
-from jcvi.formats.base import BaseFile, LineFile, must_open, read_block
-from jcvi.formats.bed import Bed, fastaFromBed
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+import numpy as np
+import seaborn as sns
+
+from ..apps.base import OptionParser, ActionDispatcher, logger, need_update
+from ..algorithms.formula import calc_ldscore
+from ..algorithms.matrix import symmetrize
+from ..formats.base import BaseFile, LineFile, must_open, read_block
+from ..formats.bed import Bed, fastaFromBed
+from ..graphics.base import (
+    Rectangle,
+    draw_cmap,
+    plt,
+    plot_heatmap,
+    savefig,
+)
 
 
 MSTheader = """population_type {0}
@@ -65,10 +74,10 @@ class BinMap(BaseFile, dict):
                 else:
                     seqid_spos = marker.rsplit(sep, 1)
                     if len(seqid_spos) != 2:
-                        logging.error(
-                            "Error: `{}` must be in the form e.g. `name{}position`".format(
-                                marker, sep
-                            )
+                        logger.error(
+                            "Error: `%s` must be in the form e.g. `name%sposition`",
+                            marker,
+                            sep,
                         )
                         continue
                     seqid, spos = seqid_spos
@@ -115,10 +124,8 @@ class MSTMap(LineFile):
 
         self.nmarkers = len(self)
         self.nind = len(self[0].genotype)
-        logging.debug(
-            "Map contains {0} markers in {1} individuals".format(
-                self.nmarkers, self.nind
-            )
+        logger.debug(
+            "Map contains %d markers in %d individuals", self.nmarkers, self.nind
         )
 
 
@@ -131,10 +138,8 @@ class MSTMatrix(object):
         self.ngenotypes = len(matrix)
         self.nind = len(markerheader) - 1
         assert self.nind == len(matrix[0]) - 1
-        logging.debug(
-            "Imported {0} markers and {1} individuals.".format(
-                self.ngenotypes, self.nind
-            )
+        logger.debug(
+            "Imported %d markers and %d individuals.", self.ngenotypes, self.nind
         )
 
     def write(self, filename="stdout", header=True):
@@ -157,7 +162,7 @@ class MSTMatrix(object):
 def main():
     actions = (
         ("breakpoint", "find scaffold breakpoints using genetic map"),
-        ("ld", "calculate pairwise linkage disequilibrium"),
+        ("heatmap", "calculate pairwise linkage disequilibrium"),
         ("bed", "convert MSTmap output to bed format"),
         ("fasta", "extract markers based on map"),
         ("anchor", "anchor scaffolds based on map"),
@@ -323,7 +328,7 @@ def dotplot(args):
     title = "Alignment: {} vs {}".format(gx, gy)
     title += " ({} markers)".format(thousands(npairs))
     root.set_title(markup(title), x=0.5, y=0.96, color="k")
-    logging.debug(title)
+    logger.debug(title)
     normalize_axes(root)
 
     image_name = opts.outfile or (csvfile.rsplit(".", 1)[0] + "." + iopts.format)
@@ -331,47 +336,13 @@ def dotplot(args):
     fig.clear()
 
 
-@lru_cache(maxsize=None)
-def calc_ldscore(a, b):
-    assert len(a) == len(b), "{0}\n{1}".format(a, b)
-    # Assumes markers as A/B
-    c = Counter(zip(a, b))
-    c_aa = c[("A", "A")]
-    c_ab = c[("A", "B")]
-    c_ba = c[("B", "A")]
-    c_bb = c[("B", "B")]
-    n = c_aa + c_ab + c_ba + c_bb
-    if n == 0:
-        return 0
-
-    f = 1.0 / n
-    x_aa = c_aa * f
-    x_ab = c_ab * f
-    x_ba = c_ba * f
-    x_bb = c_bb * f
-    p_a = x_aa + x_ab
-    p_b = x_ba + x_bb
-    q_a = x_aa + x_ba
-    q_b = x_ab + x_bb
-    D = x_aa - p_a * q_a
-    denominator = p_a * p_b * q_a * q_b
-    if denominator == 0:
-        return 0
-
-    r2 = D * D / denominator
-    return r2
-
-
-def ld(args):
+def heatmap(args):
     """
-    %prog ld map
+    %prog heatmap map
 
     Calculate pairwise linkage disequilibrium given MSTmap.
     """
-    from random import sample
-    from jcvi.algorithms.matrix import symmetrize
-
-    p = OptionParser(ld.__doc__)
+    p = OptionParser(heatmap.__doc__)
     p.add_option(
         "--subsample",
         default=1000,
@@ -393,18 +364,15 @@ def ld(args):
     if subsample < data.nmarkers:
         data = [data[x] for x in sorted(sample(range(len(data)), subsample))]
     else:
-        logging.debug("Use all markers, --subsample ignored")
+        logger.debug("Use all markers, --subsample ignored")
 
     nmarkers = len(data)
     if need_update(mstmap, (ldmatrix, markerbedfile)):
-        fw = open(markerbedfile, "w")
-        print("\n".join(x.bedline for x in data), file=fw)
-        logging.debug(
-            "Write marker set of size {0} to file `{1}`.".format(
-                nmarkers, markerbedfile
+        with open(markerbedfile, "w", encoding="utf-8") as fw:
+            print("\n".join(x.bedline for x in data), file=fw)
+            logger.debug(
+                "Write marker set of size %d to file `%s`.", nmarkers, markerbedfile
             )
-        )
-        fw.close()
 
         M = np.zeros((nmarkers, nmarkers), dtype=float)
         for i, j in combinations(range(nmarkers), 2):
@@ -414,22 +382,18 @@ def ld(args):
 
         M = symmetrize(M)
 
-        logging.debug("Write LD matrix to file `{0}`.".format(ldmatrix))
+        logger.debug("Write LD matrix to file `%s`.", ldmatrix)
         M.tofile(ldmatrix)
     else:
         nmarkers = len(Bed(markerbedfile))
         M = np.fromfile(ldmatrix, dtype="float").reshape(nmarkers, nmarkers)
-        logging.debug("LD matrix `{0}` exists ({1}x{1}).".format(ldmatrix, nmarkers))
-
-    from jcvi.graphics.base import plt, savefig, Rectangle, draw_cmap
+        logger.debug("LD matrix `%s` exists (%dx%d).", ldmatrix, nmarkers, nmarkers)
 
     plt.rcParams["axes.linewidth"] = 0
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])  # the heatmap
-
-    ax.matshow(M, cmap=iopts.cmap)
+    root = fig.add_axes((0, 0, 1, 1))
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))  # the heatmap
 
     # Plot chromosomes breaks
     bed = Bed(markerbedfile)
@@ -438,35 +402,37 @@ def ld(args):
     chr_labels = []
     ignore_size = 20
 
+    breaks = []
     for seqid, beg, end in bed.get_breaks():
         ignore = abs(end - beg) < ignore_size
         pos = (beg + end) / 2
         chr_labels.append((seqid, pos, ignore))
         if ignore:
             continue
-        ax.plot((end, end), extent, "w-", lw=1)
-        ax.plot(extent, (end, end), "w-", lw=1)
+        breaks.append(end)
+
+    cmap = sns.color_palette("rocket", as_cmap=True)
+    plot_heatmap(ax, M, breaks, cmap=cmap, plot_breaks=True)
 
     # Plot chromosome labels
     for label, pos, ignore in chr_labels:
-        pos = 0.1 + pos * 0.8 / xsize
         if not ignore:
+            xpos = 0.1 + pos * 0.8 / xsize
             root.text(
-                pos, 0.91, label, ha="center", va="bottom", rotation=45, color="grey"
+                xpos, 0.91, label, ha="center", va="bottom", rotation=45, color="grey"
             )
-            root.text(0.09, pos, label, ha="right", va="center", color="grey")
+            ypos = 0.9 - pos * 0.8 / xsize
+            root.text(0.09, ypos, label, ha="right", va="center", color="grey")
 
     ax.set_xlim(extent)
-    ax.set_ylim(extent)
+    ax.set_ylim((nmarkers, 0))  # Invert y-axis
     ax.set_axis_off()
 
-    draw_cmap(root, "Pairwise LD (r2)", 0, 1, cmap=iopts.cmap)
+    draw_cmap(root, r"Pairwise LD ($r^2$)", 0, 1, cmap=cmap)
 
     root.add_patch(Rectangle((0.1, 0.1), 0.8, 0.8, fill=False, ec="k", lw=2))
     m = mstmap.split(".")[0]
-    root.text(
-        0.5, 0.06, "Linkage Disequilibrium between {0} markers".format(m), ha="center"
-    )
+    root.text(0.5, 0.06, f"Linkage Disequilibrium between {m} markers", ha="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -719,7 +685,7 @@ def breakpoint(args):
 
         good.append(a)
 
-    logging.debug("A total of {0} singleton markers removed.".format(nsingletons))
+    logger.debug("A total of %d singleton markers removed.", nsingletons)
 
     for a, b in pairwise(good):
         label, rr = check_markers(a, b, diff)

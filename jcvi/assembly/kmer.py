@@ -270,9 +270,7 @@ class KmerSpectrum(BaseFile):
             copy_num = start if start == end else "{}-{}".format(start, end)
             g_copies = int(round(g * mid * (end - start + 1)))
             copy_series.append((mid, copy_num, g_copies, g))
-            copy_message = "CN {}: {:.1f} Mb ({:.1f} percent)".format(
-                copy_num, g_copies / 1e6, g_copies * 100 / genome_size
-            )
+            copy_message = f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} %)"
             copy_messages.append(copy_message)
             m += copy_message + "\n"
 
@@ -280,15 +278,13 @@ class KmerSpectrum(BaseFile):
             g_copies = genome_size - inferred_genome_size
             copy_num = "{}+".format(end + 1)
             copy_series.append((end + 1, copy_num, g_copies, g_copies / (end + 1)))
-            m += "CN {}: {:.1f} Mb ({:.1f} percent)\n".format(
-                copy_num, g_copies / 1e6, g_copies * 100 / genome_size
-            )
+            m += f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} %)\n"
 
         # Determine ploidy
         def determine_ploidy(copy_series, threshold=0.15):
             counts_so_far = 1
             ploidy_so_far = 0
-            for mid, copy_num, g_copies, g in copy_series:
+            for mid, _, g_copies, _ in copy_series:
                 if g_copies / counts_so_far < threshold:
                     break
                 counts_so_far += g_copies
@@ -304,7 +300,7 @@ class KmerSpectrum(BaseFile):
         # Repeat content
         def calc_repeats(copy_series, ploidy, genome_size):
             unique = 0
-            for mid, copy_num, g_copies, g in copy_series:
+            for mid, _, g_copies, _ in copy_series:
                 if mid <= ploidy:
                     unique += g_copies
                 else:
@@ -1241,6 +1237,39 @@ def multihistogram(args):
     savefig(imagename, dpi=iopts.dpi, iopts=iopts)
 
 
+def plot_nbinom_fit(ax, ks: KmerSpectrum, ymax: float, method_info: dict):
+    """
+    Plot the negative binomial fit.
+    """
+    generative_model = method_info["generative_model"]
+    GG = method_info["Gbins"]
+    ll = method_info["lambda"]
+    rr = method_info["rho"]
+    kf_range = method_info["kf_range"]
+    stacked = generative_model(GG, ll, rr)
+    ax.plot(
+        kf_range,
+        stacked,
+        ":",
+        color="#6a3d9a",
+        lw=2,
+    )
+    # Plot multiple CN locations, CN1, CN2, ... up to ploidy
+    cn_color = "#a6cee3"
+    for i in range(1, ks.ploidy + 1):
+        x = i * ks.lambda_
+        ax.plot((x, x), (0, ymax), "-.", color=cn_color)
+        ax.text(
+            x,
+            ymax * 0.95,
+            f"CN{i}",
+            ha="right",
+            va="center",
+            color=cn_color,
+            rotation=90,
+        )
+
+
 def histogram(args):
     """
     %prog histogram meryl.histogram species K
@@ -1262,12 +1291,6 @@ def histogram(args):
         default=100,
         type="int",
         help="maximum value, inclusive",
-    )
-    p.add_option(
-        "--pdf",
-        default=False,
-        action="store_true",
-        help="Print PDF instead of ASCII plot",
     )
     p.add_option(
         "--method",
@@ -1298,7 +1321,6 @@ def histogram(args):
     histfile, species, N = args
     method = opts.method
     vmin, vmax = opts.vmin, opts.vmax
-    ascii = not opts.pdf
     peaks = not opts.nopeaks and method == "allpaths"
     N = int(N)
 
@@ -1320,64 +1342,6 @@ def histogram(args):
     Repetitive_msg = ks.repetitive
     SNPrate_msg = ks.snprate
 
-    for msg in (Total_Kmers_msg, Kmer_coverage_msg, Genome_size_msg):
-        print(msg, file=sys.stderr)
-
-    x, y = ks.get_xy(vmin, vmax)
-    title = "{0} {1}-mer histogram".format(species, N)
-
-    if ascii:
-        asciiplot(x, y, title=title)
-        return Genome_size
-
-    plt.figure(1, (iopts.w, iopts.h))
-    plt.bar(x, y, fc="#b2df8a", lw=0)
-    # Plot the negative binomial fit
-    if method == "nbinom":
-        generative_model = method_info["generative_model"]
-        GG = method_info["Gbins"]
-        ll = method_info["lambda"]
-        rr = method_info["rho"]
-        kf_range = method_info["kf_range"]
-        stacked = generative_model(GG, ll, rr)
-        plt.plot(
-            kf_range,
-            stacked,
-            ":",
-            color="#6a3d9a",
-            lw=2,
-        )
-
-    ax = plt.gca()
-
-    if peaks:  # Only works for method 'allpaths'
-        t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
-        tcounts = [(x, y) for x, y in ks.counts if x in t]
-        if tcounts:
-            x, y = zip(*tcounts)
-            tcounts = dict(tcounts)
-            plt.plot(x, y, "ko", lw=3, mec="k", mfc="w")
-            ax.text(ks.max1, tcounts[ks.max1], "SNP peak")
-            ax.text(ks.max2, tcounts[ks.max2], "Main peak")
-
-    ymin, ymax = ax.get_ylim()
-    ymax = ymax * 7 / 6
-    if method == "nbinom":
-        # Plot multiple CN locations, CN1, CN2, ... up to ploidy
-        cn_color = "#a6cee3"
-        for i in range(1, ks.ploidy + 1):
-            x = i * ks.lambda_
-            plt.plot((x, x), (0, ymax), "-.", color=cn_color)
-            plt.text(
-                x,
-                ymax * 0.95,
-                "CN{}".format(i),
-                ha="right",
-                va="center",
-                color=cn_color,
-                rotation=90,
-            )
-
     messages = [
         Total_Kmers_msg,
         Kmer_coverage_msg,
@@ -1385,8 +1349,33 @@ def histogram(args):
         Repetitive_msg,
         SNPrate_msg,
     ]
+    for msg in messages:
+        print(msg, file=sys.stderr)
+
+    x, y = ks.get_xy(vmin, vmax)
+    title = "{0} {1}-mer histogram".format(species, N)
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))
+    ax.bar(x, y, fc="#b2df8a", lw=0)
+
+    if peaks:  # Only works for method 'allpaths'
+        t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
+        tcounts = [(x, y) for x, y in ks.counts if x in t]
+        if tcounts:
+            x, y = zip(*tcounts)
+            tcounts = dict(tcounts)
+            ax.plot(x, y, "ko", lw=3, mec="k", mfc="w")
+            ax.text(ks.max1, tcounts[ks.max1], "SNP peak")
+            ax.text(ks.max2, tcounts[ks.max2], "Main peak")
+
+    _, ymax = ax.get_ylim()
+    ymax *= 7 / 6
+    # Plot the negative binomial fit
     if method == "nbinom":
+        plot_nbinom_fit(ax, ks, ymax, method_info)
         messages += [ks.ploidy_message] + ks.copy_messages
+
     write_messages(ax, messages)
 
     ax.set_title(markup(title))

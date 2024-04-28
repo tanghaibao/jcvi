@@ -11,6 +11,7 @@ import os.path as op
 import sys
 
 from collections import Counter, OrderedDict, defaultdict
+from typing import Optional
 
 import numpy as np
 
@@ -22,17 +23,17 @@ from ..formats.sizes import Sizes
 from ..utils.cbook import human_size, autoscale
 
 from .base import (
-    plt,
-    Rectangle,
     CirclePolygon,
-    savefig,
-    ticker,
+    Rectangle,
+    adjust_spines,
     human_readable_base,
     latex,
     markup,
-    set_human_axis,
     normalize_axes,
-    adjust_spines,
+    plt,
+    savefig,
+    set_human_axis,
+    ticker,
 )
 
 
@@ -269,14 +270,14 @@ def mosdepth(args):
 def draw_depth(
     root,
     ax,
-    bed,
-    chrinfo={},
-    defaultcolor="k",
-    sepcolor="w",
-    ylim=100,
-    logscale=False,
-    title=None,
-    subtitle=None,
+    bed: Bed,
+    chrinfo: dict = {},
+    defaultcolor: str = "k",
+    sepcolor: str = "w",
+    ylim: int = 100,
+    logscale: bool = False,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
 ):
     """Draw depth plot on the given axes, using data from bed
 

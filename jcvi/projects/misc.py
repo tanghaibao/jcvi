@@ -33,7 +33,6 @@ def main():
         ("oropetium", "plot oropetium micro-synteny (requires data)"),
         # Pomegranate paper (Qin et al., 2017 Plant Journal)
         ("pomegranate", "plot pomegranate macro- and micro-synteny (requires data)"),
-        # Unpublished
         ("birch", "plot birch macro-synteny (requires data)"),
         ("litchi", "plot litchi micro-synteny (requires data)"),
         ("utricularia", "plot utricularia micro-synteny (requires data)"),

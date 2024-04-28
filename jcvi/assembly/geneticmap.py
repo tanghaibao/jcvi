@@ -11,12 +11,16 @@ import sys
 from collections import Counter
 from functools import lru_cache
 from itertools import combinations, groupby
+from random import sample
 
 import numpy as np
+import seaborn as sns
 
+from ..apps.base import OptionParser, ActionDispatcher, logger, need_update
+from ..algorithms.matrix import symmetrize
 from ..formats.base import BaseFile, LineFile, must_open, read_block
 from ..formats.bed import Bed, fastaFromBed
-from ..apps.base import OptionParser, ActionDispatcher, logger, need_update
+from ..graphics.base import plt, savefig, Rectangle, draw_cmap
 
 
 MSTheader = """population_type {0}
@@ -360,13 +364,10 @@ def calc_ldscore(a, b):
 
 def heatmap(args):
     """
-    %prog ld map
+    %prog heatmap map
 
     Calculate pairwise linkage disequilibrium given MSTmap.
     """
-    from random import sample
-    from jcvi.algorithms.matrix import symmetrize
-
     p = OptionParser(heatmap.__doc__)
     p.add_option(
         "--subsample",
@@ -393,7 +394,7 @@ def heatmap(args):
 
     nmarkers = len(data)
     if need_update(mstmap, (ldmatrix, markerbedfile)):
-        with open(markerbedfile, "w") as fw:
+        with open(markerbedfile, "w", encoding="utf-8") as fw:
             print("\n".join(x.bedline for x in data), file=fw)
             logger.debug(
                 "Write marker set of size %d to file `%s`.", nmarkers, markerbedfile
@@ -414,15 +415,14 @@ def heatmap(args):
         M = np.fromfile(ldmatrix, dtype="float").reshape(nmarkers, nmarkers)
         logger.debug("LD matrix `%s` exists (%dx%d).", ldmatrix, nmarkers, nmarkers)
 
-    from jcvi.graphics.base import plt, savefig, Rectangle, draw_cmap
-
     plt.rcParams["axes.linewidth"] = 0
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])  # the heatmap
+    root = fig.add_axes((0, 0, 1, 1))
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))  # the heatmap
+    cmap = sns.cubehelix_palette(rot=0.5, as_cmap=True)
 
-    ax.matshow(M, cmap=iopts.cmap)
+    ax.imshow(M, cmap=cmap, interpolation="none")
 
     # Plot chromosomes breaks
     bed = Bed(markerbedfile)
@@ -450,16 +450,14 @@ def heatmap(args):
             root.text(0.09, pos, label, ha="right", va="center", color="grey")
 
     ax.set_xlim(extent)
-    ax.set_ylim(extent)
+    ax.set_ylim((nmarkers, 0))  # Invert y-axis
     ax.set_axis_off()
 
-    draw_cmap(root, "Pairwise LD (r2)", 0, 1, cmap=iopts.cmap)
+    draw_cmap(root, r"Pairwise LD ($r^2$)", 0, 1, cmap=cmap)
 
     root.add_patch(Rectangle((0.1, 0.1), 0.8, 0.8, fill=False, ec="k", lw=2))
     m = mstmap.split(".")[0]
-    root.text(
-        0.5, 0.06, "Linkage Disequilibrium between {0} markers".format(m), ha="center"
-    )
+    root.text(0.5, 0.06, f"Linkage Disequilibrium between {m} markers", ha="center")
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)

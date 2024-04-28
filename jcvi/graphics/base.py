@@ -16,6 +16,7 @@ from functools import partial
 
 import numpy as np
 import matplotlib as mpl
+import seaborn as sns
 
 mpl.use("Agg")
 
@@ -34,7 +35,7 @@ from matplotlib.patches import (
     FancyArrowPatch,
     FancyBboxPatch,
 )
-from typing import Optional
+from typing import Optional, List, Tuple
 
 from ..apps.base import datadir, glob, listify, logger, sample_N, which
 from ..formats.base import LineFile
@@ -497,6 +498,65 @@ def print_colors(palette, outfile="Palette.png"):
     ax.set_axis_off()
 
     savefig(outfile)
+
+
+def plot_heatmap(
+    ax,
+    M: np.array,
+    breaks: List[int],
+    iopts: ImageOptions,
+    groups: List[Tuple[int, int, List[Tuple[int, str]], str]] = [],
+    plot_breaks: bool = False,
+    title: str = "",
+):
+    """Plot heatmap illustrating the contact probabilities in Hi-C data.
+
+    Args:
+        ax (pyplot.axes): Matplotlib axis
+        M (np.array): 2D numpy-array
+        breaks (List[int]): Positions of chromosome starts. Can be None.
+        iopts (OptionParser options): Graphical options passed in from commandline
+        groups (List, optional): [(start, end, [(position, seqid)], color)]. Defaults to [].
+        plot_breaks (bool): Whether to plot white breaks. Defaults to False.
+        title (str): Title of the heatmap at bottom
+    """
+    cmap = sns.cubehelix_palette(rot=0.5, as_cmap=True)
+    ax.imshow(M, cmap=cmap, interpolation="none")
+    _, xmax = ax.get_xlim()
+    xlim = (0, xmax)
+    if plot_breaks:
+        for b in breaks[:-1]:
+            ax.plot([b, b], xlim, "w-")
+            ax.plot(xlim, [b, b], "w-")
+
+    def simplify_seqid(seqid):
+        seqid = seqid.replace("_", "")
+        if seqid[:3].lower() == "chr":
+            seqid = seqid[3:]
+        return seqid.lstrip("0")
+
+    for start, end, position_seqids, color in groups:
+        # Plot a square
+        ax.plot([start, start], [start, end], "-", color=color)
+        ax.plot([start, end], [start, start], "-", color=color)
+        ax.plot([start, end], [end, end], "-", color=color)
+        ax.plot([end, end], [start, end], "-", color=color)
+        for position, seqid in position_seqids:
+            seqid = simplify_seqid(seqid)
+            ax.text(position, end, seqid, ha="center", va="top")
+
+    ax.set_xlim(xlim)
+    ax.set_ylim((xlim[1], xlim[0]))  # Flip the y-axis so the origin is at the top
+    ax.set_xticklabels(ax.get_xticks(), family="Helvetica", color="gray")
+    ax.set_yticklabels(ax.get_yticks(), family="Helvetica", color="gray", rotation=90)
+    ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+    formatter = ticker.FuncFormatter(
+        lambda x, pos: human_readable(int(x) * binsize, pos, base=True)
+    )
+    ax.xaxis.set_major_formatter(formatter)
+    ax.yaxis.set_major_formatter(formatter)
+    binlabel = "Resolution = {} per bin".format(human_size(binsize, precision=0))
+    ax.set_xlabel(binlabel)
 
 
 def discrete_rainbow(N=7, cmap=cm.Set1, usepreset=True, shuffle=False, plot=False):

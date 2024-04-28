@@ -10,9 +10,11 @@ import math
 import os
 import os.path as op
 import sys
+
 from collections import defaultdict
 from functools import partial
 from multiprocessing import Pool
+from typing import List, Tuple
 
 import numpy as np
 
@@ -683,54 +685,12 @@ def generate_groups(groupsfile):
             yield seqids, color
 
 
-def heatmap(args):
+def read_matrix(
+    npyfile: str, header: dict, contig: str, groups: List[Tuple[str, str]], opts
+):
     """
-    %prog heatmap input.npy genome.json
-
-    Plot heatmap based on .npy data file. The .npy stores a square matrix with
-    bins of genome, and cells inside the matrix represent number of links
-    between bin i and bin j. The `genome.json` contains the offsets of each
-    contig/chr so that we know where to draw boundary lines, or extract per
-    contig/chromosome heatmap.
-
-    If a 'groups' file is given (with --groups), we will draw squares on the
-    heatmap. The 'groups' file has the following format, for example:
-
-    seq1,seq2 b
-    seq1 g
-    seq2 g
-
-    This will first draw a square around seq1+seq2 with blue color, then seq1
-    and seq2 individually with green color.
+    Read the matrix from the npy file and apply log transformation and thresholding.
     """
-    p = OptionParser(heatmap.__doc__)
-    p.add_option("--title", help="Title of the heatmap")
-    p.add_option("--groups", help="Groups file, see doc")
-    p.add_option("--vmin", default=1, type="int", help="Minimum value in the heatmap")
-    p.add_option("--vmax", default=6, type="int", help="Maximum value in the heatmap")
-    p.add_option("--chr", help="Plot this contig/chr only")
-    p.add_option(
-        "--nobreaks",
-        default=False,
-        action="store_true",
-        help="Do not plot breaks (esp. if contigs are small)",
-    )
-    opts, args, iopts = p.set_image_options(
-        args, figsize="11x11", style="white", cmap="coolwarm", dpi=120
-    )
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    npyfile, jsonfile = args
-    contig = opts.chr
-    groups = list(generate_groups(opts.groups)) if opts.groups else []
-
-    # Load contig/chromosome starts and sizes
-    header = json.loads(open(jsonfile).read())
-    resolution = header.get("resolution")
-    assert resolution is not None, "`resolution` not found in `{}`".format(jsonfile)
-    logger.debug("Resolution set to %d", resolution)
     # Load the matrix
     A = np.load(npyfile)
     total_bins = header["total_bins"]
@@ -775,16 +735,71 @@ def heatmap(args):
     print(B)
     logger.debug("Matrix log-transformation and thresholding (%d-%d) done", vmin, vmax)
 
-    # Canvas
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))  # whole canvas
-    ax = fig.add_axes((0.05, 0.05, 0.9, 0.9))  # just the heatmap
-
     breaks = list(header["starts"].values())
     breaks += [total_bins]  # This is actually discarded
     breaks = sorted(breaks)[1:]
     if contig or opts.nobreaks:
         breaks = []
+
+    return B, new_groups, breaks
+
+
+def heatmap(args):
+    """
+    %prog heatmap input.npy genome.json
+
+    Plot heatmap based on .npy data file. The .npy stores a square matrix with
+    bins of genome, and cells inside the matrix represent number of links
+    between bin i and bin j. The `genome.json` contains the offsets of each
+    contig/chr so that we know where to draw boundary lines, or extract per
+    contig/chromosome heatmap.
+
+    If a 'groups' file is given (with --groups), we will draw squares on the
+    heatmap. The 'groups' file has the following format, for example:
+
+    seq1,seq2 b
+    seq1 g
+    seq2 g
+
+    This will first draw a square around seq1+seq2 with blue color, then seq1
+    and seq2 individually with green color.
+    """
+    p = OptionParser(heatmap.__doc__)
+    p.add_option("--title", help="Title of the heatmap")
+    p.add_option("--groups", help="Groups file, see doc")
+    p.add_option("--vmin", default=1, type="int", help="Minimum value in the heatmap")
+    p.add_option("--vmax", default=6, type="int", help="Maximum value in the heatmap")
+    p.add_option("--chr", help="Plot this contig/chr only")
+    p.add_option(
+        "--nobreaks",
+        default=False,
+        action="store_true",
+        help="Do not plot breaks (esp. if contigs are small)",
+    )
+    opts, args, iopts = p.set_image_options(
+        args, figsize="11x11", style="white", cmap="coolwarm", dpi=120
+    )
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    npyfile, jsonfile = args
+    contig = opts.chr
+    groups = list(generate_groups(opts.groups)) if opts.groups else []
+
+    # Load contig/chromosome starts and sizes
+    header = json.loads(open(jsonfile, encoding="utf-8").read())
+    resolution = header.get("resolution")
+    assert resolution is not None, "`resolution` not found in `{}`".format(jsonfile)
+    logger.debug("Resolution set to %d", resolution)
+
+    B, new_groups, breaks = read_matrix(npyfile, header, contig, groups, opts)
+
+    # Canvas
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes((0, 0, 1, 1))  # whole canvas
+    ax = fig.add_axes((0.05, 0.05, 0.9, 0.9))  # just the heatmap
+
     plot_heatmap(ax, B, breaks, groups=new_groups, binsize=resolution)
 
     # Title

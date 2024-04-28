@@ -6,7 +6,6 @@ Deals with K-mers and K-mer distribution from reads or genome
 """
 import os.path as op
 import sys
-import logging
 import math
 import numpy as np
 
@@ -14,24 +13,32 @@ from collections import defaultdict
 from more_itertools import chunked
 from typing import List
 
-from jcvi.graphics.base import (
-    plt,
+from ..apps.grid import MakeManager
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    PIPE,
+    Popen,
+    logger,
+    need_update,
+    sh,
+)
+from ..formats.fasta import Fasta
+from ..formats.base import BaseFile, must_open, get_number
+from ..graphics.base import (
     adjust_spines,
     asciiplot,
-    set_human_axis,
-    savefig,
     markup,
-    panel_labels,
     normalize_axes,
+    panel_labels,
+    plt,
+    savefig,
+    set_human_axis,
     set_ticklabels_helvetica,
     write_messages,
 )
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.base import BaseFile, must_open, get_number
-from jcvi.utils.cbook import thousands, percentage
-from jcvi.assembly.automaton import iter_project
-from jcvi.apps.grid import MakeManager
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, Popen, PIPE
+from ..utils.cbook import thousands, percentage
+from .automaton import iter_project
 
 
 KMERYL, KSOAP, KALLPATHS = range(3)
@@ -48,7 +55,7 @@ class KmerSpectrum(BaseFile):
         self.hist = {}
         kformat = self.guess_format(histfile)
         kformats = ("Meryl", "Soap", "AllPaths")
-        logging.debug("Guessed format: {0}".format(kformats[kformat]))
+        logger.debug("Guessed format: %s", kformats[kformat])
 
         fp = open(histfile)
         for rowno, row in enumerate(fp):
@@ -351,9 +358,10 @@ class KmerSpectrum(BaseFile):
         kf_ceil = max(K for (K, c) in data)
         if kf_ceil > covmax:
             exceeds = sum(1 for (K, c) in data if K > covmax)
-            logging.debug(
-                "A total of {0} distinct K-mers appear > "
-                "{1} times. Ignored ...".format(exceeds, covmax)
+            logger.debug(
+                "A total of %d distinct K-mers appear > %d times. Ignored ...",
+                exceeds,
+                covmax,
             )
             kf_ceil = covmax
 
@@ -509,7 +517,7 @@ class KMCComplex(object):
             # Divide indices into batches
             batches = []
             batchsize = (len(self.indices) + batch - 1) // batch
-            logging.debug("Use batchsize of %d", batchsize)
+            logger.debug("Use batchsize of %d", batchsize)
             for i, indices in enumerate(chunked(self.indices, batchsize)):
                 filename_i = filename.format(i + 1)
                 outfile_i = outfile + ".{}".format(i + 1)
@@ -656,7 +664,7 @@ def bed(args):
         KMERS.add(kmer_rc)
 
     K = len(kmer)
-    logging.debug("Imported {} {}-mers".format(len(KMERS), K))
+    logger.debug("Imported %d %d-mers", len(KMERS), K)
 
     for name, seq in parse_fasta(fastafile):
         name = name.split()[0]
@@ -719,7 +727,7 @@ def kmcop(args):
         indices = [x for x in indices if x.rsplit(".", 2)[0] not in exclude_ids]
         after = set(indices)
         if before > after:
-            logging.debug(
+            logger.debug(
                 "Excluded accessions %d → %d (%s)",
                 len(before),
                 len(after),
@@ -964,7 +972,7 @@ def count(args):
         kmers = list(make_kmers(rec.seq, K))
         print("\n".join(kmers), file=proc.stdin)
     proc.stdin.close()
-    logging.debug(cmd)
+    logger.debug(cmd)
     proc.wait()
 
     a = bitarray()
@@ -975,18 +983,20 @@ def count(args):
         c = row.strip()
         a.append(int(c))
     a.tofile(fw)
-    logging.debug("Serialize {0} bits to `{1}`.".format(len(a), binfile))
+    logger.debug("Serialize %d bits to `%s`.", len(a), binfile)
     fw.close()
     sh("rm {0}".format(t.name))
 
-    logging.debug(
-        "Shared K-mers (K={0}) between `{1}` and `{2}` written to `{3}`.".format(
-            K, fastafile, jfdb, binfile
-        )
+    logger.debug(
+        "Shared K-mers (K=%d) between `%s` and `%s` written to `%s`.",
+        K,
+        fastafile,
+        jfdb,
+        binfile,
     )
     cntfile = ".".join((fastafile, jfdb, "cnt"))
     bincount([fastafile, binfile, "-o", cntfile, "-K {0}".format(K)])
-    logging.debug("Shared K-mer counts written to `{0}`.".format(cntfile))
+    logger.debug("Shared K-mer counts written to `%s`.", cntfile)
 
 
 def bincount(args):
@@ -1120,10 +1130,10 @@ def jellyfish(args):
     gzip = fq.endswith(".gz")
 
     hashsize = totalfilesize / coverage
-    logging.debug(
-        "Total file size: {0}, hashsize (-s): {1}".format(
-            human_size(totalfilesize, a_kilobyte_is_1024_bytes=True), hashsize
-        )
+    logger.debug(
+        "Total file size: %s, hashsize (-s): %d",
+        human_size(totalfilesize, a_kilobyte_is_1024_bytes=True),
+        hashsize,
     )
 
     jfpf = "{0}-K{1}".format(pf, K)
@@ -1325,7 +1335,7 @@ def histogram(args):
     N = int(N)
 
     if histfile.rsplit(".", 1)[-1] in ("mcdat", "mcidx"):
-        logging.debug("CA kmer index found")
+        logger.debug("CA kmer index found")
         histfile = merylhistogram(histfile)
 
     ks = KmerSpectrum(histfile)

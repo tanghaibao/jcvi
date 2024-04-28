@@ -547,8 +547,6 @@ def plot_heatmap(
 
     ax.set_xlim(xlim)
     ax.set_ylim((xlim[1], xlim[0]))  # Flip the y-axis so the origin is at the top
-    ax.set_xticks(ax.get_xticks())
-    ax.set_yticks(ax.get_yticks())
     ax.set_xticklabels(ax.get_xticks(), family="Helvetica", color="gray")
     ax.set_yticklabels(ax.get_yticks(), family="Helvetica", color="gray", rotation=90)
     ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)

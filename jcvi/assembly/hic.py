@@ -716,7 +716,7 @@ def heatmap(args):
         help="Do not plot breaks (esp. if contigs are small)",
     )
     opts, args, iopts = p.set_image_options(
-        args, figsize="11x11", style="white", cmap="coolwarm", format="png", dpi=120
+        args, figsize="11x11", style="white", cmap="coolwarm", dpi=120
     )
 
     if len(args) != 2:
@@ -740,6 +740,9 @@ def heatmap(args):
         contig_size = header["sizes"][contig]
         contig_end = contig_start + contig_size
         A = A[contig_start:contig_end, contig_start:contig_end]
+    else:
+        total_bins = header["total_bins"]
+        A = A[:total_bins, :total_bins]
 
     # Convert seqids to positions for each group
     new_groups = []
@@ -778,7 +781,7 @@ def heatmap(args):
     ax = fig.add_axes((0.05, 0.05, 0.9, 0.9))  # just the heatmap
 
     breaks = list(header["starts"].values())
-    breaks += [header["total_bins"]]  # This is actually discarded
+    breaks += [total_bins]  # This is actually discarded
     breaks = sorted(breaks)[1:]
     if contig or opts.nobreaks:
         breaks = []

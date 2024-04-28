@@ -88,12 +88,14 @@ class Pedigree(BaseFile, dict):
             self[s] = Sample(s, None, None)
         self.terminal_nodes = terminal_nodes
 
-    def to_graph(self, inbreeding_dict: Dict[str, SampleInbreeding]) -> nx.DiGraph:
+    def to_graph(
+        self, inbreeding_dict: Dict[str, SampleInbreeding], title: str = ""
+    ) -> nx.DiGraph:
         """
         Convert the pedigree to a graph.
         """
-        graph_styles = {"splines": "curved"}
-        edge_styles = {"color": "lightslategray", "arrowhead": "none"}
+        graph_styles = {"labelloc": "b", "label": title, "splines": "curved"}
+        edge_styles = {"arrowhead": "none", "color": "lightslategray"}
         G = nx.DiGraph(**graph_styles)
         for s in self:
             dad, mom = self[s].dad, self[s].mom
@@ -238,6 +240,7 @@ def pedigree(args):
     p = OptionParser(pedigree.__doc__)
     p.add_option("--ploidy", default=2, type="int", help="Ploidy")
     p.add_option("--N", default=10000, type="int", help="Number of samples")
+    p.add_option("--title", default="", help="Title of the graph")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -250,7 +253,7 @@ def pedigree(args):
     for _, v in inb.items():
         print(v)
 
-    G = ped.to_graph(inb)
+    G = ped.to_graph(inb, title=opts.title)
     dotfile = f"{pedfile}.dot"
     nx.nx_agraph.write_dot(G, dotfile)
     pdf_file = dotfile + ".pdf"

@@ -1631,10 +1631,10 @@ def movieframe(args):
     M = read_clm(clm, totalbins, bins)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])  # whole canvas
-    ax1 = fig.add_axes([0.05, 0.1, 0.4, 0.8])  # heatmap
-    ax2 = fig.add_axes([0.55, 0.1, 0.4, 0.8])  # dot plot
-    ax2_root = fig.add_axes([0.5, 0, 0.5, 1])  # dot plot canvas
+    root = fig.add_axes((0, 0, 1, 1))  # whole canvas
+    ax1 = fig.add_axes((0.05, 0.1, 0.4, 0.8))  # heatmap
+    ax2 = fig.add_axes((0.55, 0.1, 0.4, 0.8))  # dot plot
+    ax2_root = fig.add_axes((0.5, 0, 0.5, 1))  # dot plot canvas
 
     # Left axis: heatmap
     plot_heatmap(ax1, M, breaks, binsize=BINSIZE)

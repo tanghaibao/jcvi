@@ -39,7 +39,7 @@ nobreakbuffer()
 os.environ["LC_ALL"] = "C"
 JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
 
-TextCollection = Union[str, List[str], Tuple[str]]
+TextCollection = Union[str, List[str], Tuple[str, ...]]
 
 
 def debug(level=logging.DEBUG):

@@ -24,6 +24,7 @@ import matplotlib.ticker as ticker
 
 from brewer2mpl import get_map
 from matplotlib import cm, rc, rcParams
+from matplotlib.colors import Colormap
 from matplotlib.patches import (
     Rectangle,
     Polygon,
@@ -34,7 +35,7 @@ from matplotlib.patches import (
     FancyArrowPatch,
     FancyBboxPatch,
 )
-from typing import Optional, List, Tuple
+from typing import Optional, List, Tuple, Union
 
 from ..apps.base import datadir, glob, listify, logger, sample_N, which
 from ..formats.base import LineFile
@@ -506,6 +507,7 @@ def plot_heatmap(
     breaks: List[int],
     groups: List[Tuple[int, int, List[Tuple[int, str]], str]] = [],
     plot_breaks: bool = False,
+    cmap: Optional[Union[str, Colormap]] = None,
     binsize: Optional[int] = None,
 ):
     """Plot heatmap illustrating the contact probabilities in Hi-C data.
@@ -517,9 +519,10 @@ def plot_heatmap(
         iopts (OptionParser options): Graphical options passed in from commandline
         groups (List, optional): [(start, end, [(position, seqid)], color)]. Defaults to [].
         plot_breaks (bool): Whether to plot white breaks. Defaults to False.
+        cmap (str | Colormap, optional): Colormap. Defaults to None, which uses cubehelix.
         binsize (int, optional): Resolution of the heatmap.
     """
-    cmap = sns.cubehelix_palette(rot=0.5, as_cmap=True)
+    cmap = cmap or sns.cubehelix_palette(rot=0.5, as_cmap=True)
     ax.imshow(M, cmap=cmap, interpolation="none")
     _, xmax = ax.get_xlim()
     xlim = (0, xmax)
@@ -546,6 +549,8 @@ def plot_heatmap(
 
     ax.set_xlim(xlim)
     ax.set_ylim((xlim[1], xlim[0]))  # Flip the y-axis so the origin is at the top
+    ax.set_xticks(ax.get_xticks())
+    ax.set_yticks(ax.get_yticks())
     ax.set_xticklabels(ax.get_xticks(), family="Helvetica", color="gray")
     ax.set_yticklabels(ax.get_yticks(), family="Helvetica", color="gray", rotation=90)
     ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)

@@ -270,7 +270,7 @@ class KmerSpectrum(BaseFile):
             copy_num = start if start == end else "{}-{}".format(start, end)
             g_copies = int(round(g * mid * (end - start + 1)))
             copy_series.append((mid, copy_num, g_copies, g))
-            copy_message = f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} %)"
+            copy_message = f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} percent)"
             copy_messages.append(copy_message)
             m += copy_message + "\n"
 
@@ -278,7 +278,7 @@ class KmerSpectrum(BaseFile):
             g_copies = genome_size - inferred_genome_size
             copy_num = "{}+".format(end + 1)
             copy_series.append((end + 1, copy_num, g_copies, g_copies / (end + 1)))
-            m += f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} %)\n"
+            m += f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} percent)\n"
 
         # Determine ploidy
         def determine_ploidy(copy_series, threshold=0.15):

@@ -379,6 +379,15 @@ def draw_depth(
             va="center",
         )
 
+    # Add an arrow to the right of the plot, indicating these are median depths
+    root.text(
+        0.91,
+        0.88,
+        r"$\leftarrow$median",
+        color="lightslategray",
+        va="center",
+    )
+
     if title:
         root.text(
             0.95,

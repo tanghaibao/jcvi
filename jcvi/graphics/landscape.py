@@ -9,17 +9,19 @@ and sorghum paper.
 
 import os.path as op
 import sys
-import logging
+
+from collections import Counter, OrderedDict, defaultdict
 
 import numpy as np
 
-from collections import defaultdict, OrderedDict
+from ..algorithms.matrix import moving_sum
+from ..apps.base import OptionParser, ActionDispatcher, logger
+from ..formats.base import BaseFile, DictFile, LineFile, must_open
+from ..formats.bed import Bed, bins
+from ..formats.sizes import Sizes
+from ..utils.cbook import human_size, autoscale
 
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile, DictFile, LineFile, must_open
-from jcvi.formats.bed import Bed, bins
-from jcvi.algorithms.matrix import moving_sum
-from jcvi.graphics.base import (
+from .base import (
     plt,
     Rectangle,
     CirclePolygon,
@@ -32,8 +34,6 @@ from jcvi.graphics.base import (
     normalize_axes,
     adjust_spines,
 )
-from jcvi.utils.cbook import human_size, autoscale
-from jcvi.apps.base import OptionParser, ActionDispatcher
 
 
 # Colors picked from Schmutz soybean genome paper using ColorPic
@@ -148,15 +148,13 @@ def parse_distfile(filename):
     Args:
         filename (str): Path to the file.
     """
-    from collections import defaultdict, Counter
-
     dists = defaultdict(Counter)
     with must_open(filename) as fp:
         for row in fp:
             chromosome, start, end, depth = row.split()
             depth = int(float(depth))
             dists[chromosome][depth] += 1
-    logging.debug("Loaded {} seqids".format(len(dists)))
+    logger.debug("Loaded %d seqids", len(dists))
     return dists
 
 
@@ -176,7 +174,7 @@ def parse_groupsfile(filename):
         for row in fp:
             chrs, colors = row.split()
             groups.append((chrs.split(","), colors.split(",")))
-    logging.debug("Loaded {} groups".format(len(groups)))
+    logger.debug("Loaded %d groups", len(groups))
     return groups
 
 
@@ -221,7 +219,7 @@ def mosdepth(args):
 
     # Construct a composite figure with N tracks indicated in the groups
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     rows = len(groups)
     ypad = 0.05
@@ -230,10 +228,10 @@ def mosdepth(args):
 
     for group_idx, (chrs, colors) in enumerate(groups):
         yy -= yinterval
-        ax = fig.add_axes([0.15, yy, 0.7, yinterval * 0.85])
+        ax = fig.add_axes((0.15, yy, 0.7, yinterval * 0.85))
         for c, color in zip(chrs, colors):
             cdata = dists[c].items()
-            logging.debug("Importing {} records for {}".format(len(cdata), c))
+            logger.debug("Importing %d records for %s", len(cdata), c)
             cx, cy = zip(*sorted(cdata))
             ax.plot(cx, cy, "-", color=color)
         if logscale:
@@ -334,7 +332,7 @@ def draw_depth(
         s=8,
         lw=0,
     )
-    logging.debug("Obtained {} data points with depth data".format(len(data)))
+    logger.debug("Obtained %d data points with depth data", len(data))
 
     # Per seqid median
     medians = {}
@@ -459,7 +457,7 @@ def depth(args):
     titleinfo = TitleInfoFile(opts.titleinfo) if opts.titleinfo else {}
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     npanels = len(bedfiles)
     yinterval = 1.0 / npanels
@@ -468,8 +466,8 @@ def depth(args):
         pf = op.basename(bedfile).split(".", 1)[0]
         bed = Bed(bedfile)
 
-        panel_root = root if npanels == 1 else fig.add_axes([0, ypos, 1, yinterval])
-        panel_ax = fig.add_axes([0.1, ypos + 0.2 * yinterval, 0.8, 0.65 * yinterval])
+        panel_root = root if npanels == 1 else fig.add_axes((0, ypos, 1, yinterval))
+        panel_ax = fig.add_axes((0.1, ypos + 0.2 * yinterval, 0.8, 0.65 * yinterval))
         if ypos > 0.001:
             root.plot((0, 1), (ypos, ypos), "-", lw=2, color="lightslategray")
 
@@ -514,10 +512,11 @@ def check_window_options(opts):
     shift = opts.shift
     subtract = opts.subtract
     assert window % shift == 0, "--window must be divisible by --shift"
-    logging.debug(
-        "Line/stack-plot options: window={0} shift={1} subtract={2}".format(
-            window, shift, subtract
-        )
+    logger.debug(
+        "Line/stack-plot options: window=%d shift=%d subtract=%d",
+        window,
+        shift,
+        subtract,
     )
     merge = not opts.nomerge
 
@@ -641,7 +640,7 @@ def composite(args):
     plt.rcParams["ytick.major.size"] = 0
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     root.text(0.5, 0.95, chr, ha="center", color="darkslategray")
 
@@ -649,7 +648,7 @@ def composite(args):
     xlen = xend - xstart
     ratio = xlen / clen
     # Line plots
-    ax = fig.add_axes([xstart, 0.6, xlen, 0.3])
+    ax = fig.add_axes((xstart, 0.6, xlen, 0.3))
     lineplot(ax, linebins, nbins, chr, window, shift)
 
     # Bar plots
@@ -822,7 +821,7 @@ def heatmap(args):
     clen = Sizes(fastafile).mapping[chr]
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     # Gauge
     ratio = draw_gauge(root, margin, clen, rightmargin=4 * margin)
@@ -837,7 +836,7 @@ def heatmap(args):
         cc = ca[0].upper() + cb
 
     root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
-    ax = fig.add_axes([xx, yy, xlen, yinterval - inner])
+    ax = fig.add_axes((xx, yy, xlen, yinterval - inner))
 
     nbins = get_nbins(clen, shift)
 
@@ -1028,7 +1027,7 @@ def stack(args):
 
     pf = fastafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     # Gauge
     ratio = draw_gauge(root, margin, maxl)
@@ -1049,7 +1048,7 @@ def stack(args):
             cc = "\n".join((cc, "({0})".format(switch[cc])))
 
         root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
-        ax = fig.add_axes([xx, yy, xlen, yinterval - inner])
+        ax = fig.add_axes((xx, yy, xlen, yinterval - inner))
 
         nbins = clen / shift
         if clen % shift:

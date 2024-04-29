@@ -377,32 +377,11 @@ def read_subsampled_matrix(mstmap: str, subsample: int) -> Tuple[np.ndarray, str
     return M, markerbedfile, nmarkers
 
 
-def heatmap(args):
+def draw_geneticmap_heatmap(root, ax, mstmap: str, subsample: int):
     """
-    %prog heatmap map
-
-    Calculate pairwise linkage disequilibrium given MSTmap.
+    Draw the heatmap of the genetic map.
     """
-    p = OptionParser(heatmap.__doc__)
-    p.add_option(
-        "--subsample",
-        default=1000,
-        type="int",
-        help="Subsample markers to speed up",
-    )
-    opts, args, iopts = p.set_image_options(args, figsize="8x8")
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    (mstmap,) = args
-    M, markerbedfile, nmarkers = read_subsampled_matrix(mstmap, opts.subsample)
-
-    plt.rcParams["axes.linewidth"] = 0
-
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))
-    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))  # the heatmap
+    M, markerbedfile, nmarkers = read_subsampled_matrix(mstmap, subsample)
 
     # Plot chromosomes breaks
     bed = Bed(markerbedfile)
@@ -447,7 +426,37 @@ def heatmap(args):
     root.set_ylim(0, 1)
     root.set_axis_off()
 
-    image_name = m + ".subsample" + "." + iopts.format
+
+def heatmap(args):
+    """
+    %prog heatmap map
+
+    Calculate pairwise linkage disequilibrium given MSTmap.
+    """
+    p = OptionParser(heatmap.__doc__)
+    p.add_option(
+        "--subsample",
+        default=1000,
+        type="int",
+        help="Subsample markers to speed up",
+    )
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (mstmap,) = args
+
+    plt.rcParams["axes.linewidth"] = 0
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes((0, 0, 1, 1))
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))  # the heatmap
+
+    draw_geneticmap_heatmap(root, ax, mstmap, opts.subsample)
+
+    pf = mstmap.split(".")[0]
+    image_name = pf + ".subsample" + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

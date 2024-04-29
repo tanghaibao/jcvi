@@ -12,7 +12,7 @@ from typing import Dict, Optional
 import networkx as nx
 import numpy as np
 
-from ..apps.base import OptionParser, ActionDispatcher, logger, sh
+from ..apps.base import OptionParser, ActionDispatcher, logger
 from ..formats.base import BaseFile
 from ..graphics.base import set3_n
 
@@ -241,7 +241,7 @@ def pedigree(args):
     p.add_option("--ploidy", default=2, type="int", help="Ploidy")
     p.add_option("--N", default=10000, type="int", help="Number of samples")
     p.add_option("--title", default="", help="Title of the graph")
-    opts, args = p.parse_args(args)
+    opts, args, iopts = p.set_image_options(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -254,12 +254,10 @@ def pedigree(args):
         print(v)
 
     G = ped.to_graph(inb, title=opts.title)
-    dotfile = f"{pedfile}.dot"
-    nx.nx_agraph.write_dot(G, dotfile)
-    pdf_file = dotfile + ".pdf"
-    file_format = pdf_file.split(".")[-1]
-    sh(f"dot -T{file_format} {dotfile} -o {pdf_file}")
-    logger.info("Pedigree graph written to `%s`", pdf_file)
+    A = nx.nx_agraph.to_agraph(G)
+    image_file = f"{pedfile}.{iopts.format}"
+    A.draw(image_file, prog="dot")
+    logger.info("Pedigree graph written to `%s`", image_file)
 
 
 def main():

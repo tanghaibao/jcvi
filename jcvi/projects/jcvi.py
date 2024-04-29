@@ -86,6 +86,18 @@ def genomebuild(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def diversity(args):
+    """
+    %prog diversity pedigree.ped VAR?_srtd.wgs.regions.bed.gz
+
+    Plot diversity composite figure, including:
+    A. Pedigree
+    B. Depth distribution across genomes
+    """
+    p = OptionParser(diversity.__doc__)
+    _, args, iopts = p.set_image_options(args, figsize="14x7")
+
+
 def main():
 
     actions = (

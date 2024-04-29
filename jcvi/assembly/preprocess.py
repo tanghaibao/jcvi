@@ -32,9 +32,9 @@ class FastQCdata(BaseFile, dict):
             # Sample_RF37-1/RF37-1_GATCAG_L008_R2_fastqc =>
             # RF37-1_GATCAG_L008_R2
             self["Filename"] = op.basename(op.split(filename)[0]).rsplit("_", 1)[0]
-            self["Total Sequences"] = self["Sequence length"] = self[
-                "Total Bases"
-            ] = "na"
+            self["Total Sequences"] = self["Sequence length"] = self["Total Bases"] = (
+                "na"
+            )
             return
 
         fp = open(filename)

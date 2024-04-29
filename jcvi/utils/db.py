@@ -16,7 +16,7 @@ from jcvi.utils.cbook import AutoVivification
 
 # set up valid database connection params
 valid_dbconn = AutoVivification()
-for (dbconn, port, module, host) in zip(
+for dbconn, port, module, host in zip(
     ("Sybase", "MySQL", "PostgreSQL", "Oracle"),
     (2025, 3306, 5432, 1521),
     ("Sybase", "MySQLdb", "psycopg2", "cx_Oracle"),

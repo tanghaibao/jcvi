@@ -356,7 +356,7 @@ def mendelian2(args):
             m = mendelian_check(tp1, tp2, tpp, is_xlinked=is_xlinked)
             counts[m] += 1
             if is_xlinked:
-                for (p, p_sex) in ((tp1, p1_sex), (tp2, p2_sex), (tpp, proband_sex)):
+                for p, p_sex in ((tp1, p1_sex), (tp2, p2_sex), (tpp, proband_sex)):
                     if p[1].startswith("-"):
                         p[1] = "n.a."
             cells = [shorten(p1), p1_sex] + tp1[1:]
@@ -591,7 +591,7 @@ def depth(args):
     data = pd.read_csv(tsvfile, sep="\t", low_memory=False)
 
     ids, treds = read_treds()
-    for (dp, ax, title) in zip(
+    for dp, ax, title in zip(
         ("FDP", "PDP", "RDP", "PEDP"),
         (ax1, ax2, ax3, ax4),
         ("Spanning reads", "Partial reads", "Repeat-only reads", "Paired-end reads"),

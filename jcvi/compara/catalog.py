@@ -672,7 +672,7 @@ def ortholog(args):
         "--ignore_zero_anchor",
         default=False,
         action="store_true",
-        help="Ignore this pair of ortholog identification instead of throwing an error when performing many pairs of cataloging."
+        help="Ignore this pair of ortholog identification instead of throwing an error when performing many pairs of cataloging.",
     )
 
     p.add_option(
@@ -708,13 +708,9 @@ def ortholog(args):
     last = pprefix + ".last"
     if need_update((afasta, bfasta), last, warn=True):
         if align_soft == "blast":
-            blast_main(
-                [bfasta, afasta, cpus_flag], dbtype
-            )
+            blast_main([bfasta, afasta, cpus_flag], dbtype)
         elif dbtype == "prot" and align_soft == "diamond_blastp":
-            diamond_blastp_main(
-                [bfasta, afasta, cpus_flag], dbtype
-            )
+            diamond_blastp_main([bfasta, afasta, cpus_flag], dbtype)
         else:
             last_main([bfasta, afasta, cpus_flag], dbtype)
 

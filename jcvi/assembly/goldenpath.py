@@ -292,7 +292,6 @@ class Overlap(object):
 
 
 class CertificateLine(object):
-
     """
     North  chr1  2  0  AC229737.8  telomere     58443
     South  chr1  2  1  AC229737.8  AC202463.29  58443  37835  58443  + Non-terminal

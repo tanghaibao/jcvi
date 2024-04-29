@@ -2,6 +2,7 @@
 Wrapper for fetching data from various online repositories \
 (Entrez, Ensembl, Phytozome, and SRA)
 """
+
 import logging
 import os.path as op
 import re

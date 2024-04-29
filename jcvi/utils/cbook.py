@@ -2,6 +2,7 @@
 Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
+
 import os.path as op
 import re
 import sys

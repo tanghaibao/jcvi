@@ -77,7 +77,7 @@ def cat(args):
     merger = PdfFileMerger()
     in_fs = {}
     try:
-        for (filename, page_range) in filename_page_ranges:
+        for filename, page_range in filename_page_ranges:
             if verbose:
                 print(filename, page_range, file=sys.stderr)
             if filename not in in_fs:

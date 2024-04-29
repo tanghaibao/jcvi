@@ -314,7 +314,7 @@ class AGP(LineFile):
         Returns a dict with component_id => (i, agpline)
         """
         d = {}
-        for (i, x) in enumerate(self):
+        for i, x in enumerate(self):
             if x.is_gap:
                 continue
             xid = x.component_id
@@ -1293,9 +1293,9 @@ def stats(args):
     for label, lengths in zip(("Gaps", "Components"), (gap_lengths, component_lengths)):
 
         if not lengths:
-            table[(label, "Min")] = table[(label, "Max")] = table[
-                (label, "Sum")
-            ] = "n.a."
+            table[(label, "Min")] = table[(label, "Max")] = table[(label, "Sum")] = (
+                "n.a."
+            )
             continue
 
         table[(label, "Min")] = "{0} ({1})".format(*min(lengths))

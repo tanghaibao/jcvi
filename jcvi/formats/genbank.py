@@ -141,7 +141,7 @@ class GenBank(dict):
                 next(iter(SeqIO.to_dict(SeqIO.parse(f, "gb")).items()))
                 for f in filenames
             )
-            for (k, v) in d.items():
+            for k, v in d.items():
                 self[k.split(".")[0]] = v
 
         elif idfile is not None:
@@ -150,7 +150,7 @@ class GenBank(dict):
                 next(iter(SeqIO.to_dict(SeqIO.parse(f, "gb")).items()))
                 for f in glob(gbdir + "/*.gb")
             )
-            for (k, v) in d.items():
+            for k, v in d.items():
                 self[k.split(".")[0]] = v
 
         else:

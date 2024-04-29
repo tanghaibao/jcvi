@@ -103,7 +103,7 @@ def loghistogram(data, base=2, title="Counts", summary=False):
 
     x, y = [], []
     for size, number in sorted(bins.items()):
-        lb, ub = base ** size, base ** (size + 1)
+        lb, ub = base**size, base ** (size + 1)
         x.append((lb, ub))
         y.append(number)
 

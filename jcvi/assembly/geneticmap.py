@@ -10,6 +10,7 @@ import sys
 
 from itertools import combinations, groupby
 from random import sample
+from typing import Tuple
 
 import numpy as np
 import seaborn as sns
@@ -336,30 +337,12 @@ def dotplot(args):
     fig.clear()
 
 
-def heatmap(args):
+def read_subsampled_matrix(mstmap: str, subsample: int) -> Tuple[np.ndarray, str, int]:
     """
-    %prog heatmap map
-
-    Calculate pairwise linkage disequilibrium given MSTmap.
+    Read the subsampled matrix from file if it exists, otherwise calculate it.
     """
-    p = OptionParser(heatmap.__doc__)
-    p.add_option(
-        "--subsample",
-        default=1000,
-        type="int",
-        help="Subsample markers to speed up",
-    )
-    opts, args, iopts = p.set_image_options(args, figsize="8x8")
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    (mstmap,) = args
-    subsample = opts.subsample
     data = MSTMap(mstmap)
 
-    markerbedfile = mstmap + ".subsample.bed"
-    ldmatrix = mstmap + ".subsample.matrix"
     # Take random subsample while keeping marker order
     if subsample < data.nmarkers:
         data = [data[x] for x in sorted(sample(range(len(data)), subsample))]
@@ -367,6 +350,8 @@ def heatmap(args):
         logger.debug("Use all markers, --subsample ignored")
 
     nmarkers = len(data)
+    markerbedfile = mstmap + ".subsample.bed"
+    ldmatrix = mstmap + ".subsample.matrix"
     if need_update(mstmap, (ldmatrix, markerbedfile)):
         with open(markerbedfile, "w", encoding="utf-8") as fw:
             print("\n".join(x.bedline for x in data), file=fw)
@@ -388,6 +373,30 @@ def heatmap(args):
         nmarkers = len(Bed(markerbedfile))
         M = np.fromfile(ldmatrix, dtype="float").reshape(nmarkers, nmarkers)
         logger.debug("LD matrix `%s` exists (%dx%d).", ldmatrix, nmarkers, nmarkers)
+
+    return M, markerbedfile, nmarkers
+
+
+def heatmap(args):
+    """
+    %prog heatmap map
+
+    Calculate pairwise linkage disequilibrium given MSTmap.
+    """
+    p = OptionParser(heatmap.__doc__)
+    p.add_option(
+        "--subsample",
+        default=1000,
+        type="int",
+        help="Subsample markers to speed up",
+    )
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (mstmap,) = args
+    M, markerbedfile, nmarkers = read_subsampled_matrix(mstmap, opts.subsample)
 
     plt.rcParams["axes.linewidth"] = 0
 

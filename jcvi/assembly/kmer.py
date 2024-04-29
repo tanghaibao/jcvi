@@ -7,11 +7,12 @@ Deals with K-mers and K-mer distribution from reads or genome
 import os.path as op
 import sys
 import math
-import numpy as np
 
 from collections import defaultdict
-from more_itertools import chunked
 from typing import List
+
+import numpy as np
+from more_itertools import chunked
 
 from ..apps.grid import MakeManager
 from ..apps.base import (

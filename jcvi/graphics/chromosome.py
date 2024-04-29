@@ -6,9 +6,10 @@ Legacy script to plot distribution of certain classes onto chromosomes. Adapted
 from the script used in the Tang et al. PNAS 2010 paper, sigma figure.
 """
 import sys
+
 from itertools import groupby
 from math import ceil
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 
@@ -24,6 +25,7 @@ from ..graphics.base import (
     Rectangle,
     latex,
     markup,
+    normalize_axes,
     plt,
     savefig,
     set1_n,
@@ -480,7 +482,7 @@ def main():
         mappingfile = args[1]
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     draw_chromosomes(
         root,
@@ -497,9 +499,7 @@ def main():
         title=opts.title,
     )
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
     prefix = bedfile.rsplit(".", 1)[0]
     figname = prefix + "." + opts.format
@@ -511,14 +511,14 @@ def draw_chromosomes(
     bedfile,
     sizes,
     iopts,
-    mergedist,
-    winsize,
-    imagemap,
-    mappingfile=None,
-    gauge=False,
-    legend=True,
-    empty=False,
-    title=None,
+    mergedist: int,
+    winsize: int,
+    imagemap: bool = False,
+    mappingfile: Optional[str] = None,
+    gauge: bool = False,
+    legend: bool = True,
+    empty: bool = False,
+    title: Optional[str] = None,
 ):
     bed = Bed(bedfile)
     prefix = bedfile.rsplit(".", 1)[0]

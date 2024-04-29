@@ -6,32 +6,40 @@ Deals with K-mers and K-mer distribution from reads or genome
 """
 import os.path as op
 import sys
-import logging
 import math
-import numpy as np
 
 from collections import defaultdict
-from more_itertools import chunked
 from typing import List
 
-from jcvi.graphics.base import (
-    plt,
+import numpy as np
+from more_itertools import chunked
+
+from ..apps.grid import MakeManager
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    PIPE,
+    Popen,
+    logger,
+    need_update,
+    sh,
+)
+from ..formats.fasta import Fasta
+from ..formats.base import BaseFile, must_open, get_number
+from ..graphics.base import (
     adjust_spines,
     asciiplot,
-    set_human_axis,
-    savefig,
     markup,
-    panel_labels,
     normalize_axes,
+    panel_labels,
+    plt,
+    savefig,
+    set_human_axis,
     set_ticklabels_helvetica,
     write_messages,
 )
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.base import BaseFile, must_open, get_number
-from jcvi.utils.cbook import thousands, percentage
-from jcvi.assembly.automaton import iter_project
-from jcvi.apps.grid import MakeManager
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, Popen, PIPE
+from ..utils.cbook import thousands, percentage
+from .automaton import iter_project
 
 
 KMERYL, KSOAP, KALLPATHS = range(3)
@@ -48,7 +56,7 @@ class KmerSpectrum(BaseFile):
         self.hist = {}
         kformat = self.guess_format(histfile)
         kformats = ("Meryl", "Soap", "AllPaths")
-        logging.debug("Guessed format: {0}".format(kformats[kformat]))
+        logger.debug("Guessed format: %s", kformats[kformat])
 
         fp = open(histfile)
         for rowno, row in enumerate(fp):
@@ -270,9 +278,7 @@ class KmerSpectrum(BaseFile):
             copy_num = start if start == end else "{}-{}".format(start, end)
             g_copies = int(round(g * mid * (end - start + 1)))
             copy_series.append((mid, copy_num, g_copies, g))
-            copy_message = "CN {}: {:.1f} Mb ({:.1f} percent)".format(
-                copy_num, g_copies / 1e6, g_copies * 100 / genome_size
-            )
+            copy_message = f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} percent)"
             copy_messages.append(copy_message)
             m += copy_message + "\n"
 
@@ -280,15 +286,13 @@ class KmerSpectrum(BaseFile):
             g_copies = genome_size - inferred_genome_size
             copy_num = "{}+".format(end + 1)
             copy_series.append((end + 1, copy_num, g_copies, g_copies / (end + 1)))
-            m += "CN {}: {:.1f} Mb ({:.1f} percent)\n".format(
-                copy_num, g_copies / 1e6, g_copies * 100 / genome_size
-            )
+            m += f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} percent)\n"
 
         # Determine ploidy
         def determine_ploidy(copy_series, threshold=0.15):
             counts_so_far = 1
             ploidy_so_far = 0
-            for mid, copy_num, g_copies, g in copy_series:
+            for mid, _, g_copies, _ in copy_series:
                 if g_copies / counts_so_far < threshold:
                     break
                 counts_so_far += g_copies
@@ -304,7 +308,7 @@ class KmerSpectrum(BaseFile):
         # Repeat content
         def calc_repeats(copy_series, ploidy, genome_size):
             unique = 0
-            for mid, copy_num, g_copies, g in copy_series:
+            for mid, _, g_copies, _ in copy_series:
                 if mid <= ploidy:
                     unique += g_copies
                 else:
@@ -355,9 +359,10 @@ class KmerSpectrum(BaseFile):
         kf_ceil = max(K for (K, c) in data)
         if kf_ceil > covmax:
             exceeds = sum(1 for (K, c) in data if K > covmax)
-            logging.debug(
-                "A total of {0} distinct K-mers appear > "
-                "{1} times. Ignored ...".format(exceeds, covmax)
+            logger.debug(
+                "A total of %d distinct K-mers appear > %d times. Ignored ...",
+                exceeds,
+                covmax,
             )
             kf_ceil = covmax
 
@@ -513,7 +518,7 @@ class KMCComplex(object):
             # Divide indices into batches
             batches = []
             batchsize = (len(self.indices) + batch - 1) // batch
-            logging.debug("Use batchsize of %d", batchsize)
+            logger.debug("Use batchsize of %d", batchsize)
             for i, indices in enumerate(chunked(self.indices, batchsize)):
                 filename_i = filename.format(i + 1)
                 outfile_i = outfile + ".{}".format(i + 1)
@@ -660,7 +665,7 @@ def bed(args):
         KMERS.add(kmer_rc)
 
     K = len(kmer)
-    logging.debug("Imported {} {}-mers".format(len(KMERS), K))
+    logger.debug("Imported %d %d-mers", len(KMERS), K)
 
     for name, seq in parse_fasta(fastafile):
         name = name.split()[0]
@@ -723,7 +728,7 @@ def kmcop(args):
         indices = [x for x in indices if x.rsplit(".", 2)[0] not in exclude_ids]
         after = set(indices)
         if before > after:
-            logging.debug(
+            logger.debug(
                 "Excluded accessions %d → %d (%s)",
                 len(before),
                 len(after),
@@ -968,7 +973,7 @@ def count(args):
         kmers = list(make_kmers(rec.seq, K))
         print("\n".join(kmers), file=proc.stdin)
     proc.stdin.close()
-    logging.debug(cmd)
+    logger.debug(cmd)
     proc.wait()
 
     a = bitarray()
@@ -979,18 +984,20 @@ def count(args):
         c = row.strip()
         a.append(int(c))
     a.tofile(fw)
-    logging.debug("Serialize {0} bits to `{1}`.".format(len(a), binfile))
+    logger.debug("Serialize %d bits to `%s`.", len(a), binfile)
     fw.close()
     sh("rm {0}".format(t.name))
 
-    logging.debug(
-        "Shared K-mers (K={0}) between `{1}` and `{2}` written to `{3}`.".format(
-            K, fastafile, jfdb, binfile
-        )
+    logger.debug(
+        "Shared K-mers (K=%d) between `%s` and `%s` written to `%s`.",
+        K,
+        fastafile,
+        jfdb,
+        binfile,
     )
     cntfile = ".".join((fastafile, jfdb, "cnt"))
     bincount([fastafile, binfile, "-o", cntfile, "-K {0}".format(K)])
-    logging.debug("Shared K-mer counts written to `{0}`.".format(cntfile))
+    logger.debug("Shared K-mer counts written to `%s`.", cntfile)
 
 
 def bincount(args):
@@ -1124,10 +1131,10 @@ def jellyfish(args):
     gzip = fq.endswith(".gz")
 
     hashsize = totalfilesize / coverage
-    logging.debug(
-        "Total file size: {0}, hashsize (-s): {1}".format(
-            human_size(totalfilesize, a_kilobyte_is_1024_bytes=True), hashsize
-        )
+    logger.debug(
+        "Total file size: %s, hashsize (-s): %d",
+        human_size(totalfilesize, a_kilobyte_is_1024_bytes=True),
+        hashsize,
     )
 
     jfpf = "{0}-K{1}".format(pf, K)
@@ -1156,20 +1163,6 @@ def jellyfish(args):
         sh(cmd)
 
 
-def merylhistogram(merylfile):
-    """
-    Run meryl to dump histogram to be used in kmer.histogram(). The merylfile
-    are the files ending in .mcidx or .mcdat.
-    """
-    pf, sf = op.splitext(merylfile)
-    outfile = pf + ".histogram"
-    if need_update(merylfile, outfile):
-        cmd = "meryl -Dh -s {0}".format(pf)
-        sh(cmd, outfile=outfile)
-
-    return outfile
-
-
 def multihistogram(args):
     """
     %prog multihistogram *.histogram species
@@ -1190,9 +1183,9 @@ def multihistogram(args):
     histfiles = args[:-1]
     species = args[-1]
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
-    A = fig.add_axes([0.08, 0.12, 0.38, 0.76])
-    B = fig.add_axes([0.58, 0.12, 0.38, 0.76])
+    root = fig.add_axes((0, 0, 1, 1))
+    A = fig.add_axes((0.08, 0.12, 0.38, 0.76))
+    B = fig.add_axes((0.58, 0.12, 0.38, 0.76))
 
     lines = []
     legends = []
@@ -1241,39 +1234,141 @@ def multihistogram(args):
     savefig(imagename, dpi=iopts.dpi, iopts=iopts)
 
 
+def plot_nbinom_fit(ax, ks: KmerSpectrum, ymax: float, method_info: dict):
+    """
+    Plot the negative binomial fit.
+    """
+    generative_model = method_info["generative_model"]
+    GG = method_info["Gbins"]
+    ll = method_info["lambda"]
+    rr = method_info["rho"]
+    kf_range = method_info["kf_range"]
+    stacked = generative_model(GG, ll, rr)
+    ax.plot(
+        kf_range,
+        stacked,
+        ":",
+        color="#6a3d9a",
+        lw=2,
+    )
+    # Plot multiple CN locations, CN1, CN2, ... up to ploidy
+    cn_color = "#a6cee3"
+    for i in range(1, ks.ploidy + 1):
+        x = i * ks.lambda_
+        ax.plot((x, x), (0, ymax), "-.", color=cn_color)
+        ax.text(
+            x,
+            ymax * 0.95,
+            f"CN{i}",
+            ha="right",
+            va="center",
+            color=cn_color,
+            rotation=90,
+        )
+
+
+def draw_ks_histogram(
+    ax,
+    histfile: str,
+    method: str,
+    coverage: int,
+    vmin: int,
+    vmax: int,
+    species: str,
+    K: int,
+    maxiter: int,
+    peaks: bool,
+) -> int:
+    """
+    Draw the K-mer histogram.
+    """
+    ks = KmerSpectrum(histfile)
+    method_info = ks.analyze(K=K, maxiter=maxiter, method=method)
+
+    Total_Kmers = int(ks.totalKmers)
+    Kmer_coverage = ks.lambda_ if not coverage else coverage
+    Genome_size = int(round(Total_Kmers * 1.0 / Kmer_coverage))
+
+    Total_Kmers_msg = f"Total {K}-mers: {thousands(Total_Kmers)}"
+    Kmer_coverage_msg = f"{K}-mer coverage: {Kmer_coverage:.1f}x"
+    Genome_size_msg = f"Estimated genome size: {Genome_size / 1e6:.1f} Mb"
+    Repetitive_msg = ks.repetitive
+    SNPrate_msg = ks.snprate
+
+    messages = [
+        Total_Kmers_msg,
+        Kmer_coverage_msg,
+        Genome_size_msg,
+        Repetitive_msg,
+        SNPrate_msg,
+    ]
+    for msg in messages:
+        print(msg, file=sys.stderr)
+
+    x, y = ks.get_xy(vmin, vmax)
+    title = f"{species} {K}-mer histogram"
+
+    ax.bar(x, y, fc="#b2df8a", lw=0)
+
+    if peaks:  # Only works for method 'allpaths'
+        t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
+        tcounts = [(x, y) for x, y in ks.counts if x in t]
+        if tcounts:
+            x, y = zip(*tcounts)
+            tcounts = dict(tcounts)
+            ax.plot(x, y, "ko", lw=3, mec="k", mfc="w")
+            ax.text(ks.max1, tcounts[ks.max1], "SNP peak")
+            ax.text(ks.max2, tcounts[ks.max2], "Main peak")
+
+    _, ymax = ax.get_ylim()
+    ymax *= 7 / 6
+    # Plot the negative binomial fit
+    if method == "nbinom":
+        plot_nbinom_fit(ax, ks, ymax, method_info)
+        messages += [ks.ploidy_message] + ks.copy_messages
+
+    write_messages(ax, messages)
+
+    ax.set_title(markup(title))
+    ax.set_xlim((0, vmax))
+    ax.set_ylim((0, ymax))
+    adjust_spines(ax, ["left", "bottom"], outward=True)
+    xlabel, ylabel = "Coverage (X)", "Counts"
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    set_human_axis(ax)
+
+    return Genome_size
+
+
 def histogram(args):
     """
     %prog histogram meryl.histogram species K
 
-    Plot the histogram based on meryl K-mer distribution, species and N are
+    Plot the histogram based on Jellyfish or meryl K-mer distribution, species and N are
     only used to annotate the graphic.
     """
     p = OptionParser(histogram.__doc__)
     p.add_option(
         "--vmin",
         dest="vmin",
-        default=1,
+        default=2,
         type="int",
         help="minimum value, inclusive",
     )
     p.add_option(
         "--vmax",
         dest="vmax",
-        default=100,
+        default=200,
         type="int",
         help="maximum value, inclusive",
-    )
-    p.add_option(
-        "--pdf",
-        default=False,
-        action="store_true",
-        help="Print PDF instead of ASCII plot",
     )
     p.add_option(
         "--method",
         choices=("nbinom", "allpaths"),
         default="nbinom",
-        help="'nbinom' - slow but more accurate for het or polyploid genome; 'allpaths' - fast and works for homozygous enomes",
+        help="'nbinom' - slow but more accurate for het or polyploid genome; "
+        + "'allpaths' - fast and works for homozygous enomes",
     )
     p.add_option(
         "--maxiter",
@@ -1298,105 +1393,15 @@ def histogram(args):
     histfile, species, N = args
     method = opts.method
     vmin, vmax = opts.vmin, opts.vmax
-    ascii = not opts.pdf
     peaks = not opts.nopeaks and method == "allpaths"
     N = int(N)
 
-    if histfile.rsplit(".", 1)[-1] in ("mcdat", "mcidx"):
-        logging.debug("CA kmer index found")
-        histfile = merylhistogram(histfile)
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))
 
-    ks = KmerSpectrum(histfile)
-    method_info = ks.analyze(K=N, maxiter=opts.maxiter, method=method)
-
-    Total_Kmers = int(ks.totalKmers)
-    coverage = opts.coverage
-    Kmer_coverage = ks.lambda_ if not coverage else coverage
-    Genome_size = int(round(Total_Kmers * 1.0 / Kmer_coverage))
-
-    Total_Kmers_msg = "Total {0}-mers: {1}".format(N, thousands(Total_Kmers))
-    Kmer_coverage_msg = "{0}-mer coverage: {1:.1f}x".format(N, Kmer_coverage)
-    Genome_size_msg = "Estimated genome size: {0:.1f} Mb".format(Genome_size / 1e6)
-    Repetitive_msg = ks.repetitive
-    SNPrate_msg = ks.snprate
-
-    for msg in (Total_Kmers_msg, Kmer_coverage_msg, Genome_size_msg):
-        print(msg, file=sys.stderr)
-
-    x, y = ks.get_xy(vmin, vmax)
-    title = "{0} {1}-mer histogram".format(species, N)
-
-    if ascii:
-        asciiplot(x, y, title=title)
-        return Genome_size
-
-    plt.figure(1, (iopts.w, iopts.h))
-    plt.bar(x, y, fc="#b2df8a", lw=0)
-    # Plot the negative binomial fit
-    if method == "nbinom":
-        generative_model = method_info["generative_model"]
-        GG = method_info["Gbins"]
-        ll = method_info["lambda"]
-        rr = method_info["rho"]
-        kf_range = method_info["kf_range"]
-        stacked = generative_model(GG, ll, rr)
-        plt.plot(
-            kf_range,
-            stacked,
-            ":",
-            color="#6a3d9a",
-            lw=2,
-        )
-
-    ax = plt.gca()
-
-    if peaks:  # Only works for method 'allpaths'
-        t = (ks.min1, ks.max1, ks.min2, ks.max2, ks.min3)
-        tcounts = [(x, y) for x, y in ks.counts if x in t]
-        if tcounts:
-            x, y = zip(*tcounts)
-            tcounts = dict(tcounts)
-            plt.plot(x, y, "ko", lw=3, mec="k", mfc="w")
-            ax.text(ks.max1, tcounts[ks.max1], "SNP peak")
-            ax.text(ks.max2, tcounts[ks.max2], "Main peak")
-
-    ymin, ymax = ax.get_ylim()
-    ymax = ymax * 7 / 6
-    if method == "nbinom":
-        # Plot multiple CN locations, CN1, CN2, ... up to ploidy
-        cn_color = "#a6cee3"
-        for i in range(1, ks.ploidy + 1):
-            x = i * ks.lambda_
-            plt.plot((x, x), (0, ymax), "-.", color=cn_color)
-            plt.text(
-                x,
-                ymax * 0.95,
-                "CN{}".format(i),
-                ha="right",
-                va="center",
-                color=cn_color,
-                rotation=90,
-            )
-
-    messages = [
-        Total_Kmers_msg,
-        Kmer_coverage_msg,
-        Genome_size_msg,
-        Repetitive_msg,
-        SNPrate_msg,
-    ]
-    if method == "nbinom":
-        messages += [ks.ploidy_message] + ks.copy_messages
-    write_messages(ax, messages)
-
-    ax.set_title(markup(title))
-    ax.set_xlim((0, vmax))
-    ax.set_ylim((0, ymax))
-    adjust_spines(ax, ["left", "bottom"], outward=True)
-    xlabel, ylabel = "Coverage (X)", "Counts"
-    ax.set_xlabel(xlabel)
-    ax.set_ylabel(ylabel)
-    set_human_axis(ax)
+    Genome_size = draw_ks_histogram(
+        ax, histfile, method, opts.coverage, vmin, vmax, species, N, opts.maxiter, peaks
+    )
 
     imagename = histfile.split(".")[0] + "." + iopts.format
     savefig(imagename, dpi=100)

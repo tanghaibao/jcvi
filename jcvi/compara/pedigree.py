@@ -12,7 +12,7 @@ from typing import Dict, Optional
 import networkx as nx
 import numpy as np
 
-from ..apps.base import OptionParser, ActionDispatcher, logger, sh
+from ..apps.base import OptionParser, ActionDispatcher, logger
 from ..formats.base import BaseFile
 from ..graphics.base import set3_n
 
@@ -70,23 +70,44 @@ class Pedigree(BaseFile, dict):
                 mom = mom if mom != "0" else None
                 s = Sample(name, dad, mom)
                 self[s.name] = s
+        self._check()
 
-    def to_graph(self, inbreeding: Dict[str, SampleInbreeding]) -> nx.DiGraph:
+    def _check(self):
+        """
+        # Check if all nodes are assigned, including the roots
+        """
+        terminal_nodes = set()
+        for s in self:
+            dad, mom = self[s].dad, self[s].mom
+            if dad and dad not in self:
+                terminal_nodes.add(dad)
+            if mom and mom not in self:
+                terminal_nodes.add(mom)
+        for s in terminal_nodes:
+            logger.info("Adding %s to pedigree", s)
+            self[s] = Sample(s, None, None)
+        self.terminal_nodes = terminal_nodes
+
+    def to_graph(
+        self, inbreeding_dict: Dict[str, SampleInbreeding], title: str = ""
+    ) -> nx.DiGraph:
         """
         Convert the pedigree to a graph.
         """
-        G = nx.DiGraph()
+        graph_styles = {"labelloc": "b", "label": title, "splines": "curved"}
+        edge_styles = {"arrowhead": "none", "color": "lightslategray"}
+        G = nx.DiGraph(**graph_styles)
         for s in self:
             dad, mom = self[s].dad, self[s].mom
             if dad:
-                G.add_edge(dad, s, color="lightslategray", arrowhead="none")
+                G.add_edge(dad, s, **edge_styles)
             if mom:
-                G.add_edge(mom, s, color="lightslategray", arrowhead="none")
+                G.add_edge(mom, s, **edge_styles)
         # Map colors to terminal nodes
         terminal_nodes = [s for s in self if self[s].is_terminal]
         colors = dict(zip(terminal_nodes, set3_n(len(terminal_nodes))))
         for s in self:
-            inb = inbreeding[s]
+            inb = inbreeding_dict[s]
             label = s
             if inb.mean_inbreeding > 0.01:
                 label += f"\n(F={inb.mean_inbreeding:.2f})"
@@ -98,16 +119,20 @@ class Pedigree(BaseFile, dict):
                 fillcolor += ":white"
             else:
                 fillcolor = fillcolor.rsplit(";", 1)[0]
-            G._node[s]["label"] = label
-            G._node[s]["shape"] = "circle"
-            G._node[s]["fixedsize"] = "true"
-            G._node[s]["width"] = "0.6"
-            G._node[s]["height"] = "0.6"
-            G._node[s]["style"] = "wedged"
-            G._node[s]["fillcolor"] = fillcolor
-            G._node[s]["color"] = "none"
-            G._node[s]["fontsize"] = "10"
-            G._node[s]["fontname"] = "Helvetica"
+            node_styles = {
+                "color": "none",
+                "fillcolor": fillcolor,
+                "fixedsize": "true",
+                "fontname": "Helvetica",
+                "fontsize": "10",
+                "height": "0.6",
+                "label": label,
+                "shape": "circle",
+                "style": "wedged",
+                "width": "0.6",
+            }
+            for k, v in node_styles.items():
+                G._node[s][k] = v
         return G
 
 
@@ -206,16 +231,17 @@ def calculate_inbreeding(
     return results
 
 
-def inbreeding(args):
+def pedigree(args):
     """
-    %prog inbreeding pedfile
+    %prog pedigree pedfile
 
-    Calculate inbreeding coefficients from a pedigree file.
+    Plot pedigree and calculate pedigree coefficients from a pedigree file.
     """
-    p = OptionParser(inbreeding.__doc__)
+    p = OptionParser(pedigree.__doc__)
     p.add_option("--ploidy", default=2, type="int", help="Ploidy")
     p.add_option("--N", default=10000, type="int", help="Number of samples")
-    opts, args = p.parse_args(args)
+    p.add_option("--title", default="", help="Title of the graph")
+    opts, args, iopts = p.set_image_options(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -227,17 +253,15 @@ def inbreeding(args):
     for _, v in inb.items():
         print(v)
 
-    G = ped.to_graph(inb)
-    dotfile = f"{pedfile}.dot"
-    nx.nx_agraph.write_dot(G, dotfile)
-    pdf_file = dotfile + ".pdf"
-    file_format = pdf_file.split(".")[-1]
-    sh(f"dot -T{file_format} {dotfile} -o {pdf_file}")
-    logger.info("Pedigree graph written to `%s`", pdf_file)
+    G = ped.to_graph(inb, title=opts.title)
+    A = nx.nx_agraph.to_agraph(G)
+    image_file = f"{pedfile}.{iopts.format}"
+    A.draw(image_file, prog="dot")
+    logger.info("Pedigree graph written to `%s`", image_file)
 
 
 def main():
-    actions = (("inbreeding", "calculate inbreeding coefficients"),)
+    actions = (("pedigree", "Plot pedigree and calculate inbreeding coefficients"),)
     p = ActionDispatcher(actions)
     p.dispatch(globals())
 

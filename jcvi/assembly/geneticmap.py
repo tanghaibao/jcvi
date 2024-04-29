@@ -10,6 +10,7 @@ import sys
 
 from itertools import combinations, groupby
 from random import sample
+from typing import Tuple
 
 import numpy as np
 import seaborn as sns
@@ -22,6 +23,7 @@ from ..formats.bed import Bed, fastaFromBed
 from ..graphics.base import (
     Rectangle,
     draw_cmap,
+    normalize_axes,
     plt,
     plot_heatmap,
     savefig,
@@ -336,30 +338,12 @@ def dotplot(args):
     fig.clear()
 
 
-def heatmap(args):
+def read_subsampled_matrix(mstmap: str, subsample: int) -> Tuple[np.ndarray, str, int]:
     """
-    %prog heatmap map
-
-    Calculate pairwise linkage disequilibrium given MSTmap.
+    Read the subsampled matrix from file if it exists, otherwise calculate it.
     """
-    p = OptionParser(heatmap.__doc__)
-    p.add_option(
-        "--subsample",
-        default=1000,
-        type="int",
-        help="Subsample markers to speed up",
-    )
-    opts, args, iopts = p.set_image_options(args, figsize="8x8")
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    (mstmap,) = args
-    subsample = opts.subsample
     data = MSTMap(mstmap)
 
-    markerbedfile = mstmap + ".subsample.bed"
-    ldmatrix = mstmap + ".subsample.matrix"
     # Take random subsample while keeping marker order
     if subsample < data.nmarkers:
         data = [data[x] for x in sorted(sample(range(len(data)), subsample))]
@@ -367,6 +351,8 @@ def heatmap(args):
         logger.debug("Use all markers, --subsample ignored")
 
     nmarkers = len(data)
+    markerbedfile = mstmap + ".subsample.bed"
+    ldmatrix = mstmap + ".subsample.matrix"
     if need_update(mstmap, (ldmatrix, markerbedfile)):
         with open(markerbedfile, "w", encoding="utf-8") as fw:
             print("\n".join(x.bedline for x in data), file=fw)
@@ -389,21 +375,24 @@ def heatmap(args):
         M = np.fromfile(ldmatrix, dtype="float").reshape(nmarkers, nmarkers)
         logger.debug("LD matrix `%s` exists (%dx%d).", ldmatrix, nmarkers, nmarkers)
 
-    plt.rcParams["axes.linewidth"] = 0
+    return M, markerbedfile, nmarkers
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))
-    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))  # the heatmap
+
+def draw_geneticmap_heatmap(root, ax, mstmap: str, subsample: int):
+    """
+    Draw the heatmap of the genetic map.
+    """
+    M, markerbedfile, nmarkers = read_subsampled_matrix(mstmap, subsample)
 
     # Plot chromosomes breaks
-    bed = Bed(markerbedfile)
-    xsize = len(bed)
+    b = Bed(markerbedfile)
+    xsize = len(b)
     extent = (0, nmarkers)
     chr_labels = []
     ignore_size = 20
 
     breaks = []
-    for seqid, beg, end in bed.get_breaks():
+    for seqid, beg, end in b.get_breaks():
         ignore = abs(end - beg) < ignore_size
         pos = (beg + end) / 2
         chr_labels.append((seqid, pos, ignore))
@@ -434,11 +423,39 @@ def heatmap(args):
     m = mstmap.split(".")[0]
     root.text(0.5, 0.06, f"Linkage Disequilibrium between {m} markers", ha="center")
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
-    image_name = m + ".subsample" + "." + iopts.format
+
+def heatmap(args):
+    """
+    %prog heatmap map
+
+    Calculate pairwise linkage disequilibrium given MSTmap.
+    """
+    p = OptionParser(heatmap.__doc__)
+    p.add_option(
+        "--subsample",
+        default=1000,
+        type="int",
+        help="Subsample markers to speed up",
+    )
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (mstmap,) = args
+
+    plt.rcParams["axes.linewidth"] = 0
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes((0, 0, 1, 1))
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))  # the heatmap
+
+    draw_geneticmap_heatmap(root, ax, mstmap, opts.subsample)
+
+    pf = mstmap.split(".")[0]
+    image_name = pf + ".subsample" + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

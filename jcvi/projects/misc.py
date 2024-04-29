@@ -33,7 +33,6 @@ def main():
         ("oropetium", "plot oropetium micro-synteny (requires data)"),
         # Pomegranate paper (Qin et al., 2017 Plant Journal)
         ("pomegranate", "plot pomegranate macro- and micro-synteny (requires data)"),
-        # Unpublished
         ("birch", "plot birch macro-synteny (requires data)"),
         ("litchi", "plot litchi micro-synteny (requires data)"),
         ("utricularia", "plot utricularia micro-synteny (requires data)"),
@@ -76,7 +75,7 @@ def waterlilyGOM(args):
     pf = datafile.rsplit(".", 1)[0]
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     margin, rmargin = 0.15, 0.19  # Left and right margin
     leafinfo = LeafInfoFile("leafinfo.csv").cache

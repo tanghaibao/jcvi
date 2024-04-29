@@ -10,9 +10,11 @@ import math
 import os
 import os.path as op
 import sys
+
 from collections import defaultdict
 from functools import partial
 from multiprocessing import Pool
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -683,6 +685,117 @@ def generate_groups(groupsfile):
             yield seqids, color
 
 
+def read_matrix(
+    npyfile: str,
+    header: dict,
+    contig: Optional[str],
+    groups: List[Tuple[str, str]],
+    vmin: int,
+    vmax: int,
+    plot_breaks: bool,
+):
+    """
+    Read the matrix from the npy file and apply log transformation and thresholding.
+    """
+    # Load the matrix
+    A = np.load(npyfile)
+    total_bins = header["total_bins"]
+
+    # Select specific submatrix
+    if contig:
+        contig_start = header["starts"][contig]
+        contig_size = header["sizes"][contig]
+        contig_end = contig_start + contig_size
+        A = A[contig_start:contig_end, contig_start:contig_end]
+    else:
+        A = A[:total_bins, :total_bins]
+
+    # Convert seqids to positions for each group
+    new_groups = []
+    for seqids, color in groups:
+        seqids = seqids.split(",")
+        assert all(
+            x in header["starts"] for x in seqids
+        ), f"{seqids} contain ids not found in starts"
+        assert all(
+            x in header["sizes"] for x in seqids
+        ), f"{seqids} contain ids not found in sizes"
+        start = min(header["starts"][x] for x in seqids)
+        end = max(header["starts"][x] + header["sizes"][x] for x in seqids)
+        position_seqids = []
+        for seqid in seqids:
+            seqid_start = header["starts"][seqid]
+            seqid_size = header["sizes"][seqid]
+            position_seqids.append((seqid_start + seqid_size / 2, seqid))
+        new_groups.append((start, end, position_seqids, color))
+
+    # Several concerns in practice:
+    # The diagonal counts may be too strong, this can either be resolved by
+    # masking them. Or perform a log transform on the entire heatmap.
+    B = A.astype("float64")
+    B += 1.0
+    B = np.log(B)
+    B[B < vmin] = vmin
+    B[B > vmax] = vmax
+    print(B)
+    logger.debug("Matrix log-transformation and thresholding (%d-%d) done", vmin, vmax)
+
+    breaks = list(header["starts"].values())
+    breaks += [total_bins]  # This is actually discarded
+    breaks = sorted(breaks)[1:]
+    if contig or not plot_breaks:
+        breaks = []
+
+    return B, new_groups, breaks
+
+
+def draw_hic_heatmap(
+    root,
+    ax,
+    npyfile: str,
+    jsonfile: str,
+    contig: Optional[str],
+    groups_file: str,
+    title: str,
+    vmin: int,
+    vmax: int,
+    plot_breaks: bool,
+):
+    """
+    Draw heatmap based on .npy file. The .npy file stores a square matrix with
+    bins of genome, and cells inside the matrix represent number of links
+    between bin i and bin j. The `genome.json` contains the offsets of each
+    contig/chr so that we know where to draw boundary lines, or extract per
+    contig/chromosome heatmap.
+    """
+    groups = list(generate_groups(groups_file)) if groups_file else []
+
+    # Load contig/chromosome starts and sizes
+    header = json.loads(open(jsonfile, encoding="utf-8").read())
+    resolution = header.get("resolution")
+    assert resolution is not None, "`resolution` not found in `{}`".format(jsonfile)
+    logger.debug("Resolution set to %d", resolution)
+
+    B, new_groups, breaks = read_matrix(
+        npyfile, header, contig, groups, vmin, vmax, plot_breaks
+    )
+    plot_heatmap(ax, B, breaks, groups=new_groups, binsize=resolution)
+
+    # Title
+    if contig:
+        title += f"-{contig}"
+    root.text(
+        0.5,
+        0.96,
+        markup(title),
+        color="darkslategray",
+        ha="center",
+        va="center",
+    )
+
+    normalize_axes(root)
+
+
 def heatmap(args):
     """
     %prog heatmap input.npy genome.json
@@ -716,90 +829,32 @@ def heatmap(args):
         help="Do not plot breaks (esp. if contigs are small)",
     )
     opts, args, iopts = p.set_image_options(
-        args, figsize="11x11", style="white", cmap="coolwarm", format="png", dpi=120
+        args, figsize="11x11", style="white", cmap="coolwarm", dpi=120
     )
 
     if len(args) != 2:
         sys.exit(not p.print_help())
 
     npyfile, jsonfile = args
-    contig = opts.chr
-    groups = list(generate_groups(opts.groups)) if opts.groups else []
-
-    # Load contig/chromosome starts and sizes
-    header = json.loads(open(jsonfile).read())
-    resolution = header.get("resolution")
-    assert resolution is not None, "`resolution` not found in `{}`".format(jsonfile)
-    logger.debug("Resolution set to %d", resolution)
-    # Load the matrix
-    A = np.load(npyfile)
-
-    # Select specific submatrix
-    if contig:
-        contig_start = header["starts"][contig]
-        contig_size = header["sizes"][contig]
-        contig_end = contig_start + contig_size
-        A = A[contig_start:contig_end, contig_start:contig_end]
-
-    # Convert seqids to positions for each group
-    new_groups = []
-    for seqids, color in groups:
-        seqids = seqids.split(",")
-        assert all(
-            x in header["starts"] for x in seqids
-        ), f"{seqids} contain ids not found in starts"
-        assert all(
-            x in header["sizes"] for x in seqids
-        ), f"{seqids} contain ids not found in sizes"
-        start = min(header["starts"][x] for x in seqids)
-        end = max(header["starts"][x] + header["sizes"][x] for x in seqids)
-        position_seqids = []
-        for seqid in seqids:
-            seqid_start = header["starts"][seqid]
-            seqid_size = header["sizes"][seqid]
-            position_seqids.append((seqid_start + seqid_size / 2, seqid))
-        new_groups.append((start, end, position_seqids, color))
-
-    # Several concerns in practice:
-    # The diagonal counts may be too strong, this can either be resolved by
-    # masking them. Or perform a log transform on the entire heatmap.
-    B = A.astype("float64")
-    B += 1.0
-    B = np.log(B)
-    vmin, vmax = opts.vmin, opts.vmax
-    B[B < vmin] = vmin
-    B[B > vmax] = vmax
-    print(B)
-    logger.debug("Matrix log-transformation and thresholding (%d-%d) done", vmin, vmax)
-
     # Canvas
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))  # whole canvas
     ax = fig.add_axes((0.05, 0.05, 0.9, 0.9))  # just the heatmap
 
-    breaks = list(header["starts"].values())
-    breaks += [header["total_bins"]]  # This is actually discarded
-    breaks = sorted(breaks)[1:]
-    if contig or opts.nobreaks:
-        breaks = []
-    plot_heatmap(ax, B, breaks, groups=new_groups, binsize=resolution)
-
-    # Title
-    pf = npyfile.rsplit(".", 1)[0]
-    title = opts.title
-    if contig:
-        title += "-{}".format(contig)
-    root.text(
-        0.5,
-        0.98,
-        markup(title),
-        color="darkslategray",
-        size=18,
-        ha="center",
-        va="center",
+    draw_hic_heatmap(
+        root,
+        ax,
+        npyfile,
+        jsonfile,
+        contig=opts.chr,
+        groups_file=opts.groups,
+        title=opts.title,
+        vmin=opts.vmin,
+        vmax=opts.vmax,
+        plot_breaks=not opts.nobreaks,
     )
 
-    normalize_axes(root)
+    pf = npyfile.rsplit(".", 1)[0]
     image_name = pf + "." + iopts.format
     # macOS sometimes has way too verbose output
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

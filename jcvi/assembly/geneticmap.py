@@ -23,6 +23,7 @@ from ..formats.bed import Bed, fastaFromBed
 from ..graphics.base import (
     Rectangle,
     draw_cmap,
+    normalize_axes,
     plt,
     plot_heatmap,
     savefig,
@@ -384,14 +385,14 @@ def draw_geneticmap_heatmap(root, ax, mstmap: str, subsample: int):
     M, markerbedfile, nmarkers = read_subsampled_matrix(mstmap, subsample)
 
     # Plot chromosomes breaks
-    bed = Bed(markerbedfile)
-    xsize = len(bed)
+    b = Bed(markerbedfile)
+    xsize = len(b)
     extent = (0, nmarkers)
     chr_labels = []
     ignore_size = 20
 
     breaks = []
-    for seqid, beg, end in bed.get_breaks():
+    for seqid, beg, end in b.get_breaks():
         ignore = abs(end - beg) < ignore_size
         pos = (beg + end) / 2
         chr_labels.append((seqid, pos, ignore))
@@ -422,9 +423,7 @@ def draw_geneticmap_heatmap(root, ax, mstmap: str, subsample: int):
     m = mstmap.split(".")[0]
     root.text(0.5, 0.06, f"Linkage Disequilibrium between {m} markers", ha="center")
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
 
 def heatmap(args):

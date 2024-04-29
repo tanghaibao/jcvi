@@ -58,7 +58,7 @@ def genomebuild(args):
         title="*S. species* Hi-C contact map",
         vmin=1,
         vmax=6,
-        breaks=True,
+        plot_breaks=True,
     )
 
     labels = (

@@ -688,11 +688,11 @@ def generate_groups(groupsfile):
 def read_matrix(
     npyfile: str,
     header: dict,
-    contig: str,
+    contig: Optional[str],
     groups: List[Tuple[str, str]],
     vmin: int,
     vmax: int,
-    breaks: bool,
+    plot_breaks: bool,
 ):
     """
     Read the matrix from the npy file and apply log transformation and thresholding.
@@ -743,7 +743,7 @@ def read_matrix(
     breaks = list(header["starts"].values())
     breaks += [total_bins]  # This is actually discarded
     breaks = sorted(breaks)[1:]
-    if contig or not breaks:
+    if contig or not plot_breaks:
         breaks = []
 
     return B, new_groups, breaks
@@ -759,7 +759,7 @@ def draw_hic_heatmap(
     title: str,
     vmin: int,
     vmax: int,
-    breaks: bool,
+    plot_breaks: bool,
 ):
     """
     Draw heatmap based on .npy file. The .npy file stores a square matrix with
@@ -777,19 +777,18 @@ def draw_hic_heatmap(
     logger.debug("Resolution set to %d", resolution)
 
     B, new_groups, breaks = read_matrix(
-        npyfile, header, contig, groups, vmin, vmax, breaks
+        npyfile, header, contig, groups, vmin, vmax, plot_breaks
     )
     plot_heatmap(ax, B, breaks, groups=new_groups, binsize=resolution)
 
     # Title
     if contig:
-        title += "-{}".format(contig)
+        title += f"-{contig}"
     root.text(
         0.5,
-        0.98,
+        0.96,
         markup(title),
         color="darkslategray",
-        size=18,
         ha="center",
         va="center",
     )
@@ -852,7 +851,7 @@ def heatmap(args):
         title=opts.title,
         vmin=opts.vmin,
         vmax=opts.vmax,
-        breaks=not opts.nobreaks,
+        plot_breaks=not opts.nobreaks,
     )
 
     pf = npyfile.rsplit(".", 1)[0]

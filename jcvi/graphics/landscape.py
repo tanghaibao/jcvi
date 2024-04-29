@@ -11,7 +11,7 @@ import os.path as op
 import sys
 
 from collections import Counter, OrderedDict, defaultdict
-from typing import Optional
+from typing import List, Optional
 
 import numpy as np
 
@@ -93,7 +93,7 @@ class ChrInfoLine:
 class ChrInfoFile(BaseFile, OrderedDict):
     def __init__(self, filename, delimiter=","):
         super(ChrInfoFile, self).__init__(filename)
-        with open(filename) as fp:
+        with open(filename, encoding="utf-8") as fp:
             for row in fp:
                 if row[0] == "#":
                     continue
@@ -114,7 +114,7 @@ class TitleInfoLine:
 class TitleInfoFile(BaseFile, OrderedDict):
     def __init__(self, filename, delimiter=","):
         super(TitleInfoFile, self).__init__(filename)
-        with open(filename) as fp:
+        with open(filename, encoding="utf-8") as fp:
             for row in fp:
                 if row[0] == "#":
                     continue
@@ -274,7 +274,7 @@ def draw_depth(
     chrinfo: dict = {},
     defaultcolor: str = "k",
     sepcolor: str = "w",
-    ylim: int = 100,
+    maxdepth: int = 100,
     logscale: bool = False,
     title: Optional[str] = None,
     subtitle: Optional[str] = None,
@@ -288,7 +288,7 @@ def draw_depth(
         chrinfo (ChrInfoFile): seqid => color, new name
         defaultcolor (str): matplotlib-compatible color for data points
         sepcolor (str): matplotlib-compatible color for chromosome breaks
-        ylim (int): Upper limit of the y-axis (depth)
+        maxdepth (int): Upper limit of the y-axis (depth)
         title (str): Title of the figure, to the right of the axis
         subtitle (str): Subtitle of the figure, just below title
     """
@@ -354,7 +354,7 @@ def draw_depth(
 
     # vertical lines for all the breaks
     for pos in starts.values():
-        ax.plot((pos, pos), (0, ylim), "-", lw=1, color=sepcolor)
+        ax.plot((pos, pos), (0, maxdepth), "-", lw=1, color=sepcolor)
 
     # beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
@@ -413,11 +413,57 @@ def draw_depth(
     ax.set_xlim(0, xsize)
     if logscale:
         ax.set_yscale("log", basey=2)
-    ax.set_ylim(1 if logscale else 0, ylim)
+    ax.set_ylim(1 if logscale else 0, maxdepth)
     ax.set_ylabel("Depth")
 
     set_human_axis(ax)
     plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=10)
+    normalize_axes(root)
+
+
+def draw_multi_depth(
+    root,
+    panel_roots,
+    panel_axes,
+    bedfiles: List[str],
+    chrinfo_file: str,
+    titleinfo_file: str,
+    maxdepth: int,
+    logscale: bool,
+):
+    """
+    Draw multiple depth plots on the same canvas.
+    """
+    chrinfo = ChrInfoFile(chrinfo_file) if chrinfo_file else {}
+    titleinfo = TitleInfoFile(titleinfo_file) if titleinfo_file else {}
+    npanels = len(bedfiles)
+    yinterval = 1.0 / npanels
+    ypos = 1 - yinterval
+    for bedfile, panel_root, panel_ax in zip(bedfiles, panel_roots, panel_axes):
+        pf = op.basename(bedfile).split(".", 1)[0]
+        bed = Bed(bedfile)
+
+        if ypos > 0.001:
+            root.plot((0, 1), (ypos, ypos), "-", lw=2, color="lightslategray")
+
+        title = titleinfo.get(bedfile, pf.split("_", 1)[0])
+        subtitle = None
+        if isinstance(title, TitleInfoLine):
+            subtitle = title.subtitle
+            title = title.title
+
+        draw_depth(
+            panel_root,
+            panel_ax,
+            bed,
+            chrinfo=chrinfo,
+            maxdepth=maxdepth,
+            logscale=logscale,
+            title=title,
+            subtitle=subtitle,
+        )
+        ypos -= yinterval
+
     normalize_axes(root)
 
 
@@ -463,8 +509,6 @@ def depth(args):
         sys.exit(not p.print_help())
 
     bedfiles = args
-    chrinfo = ChrInfoFile(opts.chrinfo) if opts.chrinfo else {}
-    titleinfo = TitleInfoFile(opts.titleinfo) if opts.titleinfo else {}
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
@@ -472,34 +516,24 @@ def depth(args):
     npanels = len(bedfiles)
     yinterval = 1.0 / npanels
     ypos = 1 - yinterval
-    for bedfile in bedfiles:
-        pf = op.basename(bedfile).split(".", 1)[0]
-        bed = Bed(bedfile)
-
+    panel_roots, panel_axes = [], []
+    for _ in range(npanels):
         panel_root = root if npanels == 1 else fig.add_axes((0, ypos, 1, yinterval))
         panel_ax = fig.add_axes((0.1, ypos + 0.2 * yinterval, 0.8, 0.65 * yinterval))
-        if ypos > 0.001:
-            root.plot((0, 1), (ypos, ypos), "-", lw=2, color="lightslategray")
-
-        title = titleinfo.get(bedfile, pf.split("_", 1)[0])
-        subtitle = None
-        if isinstance(title, TitleInfoLine):
-            subtitle = title.subtitle
-            title = title.title
-
-        draw_depth(
-            panel_root,
-            panel_ax,
-            bed,
-            chrinfo=chrinfo,
-            ylim=opts.maxdepth,
-            logscale=opts.logscale,
-            title=title,
-            subtitle=subtitle,
-        )
+        panel_roots.append(panel_root)
+        panel_axes.append(panel_ax)
         ypos -= yinterval
 
-    normalize_axes(root)
+    draw_multi_depth(
+        root,
+        panel_roots,
+        panel_axes,
+        bedfiles,
+        opts.chrinfo,
+        opts.titleinfo,
+        opts.maxdepth,
+        opts.logscale,
+    )
 
     if npanels > 1:
         pf = op.commonprefix(bedfiles)

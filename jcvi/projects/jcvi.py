@@ -12,6 +12,7 @@ from ..assembly.geneticmap import draw_geneticmap_heatmap
 from ..assembly.hic import draw_hic_heatmap
 from ..assembly.kmer import draw_ks_histogram
 from ..graphics.base import normalize_axes, panel_labels, plt, savefig
+from ..graphics.landscape import draw_multi_depth
 
 
 def genomebuild(args):
@@ -96,6 +97,56 @@ def diversity(args):
     """
     p = OptionParser(diversity.__doc__)
     _, args, iopts = p.set_image_options(args, figsize="14x7")
+
+    if len(args) < 2:
+        sys.exit(not p.print_help())
+
+    pedfile, bedfiles = args[0], args[1:]
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes((0, 0, 1, 1))
+
+    ax1_root = fig.add_axes((0, 0, 0.25, 1))
+    ax2_root = fig.add_axes((0.25, 0, 0.75, 1))
+
+    # Panel A
+    logger.info("Plotting pedigree")
+
+    # Panel B
+    logger.info("Plotting depth distribution across genomes")
+    npanels = len(bedfiles)
+    yinterval = 1.0 / npanels
+    ypos = 1 - yinterval
+    panel_roots, panel_axes = [], []
+    for _ in range(npanels):
+        panel_root = root if npanels == 1 else fig.add_axes((0.25, ypos, 1, yinterval))
+        panel_ax = fig.add_axes(
+            (0.25 + 0.1 * 0.75, ypos + 0.2 * yinterval, 0.8 * 0.75, 0.65 * yinterval)
+        )
+        panel_roots.append(panel_root)
+        panel_axes.append(panel_ax)
+        ypos -= yinterval
+
+    draw_multi_depth(
+        ax2_root,
+        panel_roots,
+        panel_axes,
+        bedfiles,
+        chrinfo_file="chrinfo.txt",
+        titleinfo_file="titleinfo.txt",
+        maxdepth=100,
+        logscale=False,
+    )
+
+    labels = (
+        (0.25 * 0.1, 0.95, "A"),
+        (0.25 + 0.25 * 0.1, 0.95, "B"),
+    )
+    panel_labels(root, labels)
+    normalize_axes([root, ax1_root, ax2_root])
+
+    image_name = "diversity.pdf"
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def main():

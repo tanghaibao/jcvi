@@ -632,19 +632,17 @@ def blast_main(args, dbtype=None):
             logging.fatal("`%s` not found on PATH. Have you installed BLAST?", bin)
             sys.exit(1)
 
-    db_suffix = '.nin' if dbtype == "nucl" else ".pin"
+    db_suffix = ".nin" if dbtype == "nucl" else ".pin"
 
-    run_formatdb(
-        infile=subject,
-        outfile=subject + db_suffix,
-        dbtype=dbtype)
+    run_formatdb(infile=subject, outfile=subject + db_suffix, dbtype=dbtype)
 
     blastfile = get_outfile(subject, query, suffix="last", outdir=opts.outdir)
     # Make several attempts to run LASTAL
     try:
         sh(
-            cmd + f" -num_threads {cpus} -query {query} -db {subject} -out {blastfile}" +
-            " -outfmt 6 -max_target_seqs 1000 -evalue 1e-5",
+            cmd
+            + f" -num_threads {cpus} -query {query} -db {subject} -out {blastfile}"
+            + " -outfmt 6 -max_target_seqs 1000 -evalue 1e-5",
             check=False,
             redirect_error=STDOUT,
         )
@@ -693,14 +691,16 @@ def diamond_blastp_main(args, dbtype="prot"):
 
     run_diamond_makedb(
         infile=subject,
-        outfile=subject + '.dmnd',)
+        outfile=subject + ".dmnd",
+    )
 
     blastfile = get_outfile(subject, query, suffix="last", outdir=opts.outdir)
     # Make several attempts to run LASTAL
     try:
         sh(
-            cmd + f" --threads {cpus} --query {query} --db {subject} --out {blastfile}" +
-            " --ultra-sensitive --max-target-seqs 1000 --evalue 1e-5 --outfmt 6",
+            cmd
+            + f" --threads {cpus} --query {query} --db {subject} --out {blastfile}"
+            + " --ultra-sensitive --max-target-seqs 1000 --evalue 1e-5 --outfmt 6",
             check=False,
             redirect_error=STDOUT,
         )

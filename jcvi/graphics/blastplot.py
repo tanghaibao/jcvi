@@ -126,7 +126,7 @@ def blastplot(
 
     # plot the chromosome breaks
     logging.debug("xbreaks={0} ybreaks={1}".format(len(qsizes), len(ssizes)))
-    for (seqid, beg, end) in qsizes.get_breaks():
+    for seqid, beg, end in qsizes.get_breaks():
         ignore = abs(end - beg) < ignore_size_x
         if ignore:
             continue
@@ -135,7 +135,7 @@ def blastplot(
         xchr_labels.append((seqid, (beg + end) / 2, ignore))
         ax.plot([end, end], ylim, "-", lw=1, color="grey")
 
-    for (seqid, beg, end) in ssizes.get_breaks():
+    for seqid, beg, end in ssizes.get_breaks():
         ignore = abs(end - beg) < ignore_size_y
         if ignore:
             continue

@@ -1,6 +1,7 @@
 """
 Wrapper for biopython Fasta, add option to parse sequence headers
 """
+
 import re
 import sys
 import os

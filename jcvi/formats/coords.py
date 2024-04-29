@@ -170,7 +170,6 @@ class CoordsLine(object):
 
 
 class Coords(LineFile):
-
     """
     when parsing the .coords file, first skip first 5 lines
     [S1] [E1] | [S2] [E2] | [LEN 1] [LEN 2] | [% IDY] | [TAGS]

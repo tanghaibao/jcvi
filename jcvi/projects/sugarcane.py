@@ -697,7 +697,7 @@ def divergence(args):
     }
     # Get median for each genome pair
     medians = {}
-    for (g1, g2) in product(SPECIES_CONFIG.keys(), repeat=2):
+    for g1, g2 in product(SPECIES_CONFIG.keys(), repeat=2):
         g1, g2 = sorted((g1, g2))
         d = data_by_genomes[(g1, g2)]
         medians[(g1, g2)] = np.median(d)

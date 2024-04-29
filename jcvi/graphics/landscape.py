@@ -352,11 +352,11 @@ def draw_depth(
             alpha=0.5,
         )
 
-    # vertical lines for all the breaks
+    # Vertical lines for all the breaks
     for pos in starts.values():
         ax.plot((pos, pos), (0, maxdepth), "-", lw=1, color=sepcolor)
 
-    # beautify the numeric axis
+    # Beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
         tick.set_visible(False)
 
@@ -444,7 +444,7 @@ def draw_multi_depth(
         bed = Bed(bedfile)
 
         if ypos > 0.001:
-            root.plot((0, 1), (ypos, ypos), "-", lw=2, color="lightslategray")
+            root.plot((0.02, 0.98), (ypos, ypos), "-", lw=2, color="lightslategray")
 
         title = titleinfo.get(bedfile, pf.split("_", 1)[0])
         subtitle = None

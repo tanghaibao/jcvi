@@ -7,10 +7,13 @@ Functions in this script produce figures in the JCVI manuscript.
 
 import sys
 
+import networkx as nx
+
 from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..assembly.geneticmap import draw_geneticmap_heatmap
 from ..assembly.hic import draw_hic_heatmap
 from ..assembly.kmer import draw_ks_histogram
+from ..compara.pedigree import Pedigree, calculate_inbreeding
 from ..graphics.base import normalize_axes, panel_labels, plt, savefig
 from ..graphics.landscape import draw_multi_depth
 
@@ -111,6 +114,23 @@ def diversity(args):
 
     # Panel A
     logger.info("Plotting pedigree")
+    ped = Pedigree(pedfile)
+    pngfile = f"{pedfile}.png"
+    inb = calculate_inbreeding(ped, ploidy=4, N=10000)
+
+    G = ped.to_graph(inb, title="Pedigree of Variety1")
+    A = nx.nx_agraph.to_agraph(G)
+    dpi = 300
+    A.draw(pngfile, prog="dot", args=f"-Gdpi={dpi}")
+    logger.info("Pedigree graph written to `%s`", pngfile)
+
+    M = plt.imread(pngfile)
+    width, height = M.shape[1] / dpi, M.shape[0] / dpi
+    logger.info("Image size: %.2f x %.2f (dpi=%d)", width, height, dpi)
+
+    # Force aspect ratio to be equal
+    ax1_root.imshow(M)
+    ax1_root.set_axis_off()
 
     # Panel B
     logger.info("Plotting depth distribution across genomes")
@@ -119,7 +139,7 @@ def diversity(args):
     ypos = 1 - yinterval
     panel_roots, panel_axes = [], []
     for _ in range(npanels):
-        panel_root = root if npanels == 1 else fig.add_axes((0.25, ypos, 1, yinterval))
+        panel_root = fig.add_axes((0.25, ypos, 0.75, yinterval))
         panel_ax = fig.add_axes(
             (0.25 + 0.1 * 0.75, ypos + 0.2 * yinterval, 0.8 * 0.75, 0.65 * yinterval)
         )
@@ -139,11 +159,11 @@ def diversity(args):
     )
 
     labels = (
-        (0.25 * 0.1, 0.95, "A"),
+        (0.02, 0.95, "A"),
         (0.25 + 0.25 * 0.1, 0.95, "B"),
     )
     panel_labels(root, labels)
-    normalize_axes([root, ax1_root, ax2_root])
+    normalize_axes([root, ax2_root])
 
     image_name = "diversity.pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

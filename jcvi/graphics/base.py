@@ -4,6 +4,7 @@
 import copy
 import os.path as op
 from os import remove
+
 import sys
 import logging
 
@@ -12,6 +13,7 @@ logging.getLogger("numexpr").setLevel(logging.WARNING)
 logging.getLogger("PIL").setLevel(logging.INFO)
 
 from functools import partial
+from typing import Optional, List, Tuple, Union
 
 import numpy as np
 import matplotlib as mpl
@@ -35,7 +37,6 @@ from matplotlib.patches import (
     FancyArrowPatch,
     FancyBboxPatch,
 )
-from typing import Optional, List, Tuple, Union
 
 from ..apps.base import datadir, glob, listify, logger, sample_N, which
 from ..formats.base import LineFile
@@ -275,6 +276,9 @@ blues_r, reds, blue_red, green_purple, red_purple = prettyplot()
 
 
 def normalize_axes(axes):
+    """
+    Normalize the axes to have the same scale.
+    """
     axes = listify(axes)
     for ax in axes:
         ax.set_xlim(0, 1)
@@ -282,7 +286,10 @@ def normalize_axes(axes):
         ax.set_axis_off()
 
 
-def panel_labels(ax, labels, size=16):
+def panel_labels(ax, labels, size: int = 16):
+    """
+    Add panel labels (A, B, ...) to a figure.
+    """
     for xx, yy, panel_label in labels:
         if rcParams["text.usetex"]:
             panel_label = r"$\textbf{{{0}}}$".format(panel_label)

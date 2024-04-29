@@ -9,6 +9,7 @@ import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..assembly.geneticmap import draw_geneticmap_heatmap
+from ..assembly.hic import draw_hic_heatmap
 from ..graphics.base import normalize_axes, panel_labels, plt, savefig
 
 
@@ -31,12 +32,12 @@ def genomebuild(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
-    ax1_root = fig.add_axes((0, 0, 0.32, 1))
-    ax2_root = fig.add_axes((0.32, 0, 0.34, 1))
-    ax3_root = fig.add_axes((0.66, 0, 0.34, 1))
-    ax1 = fig.add_axes((0.03, 0.1, 0.23, 0.8))
-    ax2 = fig.add_axes((0.35, 0.1, 0.27, 0.8))
-    ax3 = fig.add_axes((0.69, 0.1, 0.27, 0.8))
+    ax1_root = fig.add_axes((0, 0, 1 / 3, 1))
+    ax2_root = fig.add_axes((1 / 3, 0, 1 / 3, 1))
+    ax3_root = fig.add_axes((2 / 3, 0, 1 / 3, 1))
+    ax1 = fig.add_axes((1 / 3 * 0.1, 0.1, 1 / 3 * 0.8, 0.8))
+    ax2 = fig.add_axes((1 / 3 * 1.1, 0.1, 1 / 3 * 0.8, 0.8))
+    ax3 = fig.add_axes((1 / 3 * 2.1, 0.1, 1 / 3 * 0.8, 0.8))
 
     # Panel A
     logger.info("Plotting read kmer histogram")
@@ -47,10 +48,26 @@ def genomebuild(args):
 
     # Panel C
     logger.info("Plotting Hi-C contact map concordance")
+    draw_hic_heatmap(
+        ax3_root,
+        ax3,
+        hic_matrix,
+        hic_json,
+        contig=None,
+        groups_file="groups",
+        title="*S. species* Hi-C contact map",
+        vmin=1,
+        vmax=6,
+        breaks=True,
+    )
 
-    labels = ((0.05, 0.95, "A"), (0.35, 0.95, "B"), (0.7, 0.95, "C"))
+    labels = (
+        (1 / 3 * 0.1, 0.95, "A"),
+        (1 / 3 * 1.1, 0.95, "B"),
+        (1 / 3 * 2.1, 0.95, "C"),
+    )
     panel_labels(root, labels)
-    normalize_axes([root, ax1_root, ax2_root, ax3_root, ax1, ax2, ax3])
+    normalize_axes([root, ax1_root, ax2_root, ax3_root])
 
     image_name = "genomebuild.pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

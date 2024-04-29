@@ -14,7 +14,7 @@ import sys
 from collections import defaultdict
 from functools import partial
 from multiprocessing import Pool
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -686,7 +686,13 @@ def generate_groups(groupsfile):
 
 
 def read_matrix(
-    npyfile: str, header: dict, contig: str, groups: List[Tuple[str, str]], opts
+    npyfile: str,
+    header: dict,
+    contig: str,
+    groups: List[Tuple[str, str]],
+    vmin: int,
+    vmax: int,
+    breaks: bool,
 ):
     """
     Read the matrix from the npy file and apply log transformation and thresholding.
@@ -729,7 +735,6 @@ def read_matrix(
     B = A.astype("float64")
     B += 1.0
     B = np.log(B)
-    vmin, vmax = opts.vmin, opts.vmax
     B[B < vmin] = vmin
     B[B > vmax] = vmax
     print(B)
@@ -738,10 +743,58 @@ def read_matrix(
     breaks = list(header["starts"].values())
     breaks += [total_bins]  # This is actually discarded
     breaks = sorted(breaks)[1:]
-    if contig or opts.nobreaks:
+    if contig or not breaks:
         breaks = []
 
     return B, new_groups, breaks
+
+
+def draw_hic_heatmap(
+    root,
+    ax,
+    npyfile: str,
+    jsonfile: str,
+    contig: Optional[str],
+    groups_file: str,
+    title: str,
+    vmin: int,
+    vmax: int,
+    breaks: bool,
+):
+    """
+    Draw heatmap based on .npy file. The .npy file stores a square matrix with
+    bins of genome, and cells inside the matrix represent number of links
+    between bin i and bin j. The `genome.json` contains the offsets of each
+    contig/chr so that we know where to draw boundary lines, or extract per
+    contig/chromosome heatmap.
+    """
+    groups = list(generate_groups(groups_file)) if groups_file else []
+
+    # Load contig/chromosome starts and sizes
+    header = json.loads(open(jsonfile, encoding="utf-8").read())
+    resolution = header.get("resolution")
+    assert resolution is not None, "`resolution` not found in `{}`".format(jsonfile)
+    logger.debug("Resolution set to %d", resolution)
+
+    B, new_groups, breaks = read_matrix(
+        npyfile, header, contig, groups, vmin, vmax, breaks
+    )
+    plot_heatmap(ax, B, breaks, groups=new_groups, binsize=resolution)
+
+    # Title
+    if contig:
+        title += "-{}".format(contig)
+    root.text(
+        0.5,
+        0.98,
+        markup(title),
+        color="darkslategray",
+        size=18,
+        ha="center",
+        va="center",
+    )
+
+    normalize_axes(root)
 
 
 def heatmap(args):
@@ -784,40 +837,25 @@ def heatmap(args):
         sys.exit(not p.print_help())
 
     npyfile, jsonfile = args
-    contig = opts.chr
-    groups = list(generate_groups(opts.groups)) if opts.groups else []
-
-    # Load contig/chromosome starts and sizes
-    header = json.loads(open(jsonfile, encoding="utf-8").read())
-    resolution = header.get("resolution")
-    assert resolution is not None, "`resolution` not found in `{}`".format(jsonfile)
-    logger.debug("Resolution set to %d", resolution)
-
-    B, new_groups, breaks = read_matrix(npyfile, header, contig, groups, opts)
-
     # Canvas
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))  # whole canvas
     ax = fig.add_axes((0.05, 0.05, 0.9, 0.9))  # just the heatmap
 
-    plot_heatmap(ax, B, breaks, groups=new_groups, binsize=resolution)
-
-    # Title
-    pf = npyfile.rsplit(".", 1)[0]
-    title = opts.title
-    if contig:
-        title += "-{}".format(contig)
-    root.text(
-        0.5,
-        0.98,
-        markup(title),
-        color="darkslategray",
-        size=18,
-        ha="center",
-        va="center",
+    draw_hic_heatmap(
+        root,
+        ax,
+        npyfile,
+        jsonfile,
+        contig=opts.chr,
+        groups_file=opts.groups,
+        title=opts.title,
+        vmin=opts.vmin,
+        vmax=opts.vmax,
+        breaks=not opts.nobreaks,
     )
 
-    normalize_axes(root)
+    pf = npyfile.rsplit(".", 1)[0]
     image_name = pf + "." + iopts.format
     # macOS sometimes has way too verbose output
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

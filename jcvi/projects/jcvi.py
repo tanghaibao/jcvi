@@ -10,6 +10,7 @@ import sys
 from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..assembly.geneticmap import draw_geneticmap_heatmap
 from ..assembly.hic import draw_hic_heatmap
+from ..assembly.kmer import draw_ks_histogram
 from ..graphics.base import normalize_axes, panel_labels, plt, savefig
 
 
@@ -41,6 +42,18 @@ def genomebuild(args):
 
     # Panel A
     logger.info("Plotting read kmer histogram")
+    _ = draw_ks_histogram(
+        ax1,
+        reads_histo,
+        method="nbinom",
+        coverage=0,
+        vmin=2,
+        vmax=200,
+        species="*S. species* ‘Variety 1’",
+        K=21,
+        maxiter=100,
+        peaks=False,
+    )
 
     # Panel B
     logger.info("Plotting genetic map concordance")

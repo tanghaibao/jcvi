@@ -1163,20 +1163,6 @@ def jellyfish(args):
         sh(cmd)
 
 
-def merylhistogram(merylfile):
-    """
-    Run meryl to dump histogram to be used in kmer.histogram(). The merylfile
-    are the files ending in .mcidx or .mcdat.
-    """
-    pf, sf = op.splitext(merylfile)
-    outfile = pf + ".histogram"
-    if need_update(merylfile, outfile):
-        cmd = "meryl -Dh -s {0}".format(pf)
-        sh(cmd, outfile=outfile)
-
-    return outfile
-
-
 def multihistogram(args):
     """
     %prog multihistogram *.histogram species
@@ -1197,9 +1183,9 @@ def multihistogram(args):
     histfiles = args[:-1]
     species = args[-1]
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
-    A = fig.add_axes([0.08, 0.12, 0.38, 0.76])
-    B = fig.add_axes([0.58, 0.12, 0.38, 0.76])
+    root = fig.add_axes((0, 0, 1, 1))
+    A = fig.add_axes((0.08, 0.12, 0.38, 0.76))
+    B = fig.add_axes((0.58, 0.12, 0.38, 0.76))
 
     lines = []
     legends = []
@@ -1281,75 +1267,31 @@ def plot_nbinom_fit(ax, ks: KmerSpectrum, ymax: float, method_info: dict):
         )
 
 
-def histogram(args):
+def draw_ks_histogram(
+    ax,
+    histfile: str,
+    method: str,
+    coverage: int,
+    vmin: int,
+    vmax: int,
+    species: str,
+    K: int,
+    maxiter: int,
+    peaks: bool,
+) -> int:
     """
-    %prog histogram meryl.histogram species K
-
-    Plot the histogram based on meryl K-mer distribution, species and N are
-    only used to annotate the graphic.
+    Draw the K-mer histogram.
     """
-    p = OptionParser(histogram.__doc__)
-    p.add_option(
-        "--vmin",
-        dest="vmin",
-        default=1,
-        type="int",
-        help="minimum value, inclusive",
-    )
-    p.add_option(
-        "--vmax",
-        dest="vmax",
-        default=100,
-        type="int",
-        help="maximum value, inclusive",
-    )
-    p.add_option(
-        "--method",
-        choices=("nbinom", "allpaths"),
-        default="nbinom",
-        help="'nbinom' - slow but more accurate for het or polyploid genome; 'allpaths' - fast and works for homozygous enomes",
-    )
-    p.add_option(
-        "--maxiter",
-        default=100,
-        type="int",
-        help="Max iterations for optimization. Only used with --method nbinom",
-    )
-    p.add_option(
-        "--coverage", default=0, type="int", help="Kmer coverage [default: auto]"
-    )
-    p.add_option(
-        "--nopeaks",
-        default=False,
-        action="store_true",
-        help="Do not annotate K-mer peaks",
-    )
-    opts, args, iopts = p.set_image_options(args, figsize="7x7")
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    histfile, species, N = args
-    method = opts.method
-    vmin, vmax = opts.vmin, opts.vmax
-    peaks = not opts.nopeaks and method == "allpaths"
-    N = int(N)
-
-    if histfile.rsplit(".", 1)[-1] in ("mcdat", "mcidx"):
-        logger.debug("CA kmer index found")
-        histfile = merylhistogram(histfile)
-
     ks = KmerSpectrum(histfile)
-    method_info = ks.analyze(K=N, maxiter=opts.maxiter, method=method)
+    method_info = ks.analyze(K=K, maxiter=maxiter, method=method)
 
     Total_Kmers = int(ks.totalKmers)
-    coverage = opts.coverage
     Kmer_coverage = ks.lambda_ if not coverage else coverage
     Genome_size = int(round(Total_Kmers * 1.0 / Kmer_coverage))
 
-    Total_Kmers_msg = "Total {0}-mers: {1}".format(N, thousands(Total_Kmers))
-    Kmer_coverage_msg = "{0}-mer coverage: {1:.1f}x".format(N, Kmer_coverage)
-    Genome_size_msg = "Estimated genome size: {0:.1f} Mb".format(Genome_size / 1e6)
+    Total_Kmers_msg = f"Total {K}-mers: {thousands(Total_Kmers)}"
+    Kmer_coverage_msg = f"{K}-mer coverage: {Kmer_coverage:.1f}x"
+    Genome_size_msg = f"Estimated genome size: {Genome_size / 1e6:.1f} Mb"
     Repetitive_msg = ks.repetitive
     SNPrate_msg = ks.snprate
 
@@ -1364,10 +1306,8 @@ def histogram(args):
         print(msg, file=sys.stderr)
 
     x, y = ks.get_xy(vmin, vmax)
-    title = "{0} {1}-mer histogram".format(species, N)
+    title = f"{species} {K}-mer histogram"
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))
     ax.bar(x, y, fc="#b2df8a", lw=0)
 
     if peaks:  # Only works for method 'allpaths'
@@ -1397,6 +1337,71 @@ def histogram(args):
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     set_human_axis(ax)
+
+    return Genome_size
+
+
+def histogram(args):
+    """
+    %prog histogram meryl.histogram species K
+
+    Plot the histogram based on Jellyfish or meryl K-mer distribution, species and N are
+    only used to annotate the graphic.
+    """
+    p = OptionParser(histogram.__doc__)
+    p.add_option(
+        "--vmin",
+        dest="vmin",
+        default=2,
+        type="int",
+        help="minimum value, inclusive",
+    )
+    p.add_option(
+        "--vmax",
+        dest="vmax",
+        default=200,
+        type="int",
+        help="maximum value, inclusive",
+    )
+    p.add_option(
+        "--method",
+        choices=("nbinom", "allpaths"),
+        default="nbinom",
+        help="'nbinom' - slow but more accurate for het or polyploid genome; "
+        + "'allpaths' - fast and works for homozygous enomes",
+    )
+    p.add_option(
+        "--maxiter",
+        default=100,
+        type="int",
+        help="Max iterations for optimization. Only used with --method nbinom",
+    )
+    p.add_option(
+        "--coverage", default=0, type="int", help="Kmer coverage [default: auto]"
+    )
+    p.add_option(
+        "--nopeaks",
+        default=False,
+        action="store_true",
+        help="Do not annotate K-mer peaks",
+    )
+    opts, args, iopts = p.set_image_options(args, figsize="7x7")
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    histfile, species, N = args
+    method = opts.method
+    vmin, vmax = opts.vmin, opts.vmax
+    peaks = not opts.nopeaks and method == "allpaths"
+    N = int(N)
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))
+
+    Genome_size = draw_ks_histogram(
+        ax, histfile, method, opts.coverage, vmin, vmax, species, N, opts.maxiter, peaks
+    )
 
     imagename = histfile.split(".")[0] + "." + iopts.format
     savefig(imagename, dpi=100)

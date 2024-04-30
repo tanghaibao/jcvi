@@ -26,8 +26,6 @@ from ..apps.base import (
     popen,
     sh,
 )
-from ..formats.base import DictFile, LineFile, must_open, is_number, get_number
-from ..formats.sizes import Sizes
 from ..utils.cbook import SummaryStats, thousands, percentage
 from ..utils.grouper import Grouper
 from ..utils.range import (
@@ -37,6 +35,9 @@ from ..utils.range import (
     range_distance,
     range_intersect,
 )
+
+from .base import DictFile, LineFile, get_number, is_number, must_open
+from .sizes import Sizes
 
 
 class BedLine(object):

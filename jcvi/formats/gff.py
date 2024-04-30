@@ -1,33 +1,34 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import sys
 import os
 import os.path as op
-import logging
 import re
+import sys
 
 from collections import defaultdict
 from urllib.parse import quote, unquote
 
-from jcvi.utils.cbook import AutoVivification
-from jcvi.formats.base import DictFile, LineFile, must_open, is_number
-from jcvi.formats.fasta import Fasta, SeqIO
-from jcvi.formats.bed import Bed, BedLine, natsorted
-from jcvi.annotation.reformat import atg_name
-from jcvi.utils.range import range_minmax
-from jcvi.utils.orderedcollections import DefaultOrderedDict, OrderedDict, parse_qs
-from jcvi.apps.base import (
+from ..apps.base import (
     OptionParser,
     OptionGroup,
     ActionDispatcher,
     cleanup,
     flatten,
+    logger,
     mkdir,
     need_update,
     parse_multi_values,
     sh,
 )
+from ..annotation.reformat import atg_name
+from ..utils.cbook import AutoVivification
+from ..utils.range import range_minmax
+from ..utils.orderedcollections import DefaultOrderedDict, OrderedDict, parse_qs
+
+from .base import DictFile, LineFile, must_open, is_number
+from .bed import Bed, BedLine, natsorted
+from .fasta import Fasta, SeqIO
 
 
 Valid_strands = ("+", "-", "?", ".")
@@ -356,7 +357,7 @@ class Gff(LineFile):
             if filename in ("-", "stdin") or filename.endswith(".gz"):
                 if ".gtf" in filename:
                     self.gff3 = False
-                    logging.debug("File is not gff3 standard.")
+                    logger.debug("File is not gff3 standard.")
                 return
 
             self.set_gff_type()
@@ -368,7 +369,7 @@ class Gff(LineFile):
             break
         gff3 = False if not row else "=" in row.attributes_text
         if not gff3:
-            logging.debug("File is not gff3 standard.")
+            logger.debug("File is not gff3 standard.")
 
         self.gff3 = gff3
         self.fp.seek(0)
@@ -564,9 +565,7 @@ def addparent(args):
             continue
         data[g.parent].append(g)
 
-    logging.debug(
-        "A total of {0} {1} features clustered".format(len(data), opts.childfeat)
-    )
+    logger.debug("A total of %d %s features clustered", len(data), opts.childfeat)
 
     parents = []
     for parent, dd in data.items():
@@ -588,7 +587,7 @@ def addparent(args):
         )
         parents.append(GffLine(gffline))
     parents.sort(key=lambda x: (x.seqid, x.start))
-    logging.debug("Merged feature sorted")
+    logger.debug("Merged feature sorted")
 
     fw = must_open(opts.outfile, "w")
     for parent in parents:
@@ -627,9 +626,8 @@ def is_valid_codon(codon, type="start"):
         if not any(_codon == codon for _codon in ("TGA", "TAG", "TAA")):
             return False
     else:
-        logging.error(
-            "`{0}` is not a valid codon type. ".format(type)
-            + "Should be one of (`start` or `stop`)"
+        logger.error(
+            "`%s` is not a valid codon type. Should be one of (`start` or `stop`)", type
         )
         sys.exit()
 
@@ -739,14 +737,15 @@ def fixpartials(args):
                         stop_codon, strand, seqid, genome, type="stop"
                     )
 
-                logging.debug(
-                    "feature={0} ({1})".format(trid, strand)
-                    + ", 5'={0}, 3'={1}".format(five_prime, three_prime)
-                    + ", {0} <== {1} ==> {2}".format(
-                        nstart if strand == "+" else nstop,
-                        cds_span,
-                        nstop if strand == "+" else nstart,
-                    )
+                logger.debug(
+                    "feature=%s (%s), 5'=%s, 3'=%s, %d <== %d ==> %d",
+                    trid,
+                    strand,
+                    five_prime,
+                    three_prime,
+                    nstart if strand == "+" else nstop,
+                    cds_span,
+                    nstop if strand == "+" else nstart,
                 )
 
             if not five_prime or not three_prime:
@@ -989,7 +988,7 @@ def summary(args):
 
     if ids:
         ids = SetFile(ids)
-        logging.debug("Total ids loaded: {0}".format(len(ids)))
+        logger.debug("Total ids loaded: %d", len(ids))
 
         if opts.isoform:
             pids = set()
@@ -1006,14 +1005,14 @@ def summary(args):
                     continue
                 pids.add(g.id)
             ids = pids
-            logging.debug("After checking longest: {0}".format(len(ids)))
+            logger.debug("After checking longest: %d", len(ids))
 
         # Collects aliases
         gff = Gff(gff_file)
         for g in gff:
             if g.name in ids:
                 ids.add(g.id)
-        logging.debug("Total ids including aliases: {0}".format(len(ids)))
+        logger.debug("Total ids including aliases: %d", len(ids))
 
     gff = Gff(gff_file)
     beds = defaultdict(list)
@@ -1104,7 +1103,7 @@ def orient(args):
 
         print(g)
 
-    logging.debug("A total of {0} features flipped.".format(flipped))
+    logger.debug("A total of %d features flipped.", flipped)
 
 
 def rename(args):
@@ -1225,7 +1224,7 @@ def filter(args):
             if identity < oid or coverage < ocov:
                 bad.add(g.id)
 
-    logging.debug("{0} bad accns marked.".format(len(bad)))
+    logger.debug("%d bad accns marked.", len(bad))
 
     fw = must_open(opts.outfile, "w")
     for g in gffdb.features_of_type(ptype, order_by=("seqid", "start")):
@@ -1770,10 +1769,9 @@ def format(args):
                 mod_remove_attrs.append(remove_attr)
 
         if mod_remove_attrs:
-            logging.error(
-                "Attributes `{0}` cannot be removed and modified".format(
-                    ",".join(mod_remove_attrs)
-                )
+            logger.error(
+                "Attributes `%s` cannot be removed and modified",
+                ",".join(mod_remove_attrs),
             )
             sys.exit()
 
@@ -1912,9 +1910,7 @@ def format(args):
                 if origid in mapping:
                     g.seqid = mapping[origid]
                 else:
-                    logging.error(
-                        "{0} not found in `{1}`. ID unchanged.".format(origid, mapfile)
-                    )
+                    logger.error("%s not found in `%s`. ID unchanged.", origid, mapfile)
             else:
                 g.seqid = mapfile
 
@@ -2247,7 +2243,7 @@ def import_feats(gffile, type="gene"):
             continue
         allgenes.append(g)
 
-    logging.debug("A total of {0} {1} features imported.".format(len(allgenes), type))
+    logger.debug("A total of %d %s features imported.", len(allgenes), type)
     allgenes.sort(key=lambda x: (x.seqid, x.start))
     return allgenes
 
@@ -2319,8 +2315,8 @@ def uniq(args):
 def populate_children(outfile, ids, gffile, iter="2", types=None):
     ids = set(ids)
     fw = must_open(outfile, "w")
-    logging.debug("A total of {0} features selected.".format(len(ids)))
-    logging.debug("Populate children. Iteration 1..")
+    logger.debug("A total of %d features selected.", len(ids))
+    logger.debug("Populate children. Iteration 1..")
     gff = Gff(gffile)
     children = set()
     for g in gff:
@@ -2333,7 +2329,7 @@ def populate_children(outfile, ids, gffile, iter="2", types=None):
                 children.add(g.accn)
 
     if iter == "2":
-        logging.debug("Populate grand children. Iteration 2..")
+        logger.debug("Populate grand children. Iteration 2..")
         gff = Gff(gffile)
         for g in gff:
             if "Parent" not in g.attributes:
@@ -2342,7 +2338,7 @@ def populate_children(outfile, ids, gffile, iter="2", types=None):
                 if parent in children:
                     children.add(g.accn)
 
-    logging.debug("Populate parents..")
+    logger.debug("Populate parents..")
     gff = Gff(gffile)
     parents = set()
     for g in gff:
@@ -2354,12 +2350,12 @@ def populate_children(outfile, ids, gffile, iter="2", types=None):
             parents.add(parent)
 
     combined = ids | children | parents
-    logging.debug("Original: {0}".format(len(ids)))
-    logging.debug("Children: {0}".format(len(children)))
-    logging.debug("Parents: {0}".format(len(parents)))
-    logging.debug("Combined: {0}".format(len(combined)))
+    logger.debug("Original: %d", len(ids))
+    logger.debug("Children: %d", len(children))
+    logger.debug("Parents: %d", len(parents))
+    logger.debug("Combined: %d", len(combined))
 
-    logging.debug("Filter gff file..")
+    logger.debug("Filter gff file..")
     gff = Gff(gffile)
     seen = set()
     for g in gff:
@@ -2409,7 +2405,7 @@ def sort(args):
         if opts.method == "topo" or (
             opts.method == "unix" and gffile in ("-", "stdin")
         ):
-            logging.error(
+            logger.error(
                 "Cannot perform inplace sort when method is `topo`"
                 + " or method is `unix` and input is `stdin` stream"
             )
@@ -2427,7 +2423,7 @@ def sort(args):
     elif opts.method == "topo":
         GT_HOME = opts.gt_home
         if not op.isdir(GT_HOME):
-            logging.error("GT_HOME={0} directory does not exist".format(GT_HOME))
+            logger.error("GT_HOME=%s directory does not exist", GT_HOME)
             sys.exit()
         cmd = "{0}".format(op.join(GT_HOME, "bin", "gt"))
         cmd += " gff3 -sort -tidy -retainids -addids no {0}".format(gffile)
@@ -2490,7 +2486,7 @@ def fromgtf(args):
         print(g, file=fw)
         nfeats += 1
 
-    logging.debug("A total of {0} features written.".format(nfeats))
+    logger.debug("A total of %d features written.", nfeats)
 
 
 def frombed(args):
@@ -2656,7 +2652,7 @@ def merge(args):
     fw = must_open(outfile, "w")
     fastarecs = {}
     for gffile in natsorted(gffiles, key=lambda x: op.basename(x)):
-        logging.debug(gffile)
+        logger.debug(gffile)
         fp = open(gffile)
         for row in fp:
             row = row.rstrip()
@@ -3109,15 +3105,17 @@ def bed(args):
 
     sorted = not opts.nosort
     b.print_to_file(opts.outfile, sorted=sorted)
-    logging.debug(
-        "Extracted {} features (type={} id={} parent={})".format(
-            len(b), ",".join(type), key, parent_key
-        )
+    logger.debug(
+        "Extracted %d features (type=%s id=%s parent=%s)",
+        len(b),
+        ",".join(type),
+        key,
+        parent_key,
     )
     if primary_only:
-        logging.debug("Skipped non-primary: %d", skipped_non_primary)
+        logger.debug("Skipped non-primary: %d", skipped_non_primary)
     if ensembl_cds:
-        logging.debug("Skipped due to identical range: %d", skipped_identical_range)
+        logger.debug("Skipped due to identical range: %d", skipped_identical_range)
 
 
 def make_index(gff_file):
@@ -3130,10 +3128,10 @@ def make_index(gff_file):
 
     if need_update(gff_file, db_file):
         cleanup(db_file)
-        logging.debug("Indexing `{0}`".format(gff_file))
+        logger.debug("Indexing `%s`", gff_file)
         gffutils.create_db(gff_file, db_file, merge_strategy="create_unique")
     else:
-        logging.debug("Load index `{0}`".format(gff_file))
+        logger.debug("Load index `%s`", gff_file)
 
     return gffutils.FeatureDB(db_file)
 
@@ -3333,7 +3331,7 @@ def load(args):
                 try:
                     g_fparent = g[fparent]
                 except gffutils.exceptions.FeatureNotFoundError:
-                    logging.error("{} not found in index .. skipped".format(fparent))
+                    logger.error("%s not found in index .. skipped", fparent)
                     continue
                 if desc_attr in g_fparent.attributes:
                     desc = ",".join(g_fparent.attributes[desc_attr])

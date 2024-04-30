@@ -2,9 +2,7 @@
 Classes to handle the .bed files
 """
 
-import logging
 import math
-import numpy as np
 import os
 import os.path as op
 import shutil
@@ -12,30 +10,34 @@ import sys
 
 from collections import defaultdict, OrderedDict
 from itertools import groupby
-from typing import Optional
+from typing import Optional, Tuple
+
+import numpy as np
 
 from more_itertools import pairwise
 from natsort import natsorted, natsort_key
 
-from jcvi.formats.base import DictFile, LineFile, must_open, is_number, get_number
-from jcvi.formats.sizes import Sizes
-from jcvi.utils.cbook import SummaryStats, thousands, percentage
-from jcvi.utils.grouper import Grouper
-from jcvi.utils.range import (
+from ..apps.base import (
+    OptionParser,
+    ActionDispatcher,
+    cleanup,
+    logger,
+    need_update,
+    popen,
+    sh,
+)
+from ..utils.cbook import SummaryStats, thousands, percentage
+from ..utils.grouper import Grouper
+from ..utils.range import (
     Range,
     range_union,
     range_chain,
     range_distance,
     range_intersect,
 )
-from jcvi.apps.base import (
-    OptionParser,
-    ActionDispatcher,
-    cleanup,
-    need_update,
-    popen,
-    sh,
-)
+
+from .base import DictFile, LineFile, get_number, is_number, must_open
+from .sizes import Sizes
 
 
 class BedLine(object):
@@ -133,7 +135,7 @@ class BedLine(object):
                 score,
                 strand,
                 ".",
-                "ID=" + self.accn,
+                f"ID={self.accn}",
             )
         )
         return row
@@ -176,7 +178,7 @@ class Bed(LineFile):
         fw = must_open(filename, "w")
         for b in self:
             if b.start < 1:
-                logging.error("Start < 1. Reset start for `{0}`.".format(b.accn))
+                logger.error("Start < 1. Reset start for `%s`.", b.accn)
                 b.start = 1
             print(b, file=fw)
         fw.close()
@@ -450,40 +452,38 @@ def bed_sum(beds, seqid=None, unique=True):
 
 def main():
     actions = (
-        ("depth", "calculate average depth per feature using coverageBed"),
-        ("mergebydepth", "returns union of features beyond certain depth"),
-        ("sort", "sort bed file"),
-        ("merge", "merge bed files"),
-        ("index", "index bed file using tabix"),
-        ("bins", "bin bed lengths into each window"),
-        ("summary", "summarize the lengths of the intervals"),
-        ("evaluate", "make truth table and calculate sensitivity and specificity"),
-        ("pile", "find the ids that intersect"),
-        ("pairs", "estimate insert size between paired reads from bedfile"),
-        ("mates", "print paired reads from bedfile"),
-        ("sizes", "infer the sizes for each seqid"),
-        ("uniq", "remove overlapping features with higher scores"),
-        ("longest", "select longest feature within overlapping piles"),
         ("bedpe", "convert to bedpe format"),
+        ("bins", "bin bed lengths into each window"),
+        ("chain", "chain bed segments together"),
+        ("closest", "find closest BED feature"),
+        ("density", "calculates density of features per seqid"),
+        ("depth", "calculate average depth per feature using coverageBed"),
         ("distance", "calculate distance between bed features"),
-        ("sample", "sample bed file and remove high-coverage regions"),
-        ("refine", "refine bed file using a second bed file"),
-        ("flanking", "get n flanking features for a given position"),
-        ("some", "get a subset of bed features given a list"),
-        ("fix", "fix non-standard bed files"),
+        ("evaluate", "make truth table and calculate sensitivity and specificity"),
         ("filter", "filter bedfile to retain records between size range"),
         ("filterbedgraph", "filter bedgraph to extract unique regions"),
-        ("random", "extract a random subset of features"),
-        ("juncs", "trim junctions.bed overhang to get intron, merge multiple beds"),
-        ("seqids", "print out all seqids on one line"),
-        ("alignextend", "alignextend based on BEDPE and FASTA ref"),
-        ("clr", "extract clear range based on BEDPE"),
-        ("chain", "chain bed segments together"),
-        ("density", "calculates density of features per seqid"),
-        ("tiling", "compute the minimum tiling path"),
+        ("fix", "fix non-standard bed files"),
+        ("flanking", "get n flanking features for a given position"),
         ("format", "reformat BED file"),
-        ("closest", "find closest BED feature"),
         ("gaps", "define gaps in BED file using complementBed"),
+        ("index", "index bed file using tabix"),
+        ("juncs", "trim junctions.bed overhang to get intron, merge multiple beds"),
+        ("longest", "select longest feature within overlapping piles"),
+        ("mates", "print paired reads from bedfile"),
+        ("merge", "merge bed files"),
+        ("mergebydepth", "returns union of features beyond certain depth"),
+        ("pairs", "estimate insert size between paired reads from bedfile"),
+        ("pile", "find the ids that intersect"),
+        ("random", "extract a random subset of features"),
+        ("refine", "refine bed file using a second bed file"),
+        ("sample", "sample bed file and remove high-coverage regions"),
+        ("seqids", "print out all seqids on one line"),
+        ("sizes", "infer the sizes for each seqid"),
+        ("some", "get a subset of bed features given a list"),
+        ("sort", "sort bed file"),
+        ("summary", "summarize the lengths of the intervals"),
+        ("tiling", "compute the minimum tiling path"),
+        ("uniq", "remove overlapping features with higher scores"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -542,7 +542,7 @@ def gaps(args):
         n_gaps += 1
     for seqid, gap_sizes in all_gaps.items():
         total_gap_size = sum(gap_sizes)
-        logging.debug(
+        logger.debug(
             "Total gaps in %s: %d, %s",
             seqid,
             len(gap_sizes),
@@ -622,7 +622,7 @@ def filterbedgraph(args):
     regions are 1, two copies .5, etc.
     """
     p = OptionParser(filterbedgraph.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -641,10 +641,11 @@ def filterbedgraph(args):
             print(b, file=fw)
             nfiltered += 1
     fw.close()
-    logging.debug(
-        "A total of {} intervals (score >= {}) written to `{}`".format(
-            percentage(nfiltered, ntotal), cutoff, filteredbed
-        )
+    logger.debug(
+        "A total of %s intervals (score >= %.2f) written to `%s`",
+        percentage(nfiltered, ntotal),
+        cutoff,
+        filteredbed,
     )
 
     mergeBed(filteredbed, sorted=True, delim=None)
@@ -726,10 +727,8 @@ def tiling(args):
 
     tilingbedfile = bedfile.rsplit(".", 1)[0] + ".tiling.bed"
     selected.print_to_file(filename=tilingbedfile, sorted=True)
-    logging.debug(
-        "A total of {} tiling features written to `{}`".format(
-            len(selected), tilingbedfile
-        )
+    logger.debug(
+        "A total of %d tiling features written to `%s`", len(selected), tilingbedfile
     )
 
 
@@ -781,7 +780,7 @@ def density(args):
     Calculates density of features per seqid.
     """
     p = OptionParser(density.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -798,52 +797,6 @@ def density(args):
         print("\t".join(str(x) for x in (seqid, nfeats, size, "{0:.1f}".format(ds))))
 
 
-def clr(args):
-    """
-    %prog clr [bamfile|bedpefile] ref.fasta
-
-    Use mates from BEDPE to extract ranges where the ref is covered by mates.
-    This is useful in detection of chimeric contigs.
-    """
-    p = OptionParser(clr.__doc__)
-    p.set_bedpe()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    bedpe, ref = args
-    if bedpe.endswith(".bam"):
-        bedpefile = bedpe.replace(".bam", ".bedpe")
-        if need_update(bedpe, bedpefile):
-            cmd = "bamToBed -bedpe -i {0}".format(bedpe)
-            sh(cmd, outfile=bedpefile)
-        bedpe = bedpefile
-
-    filtered = bedpe + ".filtered"
-    if need_update(bedpe, filtered):
-        filter_bedpe(
-            bedpe, filtered, ref, rc=opts.rc, minlen=opts.minlen, maxlen=opts.maxlen
-        )
-
-    rmdup = filtered + ".sorted.rmdup"
-    if need_update(filtered, rmdup):
-        rmdup_bedpe(filtered, rmdup, dupwiggle=opts.dup)
-
-    converted = rmdup + ".converted"
-    if need_update(rmdup, converted):
-        fp = open(rmdup)
-        fw = open(converted, "w")
-        for row in fp:
-            r = BedpeLine(row)
-            print(r.bedline, file=fw)
-        fw.close()
-
-    merged = converted + ".merge.bed"
-    if need_update(converted, merged):
-        mergeBed(converted)
-
-
 def sfa_to_fq(sfa, qvchar):
     fq = sfa.rsplit(".", 1)[0] + ".fq"
     fp = must_open(sfa)
@@ -854,16 +807,14 @@ def sfa_to_fq(sfa, qvchar):
         name, seq = row.split()
         qual = len(seq) * qvchar
         print("\n".join(("@" + name, seq, "+", qual)), file=fw)
-    logging.debug("A total of {0} sequences written to `{1}`.".format(total, fq))
+    logger.debug("A total of %d sequences written to `%s`.", total, fq)
     return fq
 
 
 def filter_bedpe(bedpe, filtered, ref, rc=False, rlen=None, minlen=2000, maxlen=8000):
     tag = " after RC" if rc else ""
-    logging.debug(
-        "Filter criteria: innie{0}, {1} <= insertsize <= {2}".format(
-            tag, minlen, maxlen
-        )
+    logger.debug(
+        "Filter criteria: innie%s, %d <= insertsize <= %d", tag, minlen, maxlen
     )
     sizes = Sizes(ref).mapping
     fp = must_open(bedpe)
@@ -883,10 +834,8 @@ def filter_bedpe(bedpe, filtered, ref, rc=False, rlen=None, minlen=2000, maxlen=
         if rlen:
             b.extend(rlen, sizes[b.seqid1])
         print(b, file=fw)
-    logging.debug(
-        "A total of {0} mates written to `{1}`.".format(
-            percentage(retained, total), filtered
-        )
+    logger.debug(
+        "A total of %d mates written to `%s`.", percentage(retained, total), filtered
     )
     fw.close()
 
@@ -896,12 +845,12 @@ def rmdup_bedpe(filtered, rmdup, dupwiggle=10):
     if need_update(filtered, sortedfiltered):
         sh("sort -k1,1 -k2,2n -i {0} -o {1}".format(filtered, sortedfiltered))
 
-    logging.debug("Rmdup criteria: wiggle <= {0}".format(dupwiggle))
+    logger.debug("Rmdup criteria: wiggle <= %d", dupwiggle)
     fp = must_open(sortedfiltered)
     fw = must_open(rmdup, "w")
     data = [BedpeLine(x) for x in fp]
     retained = total = 0
-    for seqid, ss in groupby(data, key=lambda x: x.seqid1):
+    for _, ss in groupby(data, key=lambda x: x.seqid1):
         ss = list(ss)
         for i, a in enumerate(ss):
             if a.isdup:
@@ -922,77 +871,10 @@ def rmdup_bedpe(filtered, rmdup, dupwiggle=10):
                 continue
             retained += 1
             print(a, file=fw)
-    logging.debug(
-        "A total of {0} mates written to `{1}`.".format(
-            percentage(retained, total), rmdup
-        )
+    logger.debug(
+        "A total of %s mates written to `%s`.", percentage(retained, total), rmdup
     )
     fw.close()
-
-
-def alignextend(args):
-    """
-    %prog alignextend bedpefile ref.fasta
-
-    Similar idea to alignextend, using mates from BEDPE and FASTA ref. See AMOS
-    script here:
-
-    https://github.com/nathanhaigh/amos/blob/master/src/Experimental/alignextend.pl
-    """
-    p = OptionParser(alignextend.__doc__)
-    p.add_option("--len", default=100, type="int", help="Extend to this length")
-    p.add_option(
-        "--qv", default=31, type="int", help="Dummy qv score for extended bases"
-    )
-    p.add_option(
-        "--bedonly",
-        default=False,
-        action="store_true",
-        help="Only generate bed files, no FASTA",
-    )
-    p.set_bedpe()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    bedpe, ref = args
-    qvchar = chr(opts.qv + 33)
-    pf = bedpe.split(".")[0]
-
-    filtered = bedpe + ".filtered"
-    if need_update(bedpe, filtered):
-        filter_bedpe(
-            bedpe,
-            filtered,
-            ref,
-            rc=opts.rc,
-            minlen=opts.minlen,
-            maxlen=opts.maxlen,
-            rlen=opts.rlen,
-        )
-
-    rmdup = filtered + ".filtered.sorted.rmdup"
-    if need_update(filtered, rmdup):
-        rmdup_bedpe(filtered, rmdup, dupwiggle=opts.dup)
-
-    if opts.bedonly:
-        return
-
-    bed1, bed2 = pf + ".1e.bed", pf + ".2e.bed"
-    if need_update(rmdup, (bed1, bed2)):
-        sh("cut -f1-3,7-9 {0}".format(rmdup), outfile=bed1)
-        sh("cut -f4-6,7-8,10 {0}".format(rmdup), outfile=bed2)
-
-    sfa1, sfa2 = pf + ".1e.sfa", pf + ".2e.sfa"
-    if need_update((bed1, bed2, ref), (sfa1, sfa2)):
-        for bed in (bed1, bed2):
-            fastaFromBed(bed, ref, name=True, tab=True, stranded=True)
-
-    fq1, fq2 = pf + ".1e.fq", pf + ".2e.fq"
-    if need_update((sfa1, sfa2), (fq1, fq2)):
-        for sfa in (sfa1, sfa2):
-            sfa_to_fq(sfa, qvchar)
 
 
 def seqids(args):
@@ -1102,7 +984,7 @@ def random(args):
 
     outfile = bedfile.rsplit(".", 1)[0] + ".{0}.bed".format(N)
     new_bed.print_to_file(outfile)
-    logging.debug("Write {0} features to `{1}`".format(NN, outfile))
+    logger.debug("Write %d features to `%s`", NN, outfile)
 
 
 def filter(args):
@@ -1154,8 +1036,8 @@ def filter(args):
         print(b, file=fw)
         keep.append(span)
 
-    logging.debug("Stats: {0} features kept.".format(percentage(len(keep), len(total))))
-    logging.debug("Stats: {0} bases kept.".format(percentage(sum(keep), sum(total))))
+    logger.debug("Stats: %s features kept.", percentage(len(keep), len(total)))
+    logger.debug("Stats: %s bases kept.", percentage(sum(keep), sum(total)))
 
 
 def make_bedgraph(bedfile, fastafile):
@@ -1284,15 +1166,13 @@ def longest(args):
         ids.add(max_accn)
 
     newids = remove_isoforms(ids)
-    logging.debug("Remove isoforms: before={0} after={1}".format(len(ids), len(newids)))
+    logger.debug("Remove isoforms: before=%d after=%d", len(ids), len(newids))
 
     longestidsfile = pf + ".longest.ids"
     fw = open(longestidsfile, "w")
     print("\n".join(newids), file=fw)
     fw.close()
-    logging.debug(
-        "A total of {0} records written to `{1}`.".format(len(newids), longestidsfile)
-    )
+    logger.debug("A total of %d records written to `%s`.", len(newids), longestidsfile)
 
     longestbedfile = pf + ".longest.bed"
     some(
@@ -1372,9 +1252,9 @@ def fix(args):
         ntotal += 1
 
     if nfixed:
-        logging.debug("Total fixed: {0}".format(percentage(nfixed, ntotal)))
+        logger.debug("Total fixed: %s".format(percentage(nfixed, ntotal)))
     if nfiltered:
-        logging.debug("Total filtered: {0}".format(percentage(nfiltered, ntotal)))
+        logger.debug("Total filtered: %s".format(percentage(nfiltered, ntotal)))
 
 
 def some(args):
@@ -1422,7 +1302,7 @@ def some(args):
             print(b, file=fw)
 
     fw.close()
-    logging.debug("Stats: {0} features kept.".format(percentage(nkeep, ntotal)))
+    logger.debug("Stats: %s features kept.".format(percentage(nkeep, ntotal)))
 
 
 def uniq(args):
@@ -1478,7 +1358,7 @@ def uniq(args):
         leftoverbed.extend(notselected)
         leftoverbed.print_to_file(leftoverfile, sorted=True)
 
-    logging.debug("Imported: {0}, Exported: {1}".format(len(bed), len(newbed)))
+    logger.debug("Imported: %d, Exported: %d", len(bed), len(newbed))
 
     return uniqbedfile
 
@@ -1505,6 +1385,16 @@ def subtractbins(binfile1, binfile2):
     return binfile1
 
 
+def get_nbins(clen: int, shift: int) -> Tuple[int, int]:
+    """
+    Get the number of bins for a given chromosome length and shift.
+    """
+    nbins, last_bin = divmod(clen, shift)
+    if last_bin:
+        nbins += 1
+    return nbins, last_bin
+
+
 def bins(args):
     """
     %prog bins bedfile fastafile
@@ -1512,7 +1402,6 @@ def bins(args):
     Bin bed lengths into each consecutive window. Use --subtract to remove bases
     from window, e.g. --subtract gaps.bed ignores the gap sequences.
     """
-    from jcvi.formats.sizes import Sizes
 
     p = OptionParser(bins.__doc__)
     p.add_option("--binsize", default=100000, type="int", help="Size of the bins")
@@ -1562,10 +1451,7 @@ def bins(args):
     for chr, chr_len in sorted(sizes.items()):
         chr_len = sizes[chr]
         subbeds = sbdict.get(chr, [])
-        nbins = chr_len / binsize
-        last_bin = chr_len % binsize
-        if last_bin:
-            nbins += 1
+        nbins, last_bin = get_nbins(chr_len, binsize)
 
         a = np.zeros(nbins)  # values
         b = np.zeros(nbins, dtype="int")  # bases
@@ -1575,8 +1461,8 @@ def bins(args):
 
         for bb in subbeds:
             start, end = bb.start, bb.end
-            startbin = start / binsize
-            endbin = end / binsize
+            startbin = start // binsize
+            endbin = end // binsize
 
             assert startbin <= endbin
             c[startbin : endbin + 1] += 1
@@ -1638,7 +1524,7 @@ def pile(args):
             ngroups += 1
             print("|".join(group))
 
-    logging.debug("A total of {0} piles (>= 2 members)".format(ngroups))
+    logger.debug("A total of %d piles (>= 2 members)", ngroups)
 
 
 def index(args):
@@ -1718,7 +1604,7 @@ def mergeBed(
     if nms:
         nargs = len(open(bedfile).readline().split())
         if nargs <= 3:
-            logging.debug("Only {0} columns detected... set nms=True".format(nargs))
+            logger.debug("Only %d columns detected... set nms=True", nargs)
         else:
             cmd += " -c 4 -o collapse"
     if s:
@@ -1952,7 +1838,7 @@ def distance(args):
             print(dist)
             valid += 1
 
-    logging.debug("Total valid (> 0) distances: {0}.".format(percentage(valid, total)))
+    logger.debug("Total valid (> 0) distances: %s.", percentage(valid, total))
 
 
 def sample(args):
@@ -2009,10 +1895,11 @@ def sample(args):
                 reverse.append(b)
 
         for tag, L in zip(("forward", "reverse"), (forward, reverse)):
-            logging.debug(
-                "Selected {0} features in {1} direction, span: {2}".format(
-                    len(L), tag, sum(x.span for x in L)
-                )
+            logger.debug(
+                "Selected %d features in %s direction, span: %d",
+                len(L),
+                tag,
+                sum(x.span for x in L),
             )
 
         selected = Bed()
@@ -2032,7 +1919,7 @@ def sample(args):
         for b in sub_bed:
             print(b, file=fw)
 
-        logging.debug("File written to `%s`.", samplebed)
+        logger.debug("File written to `%s`.", samplebed)
         return
 
     c = Coverage(bedfile, sizesfile)
@@ -2050,7 +1937,7 @@ def sample(args):
     samplebedfile = pf + ".sample.bed"
     cmd = "intersectBed -a {0} -b {1} -wa -u".format(bedfile, samplecoveragefile)
     sh(cmd, outfile=samplebedfile)
-    logging.debug("Sampled bedfile written to `{0}`.".format(samplebedfile))
+    logger.debug("Sampled bedfile written to `%s`.", samplebedfile)
 
 
 def bedpe(args):
@@ -2111,7 +1998,7 @@ def sizes(args):
         b = Bed(bedfile)
         for s, sbeds in b.sub_beds():
             print("{0}\t{1}".format(s, max(x.end for x in sbeds)), file=fw)
-        logging.debug("Sizes file written to `{0}`.".format(sizesfile))
+        logger.debug("Sizes file written to `%s`.", sizesfile)
 
     return sizesfile
 
@@ -2126,19 +2013,19 @@ def analyze_dists(dists, cutoff=1000, alpha=0.1):
     peak0 = [d for d in dists if d < cutoff]
     peak1 = [d for d in dists if d >= cutoff]
     c0, c1 = len(peak0), len(peak1)
-    logging.debug("Component counts: {0} {1}".format(c0, c1))
+    logger.debug("Component counts: %d %d", c0, c1)
     if c0 == 0 or c1 == 0 or float(c1) / len(dists) < alpha:
-        logging.debug(
-            "Single peak identified ({0} / {1} < {2})".format(c1, len(dists), alpha)
-        )
+        logger.debug("Single peak identified (%d / %d < %.1f)", c1, len(dists), alpha)
         return np.median(dists)
 
     peak0_median = np.median(peak0)
     peak1_median = np.median(peak1)
-    logging.debug(
-        "Dual peaks identified: {0}bp ({1}), {2}bp ({3}) (selected)".format(
-            int(peak0_median), c0, int(peak1_median), c1
-        )
+    logger.debug(
+        "Dual peaks identified: %dbp (%d), %dbp (%d) (selected)",
+        int(peak0_median),
+        c0,
+        int(peak1_median),
+        c1,
     )
 
     return peak1_median
@@ -2215,10 +2102,7 @@ def report_pairs(
         p0 = analyze_dists(dists, cutoff=mpcutoff)
         cutoff = int(2 * p0)  # initial estimate
         cutoff = int(math.ceil(cutoff / bins)) * bins
-        logging.debug(
-            "Insert size cutoff set to {0}, ".format(cutoff)
-            + "use '--cutoff' to override"
-        )
+        logger.debug("Insert size cutoff set to %d, use '--cutoff' to override", cutoff)
 
     for dist, orientation, aquery, bquery in all_dist:
         if dist > cutoff:
@@ -2354,7 +2238,7 @@ def summary(args):
         for span, accn in bs.mspans:
             print(span, file=fw)
         fw.close()
-        logging.debug("Spans written to `{0}`.".format(sizesfile))
+        logger.debug("Spans written to `%s`.", sizesfile)
         return bs
 
     if not opts.all:
@@ -2496,7 +2380,7 @@ def mates(args):
     num_fragments = num_pairs = 0
     matesbedfile = matesfile + ".bed"
     fwm = open(matesbedfile, "w")
-    for pe, lines in groupby(bed, key=key):
+    for _, lines in groupby(bed, key=key):
         lines = list(lines)
         if len(lines) != 2:
             num_fragments += len(lines)
@@ -2524,10 +2408,12 @@ def mates(args):
         print(a, file=fwm)
         print(b, file=fwm)
 
-    logging.debug(
-        "Discard {0} frags and write {1} pairs to `{2}` and `{3}`.".format(
-            num_fragments, num_pairs, matesfile, matesbedfile
-        )
+    logger.debug(
+        "Discard %d frags and write %d pairs to `%s` and `%s`.",
+        num_fragments,
+        num_pairs,
+        matesfile,
+        matesbedfile,
     )
 
     fw.close()

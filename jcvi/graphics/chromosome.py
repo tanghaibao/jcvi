@@ -19,7 +19,8 @@ from ..apps.base import OptionGroup, OptionParser, datafile, logger, sample_N
 from ..formats.base import DictFile, get_number
 from ..formats.bed import Bed
 from ..formats.sizes import Sizes
-from ..graphics.base import (
+
+from .base import (
     CirclePolygon,
     Polygon,
     Rectangle,
@@ -31,7 +32,7 @@ from ..graphics.base import (
     set1_n,
     set3_n,
 )
-from ..graphics.glyph import BaseGlyph, plot_cap
+from .glyph import BaseGlyph, plot_cap
 
 
 class Chromosome(BaseGlyph):

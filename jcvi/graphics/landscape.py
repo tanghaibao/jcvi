@@ -18,7 +18,7 @@ import numpy as np
 from ..algorithms.matrix import moving_sum
 from ..apps.base import OptionParser, ActionDispatcher, logger
 from ..formats.base import BaseFile, DictFile, LineFile, must_open
-from ..formats.bed import Bed, bins
+from ..formats.bed import Bed, bins, get_nbins
 from ..formats.sizes import Sizes
 from ..utils.cbook import human_size, autoscale
 
@@ -35,7 +35,7 @@ from .base import (
     set_human_axis,
     ticker,
 )
-
+from .chromosome import HorizontalChromosome
 
 # Colors picked from Schmutz soybean genome paper using ColorPic
 palette = ["#ACABD5", "#DBF0F5", "#3EA77A", "#FBF5AB", "#C162A6"] + list("rgbymck")
@@ -543,6 +543,9 @@ def depth(args):
 
 
 def add_window_options(p):
+    """
+    Add options for window plotting.
+    """
     p.add_option("--window", default=500000, type="int", help="Size of window")
     p.add_option("--shift", default=100000, type="int", help="Size of shift")
     p.add_option("--subtract", help="Subtract bases from window")
@@ -552,12 +555,15 @@ def add_window_options(p):
 
 
 def check_window_options(opts):
+    """
+    Check the window options, and return the values.
+    """
     window = opts.window
     shift = opts.shift
     subtract = opts.subtract
     assert window % shift == 0, "--window must be divisible by --shift"
     logger.debug(
-        "Line/stack-plot options: window=%d shift=%d subtract=%d",
+        "Line/stack-plot options: window=%d shift=%d subtract=%s",
         window,
         shift,
         subtract,
@@ -571,19 +577,12 @@ def get_beds(s, binned=False):
     return [x + ".bed" for x in s] if not binned else [x for x in s]
 
 
-def get_nbins(clen, shift):
-    nbins = clen / shift
-    if clen % shift:
-        nbins += 1
-    return nbins
-
-
 def linearray(binfile, chr, window, shift):
     mn = binfile.mapping[chr]
     m, n = zip(*mn)
 
     m = np.array(m, dtype="float")
-    w = window / shift
+    w = window // shift
     m = moving_sum(m, window=w)
     return m
 
@@ -636,8 +635,6 @@ def composite(args):
     --bars: show where the extent of features are
     --altbars: similar to bars, yet in two alternating tracks, e.g. scaffolds
     """
-    from jcvi.graphics.chromosome import HorizontalChromosome
-
     p = OptionParser(composite.__doc__)
     p.add_option("--lines", help="Features to plot in lineplot")
     p.add_option("--bars", help="Features to plot in bars")
@@ -661,7 +658,7 @@ def composite(args):
         sys.exit(not p.print_help())
 
     fastafile, chr = args
-    window, shift, subtract, merge = check_window_options(opts)
+    window, shift, _, merge = check_window_options(opts)
     linebeds, barbeds, altbarbeds = [], [], []
     fatten = opts.fatten
     if opts.lines:
@@ -678,7 +675,7 @@ def composite(args):
 
     margin = 0.12
     clen = Sizes(fastafile).mapping[chr]
-    nbins = get_nbins(clen, shift)
+    nbins, _ = get_nbins(clen, shift)
 
     plt.rcParams["xtick.major.size"] = 0
     plt.rcParams["ytick.major.size"] = 0
@@ -775,7 +772,7 @@ def multilineplot(args):
         sys.exit(not p.print_help())
 
     fastafile, chr = args
-    window, shift, subtract, merge = check_window_options(opts)
+    window, shift, _, merge = check_window_options(opts)
     linebeds = []
     colors = opts.colors
     if opts.lines:
@@ -790,7 +787,7 @@ def multilineplot(args):
     )
 
     clen = Sizes(fastafile).mapping[chr]
-    nbins = get_nbins(clen, shift)
+    nbins, _ = get_nbins(clen, shift)
 
     plt.rcParams["xtick.major.size"] = 0
     plt.rcParams["ytick.major.size"] = 0
@@ -882,11 +879,11 @@ def heatmap(args):
     root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
     ax = fig.add_axes((xx, yy, xlen, yinterval - inner))
 
-    nbins = get_nbins(clen, shift)
+    nbins, _ = get_nbins(clen, shift)
 
     owindow = clen / 100
     if owindow > window:
-        window = owindow / shift * shift
+        window = owindow // shift * shift
 
     stackplot(ax, stackbins, nbins, palette, chr, window, shift)
     ax.text(
@@ -961,7 +958,7 @@ def draw_gauge(ax, margin, maxl, rightmargin=None):
     ax.plot([margin, 1 - rightmargin], [1 - margin, 1 - margin], "k-", lw=2)
 
     best_stride = autoscale(maxl)
-    nintervals = maxl * 1.0 / best_stride
+    nintervals = maxl / best_stride
 
     xx, yy = margin, 1 - margin
     tip = 0.005
@@ -987,11 +984,14 @@ def draw_gauge(ax, margin, maxl, rightmargin=None):
 def get_binfiles(
     inputfiles, fastafile, shift, mode="span", subtract=None, binned=False, merge=True
 ):
+    """
+    Get binfiles from input files. If not binned, then bin them first.
+    """
     if not binned:
-        binopts = ["--binsize={0}".format(shift)]
-        binopts.append("--mode={0}".format(mode))
+        binopts = [f"--binsize={shift}"]
+        binopts.append(f"--mode={mode}")
         if subtract:
-            binopts.append("--subtract={0}".format(subtract))
+            binopts.append(f"--subtract={subtract}")
         if not merge:
             binopts.append("--nomerge")
         binfiles = [bins([x, fastafile] + binopts) for x in inputfiles if op.exists(x)]
@@ -1002,14 +1002,17 @@ def get_binfiles(
     return binfiles
 
 
-def stackarray(binfile, chr, window, shift):
+def stackarray(binfile: BinFile, chr: str, window: int, shift: int):
+    """
+    Get stack array from binfile for the given chr.
+    """
     mn = binfile.mapping[chr]
     m, n = zip(*mn)
 
     m = np.array(m, dtype="float")
     n = np.array(n, dtype="float")
 
-    w = window / shift
+    w = window // shift
     m = moving_sum(m, window=w)
     n = moving_sum(n, window=w)
     m /= n
@@ -1017,7 +1020,18 @@ def stackarray(binfile, chr, window, shift):
     return m
 
 
-def stackplot(ax, binfiles, nbins, palette, chr, window, shift):
+def stackplot(
+    ax,
+    binfiles: List[BinFile],
+    nbins: int,
+    palette: List[str],
+    chr: str,
+    window: int,
+    shift: int,
+):
+    """
+    Plot stackplot on the given axes, using data from binfiles.
+    """
     t = np.arange(nbins, dtype="float") + 0.5
     m = np.zeros(nbins, dtype="float")
     zorders = range(10)[::-1]
@@ -1094,9 +1108,7 @@ def stack(args):
         root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
         ax = fig.add_axes((xx, yy, xlen, yinterval - inner))
 
-        nbins = clen / shift
-        if clen % shift:
-            nbins += 1
+        nbins, _ = get_nbins(clen, shift)
 
         stackplot(ax, binfiles, nbins, palette, chr, window, shift)
         root.text(

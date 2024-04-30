@@ -7,7 +7,7 @@ import math
 import sys
 
 from collections import OrderedDict
-from itertools import groupby, islice, cycle
+from itertools import cycle, groupby, islice
 
 from Bio import SeqIO
 from ..apps.base import (
@@ -337,7 +337,13 @@ def timestamp():
     return "{0}{1:02d}{2:02d}".format(dt.now().year, dt.now().month, dt.now().day)
 
 
-def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=False):
+def must_open(
+    filename: str,
+    mode: str = "r",
+    checkexists: bool = False,
+    skipcheck: bool = False,
+    oappend: bool = False,
+):
     """
     Accepts filename and returns filehandle.
 
@@ -385,7 +391,7 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=Fa
 
     elif filename.endswith(".bz2"):
         if "r" in mode:
-            cmd = "bzcat {0}".format(filename)
+            cmd = f"bzcat {filename}"
             fp = popen(cmd, debug=False)
         elif "w" in mode:
             import bz2

@@ -260,8 +260,11 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
     return "{0:.{1}f}{2}".format(size, precision, suffix)
 
 
-def autoscale(bp, optimal=6):
+def autoscale(bp: int, optimal: int = 8):
     """
+    Autoscale the basepair length to a more human readable number.
+    The optimal is the number of ticks we want to see on the axis.
+
     >>> autoscale(150000000)
     20000000
     >>> autoscale(97352632)
@@ -272,7 +275,7 @@ def autoscale(bp, optimal=6):
     precision = len(slen) - 2  # how many zeros we need to pad?
     bp_len_scaled = int(tlen)  # scale bp_len to range (0, 100)
     tick_diffs = [(x, abs(bp_len_scaled / x - optimal)) for x in [1, 2, 5, 10]]
-    best_stride, best_tick_diff = min(tick_diffs, key=lambda x: x[1])
+    best_stride, _ = min(tick_diffs, key=lambda x: x[1])
 
     while precision > 0:
         best_stride *= 10

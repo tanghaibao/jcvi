@@ -194,7 +194,7 @@ class ScaffoldOO(object):
             return tour
 
         i = 0
-        _, best_fitness = None, None
+        best_fitness = None
         while True:  # Multiple EC rounds due to orientation fixes
             logger.debug("Start EC round %d", i)
             scaffolds_oo = dict(tour)
@@ -210,7 +210,7 @@ class ScaffoldOO(object):
                 logger.debug("No fitness improvement: %s. Exit EC.", best_fitness)
                 break
             tour = self.fix_orientation(tour)
-            best_tour, best_fitness = tour, fitness
+            best_fitness = fitness
             print_tour(
                 fwtour, self.object, tag, "GA{0}-FIXORI".format(i), tour, recode=True
             )

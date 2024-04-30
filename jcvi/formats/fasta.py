@@ -4,12 +4,13 @@ Wrapper for biopython Fasta, add option to parse sequence headers
 
 import re
 import sys
-import os
 import os.path as op
 import shutil
 import logging
 import string
 import hashlib
+
+from random import choice
 
 from itertools import groupby, zip_longest
 from more_itertools import grouper, pairwise
@@ -19,12 +20,13 @@ from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils.CheckSum import seguid
 
-from jcvi.formats.base import BaseFile, DictFile, must_open
-from jcvi.formats.bed import Bed
-from jcvi.utils.cbook import percentage
-from jcvi.utils.console import printf
-from jcvi.utils.table import write_csv
-from jcvi.apps.base import OptionParser, ActionDispatcher, cleanup, need_update
+from ..apps.base import OptionParser, ActionDispatcher, cleanup, need_update
+from ..utils.cbook import percentage
+from ..utils.console import printf
+from ..utils.table import write_csv
+
+from .base import BaseFile, DictFile, must_open
+from .bed import Bed
 
 
 class Fasta(BaseFile, dict):
@@ -166,19 +168,17 @@ class Fasta(BaseFile, dict):
         return seq
 
 
-"""
-Class derived from https://gist.github.com/933737
-Original code written by David Winter (https://github.com/dwinter)
-
-Code writted to answer this challenge at Biostar:
-http://biostar.stackexchange.com/questions/5902/
-
-(Code includes improvements from Brad Chapman)
-"""
-
-
 class ORFFinder(object):
-    """Find the longest ORF in a given sequence
+    """
+    Class derived from https://gist.github.com/933737
+    Original code written by David Winter (https://github.com/dwinter)
+
+    Code writted to answer this challenge at Biostar:
+    http://biostar.stackexchange.com/questions/5902/
+
+    (Code includes improvements from Brad Chapman)
+
+    Find the longest ORF in a given sequence
     "seq" is a string, if "start" is not provided any codon can be the start of
     and ORF. If muliple ORFs have the longest length the first one encountered
     is printed
@@ -356,51 +356,48 @@ def rc(s):
 def main():
 
     actions = (
+        ("clean", "remove irregular chars in FASTA seqs"),
+        ("diff", "check if two fasta records contain same information"),
         (
             "extract",
-            "given fasta file and seq id, retrieve the sequence " + "in fasta format",
+            "given fasta file and seq id, retrieve the sequence in fasta format",
         ),
-        ("longestorf", "find longest orf for CDS fasta"),
-        ("translate", "translate CDS to proteins"),
-        ("info", "run `sequence_info` on fasta files"),
-        ("summary", "report the real no of bases and N's in fasta files"),
-        ("uniq", "remove records that are the same"),
-        ("ids", "generate a list of headers"),
+        ("fastq", "combine fasta and qual to create fastq file"),
         (
             "format",
-            "trim accession id to the first space or switch id "
-            + "based on 2-column mapping file",
+            "trim accession id to the first space or switch id based on 2-column mapping file",
         ),
-        ("pool", "pool a bunch of fastafiles together and add prefix"),
-        ("random", "randomly take some records"),
-        ("simulate", "simulate random fasta file for testing"),
-        ("diff", "check if two fasta records contain same information"),
-        ("identical", "given 2 fasta files, find all exactly identical records"),
-        ("trim", "given a cross_match screened fasta, trim the sequence"),
-        ("trimsplit", "split sequences at lower-cased letters"),
-        ("sort", "sort the records by IDs, sizes, etc."),
         ("filter", "filter the records by size"),
+        ("fromtab", "convert 2-column sequence file to FASTA format"),
+        ("gaps", "print out a list of gap sizes within sequences"),
+        ("gc", "plot G+C content distribution"),
+        ("identical", "given 2 fasta files, find all exactly identical records"),
+        ("ids", "generate a list of headers"),
+        ("info", "run `sequence_info` on fasta files"),
+        ("ispcr", "reformat paired primers into isPcr query format"),
+        ("join", "concatenate a list of seqs and add gaps in between"),
+        ("longestorf", "find longest orf for CDS fasta"),
         ("pair", "sort paired reads to .pairs, rest to .fragments"),
         (
             "pairinplace",
-            "starting from fragment.fasta, find if "
-            + "adjacent records can form pairs",
+            "starting from fragment.fasta, find if adjacent records can form pairs",
         ),
-        ("fastq", "combine fasta and qual to create fastq file"),
-        ("tidy", "normalize gap sizes and remove small components in fasta"),
+        ("pool", "pool a bunch of fastafiles together and add prefix"),
+        ("qual", "generate dummy .qual file based on FASTA file"),
+        ("random", "randomly take some records"),
         ("sequin", "generate a gapped fasta file for sequin submission"),
-        ("gaps", "print out a list of gap sizes within sequences"),
-        ("join", "concatenate a list of seqs and add gaps in between"),
+        ("simulate", "simulate random fasta file for testing"),
         (
             "some",
-            "include or exclude a list of records (also performs on "
-            + ".qual file if available)",
+            "include or exclude a list of records (also performs on .qual file if available)",
         ),
-        ("qual", "generate dummy .qual file based on FASTA file"),
-        ("clean", "remove irregular chars in FASTA seqs"),
-        ("ispcr", "reformat paired primers into isPcr query format"),
-        ("fromtab", "convert 2-column sequence file to FASTA format"),
-        ("gc", "plot G+C content distribution"),
+        ("sort", "sort the records by IDs, sizes, etc."),
+        ("summary", "report the real no of bases and N's in fasta files"),
+        ("tidy", "normalize gap sizes and remove small components in fasta"),
+        ("translate", "translate CDS to proteins"),
+        ("trim", "given a cross_match screened fasta, trim the sequence"),
+        ("trimsplit", "split sequences at lower-cased letters"),
+        ("uniq", "remove records that are the same"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -410,8 +407,6 @@ def simulate_one(fw, name, size):
     """
     Simulate a random sequence with name and size
     """
-    from random import choice
-
     seq = Seq("".join(choice("ACGT") for _ in range(size)))
     s = SeqRecord(seq, id=name, description="Fake sequence")
     SeqIO.write([s], fw, "fasta")

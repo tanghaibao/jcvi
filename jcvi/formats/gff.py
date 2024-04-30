@@ -23,7 +23,7 @@ from ..apps.base import (
 )
 from ..annotation.reformat import atg_name
 from ..utils.cbook import AutoVivification
-from ..utils.range import range_minmax
+from ..utils.range import Range, range_minmax
 from ..utils.orderedcollections import DefaultOrderedDict, OrderedDict, parse_qs
 
 from .base import DictFile, LineFile, must_open, is_number
@@ -484,8 +484,6 @@ def to_range(obj, score=None, id=None, strand=None):
     """
     Given a gffutils object, convert it to a range object
     """
-    from jcvi.utils.range import Range
-
     if score or id:
         _score = score if score else obj.score
         _id = id if id else obj.id
@@ -503,39 +501,39 @@ def main():
         ("addparent", "merge sister features and infer their parent"),
         ("bed", "parse gff and produce bed file for particular feature type"),
         ("bed12", "produce bed12 file for coding features"),
-        ("fromgtf", "convert gtf to gff3 format"),
-        ("gtf", "convert gff3 to gtf format"),
-        ("gb", "convert gff3 to genbank format"),
-        ("sort", "sort the gff file"),
+        ("chain", "fill in parent features by chaining children"),
+        ("children", "find all children that belongs to the same parent"),
+        ("cluster", "cluster transcripts based on shared splicing structure"),
+        ("extract", "extract contig or features from gff file"),
         ("filter", "filter the gff file based on Identity and Coverage"),
-        ("sizes", "calculate sizes of features in gff file"),
-        ("format", "format the gff file, change seqid, etc."),
         (
             "fixboundaries",
             "fix boundaries of parent features by range chaining child features",
         ),
-        ("chain", "fill in parent features by chaining children"),
-        ("rename", "change the IDs within the gff3"),
-        ("uniq", "remove the redundant gene models"),
-        ("liftover", "adjust gff coordinates based on tile number"),
-        ("note", "extract certain attribute field for each feature"),
-        ("load", "extract the feature (e.g. CDS) sequences and concatenate"),
-        ("extract", "extract contig or features from gff file"),
-        ("split", "split the gff into one contig per file"),
-        ("merge", "merge several gff files into one"),
-        ("parents", "find the parents given a list of IDs"),
-        ("children", "find all children that belongs to the same parent"),
-        ("frombed", "convert from bed format to gff3"),
-        ("fromsoap", "convert from soap format to gff3"),
-        ("gapsplit", "split alignment GFF3 at gaps based on CIGAR string"),
-        ("orient", "orient the coding features based on translation"),
-        ("splicecov", "tag gff introns with coverage info from junctions.bed"),
-        ("summary", "print summary stats for features of different types"),
-        ("cluster", "cluster transcripts based on shared splicing structure"),
         (
             "fixpartials",
             "fix 5/3 prime partial transcripts, locate nearest in-frame start/stop",
         ),
+        ("format", "format the gff file, change seqid, etc."),
+        ("frombed", "convert from bed format to gff3"),
+        ("fromgtf", "convert gtf to gff3 format"),
+        ("fromsoap", "convert from soap format to gff3"),
+        ("gapsplit", "split alignment GFF3 at gaps based on CIGAR string"),
+        ("gb", "convert gff3 to genbank format"),
+        ("gtf", "convert gff3 to gtf format"),
+        ("liftover", "adjust gff coordinates based on tile number"),
+        ("load", "extract the feature (e.g. CDS) sequences and concatenate"),
+        ("merge", "merge several gff files into one"),
+        ("note", "extract certain attribute field for each feature"),
+        ("orient", "orient the coding features based on translation"),
+        ("parents", "find the parents given a list of IDs"),
+        ("rename", "change the IDs within the gff3"),
+        ("sizes", "calculate sizes of features in gff file"),
+        ("sort", "sort the gff file"),
+        ("splicecov", "tag gff introns with coverage info from junctions.bed"),
+        ("split", "split the gff into one contig per file"),
+        ("summary", "print summary stats for features of different types"),
+        ("uniq", "remove the redundant gene models"),
     )
 
     p = ActionDispatcher(actions)

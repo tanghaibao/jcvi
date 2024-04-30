@@ -88,7 +88,7 @@ def diversity(args):
         (0.25 + 0.25 * 0.1, 0.95, "B"),
     )
     panel_labels(root, labels)
-    normalize_axes([root, ax2_root])
+    normalize_axes(root, ax2_root)
 
     image_name = "diversity.pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
@@ -156,7 +156,7 @@ def landscape(args):
         (0.42, 0.95, "B"),
     )
     panel_labels(root, labels)
-    normalize_axes([root, ax1_root])
+    normalize_axes(root, ax1_root)
 
     image_name = "landscape.pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
@@ -228,7 +228,7 @@ def genomebuild(args):
         (1 / 3 * 2.1, 0.95, "C"),
     )
     panel_labels(root, labels)
-    normalize_axes([root, ax1_root, ax2_root, ax3_root])
+    normalize_axes(root, ax1_root, ax2_root, ax3_root)
 
     image_name = "genomebuild.pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

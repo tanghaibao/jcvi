@@ -38,7 +38,7 @@ from matplotlib.patches import (
     FancyBboxPatch,
 )
 
-from ..apps.base import datadir, glob, listify, logger, sample_N, which
+from ..apps.base import datadir, glob, logger, sample_N, which
 from ..formats.base import LineFile
 from ..utils.cbook import human_size
 
@@ -275,11 +275,10 @@ def prettyplot():
 blues_r, reds, blue_red, green_purple, red_purple = prettyplot()
 
 
-def normalize_axes(axes):
+def normalize_axes(*axes):
     """
     Normalize the axes to have the same scale.
     """
-    axes = listify(axes)
     for ax in axes:
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)

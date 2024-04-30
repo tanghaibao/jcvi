@@ -16,11 +16,11 @@ from typing import List, Optional
 import numpy as np
 
 from ..algorithms.matrix import moving_sum
-from ..apps.base import OptionParser, ActionDispatcher, logger
+from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..formats.base import BaseFile, DictFile, LineFile, must_open
 from ..formats.bed import Bed, bins, get_nbins
 from ..formats.sizes import Sizes
-from ..utils.cbook import human_size, autoscale
+from ..utils.cbook import autoscale, human_size
 
 from .base import (
     CirclePolygon,
@@ -951,8 +951,10 @@ def heatmap(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def draw_gauge(ax, margin, maxl, rightmargin=None):
-    # Draw a gauge on the top of the canvas
+def draw_gauge(ax, margin: float, maxl: int, rightmargin: Optional[float] = None):
+    """
+    Draw a gauge on the top of the canvas, showing the scale of the chromosome.
+    """
     rightmargin = rightmargin or margin
     ax.plot([margin, 1 - rightmargin], [1 - margin, 1 - margin], "k-", lw=2)
 
@@ -981,7 +983,13 @@ def draw_gauge(ax, margin, maxl, rightmargin=None):
 
 
 def get_binfiles(
-    inputfiles, fastafile, shift, mode="span", subtract=None, binned=False, merge=True
+    inputfiles: List[str],
+    fastafile: str,
+    shift: int,
+    mode: str = "span",
+    subtract: Optional[int] = None,
+    binned: bool = False,
+    merge: bool=True,
 ):
     """
     Get binfiles from input files. If not binned, then bin them first.

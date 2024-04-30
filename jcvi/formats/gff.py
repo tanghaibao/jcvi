@@ -2967,7 +2967,7 @@ def bed(args):
         "--type",
         dest="type",
         default="gene",
-        help="Feature type to extract, use comma for multiple",
+        help="Feature type to extract, use comma for multiple, and `all` for all",
     )
     p.add_option("--key", default="ID", help="Key in the attributes to extract")
     p.add_option("--accn", help="Use fixed accn in the 4th column")
@@ -3038,18 +3038,20 @@ def bed(args):
 
     (gffile,) = args
     key = opts.key or None
-    type = opts.type or set()
     accn = opts.accn
-    source = opts.source or set()
     span = opts.span
     primary_only = opts.primary_only
     parent_key = opts.parent_key
     human_chr = opts.human_chr
     ensembl_cds = opts.ensembl_cds
-    if opts.type:
+    if opts.type and opts.type != "all":
         type = set(x.strip() for x in opts.type.split(","))
+    else:
+        type = set()
     if opts.source:
         source = set(x.strip() for x in opts.source.split(","))
+    else:
+        source = set()
     if ensembl_cds:
         type = {"CDS"}
 

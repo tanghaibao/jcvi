@@ -16,15 +16,18 @@ from typing import List, Optional
 import numpy as np
 
 from ..algorithms.matrix import moving_sum
-from ..apps.base import OptionParser, ActionDispatcher, logger
+from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..formats.base import BaseFile, DictFile, LineFile, must_open
 from ..formats.bed import Bed, bins, get_nbins
 from ..formats.sizes import Sizes
-from ..utils.cbook import human_size, autoscale
+from ..utils.cbook import autoscale, human_size
 
 from .base import (
     CirclePolygon,
+    Colormap,
+    Extent,
     Rectangle,
+    adjust_extent,
     adjust_spines,
     human_readable_base,
     latex,
@@ -51,7 +54,7 @@ Registration = {
 }
 
 
-class BinLine(object):
+class BinLine:
     def __init__(self, row):
         args = row.split()
         self.chr = args[0]
@@ -70,7 +73,7 @@ class BinFile(LineFile):
         super(BinFile, self).__init__(filename)
         self.mapping = defaultdict(list)
 
-        fp = open(filename)
+        fp = open(filename, encoding="utf-8")
         for row in fp:
             b = BinLine(row)
             self.append(b)
@@ -125,13 +128,12 @@ class TitleInfoFile(BaseFile, OrderedDict):
 def main():
 
     actions = (
-        ("stack", "create landscape plot with genic/te composition"),
-        ("heatmap", "similar to stack but adding heatmap"),
         ("composite", "combine line plots, feature bars and alt-bars"),
-        ("multilineplot", "combine multiple line plots in one vertical stack"),
-        # Related to chromosomal depth
         ("depth", "show per chromosome depth plot across genome"),
+        ("heatmap", "similar to stack but adding heatmap"),
         ("mosdepth", "plot depth vs. coverage per chromosome"),
+        ("multilineplot", "combine multiple line plots in one vertical stack"),
+        ("stack", "create landscape plot with genic/te composition"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -152,7 +154,7 @@ def parse_distfile(filename):
     dists = defaultdict(Counter)
     with must_open(filename) as fp:
         for row in fp:
-            chromosome, start, end, depth = row.split()
+            chromosome, _, _, depth = row.split()
             depth = int(float(depth))
             dists[chromosome][depth] += 1
     logger.debug("Loaded %d seqids", len(dists))
@@ -171,7 +173,7 @@ def parse_groupsfile(filename):
         filename (str): Path to the groups file.
     """
     groups = []
-    with open(filename) as fp:
+    with open(filename, encoding="utf-8") as fp:
         for row in fp:
             chrs, colors = row.split()
             groups.append((chrs.split(","), colors.split(",")))
@@ -573,13 +575,16 @@ def check_window_options(opts):
     return window, shift, subtract, merge
 
 
-def get_beds(s, binned=False):
+def get_beds(s: List[str], binned: bool = False) -> List[str]:
+    """
+    Get the bed files for each feature, and return them as a list.
+    """
     return [x + ".bed" for x in s] if not binned else [x for x in s]
 
 
 def linearray(binfile, chr, window, shift):
     mn = binfile.mapping[chr]
-    m, n = zip(*mn)
+    m, _ = zip(*mn)
 
     m = np.array(m, dtype="float")
     w = window // shift
@@ -718,7 +723,7 @@ def composite(args):
     for bb in altbarbeds:
         root.text(xend + 0.01, yy, bb.split(".")[0], va="center")
         bb = Bed(bb)
-        for i, b in enumerate(bb):
+        for b in bb:
             start, end = xs(b.start), xs(b.end)
             span = end - start
             if span < 0.0001:
@@ -818,36 +823,24 @@ def multilineplot(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def heatmap(args):
+def draw_heatmaps(
+    fig,
+    root,
+    root_extent: Extent,
+    fastafile: str,
+    chr: str,
+    stacks: List[str],
+    heatmaps: List[str],
+    window: int,
+    shift: int,
+    cmap: Colormap,
+    subtract: Optional[int] = None,
+    merge: bool = False,
+    meres: Optional[str] = None,
+):
     """
-    %prog heatmap fastafile chr1
-
-    Combine stack plot with heatmap to show abundance of various tracks along
-    given chromosome. Need to give multiple beds to --stacks and --heatmaps
+    Draw heatmap for the given chromosome.
     """
-    p = OptionParser(heatmap.__doc__)
-    p.add_option(
-        "--stacks",
-        default="Exons,Introns,DNA_transposons,Retrotransposons",
-        help="Features to plot in stackplot",
-    )
-    p.add_option(
-        "--heatmaps",
-        default="Copia,Gypsy,hAT,Helitron,Introns,Exons",
-        help="Features to plot in heatmaps",
-    )
-    p.add_option("--meres", default=None, help="Extra centromere / telomere features")
-    add_window_options(p)
-    opts, args, iopts = p.set_image_options(args, figsize="8x5")
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    fastafile, chr = args
-    window, shift, subtract, merge = check_window_options(opts)
-
-    stacks = opts.stacks.split(",")
-    heatmaps = opts.heatmaps.split(",")
     stackbeds = get_beds(stacks)
     heatmapbeds = get_beds(heatmaps)
     stackbins = get_binfiles(
@@ -860,9 +853,6 @@ def heatmap(args):
     margin = 0.06
     inner = 0.015
     clen = Sizes(fastafile).mapping[chr]
-
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))
 
     # Gauge
     ratio = draw_gauge(root, margin, clen, rightmargin=4 * margin)
@@ -877,7 +867,9 @@ def heatmap(args):
         cc = ca[0].upper() + cb
 
     root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
-    ax = fig.add_axes((xx, yy, xlen, yinterval - inner))
+    extent = (xx, yy, xlen, yinterval - inner)
+    adjusted = adjust_extent(extent, root_extent)
+    ax = fig.add_axes(adjusted)
 
     nbins, _ = get_nbins(clen, shift)
 
@@ -887,7 +879,7 @@ def heatmap(args):
 
     stackplot(ax, stackbins, nbins, palette, chr, window, shift)
     ax.text(
-        0.1,
+        0.05,
         0.9,
         cc,
         va="top",
@@ -925,13 +917,12 @@ def heatmap(args):
             extent=(xx, xx + xlen, yy, yy + yh - inner),
             interpolation="nearest",
             aspect="auto",
-            cmap=iopts.cmap,
+            cmap=cmap,
         )
         root.text(xx + xlen + 0.01, yy, s, size=10)
 
     yy -= yh
 
-    meres = opts.meres
     if meres:
         bed = Bed(meres)
         for b in bed:
@@ -944,16 +935,68 @@ def heatmap(args):
             root.add_patch(CirclePolygon((xx, yy), radius=0.01, fc="m", ec="m"))
             root.text(xx + 0.014, yy, accn, va="center", color="m")
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
+
+
+def heatmap(args):
+    """
+    %prog heatmap fastafile chr1
+
+    Combine stack plot with heatmap to show abundance of various tracks along
+    given chromosome. Need to give multiple beds to --stacks and --heatmaps
+    """
+    p = OptionParser(heatmap.__doc__)
+    p.add_option(
+        "--stacks",
+        default="Exons,Introns,DNA_transposons,Retrotransposons",
+        help="Features to plot in stackplot",
+    )
+    p.add_option(
+        "--heatmaps",
+        default="Copia,Gypsy,hAT,Helitron,Introns,Exons",
+        help="Features to plot in heatmaps",
+    )
+    p.add_option("--meres", default=None, help="Extra centromere / telomere features")
+    add_window_options(p)
+    opts, args, iopts = p.set_image_options(args, figsize="8x5")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, chr = args
+    window, shift, subtract, merge = check_window_options(opts)
+
+    stacks = opts.stacks.split(",")
+    heatmaps = opts.heatmaps.split(",")
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root_extent = (0, 0, 1, 1)
+    root = fig.add_axes(root_extent)
+
+    draw_heatmaps(
+        fig,
+        root,
+        root_extent,
+        fastafile,
+        chr,
+        stacks,
+        heatmaps,
+        window,
+        shift,
+        iopts.cmap,
+        subtract,
+        merge,
+        meres=opts.meres,
+    )
 
     image_name = chr + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def draw_gauge(ax, margin, maxl, rightmargin=None):
-    # Draw a gauge on the top of the canvas
+def draw_gauge(ax, margin: float, maxl: int, rightmargin: Optional[float] = None):
+    """
+    Draw a gauge on the top of the canvas, showing the scale of the chromosome.
+    """
     rightmargin = rightmargin or margin
     ax.plot([margin, 1 - rightmargin], [1 - margin, 1 - margin], "k-", lw=2)
 
@@ -982,7 +1025,13 @@ def draw_gauge(ax, margin, maxl, rightmargin=None):
 
 
 def get_binfiles(
-    inputfiles, fastafile, shift, mode="span", subtract=None, binned=False, merge=True
+    inputfiles: List[str],
+    fastafile: str,
+    shift: int,
+    mode: str = "span",
+    subtract: Optional[int] = None,
+    binned: bool = False,
+    merge: bool = True,
 ):
     """
     Get binfiles from input files. If not binned, then bin them first.
@@ -1045,6 +1094,76 @@ def stackplot(
     ax.set_axis_off()
 
 
+def draw_stacks(
+    fig,
+    root,
+    root_extent: Extent,
+    stacks: List[str],
+    fastafile: str,
+    window: int,
+    shift: int,
+    top: int,
+    merge: bool = True,
+    subtract: Optional[int] = None,
+    switch: Optional[DictFile] = None,
+):
+    """
+    Draw stack plot.
+    """
+    bedfiles = get_beds(stacks)
+    binfiles = get_binfiles(bedfiles, fastafile, shift, subtract=subtract, merge=merge)
+
+    sizes = Sizes(fastafile)
+    s = list(sizes.iter_sizes())[:top]
+    maxl = max(x[1] for x in s)
+    margin = 0.08
+    inner = 0.02  # y distance between tracks
+
+    # Gauge
+    ratio = draw_gauge(root, margin, maxl)
+
+    # Per chromosome
+    yinterval = (1 - 2 * margin) / (top + 1)
+    xx = margin
+    yy = 1 - margin
+    for chr, clen in s:
+        yy -= yinterval
+        xlen = clen / ratio
+        cc = chr
+        if "_" in chr:
+            ca, cb = chr.split("_")
+            cc = ca[0].upper() + cb
+
+        if switch and cc in switch:
+            cc = "\n".join((cc, f"({switch[cc]})"))
+
+        extent = (xx, yy, xlen, yinterval - inner)
+        adjusted = adjust_extent(extent, root_extent)
+        root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
+        ax = fig.add_axes(adjusted)
+
+        nbins, _ = get_nbins(clen, shift)
+
+        stackplot(ax, binfiles, nbins, palette, chr, window, shift)
+        root.text(
+            xx - 0.04, yy + 0.5 * (yinterval - inner), cc, ha="center", va="center"
+        )
+
+    # Legends
+    yy -= yinterval
+    xx = margin
+    for b, p in zip(bedfiles, palette):
+        b = b.rsplit(".", 1)[0].replace("_", " ")
+        b = Registration.get(b, b)
+
+        root.add_patch(Rectangle((xx, yy), inner, inner, color=p, lw=0))
+        xx += 2 * inner
+        root.text(xx, yy, b, size=13)
+        xx += len(b) * 0.015 + inner
+
+    normalize_axes(root)
+
+
 def stack(args):
     """
     %prog stack fastafile
@@ -1074,67 +1193,26 @@ def stack(args):
         switch = DictFile(opts.switch)
 
     stacks = opts.stacks.split(",")
-    bedfiles = get_beds(stacks)
-    binfiles = get_binfiles(bedfiles, fastafile, shift, subtract=subtract, merge=merge)
 
-    sizes = Sizes(fastafile)
-    s = list(sizes.iter_sizes())[:top]
-    maxl = max(x[1] for x in s)
-    margin = 0.08
-    inner = 0.02  # y distance between tracks
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root_extent = (0, 0, 1, 1)
+    root = fig.add_axes(root_extent)
+
+    draw_stacks(
+        fig,
+        root,
+        root_extent,
+        stacks,
+        fastafile,
+        window,
+        shift,
+        top,
+        merge,
+        subtract,
+        switch,
+    )
 
     pf = fastafile.rsplit(".", 1)[0]
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))
-
-    # Gauge
-    ratio = draw_gauge(root, margin, maxl)
-
-    # Per chromosome
-    yinterval = (1 - 2 * margin) / (top + 1)
-    xx = margin
-    yy = 1 - margin
-    for chr, clen in s:
-        yy -= yinterval
-        xlen = clen / ratio
-        cc = chr
-        if "_" in chr:
-            ca, cb = chr.split("_")
-            cc = ca[0].upper() + cb
-
-        if switch and cc in switch:
-            cc = "\n".join((cc, "({0})".format(switch[cc])))
-
-        root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
-        ax = fig.add_axes((xx, yy, xlen, yinterval - inner))
-
-        nbins, _ = get_nbins(clen, shift)
-
-        stackplot(ax, binfiles, nbins, palette, chr, window, shift)
-        root.text(
-            xx - 0.04, yy + 0.5 * (yinterval - inner), cc, ha="center", va="center"
-        )
-
-        ax.set_xlim(0, nbins)
-        ax.set_ylim(0, 1)
-        ax.set_axis_off()
-
-    # Legends
-    yy -= yinterval
-    xx = margin
-    for b, p in zip(bedfiles, palette):
-        b = b.rsplit(".", 1)[0].replace("_", " ")
-        b = Registration.get(b, b)
-
-        root.add_patch(Rectangle((xx, yy), inner, inner, color=p, lw=0))
-        xx += 2 * inner
-        root.text(xx, yy, b, size=13)
-        xx += len(b) * 0.012 + inner
-
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
-
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 

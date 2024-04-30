@@ -7,38 +7,27 @@ Scaffold Ordering with Weighted Maps.
 import os.path as op
 import os
 import sys
-import logging
+
+from collections import Counter, defaultdict
+from functools import partial
+from itertools import combinations, product
+from typing import Optional
 
 import numpy as np
 import networkx as nx
 
 from cmmodule.utils import read_chain_file
 from cmmodule.mapbed import crossmap_bed_file
-from collections import Counter, defaultdict
-from functools import partial
-from itertools import combinations, product
 from more_itertools import pairwise
-from typing import Optional
 
-from jcvi import __version__ as version
-from jcvi.algorithms.formula import reject_outliers, spearmanr
-from jcvi.algorithms.lis import (
+from ..algorithms.ec import GA_setup, GA_run
+from ..algorithms.formula import reject_outliers, spearmanr
+from ..algorithms.lis import (
     longest_monotonic_subseq_length_loose as lms,
     longest_monotonic_subsequence_loose as lmseq,
 )
-from jcvi.algorithms.tsp import hamiltonian
-from jcvi.algorithms.matrix import determine_signs
-from jcvi.algorithms.ec import GA_setup, GA_run
-from jcvi.formats.agp import AGP, order_to_agp, build as agp_build, reindex
-from jcvi.formats.base import DictFile, FileMerger, must_open, read_block
-from jcvi.formats.bed import Bed, BedLine, natsorted, sort
-from jcvi.formats.chain import fromagp
-from jcvi.formats.sizes import Sizes
-from jcvi.graphics.landscape import draw_gauge
-from jcvi.utils.cbook import human_size, percentage
-from jcvi.utils.grouper import Grouper
-from jcvi.utils.table import tabulate
-from jcvi.apps.base import (
+from ..algorithms.matrix import determine_signs
+from ..apps.base import (
     ActionDispatcher,
     OptionGroup,
     OptionParser,
@@ -46,10 +35,21 @@ from jcvi.apps.base import (
     cleanup,
     flatten,
     get_today,
+    logger,
     mkdir,
     need_update,
     sh,
+    version,
 )
+from ..formats.agp import AGP, order_to_agp, build as agp_build, reindex
+from ..formats.base import DictFile, FileMerger, must_open, read_block
+from ..formats.bed import Bed, BedLine, natsorted, sort
+from ..formats.chain import fromagp
+from ..formats.sizes import Sizes
+from ..graphics.landscape import draw_gauge
+from ..utils.cbook import human_size, percentage
+from ..utils.grouper import Grouper
+from ..utils.table import tabulate
 
 
 START, END = "START", "END"
@@ -193,9 +193,9 @@ class ScaffoldOO(object):
             return tour
 
         i = 0
-        best_tour, best_fitness = None, None
+        best_fitness = None
         while True:  # Multiple EC rounds due to orientation fixes
-            logging.debug("Start EC round {0}".format(i))
+            logger.debug("Start EC round %d", i)
             scaffolds_oo = dict(tour)
             scfs, tour, ww = self.prepare_ec(scaffolds, tour, weights)
             callbacki = partial(callback, i=i)
@@ -206,16 +206,14 @@ class ScaffoldOO(object):
             )
             tour = callbacki(tour, "FIN")
             if best_fitness and fitness <= best_fitness:
-                logging.debug(
-                    "No fitness improvement: {0}. Exit EC.".format(best_fitness)
-                )
+                logger.debug("No fitness improvement: %s. Exit EC.", best_fitness)
                 break
             tour = self.fix_orientation(tour)
-            best_tour, best_fitness = tour, fitness
+            best_fitness = fitness
             print_tour(
                 fwtour, self.object, tag, "GA{0}-FIXORI".format(i), tour, recode=True
             )
-            logging.debug("Current best fitness: {0}".format(best_fitness))
+            logger.debug("Current best fitness: %s", best_fitness)
             i += 1
 
         tour = self.fix_tour(tour)
@@ -285,7 +283,7 @@ class ScaffoldOO(object):
                 continue
             G.add_edge(b, a, weight=d)
 
-        logging.debug("Graph size: |V|=%d, |E|=%d", len(G), G.size())
+        logger.debug("Graph size: |V|=%d, |E|=%d", len(G), G.size())
 
         L = dict(nx.all_pairs_dijkstra_path_length(G))
         for a, b in combinations(scaffolds, 2):
@@ -421,7 +419,7 @@ class ScaffoldOO(object):
                 if score_with > score_without:
                     keep.add(s)
         dropped = len(tour) - len(keep)
-        logging.debug("Dropped {0} minor scaffolds".format(dropped))
+        logger.debug("Dropped %d minor scaffolds", dropped)
         return [(s, o) for (s, o) in tour if s in keep]
 
     def fix_orientation(self, tour):
@@ -458,7 +456,7 @@ class ScaffoldOO(object):
                 fixed += 1
 
         tour = [(x, orientations[x]) for x in scaffolds]
-        logging.debug("Fixed orientations for {0} scaffolds.".format(fixed))
+        logger.debug("Fixed orientations for %d scaffolds.", fixed)
         return tour
 
 
@@ -489,7 +487,7 @@ class Marker(object):
         try:
             self.mapname, self.lg = b.accn.split("-", 1)
         except ValueError:
-            logging.error("Malformed marker name: {}".format(b.accn))
+            logger.error("Malformed marker name: %s", b.accn)
             sys.exit(1)
         self.cm = float(cm)
         self.accn = b.accn
@@ -535,10 +533,10 @@ class Map(list):
         self.seqids = sorted(set(x.seqid for x in self))
         self.mapnames = sorted(set(x.mapname for x in self))
         self.mlgs = sorted(set(x.mlg for x in self))
-        logging.debug(
-            "Map contains {0} markers in {1} linkage groups.".format(
-                self.nmarkers, len(self.mlgs)
-            )
+        logger.debug(
+            "Map contains %d markers in %d linkage groups.",
+            self.nmarkers,
+            len(self.mlgs),
         )
 
     def extract(self, seqid):
@@ -582,9 +580,7 @@ class Map(list):
                 s[pair] = cm
                 original += len(markers)
                 clean += len(cm)
-            logging.debug(
-                "Retained {0} clean markers.".format(percentage(clean, original))
-            )
+            logger.debug("Retained %s clean markers.", percentage(clean, original))
         return s
 
     def remove_outliers(self, markers, function):
@@ -648,7 +644,7 @@ class Weights(DictFile):
         self.pivot = pivot
         self.ref = ref
 
-        logging.debug("Map weights: {0}".format(self.items()))
+        logger.debug("Map weights: %s", self.items())
 
     def update_maps(self, mapnames, default=1):
         keys = list(self.keys())
@@ -659,15 +655,13 @@ class Weights(DictFile):
             if m in self:
                 continue
             self[m] = default
-            logging.debug("Weight for `{0}` set to {1}.".format(m, default))
+            logger.debug("Weight for `%s` set to %d.", m, default)
 
     def get_pivot(self, mapnames):
         # Break ties by occurence in file
         common_mapnames = set(self.maps) & set(mapnames)
         if not common_mapnames:
-            logging.error(
-                "No common names found between %s and %s", self.maps, mapnames
-            )
+            logger.error("No common names found between %s and %s", self.maps, mapnames)
             sys.exit(1)
         return max(
             (w, -self.maps.index(m), m) for m, w in self.items() if m in common_mapnames
@@ -719,7 +713,7 @@ class Layout(object):
 class GapEstimator(object):
     def __init__(self, mapc, agp, seqid, mlg, function=lambda x: x.cm):
         mm = mapc.extract_mlg(mlg)
-        logging.debug("Extracted {0} markers for {1}-{2}".format(len(mm), seqid, mlg))
+        logger.debug("Extracted %d markers for %s-%s", len(mm), seqid, mlg)
         self.mlgsize = max(function(x) for x in mm)
 
         self.agp = [x for x in agp if x.object == seqid]
@@ -881,10 +875,10 @@ def plotratio(args):
 
     Illustrate physical vs map distance ratio, that were used in the gap estimation algorithm.
     """
-    from jcvi.graphics.base import plt, savefig, normalize_axes, panel_labels, set2
+    from ..graphics.base import plt, savefig, normalize_axes, panel_labels, set2
 
     p = OptionParser(estimategaps.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="6x6", dpi=300)
+    _, args, iopts = p.set_image_options(args, figsize="6x6", dpi=300)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -1054,9 +1048,7 @@ def split(args):
                 start = end = (start + end) / 2
             print("\t".join(str(x) for x in (mi.seqid, start - 1, end)))
             nbreaks += 1
-    logging.debug(
-        "A total of {} breakpoints inferred (--chunk={})".format(nbreaks, nchunk)
-    )
+    logger.debug("A total of %d breakpoints inferred (--chunk=%d)", nbreaks, nchunk)
 
 
 def movie(args):
@@ -1112,7 +1104,7 @@ def movie(args):
             fwagp = must_open(agpfile, "w")
             order_to_agp(seqid, tour, sizes, fwagp, gapsize=gapsize, evidence="map")
             fwagp.close()
-            logging.debug("%s written to `%s`.", header, agpfile)
+            logger.debug("%s written to `%s`.", header, agpfile)
             build([inputbed, scaffoldsfasta, "--cleanup"])
             pdf_name = plot([inputbed, seqid, "--title={0}".format(label)])
             sh("mv {0} {1}".format(pdf_name, image_name))
@@ -1262,7 +1254,7 @@ def merge(args):
         try:
             m = CSVMapLine(row, mapname=mapname)
             if m.cm < 0:
-                logging.error("Ignore marker with negative genetic distance")
+                logger.error("Ignore marker with negative genetic distance")
                 print(row.strip(), file=sys.stderr)
             else:
                 b.append(BedLine(m.bedline))
@@ -1270,7 +1262,7 @@ def merge(args):
             continue
 
     b.print_to_file(filename=outfile, sorted=True)
-    logging.debug("A total of %d markers written to `%s`.", len(b), outfile)
+    logger.debug("A total of %d markers written to `%s`.", len(b), outfile)
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     write_weightsfile(mapnames, weightsfile=opts.weightsfile)
@@ -1309,7 +1301,7 @@ def mergebed(args):
             continue
 
     b.print_to_file(filename=outfile, sorted=True)
-    logging.debug("A total of %d markers written to `%s`.", len(b), outfile)
+    logger.debug("A total of %d markers written to `%s`.", len(b), outfile)
 
     assert len(maps) == len(mapnames), "You have a collision in map names"
     write_weightsfile(mapnames, weightsfile=opts.weightsfile)
@@ -1317,16 +1309,14 @@ def mergebed(args):
 
 def write_weightsfile(mapnames, weightsfile="weights.txt"):
     if op.exists(weightsfile):
-        logging.debug(
-            "Weights file `{0}` found. Will not overwrite.".format(weightsfile)
-        )
+        logger.debug("Weights file `%s` found. Will not overwrite.", weightsfile)
         return
 
     fw = open(weightsfile, "w")
     for mapname in sorted(mapnames):
         weight = 1
         print(mapname, weight, file=fw)
-    logging.debug("Weights file written to `%s`.", weightsfile)
+    logger.debug("Weights file written to `%s`.", weightsfile)
 
 
 def best_no_ambiguous(d, label):
@@ -1463,10 +1453,8 @@ def path(args):
     cpus = opts.cpus
     seed = opts.seed
     if sys.version_info[:2] < (2, 7):
-        logging.debug(
-            "Python version: {0}. CPUs set to 1.".format(
-                sys.version.splitlines()[0].strip()
-            )
+        logger.debug(
+            "Python version: %s. CPUs set to 1.", sys.version.splitlines()[0].strip()
         )
         cpus = 1
 
@@ -1484,7 +1472,7 @@ def path(args):
     ref = weights.ref
     linkage = opts.linkage
     oseqid = opts.seqid
-    logging.debug("Linkage function: {0}-linkage".format(linkage))
+    logger.debug("Linkage function: %s-linkage", linkage)
     linkage = {
         "single": min,
         "double": double_linkage,
@@ -1500,12 +1488,12 @@ def path(args):
         C.join(mlg)
 
     if partitionsfile:
-        logging.debug("Partition LGs based on `{}`".format(partitionsfile))
+        logger.debug("Partition LGs based on `%s`", partitionsfile)
         fp = open(partitionsfile)
         for row in fp:
             C.join(*row.strip().split(","))
     else:
-        logging.debug("Partition LGs based on {0}".format(ref))
+        logger.debug("Partition LGs based on %s", ref)
         for mapname in mapnames:
             if mapname == ref:
                 continue
@@ -1561,9 +1549,9 @@ def path(args):
         tag = "|".join(lgs)
         lgs_maps = set(x.split("-")[0] for x in lgs)
         if pivot not in lgs_maps:
-            logging.debug("Skipping {0} ...".format(tag))
+            logger.debug("Skipping %s ...", tag)
             continue
-        logging.debug("Working on {0} ...".format(tag))
+        logger.debug("Working on %s ...", tag)
         s = ScaffoldOO(
             lgs,
             scaffolds,
@@ -1593,7 +1581,7 @@ def path(args):
             )
         for i, (c, size) in enumerate(sorted(chrsizes.items(), key=lambda x: -x[1])):
             newc = "chr{0}".format(i + 1)
-            logging.debug("{0}: {1} => {2}".format(c, size, newc))
+            logger.debug("%s: %d => %d", c, size, newc)
             conversion[c] = newc
         for s in solutions:
             s.object = conversion[s.object]
@@ -1609,8 +1597,8 @@ def path(args):
         order_to_agp(s.object, s.tour, sizes, fwagp, gapsize=gapsize, evidence="map")
     fwagp.close()
 
-    logging.debug("AGP file written to `%s`.", agpfile)
-    logging.debug("Tour file written to `%s`.", tourfile)
+    logger.debug("AGP file written to `%s`.", agpfile)
+    logger.debug("Tour file written to `%s`.", tourfile)
 
     build([inputbed, fastafile])
 
@@ -1638,7 +1626,7 @@ def write_unplaced_agp(agpfile, scaffolds, unplaced_agp):
         if s in scaffolds_seen:
             continue
         order_to_agp(s, [(s, "?")], sizes, fwagp)
-    logging.debug("Write unplaced AGP to `%s`", unplaced_agp)
+    logger.debug("Write unplaced AGP to `%s`", unplaced_agp)
 
 
 def summary(args):
@@ -1764,7 +1752,7 @@ def build(args):
 
     liftedbed = mapbed.rsplit(".", 1)[0] + ".lifted.bed"
     if need_update((mapbed, chainfile), liftedbed):
-        logging.debug(
+        logger.debug(
             "Lifting markers from positions in `%s` to new positions in `%s`",
             mapbed,
             liftedbed,
@@ -1813,7 +1801,7 @@ def plot(args):
     1. Parallel axes, and matching markers are shown in connecting lines;
     2. Scatter plot.
     """
-    from jcvi.graphics.base import (
+    from ..graphics.base import (
         plt,
         savefig,
         normalize_axes,
@@ -1821,7 +1809,7 @@ def plot(args):
         panel_labels,
         shorten,
     )
-    from jcvi.graphics.chromosome import Chromosome, GeneticMap, HorizontalChromosome
+    from ..graphics.chromosome import Chromosome, GeneticMap, HorizontalChromosome
 
     p = OptionParser(plot.__doc__)
     p.add_option("--title", help="Title of the plot")
@@ -1848,8 +1836,8 @@ def plot(args):
     s = Scaffold(seqid, cc)
     mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
     while not mlgs:
-        links /= 2
-        logging.error("No markers to plot, --links reset to {0}".format(links))
+        links //= 2
+        logger.error("No markers to plot, --links reset to %d", links)
         mlgs = [k for k, v in s.mlg_counts.items() if v >= links]
 
     mlgsizes = {}
@@ -1998,7 +1986,7 @@ def plot(args):
         labels = ((0.04, 0.96, "A"), (0.48, 0.96, "B"))
         panel_labels(root, labels)
 
-    normalize_axes((ax1, ax2, root))
+    normalize_axes(ax1, ax2, root)
     image_name = seqid + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
     plt.close(fig)

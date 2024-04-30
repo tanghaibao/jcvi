@@ -3,18 +3,16 @@ Basic support for running library as script
 """
 
 import errno
+import fnmatch
+import logging
 import os
-import time
 import os.path as op
 import shutil
 import signal
 import sys
-import logging
-import fnmatch
+import time
 
 from collections.abc import Iterable
-from http.client import HTTPSConnection
-from urllib.parse import urlencode
 from configparser import (
     ConfigParser,
     RawConfigParser,
@@ -22,23 +20,25 @@ from configparser import (
     NoSectionError,
     ParsingError,
 )
-from socket import gethostname
-from subprocess import PIPE, call, check_output
-from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
-from typing import Any, Collection, List, Optional, Tuple, Union
 
+from http.client import HTTPSConnection
+from optparse import OptionGroup, OptionParser as OptionP, SUPPRESS_HELP
+from socket import gethostname
+from subprocess import CalledProcessError, PIPE, call, check_output
+from time import ctime
+from typing import Any, Collection, List, Optional, Tuple, Union
+from urllib.parse import urlencode
 from natsort import natsorted
 from rich.console import Console
 from rich.logging import RichHandler
 
-from jcvi import __copyright__, __version__
+from .. import __copyright__, __version__ as version
 
-# http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
-nobreakbuffer = lambda: signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-nobreakbuffer()
+
 os.environ["LC_ALL"] = "C"
-JCVIHELP = "JCVI utility libraries {} [{}]\n".format(__version__, __copyright__)
-
+# http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
+signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+JCVIHELP = f"JCVI utility libraries {version} [{__copyright__}]\n"
 TextCollection = Union[str, List[str], Tuple[str, ...]]
 
 
@@ -58,7 +58,9 @@ debug()
 
 
 def get_logger(name: str, level: int = logging.DEBUG):
-    """Return a logger with a default ColoredFormatter."""
+    """
+    Return a logger with a default ColoredFormatter.
+    """
     logger = logging.getLogger(name)
     if logger.hasHandlers():
         logger.handlers.clear()
@@ -628,7 +630,9 @@ class OptionParser(OptionP):
         return opts, args, iopts
 
     def set_dotplot_opts(self, theme: int = 2) -> OptionGroup:
-        """Used in compara.catalog and graphics.dotplot"""
+        """
+        Used in compara.catalog and graphics.dotplot
+        """
         from jcvi.graphics.base import set1
 
         group = OptionGroup(self, "Dot plot parameters")
@@ -1002,34 +1006,7 @@ class OptionParser(OptionP):
         )
 
     def set_home(self, prog, default=None):
-        tag = "--{0}_home".format(prog)
-        default = default or {
-            "amos": "~/code/amos-code",
-            "trinity": "~/export/trinityrnaseq-2.0.6",
-            "hpcgridrunner": "~/export/hpcgridrunner-1.0.2",
-            "cdhit": "~/export/cd-hit-v4.6.1-2012-08-27",
-            "maker": "~/export/maker",
-            "augustus": "~/export/maker/exe/augustus",
-            "pasa": "~/export/PASApipeline-2.0.2",
-            "gatk": "~/export",
-            "gmes": "~/export/gmes",
-            "gt": "~/export/genometools",
-            "sspace": "~/export/SSPACE-STANDARD-3.0_linux-x86_64",
-            "gapfiller": "~/export/GapFiller_v1-11_linux-x86_64",
-            "pbjelly": "~/export/PBSuite_15.2.20",
-            "picard": "~/export/picard-tools-1.138",
-            "khmer": "~/export/khmer",
-            "tassel": "/usr/local/projects/MTG4/packages/tassel",
-            "tgi": "~/export/seqclean-x86_64",
-            "eddyyeh": "/home/shared/scripts/eddyyeh",
-            "fiona": "~/export/fiona-0.2.0-Linux-x86_64",
-            "fermi": "~/export/fermi",
-            "lobstr": "/mnt/software/lobSTR",
-            "shapeit": "/mnt/software/shapeit",
-            "impute": "/mnt/software/impute",
-            "beagle": "java -jar /mnt/software/beagle.14Jan16.841.jar",
-            "minimac": "/mnt/software/Minimac3/bin",
-        }.get(prog, None)
+        tag = f"--{prog}_home"
         if default is None:  # Last attempt at guessing the path
             try:
                 default = op.dirname(which(prog))
@@ -1037,7 +1014,7 @@ class OptionParser(OptionP):
                 default = None
         else:
             default = op.expanduser(default)
-        help = "Home directory for {0}".format(prog.upper())
+        help = f"Home directory for {prog.upper()}"
         self.add_option(tag, default=default, help=help)
 
     def set_aligner(self, aligner="bowtie"):
@@ -1053,7 +1030,7 @@ class OptionParser(OptionP):
 def ConfigSectionMap(Config, section):
     """
     Read a specific section from a ConfigParser() object and return
-    a dict() of all key-value pairs in that section
+    a dict of all key-value pairs in that section
     """
     cfg = {}
     options = Config.options(section)
@@ -1061,9 +1038,9 @@ def ConfigSectionMap(Config, section):
         try:
             cfg[option] = Config.get(section, option)
             if cfg[option] == -1:
-                logger.debug("skip: %s", option)
+                logger.debug("Skip: %s", option)
         except:
-            logger.debug("exception on %s!", option)
+            logger.error("Exception on %s", option)
             cfg[option] = None
     return cfg
 
@@ -1085,7 +1062,13 @@ def get_abs_path(link_name):
 
 
 datadir = get_abs_path(op.join(op.dirname(__file__), "../utils/data"))
-datafile = lambda x: op.join(datadir, x)
+
+
+def datafile(x: str, datadir: str = datadir):
+    """
+    Return the full path to the data file in the data directory.
+    """
+    return op.join(datadir, x)
 
 
 def splitall(path):
@@ -1466,9 +1449,8 @@ def download(
         str: Local file name.
     """
     from urllib.parse import urlsplit
-    from subprocess import CalledProcessError
 
-    scheme, netloc, path, query, fragment = urlsplit(url)
+    _, _, path, _, _ = urlsplit(url)
     basepath = op.basename(path)
     if basepath:
         url_gzipped = basepath.endswith(".gz")
@@ -1546,14 +1528,14 @@ def getfilesize(filename, ratio=None):
 
 def main():
     actions = (
-        ("less", "enhance the unix `less` command"),
-        ("timestamp", "record timestamps for all files in the current folder"),
         ("expand", "move files in subfolders into the current folder"),
-        ("touch", "recover timestamps for files in the current folder"),
+        ("less", "enhance the unix `less` command"),
         ("mdownload", "multiple download a list of files"),
-        ("waitpid", "wait for a PID to finish and then perform desired action"),
-        ("notify", "send an email/push notification"),
         ("mergecsv", "merge a set of tsv files"),
+        ("notify", "send an email/push notification"),
+        ("timestamp", "record timestamps for all files in the current folder"),
+        ("touch", "recover timestamps for files in the current folder"),
+        ("waitpid", "wait for a PID to finish and then perform desired action"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -1569,7 +1551,7 @@ def mdownload(args):
     from jcvi.apps.grid import Jobs
 
     p = OptionParser(mdownload.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -1630,13 +1612,13 @@ def timestamp(args):
     This file can be used later to recover previous timestamps through touch().
     """
     p = OptionParser(timestamp.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (path,) = args
-    for root, dirs, files in os.walk(path):
+    for root, _, files in os.walk(path):
         for f in files:
             filename = op.join(root, f)
             atime, mtime = get_times(filename)
@@ -1650,10 +1632,8 @@ def touch(args):
     Recover timestamps for files in the current folder.
     CAUTION: you must execute this in the same directory as timestamp().
     """
-    from time import ctime
-
     p = OptionParser(touch.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -1707,7 +1687,7 @@ def less(args):
     from jcvi.formats.base import must_open
 
     p = OptionParser(less.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -2019,7 +1999,6 @@ def pid_exists(pid):
     """Check whether pid exists in the current process table."""
     if pid < 0:
         return False
-    import errno
 
     try:
         os.kill(pid, 0)
@@ -2136,13 +2115,6 @@ def waitpid(args):
 
     if len(args) == 0:
         sys.exit(not p.print_help())
-
-    if not opts.message:
-        """
-        If notification message not specified by user, just get
-        the name of the running command and use it as the message
-        """
-        from subprocess import check_output
 
     sep = ":::"
     cmd = None
@@ -2269,7 +2241,8 @@ def inspect(object):
 
 
 def sample_N(a: Collection[Any], N: int, seed: Optional[int] = None) -> List[Any]:
-    """When size of N is > size of a, random.sample() will emit an error:
+    """
+    When size of N is > size of a, random.sample() will emit an error:
     ValueError: sample larger than population
 
     This method handles such restrictions by repeatedly sampling when that

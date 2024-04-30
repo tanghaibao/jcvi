@@ -4,17 +4,18 @@
 """
 Plotting scripts for the vanilla genome paper.
 """
-import logging
 import sys
 
-from jcvi.apps.base import ActionDispatcher, OptionParser
-from jcvi.compara.synteny import check_beds
-from jcvi.formats.base import get_number
-from jcvi.formats.bed import Bed
-from jcvi.graphics.base import normalize_axes, panel_labels, plt, savefig
-from jcvi.graphics.glyph import TextCircle
-from jcvi.graphics.synteny import Synteny, draw_gene_legend
+from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..compara.base import AnchorFile
+from ..compara.synteny import check_beds
+from ..formats.base import get_number
+from ..formats.bed import Bed
+from ..graphics.base import normalize_axes, panel_labels, plt, savefig
+from ..graphics.chromosome import draw_chromosomes
+from ..graphics.glyph import TextCircle
+from ..graphics.synteny import Synteny, draw_gene_legend
+from ..graphics.tree import parse_tree, LeafInfoFile, WGDInfoFile, draw_tree
 
 
 def main():
@@ -42,20 +43,20 @@ def phylogeny(args):
 
     Create a composite figure with (A) tree and (B) ks.
     """
-    from jcvi.graphics.tree import parse_tree, LeafInfoFile, WGDInfoFile, draw_tree
+    from ..compara.ks import Layout, KsPlot, KsFile
 
     p = OptionParser(phylogeny.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="10x12")
+    _, args, iopts = p.set_image_options(args, figsize="10x12")
 
     (datafile, layoutfile) = args
 
-    logging.debug("Load tree file `{0}`".format(datafile))
+    logger.debug("Load tree file `%s`", datafile)
     t, hpd = parse_tree(datafile)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
-    ax1 = fig.add_axes([0, 0.4, 1, 0.6])
-    ax2 = fig.add_axes([0.12, 0.065, 0.8, 0.3])
+    root = fig.add_axes((0, 0, 1, 1))
+    ax1 = fig.add_axes((0, 0.4, 1, 0.6))
+    ax2 = fig.add_axes((0.12, 0.065, 0.8, 0.3))
 
     margin, rmargin = 0.1, 0.2  # Left and right margin
     leafinfo = LeafInfoFile("leafinfo.csv").cache
@@ -77,9 +78,6 @@ def phylogeny(args):
         wgdinfo=wgdinfo,
         geoscale=True,
     )
-
-    from jcvi.apps.ks import Layout, KsPlot, KsFile
-
     # Panel B
     ks_min = 0.0
     ks_max = 3.0
@@ -106,7 +104,7 @@ def phylogeny(args):
 
     kp.draw(filename=None)
 
-    normalize_axes([root, ax1])
+    normalize_axes(root, ax1)
     labels = ((0.05, 0.95, "A"), (0.05, 0.4, "B"))
     panel_labels(root, labels)
 
@@ -120,17 +118,15 @@ def tree(args):
 
     Create a tree figure.
     """
-    from jcvi.graphics.tree import parse_tree, LeafInfoFile, WGDInfoFile, draw_tree
-
     p = OptionParser(tree.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="10x8")
+    _, args, iopts = p.set_image_options(args, figsize="10x8")
 
     (datafile,) = args
-    logging.debug("Load tree file `{0}`".format(datafile))
+    logger.debug("Load tree file `%s`", datafile)
     t, hpd = parse_tree(datafile)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    ax1 = fig.add_axes([0, 0, 1, 1])
+    ax1 = fig.add_axes((0, 0, 1, 1))
 
     margin, rmargin = 0.1, 0.2  # Left and right margin
     leafinfo = LeafInfoFile("leafinfo.csv").cache
@@ -153,7 +149,7 @@ def tree(args):
         geoscale=True,
     )
 
-    normalize_axes([ax1])
+    normalize_axes(ax1)
     image_name = "tree.pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
@@ -164,15 +160,15 @@ def ks(args):
 
     Create a ks figure.
     """
+    from ..compara.ks import Layout, KsPlot, KsFile
+
     p = OptionParser(ks.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="10x4")
+    _, args, iopts = p.set_image_options(args, figsize="10x4")
 
     (layoutfile,) = args
 
-    from jcvi.apps.ks import Layout, KsPlot, KsFile
-
     fig = plt.figure(1, (iopts.w, iopts.h))
-    ax2 = fig.add_axes([0.12, 0.12, 0.8, 0.8])
+    ax2 = fig.add_axes((0.12, 0.12, 0.8, 0.8))
 
     # Panel B
     ks_min = 0.0
@@ -211,10 +207,8 @@ def synteny(args):
 
     Create a composite figure with (A) wgd and (B) microsynteny.
     """
-    from jcvi.graphics.chromosome import draw_chromosomes
-
     p = OptionParser(synteny.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="12x12")
+    _, args, iopts = p.set_image_options(args, figsize="12x12")
 
     (bedfile, sizesfile, blocksfile, allbedfile, blockslayout) = args
 
@@ -241,7 +235,7 @@ def synteny(args):
     # Panel B
     draw_ploidy(fig, ax2, blocksfile, allbedfile, blockslayout)
 
-    normalize_axes([root, ax1, ax2])
+    normalize_axes(root, ax1, ax2)
     labels = ((0.05, 0.95, "A"), (0.05, 0.5, "B"))
     panel_labels(root, labels)
 
@@ -255,15 +249,13 @@ def wgd(args):
 
     Create a wgd figure.
     """
-    from jcvi.graphics.chromosome import draw_chromosomes
-
     p = OptionParser(synteny.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="8x5")
+    _, args, iopts = p.set_image_options(args, figsize="8x5")
 
     (bedfile, sizesfile) = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    ax1 = fig.add_axes([0, 0, 1, 1])
+    ax1 = fig.add_axes((0, 0, 1, 1))
 
     title = r"Genome duplication $\alpha^{O}$ event in $\textit{Vanilla}$"
     draw_chromosomes(
@@ -279,7 +271,7 @@ def wgd(args):
         title=title,
     )
 
-    normalize_axes([ax1])
+    normalize_axes(ax1)
 
     image_name = "wgd.pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
@@ -297,11 +289,11 @@ def microsynteny(args):
     (blocksfile, allbedfile, blockslayout) = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    ax2 = fig.add_axes([0, 0, 1, 1])
+    ax2 = fig.add_axes((0, 0, 1, 1))
 
     draw_ploidy(fig, ax2, blocksfile, allbedfile, blockslayout)
 
-    normalize_axes([ax2])
+    normalize_axes(ax2)
 
     image_name = "microsynteny.pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
@@ -362,8 +354,8 @@ def ancestral(args):
     ac = AnchorFile(anchorsfile)
     blocks = ac.blocks
     outbed = Bed()
-    for i, block in enumerate(blocks):
-        a, b, scores = zip(*block)
+    for block in blocks:
+        a, b, _ = zip(*block)
         a = [qorder[x] for x in a]
         b = [sorder[x] for x in b]
         astart, aend = min(a)[1], max(a)[1]

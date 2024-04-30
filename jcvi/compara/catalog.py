@@ -3,26 +3,27 @@
 
 import os.path as op
 import sys
-import logging
 import string
 
 from collections import defaultdict
 from itertools import product, combinations
 
-from jcvi.formats.blast import BlastLine
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.bed import Bed
-from jcvi.formats.base import must_open, BaseFile
-from jcvi.utils.grouper import Grouper
-from jcvi.utils.cbook import gene_name
-from jcvi.apps.base import (
+from ..apps.base import (
+    ActionDispatcher,
     OptionParser,
     glob,
-    ActionDispatcher,
+    logger,
+    mkdir,
     need_update,
     sh,
-    mkdir,
 )
+from ..formats.base import must_open, BaseFile
+from ..formats.bed import Bed
+from ..formats.blast import BlastLine
+from ..formats.fasta import Fasta
+from ..utils.cbook import gene_name
+from ..utils.grouper import Grouper
+
 from .base import AnchorFile
 from .synteny import check_beds
 
@@ -146,10 +147,8 @@ def enrich(args):
         members = row.strip().split(",")
         groups.join(*members)
 
-    logging.debug(
-        "Imported {0} families with {1} members.".format(
-            len(groups), groups.num_members
-        )
+    logger.debug(
+        "Imported %d families with %d members.", len(groups), groups.num_members
     )
 
     seen = set()
@@ -162,9 +161,7 @@ def enrich(args):
         omggroups.join(*genes)
 
     nmembers = omggroups.num_members
-    logging.debug(
-        "Imported {0} OMG families with {1} members.".format(len(omggroups), nmembers)
-    )
+    logger.debug("Imported %d OMG families with %d members.", len(omggroups), nmembers)
     assert nmembers == len(seen)
 
     alltaxa = set(str(x) for x in range(ntaxa))
@@ -230,7 +227,7 @@ def enrich(args):
         if not ghost:
             seen.update(best_addition)
 
-    logging.debug("Recruited {0} new genes.".format(len(recruited)))
+    logger.debug("Recruited %d new genes.", len(recruited))
 
 
 def pairwise_distance(a, b, threadorder):
@@ -259,7 +256,7 @@ def insert_into_threaded(atoms, threaded, threadorder):
     i = min_idx
     t = threaded[i]
     threaded.insert(i, atoms)
-    logging.debug("Insert {0} before {1} (d={2})".format(atoms, t, min_d))
+    logger.debug("Insert %s before %s (d=%d)", atoms, t, min_d)
 
 
 def sort_layout(thread, listfile, column=0):
@@ -288,7 +285,7 @@ def sort_layout(thread, listfile, column=0):
     assert len(threaded) == len(imported)
 
     total = sum(1 for x in open(listfile))
-    logging.debug("Total: {0}, currently threaded: {1}".format(total, len(threaded)))
+    logger.debug("Total: %d, currently threaded: %d", total, len(threaded))
     fp = open(listfile)
     for row in fp:
         atoms = row.split()
@@ -301,7 +298,7 @@ def sort_layout(thread, listfile, column=0):
         print("\t".join(atoms), file=fw)
 
     fw.close()
-    logging.debug("File `{0}` sorted to `{1}`.".format(outfile, thread.filename))
+    logger.debug("File `%s` sorted to `%s`.", outfile, thread.filename)
 
 
 def layout(args):
@@ -355,7 +352,7 @@ def layout(args):
     cmd = "sort -k{0},{0} {1} -o {1}".format(lastcolumn, listfile)
     sh(cmd)
 
-    logging.debug("List file written to `{0}`.".format(listfile))
+    logger.debug("List file written to `%s`.", listfile)
     sort = opts.sort
     if sort:
         thread = Bed(sort)
@@ -405,9 +402,7 @@ def group(args):
         for a, b, idx in ac.iter_pairs():
             groups.join(a, b)
 
-    logging.debug(
-        "Created {0} groups with {1} members.".format(len(groups), groups.num_members)
-    )
+    logger.debug("Created %d groups with %d members.", len(groups), groups.num_members)
 
     outfile = opts.outfile
     fw = must_open(outfile, "w")
@@ -498,7 +493,7 @@ def geneinfo(bed, genomeidx, ploidy):
         )
     fwinfo.close()
 
-    logging.debug("Update info file `{0}`.".format(infofile))
+    logger.debug("Update info file `%s`.", infofile)
 
     return infofile
 
@@ -546,7 +541,7 @@ def omgprepare(args):
     cscore([blastfile, "-o", cscorefile, "--cutoff=0", "--pct"])
     ac = AnchorFile(anchorfile)
     pairs = set((a, b) for a, b, i in ac.iter_pairs())
-    logging.debug("Imported {0} pairs from `{1}`.".format(len(pairs), anchorfile))
+    logger.debug("Imported %d pairs from `%s`.", len(pairs), anchorfile)
 
     weightsfile = pf + ".weights"
     fp = open(cscorefile)
@@ -569,7 +564,7 @@ def omgprepare(args):
         npairs += 1
     fw.close()
 
-    logging.debug("Write {0} pairs to `{1}`.".format(npairs, weightsfile))
+    logger.debug("Write %d pairs to `%s`.", npairs, weightsfile)
 
 
 def make_ortholog(blocksfile, rbhfile, orthofile):
@@ -592,7 +587,7 @@ def make_ortholog(blocksfile, rbhfile, orthofile):
                 b += "'"
         print("\t".join((a, b)), file=fw)
 
-    logging.debug("Recruited {0} pairs from RBH.".format(nrecruited))
+    logger.debug("Recruited %d pairs from RBH.", nrecruited)
     fp.close()
     fw.close()
 
@@ -753,8 +748,8 @@ def ortholog(args):
                 scan(dargs)
             except ValueError as e:
                 if ignore_zero_anchor:
-                    logging.debug(f"{e}")
-                    logging.debug("Ignoring this error and continuing...")
+                    logger.debug(str(e))
+                    logger.debug("Ignoring this error and continuing...")
                     return
                 else:
                     raise ValueError(e)

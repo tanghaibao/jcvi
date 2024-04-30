@@ -21,31 +21,31 @@ import sys
 from typing import Optional
 
 import numpy as np
-import matplotlib.transforms as transforms
+from matplotlib import transforms
 from matplotlib.path import Path
 
 from ..apps.base import OptionParser, logger
 from ..compara.synteny import BlockFile
 from ..formats.base import DictFile
 from ..formats.bed import Bed
-from ..graphics.base import (
+from ..utils.cbook import human_size
+from ..utils.validator import validate_in_choices, validate_in_range
+
+from .base import (
+    AbstractLayout,
+    PathPatch,
     markup,
     plt,
     savefig,
-    PathPatch,
-    AbstractLayout,
 )
-from ..graphics.glyph import (
+from .glyph import (
     BasePalette,
     Glyph,
     OrientationPalette,
     OrthoGroupPalette,
     RoundLabel,
 )
-from ..graphics.tree import draw_tree, read_trees
-
-from ..utils.cbook import human_size
-from ..utils.validator import validate_in_choices, validate_in_range
+from .tree import draw_tree, read_trees
 
 
 HorizontalAlignments = ("left", "right", "leftalign", "rightalign", "center", "")

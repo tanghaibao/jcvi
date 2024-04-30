@@ -38,10 +38,11 @@ from matplotlib.patches import (
     FancyBboxPatch,
 )
 
-from ..apps.base import datadir, glob, listify, logger, sample_N, which
+from ..apps.base import datadir, glob, logger, sample_N, which
 from ..formats.base import LineFile
 from ..utils.cbook import human_size
 
+Extent = Tuple[float, float, float, float]
 
 CHARS = {
     "&": r"\&",
@@ -157,6 +158,15 @@ class AbstractLayout(LineFile):
         return "\n".join(str(x) for x in self)
 
 
+def adjust_extent(extent: Extent, root_extent: Extent) -> Extent:
+    """
+    Adjust the extent of the root axes.
+    """
+    rx, ry, rw, rh = root_extent
+    ex, ey, ew, eh = extent
+    return rx + ex * rw, ry + ey * rh, ew * rw, eh * rh
+
+
 def linear_blend(from_color, to_color, fraction=0.5):
     """Interpolate a new color between two colors.
 
@@ -194,7 +204,10 @@ def linear_shade(from_color, fraction=0.5):
     return linear_blend(from_color, "w", fraction)
 
 
-def load_image(filename):
+def load_image(filename: str) -> np.ndarray:
+    """
+    Load an image file and return as numpy array.
+    """
     img = plt.imread(filename)
     if len(img.shape) == 2:  # Gray-scale image, convert to RGB
         # http://www.socouldanyone.com/2013/03/converting-grayscale-to-rgb-with-numpy.html
@@ -275,11 +288,10 @@ def prettyplot():
 blues_r, reds, blue_red, green_purple, red_purple = prettyplot()
 
 
-def normalize_axes(axes):
+def normalize_axes(*axes):
     """
     Normalize the axes to have the same scale.
     """
-    axes = listify(axes)
     for ax in axes:
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)

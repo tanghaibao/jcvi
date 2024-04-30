@@ -14,7 +14,7 @@ from ..assembly.geneticmap import draw_geneticmap_heatmap
 from ..assembly.hic import draw_hic_heatmap
 from ..assembly.kmer import draw_ks_histogram
 from ..compara.pedigree import Pedigree, calculate_inbreeding
-from ..graphics.base import normalize_axes, panel_labels, plt, savefig
+from ..graphics.base import load_image, normalize_axes, panel_labels, plt, savefig
 from ..graphics.chromosome import draw_chromosomes
 from ..graphics.landscape import draw_multi_depth
 
@@ -54,7 +54,7 @@ def diversity(args):
     logger.info("Pedigree graph written to `%s`", pngfile)
 
     # Show the image as is
-    ax1_root.imshow(plt.imread(pngfile))
+    ax1_root.imshow(load_image(pngfile))
     ax1_root.set_axis_off()
 
     # Panel B

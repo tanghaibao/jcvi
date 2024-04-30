@@ -194,7 +194,10 @@ def linear_shade(from_color, fraction=0.5):
     return linear_blend(from_color, "w", fraction)
 
 
-def load_image(filename):
+def load_image(filename: str) -> np.ndarray:
+    """
+    Load an image file and return as numpy array.
+    """
     img = plt.imread(filename)
     if len(img.shape) == 2:  # Gray-scale image, convert to RGB
         # http://www.socouldanyone.com/2013/03/converting-grayscale-to-rgb-with-numpy.html

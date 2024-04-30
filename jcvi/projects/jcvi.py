@@ -16,7 +16,7 @@ from ..assembly.kmer import draw_ks_histogram
 from ..compara.pedigree import Pedigree, calculate_inbreeding
 from ..graphics.base import load_image, normalize_axes, panel_labels, plt, savefig
 from ..graphics.chromosome import draw_chromosomes
-from ..graphics.landscape import draw_multi_depth
+from ..graphics.landscape import draw_multi_depth, draw_stack
 
 
 def diversity(args):
@@ -103,19 +103,21 @@ def landscape(args):
     B. Landscape of genomic features across the genome
     """
     p = OptionParser(landscape.__doc__)
-    _, args, iopts = p.set_image_options(args, figsize="10x7")
+    _, args, iopts = p.set_image_options(args, figsize="12x8")
 
     if len(args) != 4:
         sys.exit(not p.print_help())
 
-    bedfile, sizesfile, fasta, ch = args
+    bedfile, sizesfile, fastafile, ch = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
     aspect_ratio = iopts.w / iopts.h
     ax1_root = fig.add_axes((0, 1 / 4, 0.4, 0.5 * aspect_ratio))
-    ax2_root = fig.add_axes((0.4, 0.43, 0.54, 0.57))
-    ax3_root = fig.add_axes((0.43, -0.13, 0.54, 0.57))
+    ax2_root_extent = (0.4, 0.5, 0.6, 0.47)
+    ax2_root = fig.add_axes(ax2_root_extent)
+    ax3_root_extent = (0.4, 0, 0.6, 0.47)
+    ax3_root = fig.add_axes(ax3_root_extent)
 
     # Panel A
     logger.info("Plotting example genomic features painted on Arabidopsis genome")
@@ -134,6 +136,16 @@ def landscape(args):
 
     # Panel B
     logger.info("Plotting landscape of genomic features across the genome")
+    draw_stack(
+        fig,
+        ax2_root,
+        ax2_root_extent,
+        ["Repeats", "Exons"],
+        fastafile,
+        window=250000,
+        shift=50000,
+        top=5,
+    )
 
     ax2_root.set_axis_off()
     ax3_root.set_axis_off()

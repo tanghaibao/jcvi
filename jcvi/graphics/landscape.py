@@ -25,6 +25,7 @@ from ..utils.cbook import autoscale, human_size
 from .base import (
     CirclePolygon,
     Rectangle,
+    adjust_extent,
     adjust_spines,
     human_readable_base,
     latex,
@@ -1058,12 +1059,13 @@ def stackplot(
 def draw_stack(
     fig,
     root,
+    root_extent,
     stacks: List[str],
     fastafile: str,
     window: int,
     shift: int,
     top: int,
-    merge: bool,
+    merge: bool = True,
     subtract: Optional[int] = None,
     switch: Optional[DictFile] = None,
 ):
@@ -1097,8 +1099,10 @@ def draw_stack(
         if switch and cc in switch:
             cc = "\n".join((cc, f"({switch[cc]})"))
 
+        extent = (xx, yy, xlen, yinterval - inner)
+        adjusted = adjust_extent(extent, root_extent)
         root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
-        ax = fig.add_axes((xx, yy, xlen, yinterval - inner))
+        ax = fig.add_axes(adjusted)
 
         nbins, _ = get_nbins(clen, shift)
 
@@ -1106,10 +1110,6 @@ def draw_stack(
         root.text(
             xx - 0.04, yy + 0.5 * (yinterval - inner), cc, ha="center", va="center"
         )
-
-        ax.set_xlim(0, nbins)
-        ax.set_ylim(0, 1)
-        ax.set_axis_off()
 
     # Legends
     yy -= yinterval
@@ -1121,7 +1121,7 @@ def draw_stack(
         root.add_patch(Rectangle((xx, yy), inner, inner, color=p, lw=0))
         xx += 2 * inner
         root.text(xx, yy, b, size=13)
-        xx += len(b) * 0.012 + inner
+        xx += len(b) * 0.015 + inner
 
     normalize_axes(root)
 
@@ -1157,10 +1157,21 @@ def stack(args):
     stacks = opts.stacks.split(",")
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))
+    root_extent = (0, 0, 1, 1)
+    root = fig.add_axes(root_extent)
 
     draw_stack(
-        fig, root, stacks, fastafile, window, shift, top, merge, subtract, switch
+        fig,
+        root,
+        root_extent,
+        stacks,
+        fastafile,
+        window,
+        shift,
+        top,
+        merge,
+        subtract,
+        switch,
     )
 
     pf = fastafile.rsplit(".", 1)[0]

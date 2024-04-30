@@ -876,10 +876,10 @@ def plotratio(args):
 
     Illustrate physical vs map distance ratio, that were used in the gap estimation algorithm.
     """
-    from jcvi.graphics.base import plt, savefig, normalize_axes, panel_labels, set2
+    from ..graphics.base import plt, savefig, normalize_axes, panel_labels, set2
 
     p = OptionParser(estimategaps.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="6x6", dpi=300)
+    _, args, iopts = p.set_image_options(args, figsize="6x6", dpi=300)
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -1802,7 +1802,7 @@ def plot(args):
     1. Parallel axes, and matching markers are shown in connecting lines;
     2. Scatter plot.
     """
-    from jcvi.graphics.base import (
+    from ..graphics.base import (
         plt,
         savefig,
         normalize_axes,
@@ -1810,7 +1810,7 @@ def plot(args):
         panel_labels,
         shorten,
     )
-    from jcvi.graphics.chromosome import Chromosome, GeneticMap, HorizontalChromosome
+    from ..graphics.chromosome import Chromosome, GeneticMap, HorizontalChromosome
 
     p = OptionParser(plot.__doc__)
     p.add_option("--title", help="Title of the plot")
@@ -1987,7 +1987,7 @@ def plot(args):
         labels = ((0.04, 0.96, "A"), (0.48, 0.96, "B"))
         panel_labels(root, labels)
 
-    normalize_axes((ax1, ax2, root))
+    normalize_axes(ax1, ax2, root)
     image_name = seqid + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
     plt.close(fig)

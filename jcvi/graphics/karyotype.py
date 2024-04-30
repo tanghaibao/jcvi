@@ -21,17 +21,17 @@ e, 0, 1, athaliana.grape.4x1.simple
 
 
 import sys
-import logging
 
 from typing import Optional
 
-from jcvi.apps.base import OptionParser
-from jcvi.compara.synteny import SimpleFile
-from jcvi.formats.bed import Bed
-from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
-from jcvi.graphics.glyph import TextCircle
-from jcvi.graphics.synteny import Shade, ymid_offset
-from jcvi.graphics.base import AbstractLayout, markup, mpl, plt, savefig, update_figname
+from ..apps.base import OptionParser, logger
+from ..compara.synteny import SimpleFile
+from ..formats.bed import Bed
+
+from .base import AbstractLayout, markup, mpl, plt, savefig, update_figname
+from .chromosome import Chromosome, HorizontalChromosome
+from .glyph import TextCircle
+from .synteny import Shade, ymid_offset
 
 
 class LayoutLine(object):
@@ -377,7 +377,7 @@ class Karyotype(object):
             # validate if all seqids are non-empty
             for k, v in sz.items():
                 if v == 0:
-                    logging.error("Size of `%s` is empty. Please check", k)
+                    logger.error("Size of `%s` is empty. Please check", k)
             t.sizes = sz
 
         tracks = []

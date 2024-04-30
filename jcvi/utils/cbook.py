@@ -260,8 +260,11 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
     return "{0:.{1}f}{2}".format(size, precision, suffix)
 
 
-def autoscale(bp: int, optimal: int = 6):
+def autoscale(bp: int, optimal: int = 8):
     """
+    Autoscale the basepair length to a more human readable number.
+    The optimal is the number of ticks we want to see on the axis.
+
     >>> autoscale(150000000)
     20000000
     >>> autoscale(97352632)

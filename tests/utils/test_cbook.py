@@ -1,14 +1,26 @@
 import os.path as op
 import pytest
 
+from jcvi.apps.base import cleanup
+from jcvi.utils.cbook import autoscale, depends, gene_name, seqid_parse
+
+
+@pytest.mark.parametrize(
+    "input,output",
+    [
+        (150000000, 20000000),
+        (97352632, 10000000),
+    ],
+)
+def test_autoscale(input, output):
+    assert autoscale(input) == output
+
 
 @pytest.mark.parametrize(
     "input,output",
     [("AT5G54690.2", "AT5G54690"), ("evm.test.1", "evm.test.1")],
 )
 def test_gene_name(input, output):
-    from jcvi.utils.cbook import gene_name
-
     assert gene_name(input) == output
 
 
@@ -25,15 +37,10 @@ def test_gene_name(input, output):
     ],
 )
 def test_seqid_parse(seqid, sep, stdpf, output):
-    from jcvi.utils.cbook import seqid_parse
-
     assert seqid_parse(seqid, sep, stdpf) == output
 
 
 def test_depends():
-    from jcvi.apps.base import cleanup
-    from jcvi.utils.cbook import depends
-
     @depends
     def func1(infile="a", outfile="b"):
         assert op.exists(infile)

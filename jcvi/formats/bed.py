@@ -135,7 +135,7 @@ class BedLine(object):
                 score,
                 strand,
                 ".",
-                "ID=" + self.accn,
+                f"ID={self.accn}",
             )
         )
         return row

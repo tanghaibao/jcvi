@@ -582,7 +582,7 @@ def linearray(binfile, chr, window, shift):
     m, n = zip(*mn)
 
     m = np.array(m, dtype="float")
-    w = window / shift
+    w = window // shift
     m = moving_sum(m, window=w)
     return m
 
@@ -883,7 +883,7 @@ def heatmap(args):
 
     owindow = clen / 100
     if owindow > window:
-        window = owindow / shift * shift
+        window = owindow // shift * shift
 
     stackplot(ax, stackbins, nbins, palette, chr, window, shift)
     ax.text(
@@ -958,7 +958,7 @@ def draw_gauge(ax, margin, maxl, rightmargin=None):
     ax.plot([margin, 1 - rightmargin], [1 - margin, 1 - margin], "k-", lw=2)
 
     best_stride = autoscale(maxl)
-    nintervals = maxl * 1.0 / best_stride
+    nintervals = maxl / best_stride
 
     xx, yy = margin, 1 - margin
     tip = 0.005

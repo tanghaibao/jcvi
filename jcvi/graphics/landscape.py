@@ -25,6 +25,7 @@ from ..utils.cbook import autoscale, human_size
 from .base import (
     CirclePolygon,
     Colormap,
+    Extent,
     Rectangle,
     adjust_extent,
     adjust_spines,
@@ -822,9 +823,10 @@ def multilineplot(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def draw_heatmap(
+def draw_heatmaps(
     fig,
     root,
+    root_extent: Extent,
     fastafile: str,
     chr: str,
     stacks: List[str],
@@ -865,7 +867,9 @@ def draw_heatmap(
         cc = ca[0].upper() + cb
 
     root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
-    ax = fig.add_axes((xx, yy, xlen, yinterval - inner))
+    extent = (xx, yy, xlen, yinterval - inner)
+    adjusted = adjust_extent(extent, root_extent)
+    ax = fig.add_axes(adjusted)
 
     nbins, _ = get_nbins(clen, shift)
 
@@ -875,7 +879,7 @@ def draw_heatmap(
 
     stackplot(ax, stackbins, nbins, palette, chr, window, shift)
     ax.text(
-        0.1,
+        0.05,
         0.9,
         cc,
         va="top",
@@ -966,11 +970,13 @@ def heatmap(args):
     heatmaps = opts.heatmaps.split(",")
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))
+    root_extent = (0, 0, 1, 1)
+    root = fig.add_axes(root_extent)
 
-    draw_heatmap(
+    draw_heatmaps(
         fig,
         root,
+        root_extent,
         fastafile,
         chr,
         stacks,
@@ -1088,10 +1094,10 @@ def stackplot(
     ax.set_axis_off()
 
 
-def draw_stack(
+def draw_stacks(
     fig,
     root,
-    root_extent,
+    root_extent: Extent,
     stacks: List[str],
     fastafile: str,
     window: int,
@@ -1192,7 +1198,7 @@ def stack(args):
     root_extent = (0, 0, 1, 1)
     root = fig.add_axes(root_extent)
 
-    draw_stack(
+    draw_stacks(
         fig,
         root,
         root_extent,

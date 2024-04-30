@@ -24,6 +24,7 @@ from ..utils.cbook import autoscale, human_size
 
 from .base import (
     CirclePolygon,
+    Colormap,
     Rectangle,
     adjust_extent,
     adjust_spines,
@@ -821,36 +822,23 @@ def multilineplot(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def heatmap(args):
+def draw_heatmap(
+    fig,
+    root,
+    fastafile: str,
+    chr: str,
+    stacks: List[str],
+    heatmaps: List[str],
+    window: int,
+    shift: int,
+    cmap: Colormap,
+    subtract: Optional[int] = None,
+    merge: bool = False,
+    meres: Optional[str] = None,
+):
     """
-    %prog heatmap fastafile chr1
-
-    Combine stack plot with heatmap to show abundance of various tracks along
-    given chromosome. Need to give multiple beds to --stacks and --heatmaps
+    Draw heatmap for the given chromosome.
     """
-    p = OptionParser(heatmap.__doc__)
-    p.add_option(
-        "--stacks",
-        default="Exons,Introns,DNA_transposons,Retrotransposons",
-        help="Features to plot in stackplot",
-    )
-    p.add_option(
-        "--heatmaps",
-        default="Copia,Gypsy,hAT,Helitron,Introns,Exons",
-        help="Features to plot in heatmaps",
-    )
-    p.add_option("--meres", default=None, help="Extra centromere / telomere features")
-    add_window_options(p)
-    opts, args, iopts = p.set_image_options(args, figsize="8x5")
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    fastafile, chr = args
-    window, shift, subtract, merge = check_window_options(opts)
-
-    stacks = opts.stacks.split(",")
-    heatmaps = opts.heatmaps.split(",")
     stackbeds = get_beds(stacks)
     heatmapbeds = get_beds(heatmaps)
     stackbins = get_binfiles(
@@ -863,9 +851,6 @@ def heatmap(args):
     margin = 0.06
     inner = 0.015
     clen = Sizes(fastafile).mapping[chr]
-
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))
 
     # Gauge
     ratio = draw_gauge(root, margin, clen, rightmargin=4 * margin)
@@ -928,13 +913,12 @@ def heatmap(args):
             extent=(xx, xx + xlen, yy, yy + yh - inner),
             interpolation="nearest",
             aspect="auto",
-            cmap=iopts.cmap,
+            cmap=cmap,
         )
         root.text(xx + xlen + 0.01, yy, s, size=10)
 
     yy -= yh
 
-    meres = opts.meres
     if meres:
         bed = Bed(meres)
         for b in bed:
@@ -947,9 +931,57 @@ def heatmap(args):
             root.add_patch(CirclePolygon((xx, yy), radius=0.01, fc="m", ec="m"))
             root.text(xx + 0.014, yy, accn, va="center", color="m")
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
+
+
+def heatmap(args):
+    """
+    %prog heatmap fastafile chr1
+
+    Combine stack plot with heatmap to show abundance of various tracks along
+    given chromosome. Need to give multiple beds to --stacks and --heatmaps
+    """
+    p = OptionParser(heatmap.__doc__)
+    p.add_option(
+        "--stacks",
+        default="Exons,Introns,DNA_transposons,Retrotransposons",
+        help="Features to plot in stackplot",
+    )
+    p.add_option(
+        "--heatmaps",
+        default="Copia,Gypsy,hAT,Helitron,Introns,Exons",
+        help="Features to plot in heatmaps",
+    )
+    p.add_option("--meres", default=None, help="Extra centromere / telomere features")
+    add_window_options(p)
+    opts, args, iopts = p.set_image_options(args, figsize="8x5")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, chr = args
+    window, shift, subtract, merge = check_window_options(opts)
+
+    stacks = opts.stacks.split(",")
+    heatmaps = opts.heatmaps.split(",")
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes((0, 0, 1, 1))
+
+    draw_heatmap(
+        fig,
+        root,
+        fastafile,
+        chr,
+        stacks,
+        heatmaps,
+        window,
+        shift,
+        iopts.cmap,
+        subtract,
+        merge,
+        meres=opts.meres,
+    )
 
     image_name = chr + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

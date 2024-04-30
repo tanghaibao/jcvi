@@ -32,13 +32,13 @@ from natsort import natsorted
 from rich.console import Console
 from rich.logging import RichHandler
 
-from jcvi import __copyright__, __version__
+from .. import __copyright__, __version__ as version
 
 
 os.environ["LC_ALL"] = "C"
 # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
-JCVIHELP = f"JCVI utility libraries {__version__} [{__copyright__}]\n"
+JCVIHELP = f"JCVI utility libraries {version} [{__copyright__}]\n"
 TextCollection = Union[str, List[str], Tuple[str, ...]]
 
 

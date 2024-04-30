@@ -7,21 +7,19 @@ Scaffold Ordering with Weighted Maps.
 import os.path as op
 import os
 import sys
-import logging
-
-import numpy as np
-import networkx as nx
 
 from collections import Counter, defaultdict
 from functools import partial
 from itertools import combinations, product
 from typing import Optional
 
+import numpy as np
+import networkx as nx
+
 from cmmodule.utils import read_chain_file
 from cmmodule.mapbed import crossmap_bed_file
 from more_itertools import pairwise
 
-from jcvi import __version__ as version
 from ..algorithms.ec import GA_setup, GA_run
 from ..algorithms.formula import reject_outliers, spearmanr
 from ..algorithms.lis import (
@@ -41,6 +39,7 @@ from ..apps.base import (
     mkdir,
     need_update,
     sh,
+    version,
 )
 from ..formats.agp import AGP, order_to_agp, build as agp_build, reindex
 from ..formats.base import DictFile, FileMerger, must_open, read_block

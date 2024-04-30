@@ -96,7 +96,7 @@ def diversity(args):
 
 def landscape(args):
     """
-    %prog landscape features.bed athaliana.sizes Fig5.png
+    %prog landscape features.bed athaliana.sizes TAIR10_chr_all.fas Chr2
 
     Plot landscape composite figure, including:
     A. Example genomic features painted on Arabidopsis genome

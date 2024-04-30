@@ -51,7 +51,7 @@ Registration = {
 }
 
 
-class BinLine(object):
+class BinLine:
     def __init__(self, row):
         args = row.split()
         self.chr = args[0]
@@ -70,7 +70,7 @@ class BinFile(LineFile):
         super(BinFile, self).__init__(filename)
         self.mapping = defaultdict(list)
 
-        fp = open(filename)
+        fp = open(filename, encoding="utf-8")
         for row in fp:
             b = BinLine(row)
             self.append(b)
@@ -125,13 +125,12 @@ class TitleInfoFile(BaseFile, OrderedDict):
 def main():
 
     actions = (
-        ("stack", "create landscape plot with genic/te composition"),
-        ("heatmap", "similar to stack but adding heatmap"),
         ("composite", "combine line plots, feature bars and alt-bars"),
-        ("multilineplot", "combine multiple line plots in one vertical stack"),
-        # Related to chromosomal depth
         ("depth", "show per chromosome depth plot across genome"),
+        ("heatmap", "similar to stack but adding heatmap"),
         ("mosdepth", "plot depth vs. coverage per chromosome"),
+        ("multilineplot", "combine multiple line plots in one vertical stack"),
+        ("stack", "create landscape plot with genic/te composition"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -152,7 +151,7 @@ def parse_distfile(filename):
     dists = defaultdict(Counter)
     with must_open(filename) as fp:
         for row in fp:
-            chromosome, start, end, depth = row.split()
+            chromosome, _, _, depth = row.split()
             depth = int(float(depth))
             dists[chromosome][depth] += 1
     logger.debug("Loaded %d seqids", len(dists))
@@ -171,7 +170,7 @@ def parse_groupsfile(filename):
         filename (str): Path to the groups file.
     """
     groups = []
-    with open(filename) as fp:
+    with open(filename, encoding="utf-8") as fp:
         for row in fp:
             chrs, colors = row.split()
             groups.append((chrs.split(","), colors.split(",")))
@@ -579,7 +578,7 @@ def get_beds(s, binned=False):
 
 def linearray(binfile, chr, window, shift):
     mn = binfile.mapping[chr]
-    m, n = zip(*mn)
+    m, _ = zip(*mn)
 
     m = np.array(m, dtype="float")
     w = window // shift
@@ -718,7 +717,7 @@ def composite(args):
     for bb in altbarbeds:
         root.text(xend + 0.01, yy, bb.split(".")[0], va="center")
         bb = Bed(bb)
-        for i, b in enumerate(bb):
+        for b in bb:
             start, end = xs(b.start), xs(b.end)
             span = end - start
             if span < 0.0001:
@@ -1074,6 +1073,10 @@ def stack(args):
         switch = DictFile(opts.switch)
 
     stacks = opts.stacks.split(",")
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes((0, 0, 1, 1))
+
     bedfiles = get_beds(stacks)
     binfiles = get_binfiles(bedfiles, fastafile, shift, subtract=subtract, merge=merge)
 
@@ -1084,8 +1087,6 @@ def stack(args):
     inner = 0.02  # y distance between tracks
 
     pf = fastafile.rsplit(".", 1)[0]
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))
 
     # Gauge
     ratio = draw_gauge(root, margin, maxl)
@@ -1103,7 +1104,7 @@ def stack(args):
             cc = ca[0].upper() + cb
 
         if switch and cc in switch:
-            cc = "\n".join((cc, "({0})".format(switch[cc])))
+            cc = "\n".join((cc, f"({switch[cc]})"))
 
         root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
         ax = fig.add_axes((xx, yy, xlen, yinterval - inner))

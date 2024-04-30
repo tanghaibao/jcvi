@@ -452,40 +452,38 @@ def bed_sum(beds, seqid=None, unique=True):
 
 def main():
     actions = (
-        ("depth", "calculate average depth per feature using coverageBed"),
-        ("mergebydepth", "returns union of features beyond certain depth"),
-        ("sort", "sort bed file"),
-        ("merge", "merge bed files"),
-        ("index", "index bed file using tabix"),
-        ("bins", "bin bed lengths into each window"),
-        ("summary", "summarize the lengths of the intervals"),
-        ("evaluate", "make truth table and calculate sensitivity and specificity"),
-        ("pile", "find the ids that intersect"),
-        ("pairs", "estimate insert size between paired reads from bedfile"),
-        ("mates", "print paired reads from bedfile"),
-        ("sizes", "infer the sizes for each seqid"),
-        ("uniq", "remove overlapping features with higher scores"),
-        ("longest", "select longest feature within overlapping piles"),
         ("bedpe", "convert to bedpe format"),
+        ("bins", "bin bed lengths into each window"),
+        ("chain", "chain bed segments together"),
+        ("closest", "find closest BED feature"),
+        ("density", "calculates density of features per seqid"),
+        ("depth", "calculate average depth per feature using coverageBed"),
         ("distance", "calculate distance between bed features"),
-        ("sample", "sample bed file and remove high-coverage regions"),
-        ("refine", "refine bed file using a second bed file"),
-        ("flanking", "get n flanking features for a given position"),
-        ("some", "get a subset of bed features given a list"),
-        ("fix", "fix non-standard bed files"),
+        ("evaluate", "make truth table and calculate sensitivity and specificity"),
         ("filter", "filter bedfile to retain records between size range"),
         ("filterbedgraph", "filter bedgraph to extract unique regions"),
-        ("random", "extract a random subset of features"),
-        ("juncs", "trim junctions.bed overhang to get intron, merge multiple beds"),
-        ("seqids", "print out all seqids on one line"),
-        ("alignextend", "alignextend based on BEDPE and FASTA ref"),
-        ("clr", "extract clear range based on BEDPE"),
-        ("chain", "chain bed segments together"),
-        ("density", "calculates density of features per seqid"),
-        ("tiling", "compute the minimum tiling path"),
+        ("fix", "fix non-standard bed files"),
+        ("flanking", "get n flanking features for a given position"),
         ("format", "reformat BED file"),
-        ("closest", "find closest BED feature"),
         ("gaps", "define gaps in BED file using complementBed"),
+        ("index", "index bed file using tabix"),
+        ("juncs", "trim junctions.bed overhang to get intron, merge multiple beds"),
+        ("longest", "select longest feature within overlapping piles"),
+        ("mates", "print paired reads from bedfile"),
+        ("merge", "merge bed files"),
+        ("mergebydepth", "returns union of features beyond certain depth"),
+        ("pairs", "estimate insert size between paired reads from bedfile"),
+        ("pile", "find the ids that intersect"),
+        ("random", "extract a random subset of features"),
+        ("refine", "refine bed file using a second bed file"),
+        ("sample", "sample bed file and remove high-coverage regions"),
+        ("seqids", "print out all seqids on one line"),
+        ("sizes", "infer the sizes for each seqid"),
+        ("some", "get a subset of bed features given a list"),
+        ("sort", "sort bed file"),
+        ("summary", "summarize the lengths of the intervals"),
+        ("tiling", "compute the minimum tiling path"),
+        ("uniq", "remove overlapping features with higher scores"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -799,52 +797,6 @@ def density(args):
         print("\t".join(str(x) for x in (seqid, nfeats, size, "{0:.1f}".format(ds))))
 
 
-def clr(args):
-    """
-    %prog clr [bamfile|bedpefile] ref.fasta
-
-    Use mates from BEDPE to extract ranges where the ref is covered by mates.
-    This is useful in detection of chimeric contigs.
-    """
-    p = OptionParser(clr.__doc__)
-    p.set_bedpe()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    bedpe, ref = args
-    if bedpe.endswith(".bam"):
-        bedpefile = bedpe.replace(".bam", ".bedpe")
-        if need_update(bedpe, bedpefile):
-            cmd = "bamToBed -bedpe -i {0}".format(bedpe)
-            sh(cmd, outfile=bedpefile)
-        bedpe = bedpefile
-
-    filtered = bedpe + ".filtered"
-    if need_update(bedpe, filtered):
-        filter_bedpe(
-            bedpe, filtered, ref, rc=opts.rc, minlen=opts.minlen, maxlen=opts.maxlen
-        )
-
-    rmdup = filtered + ".sorted.rmdup"
-    if need_update(filtered, rmdup):
-        rmdup_bedpe(filtered, rmdup, dupwiggle=opts.dup)
-
-    converted = rmdup + ".converted"
-    if need_update(rmdup, converted):
-        fp = open(rmdup)
-        fw = open(converted, "w")
-        for row in fp:
-            r = BedpeLine(row)
-            print(r.bedline, file=fw)
-        fw.close()
-
-    merged = converted + ".merge.bed"
-    if need_update(converted, merged):
-        mergeBed(converted)
-
-
 def sfa_to_fq(sfa, qvchar):
     fq = sfa.rsplit(".", 1)[0] + ".fq"
     fp = must_open(sfa)
@@ -923,71 +875,6 @@ def rmdup_bedpe(filtered, rmdup, dupwiggle=10):
         "A total of %s mates written to `%s`.", percentage(retained, total), rmdup
     )
     fw.close()
-
-
-def alignextend(args):
-    """
-    %prog alignextend bedpefile ref.fasta
-
-    Similar idea to alignextend, using mates from BEDPE and FASTA ref. See AMOS
-    script here:
-
-    https://github.com/nathanhaigh/amos/blob/master/src/Experimental/alignextend.pl
-    """
-    p = OptionParser(alignextend.__doc__)
-    p.add_option("--len", default=100, type="int", help="Extend to this length")
-    p.add_option(
-        "--qv", default=31, type="int", help="Dummy qv score for extended bases"
-    )
-    p.add_option(
-        "--bedonly",
-        default=False,
-        action="store_true",
-        help="Only generate bed files, no FASTA",
-    )
-    p.set_bedpe()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    bedpe, ref = args
-    qvchar = chr(opts.qv + 33)
-    pf = bedpe.split(".")[0]
-
-    filtered = bedpe + ".filtered"
-    if need_update(bedpe, filtered):
-        filter_bedpe(
-            bedpe,
-            filtered,
-            ref,
-            rc=opts.rc,
-            minlen=opts.minlen,
-            maxlen=opts.maxlen,
-            rlen=opts.rlen,
-        )
-
-    rmdup = filtered + ".filtered.sorted.rmdup"
-    if need_update(filtered, rmdup):
-        rmdup_bedpe(filtered, rmdup, dupwiggle=opts.dup)
-
-    if opts.bedonly:
-        return
-
-    bed1, bed2 = pf + ".1e.bed", pf + ".2e.bed"
-    if need_update(rmdup, (bed1, bed2)):
-        sh("cut -f1-3,7-9 {0}".format(rmdup), outfile=bed1)
-        sh("cut -f4-6,7-8,10 {0}".format(rmdup), outfile=bed2)
-
-    sfa1, sfa2 = pf + ".1e.sfa", pf + ".2e.sfa"
-    if need_update((bed1, bed2, ref), (sfa1, sfa2)):
-        for bed in (bed1, bed2):
-            fastaFromBed(bed, ref, name=True, tab=True, stranded=True)
-
-    fq1, fq2 = pf + ".1e.fq", pf + ".2e.fq"
-    if need_update((sfa1, sfa2), (fq1, fq2)):
-        for sfa in (sfa1, sfa2):
-            sfa_to_fq(sfa, qvchar)
 
 
 def seqids(args):

@@ -572,7 +572,10 @@ def check_window_options(opts):
     return window, shift, subtract, merge
 
 
-def get_beds(s, binned=False):
+def get_beds(s: List[str], binned: bool = False) -> List[str]:
+    """
+    Get the bed files for each feature, and return them as a list.
+    """
     return [x + ".bed" for x in s] if not binned else [x for x in s]
 
 
@@ -989,7 +992,7 @@ def get_binfiles(
     mode: str = "span",
     subtract: Optional[int] = None,
     binned: bool = False,
-    merge: bool=True,
+    merge: bool = True,
 ):
     """
     Get binfiles from input files. If not binned, then bin them first.
@@ -1052,39 +1055,21 @@ def stackplot(
     ax.set_axis_off()
 
 
-def stack(args):
+def draw_stack(
+    fig,
+    root,
+    stacks: List[str],
+    fastafile: str,
+    window: int,
+    shift: int,
+    top: int,
+    merge: bool,
+    subtract: Optional[int] = None,
+    switch: Optional[DictFile] = None,
+):
     """
-    %prog stack fastafile
-
-    Create landscape plots that show the amounts of genic sequences, and repetitive
-    sequences along the chromosomes.
+    Draw stack plot.
     """
-    p = OptionParser(stack.__doc__)
-    p.add_option("--top", default=10, type="int", help="Draw the first N chromosomes")
-    p.add_option(
-        "--stacks",
-        default="Exons,Introns,DNA_transposons,Retrotransposons",
-        help="Features to plot in stackplot",
-    )
-    p.add_option("--switch", help="Change chr names based on two-column file")
-    add_window_options(p)
-    opts, args, iopts = p.set_image_options(args, figsize="8x8")
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    (fastafile,) = args
-    top = opts.top
-    window, shift, subtract, merge = check_window_options(opts)
-    switch = opts.switch
-    if switch:
-        switch = DictFile(opts.switch)
-
-    stacks = opts.stacks.split(",")
-
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes((0, 0, 1, 1))
-
     bedfiles = get_beds(stacks)
     binfiles = get_binfiles(bedfiles, fastafile, shift, subtract=subtract, merge=merge)
 
@@ -1093,8 +1078,6 @@ def stack(args):
     maxl = max(x[1] for x in s)
     margin = 0.08
     inner = 0.02  # y distance between tracks
-
-    pf = fastafile.rsplit(".", 1)[0]
 
     # Gauge
     ratio = draw_gauge(root, margin, maxl)
@@ -1140,10 +1123,47 @@ def stack(args):
         root.text(xx, yy, b, size=13)
         xx += len(b) * 0.012 + inner
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
+
+def stack(args):
+    """
+    %prog stack fastafile
+
+    Create landscape plots that show the amounts of genic sequences, and repetitive
+    sequences along the chromosomes.
+    """
+    p = OptionParser(stack.__doc__)
+    p.add_option("--top", default=10, type="int", help="Draw the first N chromosomes")
+    p.add_option(
+        "--stacks",
+        default="Exons,Introns,DNA_transposons,Retrotransposons",
+        help="Features to plot in stackplot",
+    )
+    p.add_option("--switch", help="Change chr names based on two-column file")
+    add_window_options(p)
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (fastafile,) = args
+    top = opts.top
+    window, shift, subtract, merge = check_window_options(opts)
+    switch = opts.switch
+    if switch:
+        switch = DictFile(opts.switch)
+
+    stacks = opts.stacks.split(",")
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes((0, 0, 1, 1))
+
+    draw_stack(
+        fig, root, stacks, fastafile, window, shift, top, merge, subtract, switch
+    )
+
+    pf = fastafile.rsplit(".", 1)[0]
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 

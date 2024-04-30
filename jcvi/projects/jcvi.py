@@ -105,10 +105,10 @@ def landscape(args):
     p = OptionParser(landscape.__doc__)
     _, args, iopts = p.set_image_options(args, figsize="10x7")
 
-    if len(args) != 3:
+    if len(args) != 4:
         sys.exit(not p.print_help())
 
-    bedfile, sizesfile, pngfile = args
+    bedfile, sizesfile, fasta, ch = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
@@ -134,20 +134,7 @@ def landscape(args):
 
     # Panel B
     logger.info("Plotting landscape of genomic features across the genome")
-    M = plt.imread(pngfile)
-    width, height = M.shape[1], M.shape[0]
-    # Split the image into left and right parts
-    mid = width // 2 - 10
-    left_cut = right_cut = 900
-    logger.info("Image size: %dx%d", width, height)
-    logger.info("Splitting image at %d", mid)
 
-    LM, RM = M[:left_cut, :mid], M[:right_cut, mid:]
-    logger.info("Left image size: %dx%d", LM.shape[1], LM.shape[0])
-    logger.info("Right image size: %dx%d", RM.shape[1], RM.shape[0])
-
-    ax2_root.imshow(LM, extent=(0.4, 1, 0.5, 1), aspect="auto")
-    ax3_root.imshow(RM, extent=(0.4, 1, 0, 0.5), aspect="auto")
     ax2_root.set_axis_off()
     ax3_root.set_axis_off()
 

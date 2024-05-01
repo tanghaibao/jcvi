@@ -7,14 +7,14 @@ Programatically accessing UniprotKB to get data from a list of queries
 import os.path as op
 import sys
 import time
-import logging
 
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..formats.base import must_open
+
+from .base import ActionDispatcher, OptionParser, logger
 
 
 uniprot_url = "http://www.uniprot.org/uniprot/"
@@ -180,7 +180,7 @@ def fetch(args):
     seen = set()
     for query in list_of_queries:
         if query in seen:
-            logging.error("Duplicate query ({0}) found".format(query))
+            logger.error("Duplicate query ({0}) found".format(query))
             continue
 
         url_params["query"] = query
@@ -190,13 +190,13 @@ def fetch(args):
             request = Request(uniprot_url, data)
             response = urlopen(request)
         except (HTTPError, URLError, RuntimeError, KeyError) as e:
-            logging.error(e)
-            logging.debug("wait 5 seconds to reconnect...")
+            logger.error(e)
+            logger.debug("wait 5 seconds to reconnect...")
             time.sleep(5)
 
         page = response.read()
         if not page:
-            logging.error("query `{0}` yielded no results".format(query))
+            logger.error("query `{0}` yielded no results".format(query))
             continue
 
         print(page, file=fw)

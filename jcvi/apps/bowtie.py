@@ -8,12 +8,19 @@ files. Bowtie2 help:
 <http://bowtie-bio.sourceforge.net/bowtie2/index.shtml>
 """
 import sys
-import logging
 
-from jcvi.formats.base import BaseFile
-from jcvi.utils.cbook import percentage
-from jcvi.formats.sam import output_bam, get_prefix, get_samfile
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, get_abs_path
+from ..formats.base import BaseFile
+from ..formats.sam import get_prefix, get_samfile, output_bam
+from ..utils.cbook import percentage
+
+from .base import (
+    ActionDispatcher,
+    OptionParser,
+    logger,
+    need_update,
+    sh,
+    get_abs_path,
+)
 
 
 first_tag = lambda fp: next(fp).split()[0]
@@ -67,7 +74,7 @@ def check_index(dbfile):
         cmd = "bowtie2-build {0} {0}".format(dbfile)
         sh(cmd)
     else:
-        logging.error("`{0}` exists. `bowtie2-build` already run.".format(safile))
+        logger.error("`{0}` exists. `bowtie2-build` already run.".format(safile))
 
     return dbfile
 
@@ -135,10 +142,10 @@ def align(args):
 
     PE = True
     if len(args) == 2:
-        logging.debug("Single-end alignment")
+        logger.debug("Single-end alignment")
         PE = False
     elif len(args) == 3:
-        logging.debug("Paired-end alignment")
+        logger.debug("Paired-end alignment")
     else:
         sys.exit(not p.print_help())
 
@@ -159,7 +166,7 @@ def align(args):
         offset = guessoffset([readfile])
 
     if not need_update(dbfile, samfile):
-        logging.error("`{0}` exists. `bowtie2` already run.".format(samfile))
+        logger.error("`{0}` exists. `bowtie2` already run.".format(samfile))
         return samfile, logfile
 
     cmd = "bowtie2 -x {0}".format(dbfile)

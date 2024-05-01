@@ -7,9 +7,10 @@ Mask low complexity regions in the genome.
 import os.path as op
 import sys
 
-from jcvi.formats.fasta import Fasta
-from jcvi.utils.cbook import depends, percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from ..formats.fasta import Fasta
+from ..utils.cbook import depends, percentage
+
+from .base import ActionDispatcher, OptionParser, sh
 
 
 @depends

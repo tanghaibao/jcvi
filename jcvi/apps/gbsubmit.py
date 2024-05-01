@@ -7,16 +7,16 @@ Prepare the data for Genbank submission
 import os.path as op
 import sys
 import string
-import logging
 
 from collections import defaultdict
 from functools import lru_cache
 
 from Bio import SeqIO
 
-from jcvi.utils.orderedcollections import parse_qs
-from jcvi.formats.base import DictFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, mkdir, glob
+from ..formats.base import DictFile
+from ..utils.orderedcollections import parse_qs
+
+from .base import ActionDispatcher, OptionParser, glob, logger, mkdir, sh
 
 
 """
@@ -411,7 +411,7 @@ def htg(args):
     ph = [int(x) for x in phases.values()]
     # vmin 1, vmax 4, bins 3
     stem_leaf_plot(ph, 1, 4, 3, title="Counts of phases before updates")
-    logging.debug("Information loaded for {0} records.".format(len(phases)))
+    logger.debug("Information loaded for {0} records.".format(len(phases)))
     assert len(names) == len(phases)
 
     newph = []
@@ -593,7 +593,7 @@ def gss(args):
     print(PublicationTemplate.format(**vars), file=fw)
     print(LibraryTemplate.format(**vars), file=fw)
     print(ContactTemplate.format(**vars), file=fw)
-    logging.debug("Meta data written to `{0}`".format(fw.name))
+    logger.debug("Meta data written to `{0}`".format(fw.name))
 
     fw = open("GSS.txt", "w")
     fw_log = open("GSS.log", "w")
@@ -651,7 +651,7 @@ def gss(args):
         seen[gssID] += 1
 
         if seen[gssID] > 1:
-            logging.error("duplicate key {0} found".format(gssID))
+            logger.error("duplicate key {0} found".format(gssID))
             gssID = "{0}{1}".format(gssID, seen[gssID])
 
         othergss = clone[cloneID] - {gssID}
@@ -664,7 +664,7 @@ def gss(args):
         print("{0}\t{1}".format(gssID, description), file=fw_log)
         print("=" * 60, file=fw_log)
 
-    logging.debug("A total of {0} seqs written to `{1}`".format(len(seen), fw.name))
+    logger.debug("A total of {0} seqs written to `{1}`".format(len(seen), fw.name))
     fw.close()
     fw_log.close()
 

@@ -7,12 +7,13 @@ Run through NCBI vecscreen on a local machine.
 import os.path as op
 import sys
 
-from jcvi.utils.range import range_merge
-from jcvi.formats.fasta import tidy
-from jcvi.formats.blast import BlastLine
-from jcvi.formats.base import must_open
-from jcvi.apps.align import run_vecscreen, run_megablast
-from jcvi.apps.base import OptionParser, ActionDispatcher, download, sh
+from ..formats.base import must_open
+from ..formats.blast import BlastLine
+from ..formats.fasta import tidy
+from ..utils.range import range_merge
+
+from .align import run_vecscreen, run_megablast
+from .base import ActionDispatcher, OptionParser, download, sh
 
 ECOLI_URL = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/019/425/GCF_000019425.1_ASM1942v1/GCF_000019425.1_ASM1942v1_genomic.fna.gz"
 UNIVEC_URL = "ftp://ftp.ncbi.nih.gov/pub/UniVec/UniVec_Core"

@@ -5,13 +5,13 @@
 Procedure to cut genome using restriction enzymes.
 """
 import sys
-import logging
 
 from Bio.Restriction.Restriction import AllEnzymes, Analysis
 
-from jcvi.formats.fasta import Fasta, SeqRecord, SeqIO
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..formats.base import must_open
+from ..formats.fasta import Fasta, SeqRecord, SeqIO
+
+from .base import ActionDispatcher, OptionParser, logger
 
 
 def main():
@@ -161,7 +161,7 @@ def fragment(args):
         sites = a.full()[enzyme]
         extract(rec, sites, flank, fw)
 
-    logging.debug("Fragments written to `{0}`.".format(fragfastafile))
+    logger.debug("Fragments written to `%s`.", fragfastafile)
 
 
 if __name__ == "__main__":

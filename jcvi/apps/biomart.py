@@ -8,13 +8,11 @@ phytozome data sets.  Certain portion of the codes are ported from R package
 """
 import sys
 import urllib
-import logging
 
 from urllib.parse import urljoin
-
 from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, download
+from .base import ActionDispatcher, OptionParser, download, logger
 
 
 class GlobusXMLParser(ElementTree):
@@ -416,7 +414,7 @@ def bed(args):
 
         print(row, file=fw)
 
-    logging.debug("A total of {0} records written to `{1}`.".format(i + 1, bedfile))
+    logger.debug("A total of %d records written to `%s`.", i + 1, bedfile)
 
 
 if __name__ == "__main__":

@@ -6,14 +6,14 @@ Using CD-HIT to remove duplicate reads.
 """
 import os.path as op
 import sys
-import logging
 
 from collections import defaultdict
 
-from jcvi.formats.base import LineFile, read_block, must_open
-from jcvi.formats.fastq import fasta
-from jcvi.utils.cbook import percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from ..formats.base import LineFile, read_block, must_open
+from ..formats.fastq import fasta
+from ..utils.cbook import percentage
+
+from .base import ActionDispatcher, OptionParser, logger, need_update, sh
 
 
 class ClstrLine(object):
@@ -115,18 +115,16 @@ def filter(args):
             rec.description = rec.description.split(None, 1)[-1]
             rec.id = pf + "_" + rec.id
             SeqIO.write(rec, fw, "fasta")
-        logging.debug(
-            "Scanned {0} clusters with {1} reads ..".format(nclusters, nreads)
-        )
+        logger.debug("Scanned {0} clusters with {1} reads ..".format(nclusters, nreads))
         cclusters, creads = nclusters - nsingletons, nreads - nsingletons
-        logging.debug(
+        logger.debug(
             "Saved {0} clusters (min={1}) with {2} reads (avg:{3}) [{4}]".format(
                 cclusters, minsize, creads, creads / cclusters, pf
             )
         )
         totalreads += nreads
         totalassembled += nreads - nsingletons
-    logging.debug("Total assembled: {0}".format(percentage(totalassembled, totalreads)))
+    logger.debug("Total assembled: {0}".format(percentage(totalassembled, totalreads)))
 
 
 def ids(args):
@@ -156,7 +154,7 @@ def ids(args):
     for i, name in reads:
         print("\t".join(str(x) for x in (i, name)), file=fw)
 
-    logging.debug(
+    logger.debug(
         "A total of {0} unique reads written to `{1}`.".format(nreads, idsfile)
     )
     fw.close()

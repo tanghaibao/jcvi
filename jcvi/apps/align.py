@@ -8,16 +8,17 @@ same and does parallelization both in core and on grid.
 import os.path as op
 import sys
 import shutil
-import logging
 
 from subprocess import CalledProcessError, STDOUT
 
-from jcvi.utils.cbook import depends
-from jcvi.apps.base import (
+from ..utils.cbook import depends
+
+from .base import (
     ActionDispatcher,
     OptionParser,
     cleanup,
     get_abs_path,
+    logger,
     mkdir,
     sh,
     which,
@@ -124,7 +125,7 @@ def run_megablast(
 def run_blast_filter(infile=None, outfile=None, pctid=95, hitlen=50):
     from jcvi.formats.blast import filter
 
-    logging.debug("Filter BLAST result (pctid={0}, hitlen={1})".format(pctid, hitlen))
+    logger.debug("Filter BLAST result (pctid={0}, hitlen={1})".format(pctid, hitlen))
     pctidopt = "--pctid={0}".format(pctid)
     hitlenopt = "--hitlen={0}".format(hitlen)
     filter([infile, pctidopt, hitlenopt])
@@ -533,7 +534,7 @@ def last(args, dbtype=None):
     lastal_bin = getpath("lastal")
     for bin in (lastdb_bin, lastal_bin):
         if not which(bin):
-            logging.fatal("`%s` not found on PATH. Have you installed LAST?", bin)
+            logger.fatal("`%s` not found on PATH. Have you installed LAST?", bin)
             sys.exit(1)
 
     subjectdb = subject.rsplit(".", 1)[0]
@@ -574,9 +575,9 @@ def last(args, dbtype=None):
     except CalledProcessError as e:  # multi-threading disabled
         message = "lastal failed with message:"
         message += "\n{0}".format(e.output.decode())
-        logging.error(message)
+        logger.error(message)
         try:
-            logging.debug("Failed to run `lastal` with multi-threading. Trying again.")
+            logger.debug("Failed to run `lastal` with multi-threading. Trying again.")
             sh(
                 cmd + f" -P 1 {subjectdb} {query}",
                 outfile=lastfile,
@@ -586,8 +587,8 @@ def last(args, dbtype=None):
         except CalledProcessError as e:
             message = "lastal failed with message:"
             message += "\n{0}".format(e.output.decode())
-            logging.error(message)
-            logging.fatal("Failed to run `lastal`. Aborted.")
+            logger.error(message)
+            logger.fatal("Failed to run `lastal`. Aborted.")
             cleanup(lastfile)
             sys.exit(1)
     return lastfile
@@ -629,7 +630,7 @@ def blast_main(args, dbtype=None):
     lastal_bin = getpath(cmd)
     for bin in (lastdb_bin, lastal_bin):
         if not which(bin):
-            logging.fatal("`%s` not found on PATH. Have you installed BLAST?", bin)
+            logger.fatal("`%s` not found on PATH. Have you installed BLAST?", bin)
             sys.exit(1)
 
     db_suffix = ".nin" if dbtype == "nucl" else ".pin"
@@ -649,8 +650,8 @@ def blast_main(args, dbtype=None):
     except CalledProcessError as e:  # multi-threading disabled
         message = f"{cmd} failed with message:"
         message += "\n{0}".format(e.output.decode())
-        logging.error(message)
-        logging.fatal("Failed to run `blast`. Aborted.")
+        logger.error(message)
+        logger.fatal("Failed to run `blast`. Aborted.")
         cleanup(blastfile)
         sys.exit(1)
     return blastfile
@@ -686,7 +687,7 @@ def diamond_blastp_main(args, dbtype="prot"):
     diamond_bin = getpath("diamond")
     for bin in (diamond_bin,):
         if not which(bin):
-            logging.fatal("`%s` not found on PATH. Have you installed Diamond?", bin)
+            logger.fatal("`%s` not found on PATH. Have you installed Diamond?", bin)
             sys.exit(1)
 
     run_diamond_makedb(
@@ -707,8 +708,8 @@ def diamond_blastp_main(args, dbtype="prot"):
     except CalledProcessError as e:  # multi-threading disabled
         message = f"{cmd} failed with message:"
         message += "\n{0}".format(e.output.decode())
-        logging.error(message)
-        logging.fatal("Failed to run `diamond blastp`. Aborted.")
+        logger.error(message)
+        logger.fatal("Failed to run `diamond blastp`. Aborted.")
         cleanup(blastfile)
         sys.exit(1)
     return blastfile

@@ -226,7 +226,7 @@ def main():
         order = order.split(",")
     sizes = Sizes(sizes)
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
     canvas = (0.12, 0.35, 0.8, 0.35)
     chr_size = sizes.get_size(chr)
     Coverage(

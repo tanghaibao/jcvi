@@ -456,7 +456,7 @@ def main():
         help="if drawing an imagemap, specify the window size (bases) of each map element ",
     )
 
-    g = p.add_argument_group(p, "Color legend")
+    g = p.add_argument_group("Color legend")
     g.add_argument(
         "--nolegend",
         dest="legend",

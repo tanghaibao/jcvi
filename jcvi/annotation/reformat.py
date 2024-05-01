@@ -24,6 +24,7 @@ from ..apps.base import (
     sh,
 )
 from ..utils.cbook import AutoVivification
+from ..utils.grouper import Grouper
 from ..formats.bed import Bed, BedLine, sort
 from ..formats.base import SetFile, flexible_cast, get_number, must_open
 
@@ -477,7 +478,6 @@ def renumber(args):
     Renumber genes for annotation updates.
     """
     from jcvi.algorithms.lis import longest_increasing_subsequence
-    from jcvi.utils.grouper import Grouper
 
     p = OptionParser(renumber.__doc__)
     p.set_annot_reformat_opts()
@@ -589,8 +589,6 @@ def annotate(args):
     Examples: 23231.m312389, 23231.t004898, 23231.tRNA.144
     Adjust the value of `new_id_pat` manually as per your ID naming conventions.
     """
-    from jcvi.utils.grouper import Grouper
-
     valid_resolve_choices = ["alignment", "overlap"]
 
     p = OptionParser(annotate.__doc__)

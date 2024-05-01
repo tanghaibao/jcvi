@@ -8,9 +8,11 @@ from os import remove
 import sys
 import logging
 
-logging.getLogger("matplotlib").setLevel(logging.WARNING)
-logging.getLogger("numexpr").setLevel(logging.WARNING)
-logging.getLogger("PIL").setLevel(logging.INFO)
+from ..apps.base import get_logger
+
+get_logger("matplotlib", logging.WARNING)
+get_logger("numexpr", logging.WARNING)
+get_logger("PIL", logging.INFO)
 
 from functools import partial
 from typing import Optional, List, Tuple, Union

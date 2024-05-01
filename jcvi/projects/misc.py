@@ -10,7 +10,7 @@ import sys
 
 import numpy as np
 
-from ..apps.base import ActionDispatcher, OptionParser, logger, fname
+from ..apps.base import ActionDispatcher, OptionParser, fname, logger
 from ..graphics.base import Polygon, normalize_axes, panel_labels, plt, savefig
 from ..graphics.glyph import DoubleSquare, GeneGlyph, RoundRect, TextCircle, plot_cap
 from ..graphics.karyotype import Karyotype

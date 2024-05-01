@@ -156,7 +156,7 @@ def traits(args):
     template = Template(traits_template)
     fw = open("report.html", "w")
     print(template.render(samples=samples), file=fw)
-    logger.debug("Report written to `{}`".format(fw.name))
+    logger.debug("Report written to `%s`", fw.name)
     fw.close()
 
 
@@ -694,7 +694,6 @@ def heritability(args):
     sameGenderDZ = list(filter_same_gender(DZ, gender))
 
     composite(df, sameGenderMZ, sameGenderDZ, size=(iopts.w, iopts.h))
-    logger.getLogger().setLevel(logger.CRITICAL)
     savefig("heritability.pdf")
 
 

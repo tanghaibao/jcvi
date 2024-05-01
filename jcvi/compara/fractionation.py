@@ -5,17 +5,17 @@
 Catalog gene losses, and bites within genes.
 """
 import sys
-import logging
 
 from itertools import groupby
 
-from jcvi.formats.blast import Blast
-from jcvi.formats.bed import Bed
-from jcvi.utils.range import range_minmax, range_overlap, range_distance
-from jcvi.utils.cbook import gene_name
-from jcvi.utils.grouper import Grouper
-from jcvi.compara.synteny import check_beds
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from ..apps.base import ActionDispatcher, OptionParser, logger, sh
+from ..formats.bed import Bed
+from ..formats.blast import Blast
+from ..utils.cbook import gene_name
+from ..utils.grouper import Grouper
+from ..utils.range import range_minmax, range_overlap, range_distance
+
+from .synteny import check_beds
 
 
 def main():
@@ -339,7 +339,7 @@ def gffselect(args):
             cnt += 1
     fw.close()
 
-    logging.debug("Total {0} records written to `{1}`.".format(cnt, idsfile))
+    logger.debug("Total {0} records written to `{1}`.".format(cnt, idsfile))
 
 
 def gaps(args):
@@ -531,7 +531,7 @@ def summary(args):
         print("\t".join((seqid, gene, tag, "-".join(ts))), file=fw)
     fw.close()
 
-    logging.debug("Registry written.")
+    logger.debug("Registry written.")
 
 
 def get_tag(name, order):
@@ -610,7 +610,7 @@ def napus(args):
         print(row, file=fw)
     fw.close()
 
-    logging.debug("Quartets and gene losses written to `{0}`.".format(quartetsfile))
+    logger.debug("Quartets and gene losses written to `{0}`.".format(quartetsfile))
 
     # Parse the quartets file to extract singletons vs.segmental losses
     fp = open(quartetsfile)
@@ -650,8 +650,8 @@ def napus(args):
     mixed = len(segments) - alm - clm
     assert mixed == 0
 
-    logging.debug("Singletons: {0} (AN LOSS: {1}, CN LOSS: {2})".format(ns, als, cls))
-    logging.debug("Segments: {0} (AN LOSS: {1}, CN LOSS: {2})".format(nm, alm, clm))
+    logger.debug("Singletons: {0} (AN LOSS: {1}, CN LOSS: {2})".format(ns, als, cls))
+    logger.debug("Segments: {0} (AN LOSS: {1}, CN LOSS: {2})".format(nm, alm, clm))
     print(SummaryStats([len(x) for x in losses]), file=sys.stderr)
 
     for x in singletons + segments:
@@ -846,7 +846,7 @@ def validate(args):
 
         print("\t".join((a, b, c)), file=fw)
 
-    logging.debug("Fixed {0} [S] cases in `{1}`.".format(fixed, validated))
+    logger.debug("Fixed {0} [S] cases in `{1}`.".format(fixed, validated))
     fw.close()
 
 

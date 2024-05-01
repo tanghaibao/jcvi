@@ -14,17 +14,19 @@ regions (PAR) are identified and visualized.
 """
 import os.path as op
 import sys
-import logging
+
 from math import log
 
 import numpy as np
+
 from more_itertools import pairwise
 
-from jcvi.compara.synteny import check_beds
-from jcvi.formats.bed import Bed
-from jcvi.formats.blast import BlastLine
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
+from ..formats.bed import Bed
+from ..formats.blast import BlastLine
+
 from .base import AnchorFile
+from .synteny import check_beds
 
 
 def main():
@@ -55,7 +57,7 @@ def make_arrays(blastfile, qpadbed, spadbed, qpadnames, spadnames):
     assert sum(spadlen.values()) == ssize
 
     # Populate arrays of observed counts and expected counts
-    logging.debug("Initialize array of size ({0} x {1})".format(m, n))
+    logger.debug("Initialize array of size ({0} x {1})".format(m, n))
     observed = np.zeros((m, n))
     fp = open(blastfile)
     all_dots = 0
@@ -70,7 +72,7 @@ def make_arrays(blastfile, qpadbed, spadbed, qpadnames, spadnames):
 
     assert int(round(observed.sum())) == all_dots
 
-    logging.debug("Total area: {0} x {1}".format(qsize, ssize))
+    logger.debug("Total area: {0} x {1}".format(qsize, ssize))
     S = qsize * ssize
     expected = np.zeros((m, n))
     qsum = 0
@@ -157,7 +159,7 @@ def pad(args):
     for a, b, score in significant:
         print("|".join(a), "|".join(b), score)
 
-    logging.debug(
+    logger.debug(
         "Collected {0} PAR comparisons significant at (P < {1}).".format(
             len(significant), pvalue_cutoff
         )
@@ -221,7 +223,7 @@ def write_PAD_bed(bedfile, prefix, pads, bed):
     fw.close()
 
     npads = len(pads)
-    logging.debug("{0} partition written in `{1}`.".format(npads, bedfile))
+    logger.debug("{0} partition written in `{1}`.".format(npads, bedfile))
     return npads, padnames
 
 

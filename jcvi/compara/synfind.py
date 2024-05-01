@@ -21,21 +21,21 @@ synteny score. For the same query, it is ordered with decreasing synteny score.
 The last column means orientation. "+" is same direction.
 """
 import os.path as op
-import logging
-import sys
 import sqlite3
+import sys
 
 from bisect import bisect_left
 from itertools import groupby, tee
 
-from jcvi.algorithms.lis import (
+from ..algorithms.lis import (
     longest_increasing_subsequence,
     longest_decreasing_subsequence,
 )
-from jcvi.compara.synteny import check_beds, read_blast
-from jcvi.utils.grouper import Grouper
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser
+from ..apps.base import OptionParser, logger
+from ..formats.base import must_open
+from ..utils.grouper import Grouper
+
+from .synteny import check_beds, read_blast
 
 
 def transposed(data):
@@ -228,7 +228,7 @@ def main(blastfile, p, opts):
 
     batch_query(qbed, sbed, all_data, opts, fw=fw, c=c, transpose=False)
     if qbed.filename == sbed.filename:
-        logging.debug("Self comparisons, mirror ignored")
+        logger.debug("Self comparisons, mirror ignored")
     else:
         batch_query(qbed, sbed, all_data, opts, fw=fw, c=c, transpose=True)
 

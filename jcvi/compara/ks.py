@@ -5,33 +5,35 @@
 Calculation of synonymous substitutions (Ks).
 """
 import csv
-import logging
 import os
 import os.path as op
 import sys
+
 from functools import partial
 from itertools import combinations, product
 from math import exp, log, pi, sqrt
 from typing import Optional
 
 import numpy as np
+
 from Bio import AlignIO, SeqIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
-from jcvi.apps.base import (
+from ..apps.base import (
     ActionDispatcher,
     OptionParser,
     Popen,
     cleanup,
     getpath,
     iglob,
+    logger,
     mkdir,
     sh,
 )
-from jcvi.formats.base import LineFile, must_open
-from jcvi.graphics.base import AbstractLayout, adjust_spines, markup, plt, savefig
-from jcvi.utils.cbook import gene_name
-from jcvi.utils.table import write_csv
+from ..formats.base import LineFile, must_open
+from ..graphics.base import AbstractLayout, adjust_spines, markup, plt, savefig
+from ..utils.cbook import gene_name
+from ..utils.table import write_csv
 
 CLUSTALW_BIN = partial(getpath, name="CLUSTALW2", warn="warn")
 MUSCLE_BIN = partial(getpath, name="MUSCLE", warn="warn")
@@ -347,7 +349,7 @@ def plot_GC3(GC3, cdsfile, fill="white"):
         fill=fill,
     )
 
-    logging.debug("{0} GC3 values plotted to {1}.pdf".format(len(GC3), numberfile))
+    logger.debug("{0} GC3 values plotted to {1}.pdf".format(len(GC3), numberfile))
 
 
 def gc3(args):
@@ -404,7 +406,7 @@ def gc3(args):
             continue
         writer.writerow(d)
         nlines += 1
-    logging.debug("{0} records written (from {1}).".format(nlines, noriginals))
+    logger.debug("{0} records written (from {1}).".format(nlines, noriginals))
 
 
 def extract_pairs(abed, bbed, groups):
@@ -430,7 +432,7 @@ def extract_pairs(abed, bbed, groups):
             print("\t".join((a, b)), file=fw)
             npairs += 1
 
-    logging.debug("File `{0}` written with {1} pairs.".format(pairsfile, npairs))
+    logger.debug("File `{0}` written with {1} pairs.".format(pairsfile, npairs))
 
 
 def fromgroups(args):
@@ -505,7 +507,7 @@ def prepare(args):
             continue
         a, b = row.split()[:2]
         if a == b:
-            logging.debug("Self pairs found: {0} - {1}. Ignored".format(a, b))
+            logger.debug("Self pairs found: {0} - {1}. Ignored".format(a, b))
             continue
 
         if a not in f:
@@ -881,8 +883,8 @@ def subset(args):
         i += 1
     fw.close()
 
-    logging.debug("{0} pairs not found in ksfiles".format(j))
-    logging.debug("{0} ks records written to `{1}`".format(i, outfile))
+    logger.debug("{0} pairs not found in ksfiles".format(j))
+    logger.debug("{0} ks records written to `{1}`".format(i, outfile))
     return outfile
 
 
@@ -941,7 +943,7 @@ class KsFile(LineFile):
                 continue
             self.append(ksline)
 
-        logging.debug(
+        logger.debug(
             "File `{0}` contains a total of {1} gene pairs".format(filename, len(self))
         )
 
@@ -1053,7 +1055,7 @@ def plot_ks_dist(
     (line,) = my_hist(
         ax, data, interval, ks_max, color=color, marker=marker, fill=fill, kde=kde
     )
-    logging.debug("Total {0} pairs after filtering.".format(len(data)))
+    logger.debug("Total {0} pairs after filtering.".format(len(data)))
 
     line_mixture = None
     if fitted:

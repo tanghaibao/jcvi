@@ -9,11 +9,10 @@
 #
 import csv
 import sys
-import logging
 import os.path as op
 
-from jcvi.formats.fasta import Fasta, SeqIO
-from jcvi.apps.base import ActionDispatcher, OptionParser, mkdir
+from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir
+from ..formats.fasta import Fasta, SeqIO
 
 
 def lcn(args):
@@ -48,7 +47,7 @@ def lcn(args):
             print(row[0], single_ratio, zero_ratio, counts, file=sys.stderr)
             selected.append(row)
 
-    logging.debug("A total of {} orthogroups selected".format(len(selected)))
+    logger.debug("A total of %d orthogroups selected", len(selected))
 
     # Collect the FASTA sequences now
     mkdir(lcn_dir)

@@ -8,19 +8,20 @@ import os.path as op
 import sys
 import logging
 
-import numpy as np
 from collections import defaultdict
-
 from collections.abc import Iterable
 
-from jcvi.algorithms.lis import heaviest_increasing_subsequence as his
-from jcvi.formats.bed import Bed, BedLine
-from jcvi.formats.blast import Blast
-from jcvi.formats.base import BaseFile, SetFile, read_block, must_open
-from jcvi.utils.grouper import Grouper
-from jcvi.utils.cbook import gene_name, human_size
-from jcvi.utils.range import range_chain
-from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup
+import numpy as np
+
+from ..algorithms.lis import heaviest_increasing_subsequence as his
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
+from ..formats.base import BaseFile, SetFile, read_block, must_open
+from ..formats.bed import Bed, BedLine
+from ..formats.blast import Blast
+from ..utils.cbook import gene_name, human_size
+from ..utils.grouper import Grouper
+from ..utils.range import range_chain
+
 from .base import AnchorFile
 
 
@@ -154,7 +155,7 @@ class BlockFile(BaseFile):
         for row in self.data:
             if "." not in row:
                 grouper.join(*row)
-        logging.debug("A total of %d orthogroups formed", len(grouper))
+        logger.debug("A total of %d orthogroups formed", len(grouper))
         return grouper
 
 
@@ -274,7 +275,7 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
 
         filtered_blast.append(b)
 
-    logging.debug(
+    logger.debug(
         "A total of %d BLAST imported from `%s`.", len(filtered_blast), blast_file
     )
 
@@ -300,7 +301,7 @@ def read_anchors(ac, qorder, sorder, minsize=0):
         anchor_to_block[pair] = idx
         nanchors += 1
 
-    logging.debug("A total of {0} anchors imported.".format(nanchors))
+    logger.debug("A total of {0} anchors imported.".format(nanchors))
     assert nanchors == len(anchor_to_block)
 
     return all_anchors, anchor_to_block
@@ -387,7 +388,7 @@ def get_bed_filenames(hintfile, p, opts):
             q, s = hintfile.split(".", 2)[:2]
             opts.qbed = op.join(wd, q + ".bed")
             opts.sbed = op.join(wd, s + ".bed")
-            logging.debug("Assuming --qbed={0} --sbed={1}".format(opts.qbed, opts.sbed))
+            logger.debug("Assuming --qbed={0} --sbed={1}".format(opts.qbed, opts.sbed))
         except:
             print("Options --qbed and --sbed are required", file=sys.stderr)
             sys.exit(not p.print_help())
@@ -400,7 +401,7 @@ def check_beds(hintfile, p, opts, sorted=True):
     # is this a self-self blast?
     is_self = qbed_file == sbed_file
     if is_self:
-        logging.debug("Looks like self-self comparison.")
+        logger.debug("Looks like self-self comparison.")
 
     qbed = Bed(opts.qbed, sorted=sorted)
     sbed = Bed(opts.sbed, sorted=sorted)
@@ -607,7 +608,7 @@ def assemble(args):
         for genes in column_genes:
             print(" ".join(genes), file=fw)
 
-        logging.debug("Gene ids written to `{}`".format(idsfile))
+        logger.debug("Gene ids written to `{}`".format(idsfile))
 
     # Extract FASTA
     fd, fastafile = mkstemp(dir=workdir)
@@ -625,7 +626,7 @@ def assemble(args):
         if strip_names:
             query, subject = gene_name(query), gene_name(subject)
         pairs.add((query, subject))
-    logging.debug("Extracted {} gene pairs from `{}`".format(len(pairs), last_output))
+    logger.debug("Extracted {} gene pairs from `{}`".format(len(pairs), last_output))
 
     # Sort the pairs into columns
     N = len(column_genes)
@@ -674,7 +675,7 @@ def assemble(args):
         if not merged:  # New information
             processed_slots.append(slots)
 
-    logging.debug(
+    logger.debug(
         "Before compression: {}, After compression: {}".format(
             len(all_slots), len(processed_slots)
         )
@@ -793,7 +794,7 @@ def toaligns(args):
 
     (anchorfile,) = args
     ac = AnchorFile(anchorfile)
-    logging.debug("A total of {} blocks imported".format(len(ac.blocks)))
+    logger.debug("A total of {} blocks imported".format(len(ac.blocks)))
     max_block_id_len = len(str(len(ac.blocks) - 1))
     header = "\t".join(("#Block ID", "Gene 1", "Gene 2"))
 
@@ -1095,7 +1096,7 @@ def simple(args):
     qbed, sbed, qorder, sorder, is_self = check_beds(anchorfile, p, opts)
     pf = "-".join(anchorfile.split(".", 2)[:2])
     if ac.is_empty:
-        logging.error("No blocks found in `%s`. Aborting ..", anchorfile)
+        logger.error("No blocks found in `%s`. Aborting ..", anchorfile)
         return
 
     if coords:
@@ -1194,7 +1195,7 @@ def simple(args):
         print("\t".join(str(x) for x in args), file=fws)
 
     fws.close()
-    logging.debug("A total of {0} blocks written to `{1}`.".format(i + 1, simplefile))
+    logger.debug("A total of {0} blocks written to `{1}`.".format(i + 1, simplefile))
 
     if coords:
         print(
@@ -1219,7 +1220,7 @@ def simple(args):
     if bed:
         bedfile = simplefile + ".bed"
         bbed.print_to_file(filename=bedfile, sorted=True)
-        logging.debug("Bed file written to `{}`".format(bedfile))
+        logger.debug("Bed file written to `{}`".format(bedfile))
 
 
 def screen(args):
@@ -1346,7 +1347,7 @@ def screen(args):
             ]
         )
 
-    logging.debug("Before: {0} blocks, After: {1} blocks".format(len(blocks), selected))
+    logger.debug("Before: {0} blocks, After: {1} blocks".format(len(blocks), selected))
 
 
 def summary(args):
@@ -1368,7 +1369,7 @@ def summary(args):
     ac = AnchorFile(anchorfile)
     clusters = ac.blocks
     if clusters == [[]]:
-        logging.debug("A total of 0 anchor was found. Aborted.")
+        logger.debug("A total of 0 anchor was found. Aborted.")
         raise ValueError("A total of 0 anchor was found. Aborted.")
 
     nclusters = len(clusters)
@@ -1554,9 +1555,9 @@ def mcscan(args):
                 atoms[i] = tandems.get(atom, atom)
         print("\t".join((id, sep.join(atoms))), file=fw)
 
-    logging.debug("MCscan blocks written to `{0}`.".format(ofile))
+    logger.debug("MCscan blocks written to `{0}`.".format(ofile))
     if trackids:
-        logging.debug("Block IDs written to `{0}`.".format(olog))
+        logger.debug("Block IDs written to `{0}`.".format(olog))
 
 
 def write_details(fw, details, bed):
@@ -1631,7 +1632,7 @@ def depth(args):
     if depthfile:
         write_details(fw, details, sbed)
         fw.close()
-        logging.debug("Depth written to `{0}`.".format(depthfile))
+        logger.debug("Depth written to `{0}`.".format(depthfile))
 
     if not opts.histogram:
         return
@@ -1791,7 +1792,7 @@ def scan(args):
     )
 
     fw = open(anchor_file, "w")
-    logging.debug("Chaining distance = {0}".format(dist))
+    logger.debug("Chaining distance = {0}".format(dist))
 
     clusters = batch_scan(
         filtered_blast,
@@ -1869,7 +1870,7 @@ def liftover(args):
             ac.blocks[block_id].append((query, subject, str(score) + "L"))
             lifted += 1
 
-    logging.debug("{} new pairs found (dist={}).".format(lifted, dist))
+    logger.debug("{} new pairs found (dist={}).".format(lifted, dist))
     newanchorfile = anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
     ac.print_to_file(filename=newanchorfile, accepted=accepted)
     summary([newanchorfile])

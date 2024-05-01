@@ -151,7 +151,7 @@ class OptionParser(ArgumentParser):
     features.
     """
 
-    def __init__(self, doc: str):
+    def __init__(self, doc: Optional[str]):
         super(OptionParser, self).__init__(doc, epilog=JCVIHELP)
 
     def add_option(self, *args, **kwargs):
@@ -188,9 +188,6 @@ class OptionParser(ArgumentParser):
         if "[" in help_pf:
             help_pf = help_pf.rsplit("[", 1)[0]
         help_pf = help_pf.strip()
-
-        # for k, v in o.__dict__.items():
-        #     print(k, v)
 
         if o.type == "choice":
             if o.default is None:

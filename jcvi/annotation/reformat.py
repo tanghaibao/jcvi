@@ -19,9 +19,8 @@ from jcvi.utils.cbook import AutoVivification
 from jcvi.formats.bed import Bed, BedLine, sort
 from jcvi.formats.base import SetFile, must_open, get_number, flexible_cast
 from jcvi.apps.base import (
-    OptionParser,
-    OptionGroup,
     ActionDispatcher,
+    OptionParser,
     cleanup,
     need_update,
     popen,
@@ -608,8 +607,7 @@ def annotate(args):
         help="Specify is locus IDs in `new.bed` file follow ATG nomenclature",
     )
 
-    g1 = OptionGroup(
-        p,
+    g1 = p.add_argument_group(
         "Optional parameters (alignment):\n"
         + "Use if resolving ambiguities based on sequence `alignment`",
     )
@@ -627,10 +625,8 @@ def annotate(args):
         type=float,
         help="Alignment score cutoff",
     )
-    p.add_option_group(g1)
 
-    g2 = OptionGroup(
-        p,
+    g2 = p.add_argument_group(
         "Optional parameters (overlap):\n"
         + "Use if resolving ambiguities based on `overlap` length\n"
         + "Parameters equivalent to `intersectBed`",
@@ -656,7 +652,6 @@ def annotate(args):
         action="store_true",
         help="Require same strandedness",
     )
-    p.add_option_group(g2)
 
     opts, args = p.parse_args(args)
 

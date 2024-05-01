@@ -11,7 +11,6 @@ from urllib.parse import quote, unquote
 
 from ..apps.base import (
     OptionParser,
-    OptionGroup,
     ActionDispatcher,
     cleanup,
     flatten,
@@ -1170,7 +1169,7 @@ def filter(args):
     p.add_option(
         "--type", default="mRNA", help="The feature to scan for the attributes"
     )
-    g1 = OptionGroup(p, "Filter by identity/coverage attribute values")
+    g1 = p.add_argument_group("Filter by identity/coverage attribute values")
     g1.add_option("--id", default=95, type=float, help="Minimum identity")
     g1.add_option("--coverage", default=90, type=float, help="Minimum coverage")
     g1.add_option(
@@ -1179,8 +1178,7 @@ def filter(args):
         action="store_true",
         help="Case insensitive lookup of attribute names",
     )
-    p.add_option_group(g1)
-    g2 = OptionGroup(p, "Filter by child feature bp length")
+    g2 = p.add_argument_group("Filter by child feature bp length")
     g2.add_option(
         "--child_ftype", default=None, type=str, help="Child featuretype to consider"
     )
@@ -1190,7 +1188,6 @@ def filter(args):
         type=int,
         help="Filter by total bp of children of chosen ftype",
     )
-    p.add_option_group(g2)
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1549,7 +1546,7 @@ def format(args):
 
     p = OptionParser(format.__doc__)
 
-    g1 = OptionGroup(p, "Parameter(s) used to modify GFF attributes (9th column)")
+    g1 = p.add_argument_group("Parameter(s) used to modify GFF attributes (9th column)")
     g1.add_option("--name", help="Add Name attribute from two-column file")
     g1.add_option("--note", help="Add Note attribute from two-column file")
     g1.add_option(
@@ -1597,9 +1594,8 @@ def format(args):
         action="store_true",
         help="Do not maintain attribute order",
     )
-    p.add_option_group(g1)
 
-    g2 = OptionGroup(p, "Parameter(s) used to modify content within columns 1-8")
+    g2 = p.add_argument_group("Parameter(s) used to modify content within columns 1-8")
     g2.add_option(
         "--seqid",
         help="Switch seqid from two-column file. If not"
@@ -1621,10 +1617,9 @@ def format(args):
         action="store_true",
         help="Change phase 1<->2, 2<->1",
     )
-    p.add_option_group(g2)
 
-    g3 = OptionGroup(
-        p, "Other parameter(s) to perform manipulations to the GFF " + "file content"
+    g3 = p.add_argument_group(
+        "Other parameter(s) to perform manipulations to the GFF file content"
     )
     g3.add_option(
         "--unique", default=False, action="store_true", help="Make IDs unique"
@@ -1678,7 +1673,6 @@ def format(args):
         action="store_true",
         help="Store entire GFF file in memory during first iteration",
     )
-    p.add_option_group(g3)
 
     p.set_outfile()
     p.set_SO_opts()
@@ -3250,7 +3244,7 @@ def load(args):
         help="Specify if full FASTA header (with seqid, coordinates and datestamp) should be generated",
     )
 
-    g1 = OptionGroup(p, "Optional parameters (if generating full header)")
+    g1 = p.add_argument_group("Optional parameters (if generating full header)")
     g1.add_option(
         "--sep",
         dest="sep",
@@ -3269,7 +3263,6 @@ def load(args):
         action="store_true",
         help="Specify if `conf_class` attribute should be parsed and placed in the header",
     )
-    p.add_option_group(g1)
 
     p.set_outfile()
 

@@ -35,7 +35,7 @@ from jcvi.algorithms.lis import (
 from jcvi.compara.synteny import check_beds, read_blast
 from jcvi.utils.grouper import Grouper
 from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, OptionGroup
+from jcvi.apps.base import OptionParser
 
 
 def transposed(data):
@@ -247,12 +247,12 @@ if __name__ == "__main__":
     p.set_stripnames()
     p.set_outfile()
 
-    coge_group = OptionGroup(p, "CoGe-specific options")
+    coge_group = p.add_argument_group("CoGe-specific options")
     coge_group.add_option("--sqlite", help="Write sqlite database")
     coge_group.add_option("--qnote", default="null", help="Query dataset group id")
     coge_group.add_option("--snote", default="null", help="Subject dataset group id")
 
-    params_group = OptionGroup(p, "Synteny parameters")
+    params_group = p.add_argument_group("Synteny parameters")
     params_group.add_option(
         "--window", type=int, default=40, help="Synteny window size"
     )
@@ -269,9 +269,6 @@ if __name__ == "__main__":
         default="collinear",
         help="Scoring scheme",
     )
-
-    p.add_option_group(coge_group)
-    p.add_option_group(params_group)
 
     opts, args = p.parse_args()
 

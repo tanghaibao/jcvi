@@ -29,9 +29,8 @@ from ..algorithms.lis import (
 from ..algorithms.matrix import determine_signs
 from ..apps.base import (
     ActionDispatcher,
-    OptionGroup,
     OptionParser,
-    SUPPRESS_HELP,
+    SUPPRESS,
     cleanup,
     flatten,
     get_today,
@@ -1358,8 +1357,8 @@ def path(args):
     """
     oargs = args
     p = OptionParser(path.__doc__)
-    p.add_option("-b", "--bedfile", help=SUPPRESS_HELP)
-    p.add_option("-s", "--fastafile", help=SUPPRESS_HELP)
+    p.add_option("-b", "--bedfile", help=SUPPRESS)
+    p.add_option("-s", "--fastafile", help=SUPPRESS)
     p.add_option(
         "-w", "--weightsfile", default="weights.txt", help="Use weights from file"
     )
@@ -1411,8 +1410,7 @@ def path(args):
     )
     p.set_cpus(cpus=16)
 
-    q = OptionGroup(p, "Genetic algorithm options")
-    p.add_option_group(q)
+    q = p.add_argument_group("Genetic algorithm options")
     q.add_option(
         "--ngen", default=500, type=int, help="Iterations in GA, higher ~ slower"
     )

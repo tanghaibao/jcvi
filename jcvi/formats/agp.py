@@ -27,7 +27,6 @@ from jcvi.assembly.base import calculate_A50
 from jcvi.utils.range import range_intersect
 from jcvi.apps.base import (
     OptionParser,
-    OptionGroup,
     ActionDispatcher,
     cleanup,
     flatten,
@@ -1765,8 +1764,7 @@ def bed(args):
         help="Generate bed file for components",
     )
     p.set_outfile()
-    g1 = OptionGroup(
-        p,
+    g1 = p.add_argument_group(
         "GFF specific parameters",
         "Note: If not specified, output will be in `bed` format",
     )
@@ -1782,7 +1780,6 @@ def bed(args):
         default="golden_path_fragment",
         help="Specify a gff3 feature type",
     )
-    p.add_option_group(g1)
     p.set_SO_opts()
 
     opts, args = p.parse_args(args)

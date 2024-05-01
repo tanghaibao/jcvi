@@ -509,9 +509,7 @@ def omgprepare(args):
 
     p = OptionParser(omgprepare.__doc__)
     p.add_option("--norbh", action="store_true", help="Disable RBH hits")
-    p.add_option(
-        "--pctid", default=0, type=int, help="Percent id cutoff for RBH hits"
-    )
+    p.add_option("--pctid", default=0, type=int, help="Percent id cutoff for RBH hits")
     p.add_option("--cscore", default=90, type=int, help="C-score cutoff for RBH hits")
     p.set_stripnames()
     p.set_beds()

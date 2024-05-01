@@ -1454,9 +1454,7 @@ def mcscan(args):
     tandem cluster as one line, tab separated.
     """
     p = OptionParser(mcscan.__doc__)
-    p.add_option(
-        "--iter", default=100, type=int, help="Max number of chains to output"
-    )
+    p.add_option("--iter", default=100, type=int, help="Max number of chains to output")
     p.add_option(
         "--ascii",
         default=False,

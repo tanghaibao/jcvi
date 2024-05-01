@@ -540,9 +540,7 @@ def qual(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(qual.__doc__)
-    p.add_option(
-        "--qv", default=31, type=int, help="Dummy qv score for extended bases"
-    )
+    p.add_option("--qv", default=31, type=int, help="Dummy qv score for extended bases")
     p.set_outfile()
     opts, args = p.parse_args(args)
 

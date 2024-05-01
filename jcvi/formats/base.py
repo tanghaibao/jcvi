@@ -785,9 +785,7 @@ def group(args):
 
     p = OptionParser(group.__doc__)
     p.set_sep()
-    p.add_option(
-        "--groupby", default=None, type=int, help="Default column to groupby"
-    )
+    p.add_option("--groupby", default=None, type=int, help="Default column to groupby")
     p.add_option(
         "--groupsep", default=",", help="Separator to join the grouped elements"
     )

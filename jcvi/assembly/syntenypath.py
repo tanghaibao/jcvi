@@ -140,9 +140,7 @@ def bed(args):
         action="store_true",
         help="Switch reference and aligned map elements",
     )
-    p.add_option(
-        "--scale", type=float, help="Scale the aligned map distance by factor"
-    )
+    p.add_option("--scale", type=float, help="Scale the aligned map distance by factor")
     p.set_beds()
     p.set_outfile()
     opts, args = p.parse_args(args)

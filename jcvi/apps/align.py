@@ -216,9 +216,7 @@ def nucmer(args):
     from jcvi.formats.base import split
 
     p = OptionParser(nucmer.__doc__)
-    p.add_option(
-        "--chunks", type=int, help="Split both query and subject into chunks"
-    )
+    p.add_option("--chunks", type=int, help="Split both query and subject into chunks")
     p.set_params(prog="nucmer", params="-l 100 -c 500")
     p.set_cpus()
     opts, args = p.parse_args(args)

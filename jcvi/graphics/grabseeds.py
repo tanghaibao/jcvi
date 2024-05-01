@@ -297,9 +297,7 @@ def add_seeds_options(p, args):
     g2.add_option(
         "--maxsize", default=50, type=float, help="Max percentage of object to image"
     )
-    g2.add_option(
-        "--count", default=100, type=int, help="Report max number of objects"
-    )
+    g2.add_option("--count", default=100, type=int, help="Report max number of objects")
     g2.add_option(
         "--watershed",
         default=False,

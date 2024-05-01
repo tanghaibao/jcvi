@@ -556,9 +556,7 @@ def consensus(args):
     errors according to error rate, calls consensus.
     """
     p = OptionParser(consensus.__doc__)
-    p.add_option(
-        "--ploidy", default=2, type=int, help="Number of haplotypes per locus"
-    )
+    p.add_option("--ploidy", default=2, type=int, help="Number of haplotypes per locus")
     add_consensus_options(p)
     p.set_verbose()
     opts, args = p.parse_args(args)

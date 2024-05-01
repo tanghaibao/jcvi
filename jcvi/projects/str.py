@@ -2044,9 +2044,7 @@ def compare2(args):
     Compare performances of various variant callers on simulated STR datasets.
     """
     p = OptionParser(compare2.__doc__)
-    p.add_option(
-        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
-    )
+    p.add_option("--maxinsert", default=300, type=int, help="Maximum number of repeats")
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x5")
 
@@ -2101,9 +2099,7 @@ def power(args):
     This compares the power of various evidence types.
     """
     p = OptionParser(power.__doc__)
-    p.add_option(
-        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
-    )
+    p.add_option("--maxinsert", default=300, type=int, help="Maximum number of repeats")
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x10", format="png")
 
@@ -2200,9 +2196,7 @@ def tredparse(args):
     Adds coverage comparisons as panel C and D.
     """
     p = OptionParser(tredparse.__doc__)
-    p.add_option(
-        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
-    )
+    p.add_option("--maxinsert", default=300, type=int, help="Maximum number of repeats")
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x10")
 

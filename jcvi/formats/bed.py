@@ -2440,9 +2440,7 @@ def flanking(args):
     p.add_option(
         "--coord", default=None, type=int, help="coordinate of the position in query."
     )
-    p.add_option(
-        "-n", default=10, type=int, help="number of flanking features to get"
-    )
+    p.add_option("-n", default=10, type=int, help="number of flanking features to get")
     p.add_option(
         "--side",
         default="both",

@@ -1395,12 +1395,8 @@ def path(args):
     )
     p.add_option("--seqid", help="Only run partition with this seqid")
     p.add_option("--partitions", help="Use predefined partitions of LGs")
-    p.add_option(
-        "--links", default=10, type=int, help="Only plot matchings more than"
-    )
-    p.add_option(
-        "--mincount", default=1, type=int, help="Minimum markers on a contig"
-    )
+    p.add_option("--links", default=10, type=int, help="Only plot matchings more than")
+    p.add_option("--mincount", default=1, type=int, help="Minimum markers on a contig")
     p.add_option(
         "--noplot",
         default=False,
@@ -1783,9 +1779,7 @@ def add_allmaps_plot_options(p):
         choices=distance_choices,
         help="Plot markers based on distance",
     )
-    p.add_option(
-        "--links", default=10, type=int, help="Only plot matchings more than"
-    )
+    p.add_option("--links", default=10, type=int, help="Only plot matchings more than")
     p.add_option(
         "--panels", default=False, action="store_true", help="Add panel labels A/B"
     )

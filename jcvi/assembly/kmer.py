@@ -39,6 +39,7 @@ from ..graphics.base import (
     write_messages,
 )
 from ..utils.cbook import thousands, percentage
+
 from .automaton import iter_project
 
 

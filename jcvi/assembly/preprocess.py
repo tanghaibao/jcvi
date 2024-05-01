@@ -9,8 +9,8 @@ import os.path as op
 import sys
 
 from ..apps.base import (
-    OptionParser,
     ActionDispatcher,
+    OptionParser,
     cleanup,
     datadir,
     download,

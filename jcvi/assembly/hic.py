@@ -33,7 +33,6 @@ from ..apps.base import (
     symlink,
 )
 from ..apps.grid import Jobs
-from ..assembly.allmaps import make_movie
 from ..compara.synteny import check_beds, get_bed_filenames
 from ..formats.agp import order_to_agp
 from ..formats.base import LineFile, must_open
@@ -49,6 +48,9 @@ from ..graphics.base import (
 )
 from ..graphics.dotplot import dotplot
 from ..utils.cbook import gene_name
+
+from .allmaps import make_movie
+
 
 # Map orientations to ints
 FF = {"+": 1, "-": -1, "?": 1}

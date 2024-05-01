@@ -4,15 +4,14 @@
 """
 Simulate Illumina sequencing reads.
 """
+import math
 import os
 import os.path as op
 import random
 import sys
-import logging
-import math
 
-from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, sh
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, sh
+from ..formats.fasta import Fasta
 
 
 def main():
@@ -195,9 +194,9 @@ def wgsim(args):
 
     outpf = opts.outfile or "{0}.{1}bp.{2}x".format(pf, distance, depth)
 
-    logging.debug("Total genome size: {0} bp".format(size))
-    logging.debug("Target depth: {0}x".format(depth))
-    logging.debug("Number of read pairs (2x{0}): {1}".format(readlen, readnum))
+    logger.debug("Total genome size: {0} bp".format(size))
+    logger.debug("Target depth: {0}x".format(depth))
+    logger.debug("Number of read pairs (2x{0}): {1}".format(readlen, readnum))
 
     if opts.noerrors:
         opts.erate = 0

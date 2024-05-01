@@ -12,35 +12,36 @@ include the following components
 import os
 import os.path as op
 import sys
-import logging
 
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.contig import ContigFile
-from jcvi.formats.fasta import (
-    Fasta,
-    Seq,
-    SeqIO,
-    SeqRecord,
-    gaps,
-    format,
-    parse_fasta,
-    tidy,
-)
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import must_open
-from jcvi.utils.cbook import depends
-from jcvi.assembly.base import n50
-from jcvi.apps.align import run_megablast
-from jcvi.apps.base import (
-    OptionParser,
+from ..apps.align import run_megablast
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
     cleanup,
+    logger,
     mkdir,
     need_update,
     sh,
 )
+from ..formats.base import must_open
+from ..formats.contig import ContigFile
+from ..formats.fasta import (
+    Fasta,
+    Seq,
+    SeqIO,
+    SeqRecord,
+    format,
+    gaps,
+    parse_fasta,
+    tidy,
+)
+from ..formats.sizes import Sizes
+from ..utils.cbook import depends
+
+from .base import n50
 
 
 def main():
@@ -93,7 +94,7 @@ def dust2bed(args):
             print("\t".join(str(x) for x in (header, start, end)), file=fw)
             nlines += 1
             nbases += end - start
-    logging.debug(
+    logger.debug(
         "A total of {0} DUST intervals ({1} bp) exported to `{2}`".format(
             nlines, nbases, bedfile
         )
@@ -309,7 +310,7 @@ def screen(args):
     cmd = "faSomeRecords {0} -exclude {1} {2}".format(scaffolds, idsfile, nf)
     sh(cmd)
 
-    logging.debug("Screened FASTA written to `{0}`.".format(nf))
+    logger.debug("Screened FASTA written to `{0}`.".format(nf))
 
     return nf
 
@@ -492,7 +493,7 @@ def overlap(args):
         if reads.isdisjoint(originalIDs):
             excludecontigs.add(rec.id)
 
-    logging.debug("Exclude contigs: {0}".format(", ".join(sorted(excludecontigs))))
+    logger.debug("Exclude contigs: {0}".format(", ".join(sorted(excludecontigs))))
 
     finalfasta = prefix + ".improved.fasta_"
     fw = open(finalfasta, "w")
@@ -507,7 +508,7 @@ def overlap(args):
     singletons = set(x.strip() for x in open(singletonfile))
     leftovers = singletons & originalIDs
 
-    logging.debug("Pull leftover singletons: {0}".format(", ".join(sorted(leftovers))))
+    logger.debug("Pull leftover singletons: {0}".format(", ".join(sorted(leftovers))))
 
     f = Fasta(ctgfasta)
     for id, rec in f.iteritems_ordered():
@@ -523,7 +524,7 @@ def overlap(args):
         [fastafile, finalfasta, "--sequential", "--pad0=3", "--prefix={0}_".format(rid)]
     )
 
-    logging.debug("Improved FASTA written to `{0}`.".format(finalfasta))
+    logger.debug("Improved FASTA written to `{0}`.".format(finalfasta))
 
     n50([ctgfasta])
     n50([finalfasta])

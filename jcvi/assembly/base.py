@@ -8,13 +8,13 @@ import os.path as op
 import sys
 
 from math import log
-
-import numpy as np
 from bisect import bisect
 
-from jcvi.formats.base import must_open
-from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import OptionParser, ActionDispatcher, glob
+import numpy as np
+
+from ..formats.base import must_open
+from ..formats.fasta import Fasta
+from ..apps.base import ActionDispatcher, OptionParser, glob
 
 ln2 = log(2)
 

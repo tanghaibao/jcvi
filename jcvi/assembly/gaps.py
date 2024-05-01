@@ -6,14 +6,13 @@ Calculates gap statistics and manipulate gaps in assembly.
 """
 import os.path as op
 import sys
-import logging
 
 from itertools import groupby
 
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.bed import Bed, fastaFromBed
-from jcvi.formats.blast import BlastSlow
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update
+from ..formats.bed import Bed, fastaFromBed
+from ..formats.blast import BlastSlow
+from ..formats.sizes import Sizes
 
 
 def main():
@@ -90,7 +89,7 @@ def annotate(args):
         print(a, file=newagp)
 
     newagp.close()
-    logging.debug("Annotated AGP written to `{0}`.".format(newagpfile))
+    logger.debug("Annotated AGP written to `%s`.", newagpfile)
 
     contigbed = assemblyfasta.rsplit(".", 1)[0] + ".contigs.bed"
     bedfile = bed([newagpfile, "--nogaps", "--outfile=" + contigbed])

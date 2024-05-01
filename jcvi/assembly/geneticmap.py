@@ -15,7 +15,7 @@ from typing import Tuple
 import numpy as np
 import seaborn as sns
 
-from ..apps.base import OptionParser, ActionDispatcher, logger, need_update
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update
 from ..algorithms.formula import calc_ldscore
 from ..algorithms.matrix import symmetrize
 from ..formats.base import BaseFile, LineFile, must_open, read_block

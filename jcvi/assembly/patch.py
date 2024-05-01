@@ -17,32 +17,31 @@ There are a few techniques, used in curating medicago assembly.
 import os.path as op
 import sys
 import math
-import logging
 
 from collections import defaultdict
 from itertools import groupby
 from more_itertools import pairwise, roundrobin
 
-from jcvi.formats.bed import (
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, sh
+from ..formats.base import FileMerger
+from ..formats.bed import (
     Bed,
     BedLine,
     complementBed,
-    mergeBed,
     fastaFromBed,
+    mergeBed,
     summary,
 )
-from jcvi.formats.blast import BlastSlow
-from jcvi.formats.sizes import Sizes
-from jcvi.utils.range import (
-    range_parse,
-    range_distance,
-    range_minmax,
-    range_merge,
+from ..formats.blast import BlastSlow
+from ..formats.sizes import Sizes
+from ..utils.range import (
     range_closest,
+    range_distance,
     range_interleave,
+    range_merge,
+    range_minmax,
+    range_parse,
 )
-from jcvi.formats.base import FileMerger
-from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, sh
 
 
 def main():
@@ -189,8 +188,8 @@ def pastegenes(args):
     fastaFromBed(extrabed, oldassembly, name=True)
     summary([extrabed])
 
-    logging.debug("Singleton blocks : {0}".format(singletons))
-    logging.debug("Large blocks : {0} ({1} genes)".format(large, large_genes))
+    logger.debug("Singleton blocks : {0}".format(singletons))
+    logger.debug("Large blocks : {0} ({1} genes)".format(large, large_genes))
 
 
 def pasteprepare(args):
@@ -779,7 +778,7 @@ def install(args):
         id = arec.id
         exclude.add(id)
 
-    logging.debug(
+    logger.debug(
         "Ignore {0} updates because of decreasing quality.".format(len(exclude))
     )
 
@@ -828,7 +827,7 @@ def refine(args):
 
     breakpointsbed, gapsbed = args
     ncols = len(next(open(breakpointsbed)).split())
-    logging.debug("File %s contains %d columns.", breakpointsbed, ncols)
+    logger.debug("File %s contains %d columns.", breakpointsbed, ncols)
     a = BedTool(breakpointsbed)
     b = BedTool(gapsbed)
     o = a.intersect(b, wao=True)
@@ -892,7 +891,7 @@ def merge_ranges(beds):
     mr = [range_parse(x) for x in m]
     mc = set(x.seqid for x in mr)
     if len(mc) != 1:
-        logging.error("Multiple seqid found in pocket. Aborted.")
+        logger.error("Multiple seqid found in pocket. Aborted.")
         return
 
     mc = list(mc)[0]

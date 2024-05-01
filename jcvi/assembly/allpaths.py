@@ -5,25 +5,26 @@
 Subroutines to aid ALLPATHS-LG assembly.
 """
 import os.path as op
-import os
 import sys
-import logging
-import numpy as np
 
 from struct import pack, unpack
 from itertools import islice
 
-from jcvi.formats.base import BaseFile
-from jcvi.assembly.base import FastqNamings, Library
-from jcvi.apps.grid import Jobs
-from jcvi.apps.base import (
-    OptionParser,
+import numpy as np
+
+from ..formats.base import BaseFile
+from ..apps.grid import Jobs
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
     cleanup,
     glob,
+    logger,
     need_update,
     sh,
 )
+
+from .base import FastqNamings, Library
 
 
 class PairsFile(BaseFile):
@@ -83,7 +84,7 @@ class PairsFile(BaseFile):
 
     def fixLibraryStats(self, sep, sd):
         libstat = (sep, sd)
-        logging.debug("New library stat: {0}".format(libstat))
+        logger.debug("New library stat: {0}".format(libstat))
         self.libstats = [libstat] * self.nlibs
 
     def write(self, filename):
@@ -105,7 +106,7 @@ class PairsFile(BaseFile):
         self.r2.tofile(fw)
         fw.write(pack("Q", self.npairs))
         self.libs.tofile(fw)
-        logging.debug("New pairs file written to `{0}`.".format(filename))
+        logger.debug("New pairs file written to `{0}`.".format(filename))
 
 
 def main():
@@ -175,7 +176,7 @@ def dump(args):
 
         libs.append(libname)
 
-    logging.debug("Found libraries: {0}".format(",".join(libs)))
+    logger.debug("Found libraries: {0}".format(",".join(libs)))
 
     cmds = []
     for libname in libs:
@@ -303,12 +304,12 @@ def extract_pairs(fastqfile, p1fw, p2fw, fragsfw, p, suffix=False):
         fragsfw.writelines(contents)
         nfrags += 1
 
-    logging.debug(
+    logger.debug(
         "A total of {0} paired reads written to `{1}`.".format(
             npairs, ",".join(x.name for x in p1fw + p2fw)
         )
     )
-    logging.debug(
+    logger.debug(
         "A total of {0} single reads written to `{1}`.".format(nfrags, fragsfw.name)
     )
 
@@ -506,10 +507,10 @@ def prepare(args):
         if not groups:
             continue
         write_csv(groupheader, groups, filename=csvfile, tee=True)
-        logging.debug("`{0}` created (# of groups = {1}).".format(csvfile, len(groups)))
+        logger.debug("`{0}` created (# of groups = {1}).".format(csvfile, len(groups)))
 
     write_csv(libheader, libcontents, filename="in_libs.csv", tee=True)
-    logging.debug("`in_libs.csv` created (# of libs = {0}).".format(len(libcontents)))
+    logger.debug("`in_libs.csv` created (# of libs = {0}).".format(len(libcontents)))
 
     runfile = "run.sh"
 

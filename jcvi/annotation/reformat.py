@@ -9,7 +9,6 @@ Similar to the utilities in DAWGPAWS.
 """
 import os
 import sys
-import logging
 import re
 
 from collections import defaultdict

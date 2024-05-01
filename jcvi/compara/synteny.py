@@ -6,7 +6,6 @@
 
 import os.path as op
 import sys
-import logging
 
 from collections import defaultdict
 from collections.abc import Iterable

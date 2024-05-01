@@ -601,10 +601,12 @@ def gff(args):
     """
     align_choices = ("left", "center", "right")
     p = OptionParser(gff.__doc__)
-    p.add_option(
+    p.add_argument(
         "--align", default="left", choices=align_choices, help="Horizontal alignment"
     )
-    p.add_option("--noUTR", default=False, action="store_true", help="Do not plot UTRs")
+    p.add_argument(
+        "--noUTR", default=False, action="store_true", help="Do not plot UTRs"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

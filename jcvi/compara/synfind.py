@@ -248,22 +248,22 @@ if __name__ == "__main__":
     p.set_outfile()
 
     coge_group = p.add_argument_group("CoGe-specific options")
-    coge_group.add_option("--sqlite", help="Write sqlite database")
-    coge_group.add_option("--qnote", default="null", help="Query dataset group id")
-    coge_group.add_option("--snote", default="null", help="Subject dataset group id")
+    coge_group.add_argument("--sqlite", help="Write sqlite database")
+    coge_group.add_argument("--qnote", default="null", help="Query dataset group id")
+    coge_group.add_argument("--snote", default="null", help="Subject dataset group id")
 
     params_group = p.add_argument_group("Synteny parameters")
-    params_group.add_option(
+    params_group.add_argument(
         "--window", type=int, default=40, help="Synteny window size"
     )
-    params_group.add_option(
+    params_group.add_argument(
         "--cutoff",
         type=float,
         default=0.1,
         help="Minimum number of anchors to call synteny",
     )
     supported_scoring = ("collinear", "density")
-    params_group.add_option(
+    params_group.add_argument(
         "--scoring",
         choices=supported_scoring,
         default="collinear",

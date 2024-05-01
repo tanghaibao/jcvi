@@ -32,26 +32,26 @@ def main(args):
     query. Control "major" by option --refcov.
     """
     p = OptionParser(main.__doc__)
-    p.add_option("--refids", help="Use subset of contigs in the ref")
-    p.add_option(
+    p.add_argument("--refids", help="Use subset of contigs in the ref")
+    p.add_argument(
         "--refcov",
         default=0.01,
         type=float,
         help="Minimum reference coverage",
     )
-    p.add_option(
+    p.add_argument(
         "--all",
         default=False,
         action="store_true",
         help="Plot one pdf file per ref in refidsfile",
     )
-    p.add_option(
+    p.add_argument(
         "--color",
         default="similarity",
         choices=("similarity", "direction", "none"),
         help="Color the dots based on",
     )
-    p.add_option(
+    p.add_argument(
         "--nolayout",
         default=False,
         action="store_true",

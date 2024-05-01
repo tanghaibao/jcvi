@@ -130,8 +130,8 @@ def dump(args):
     run allpaths folder.
     """
     p = OptionParser(dump.__doc__)
-    p.add_option("--dir", help="Working directory")
-    p.add_option(
+    p.add_argument("--dir", help="Working directory")
+    p.add_argument(
         "--nosim",
         default=False,
         action="store_true",
@@ -229,7 +229,7 @@ def fill(args):
     Run FillFragments on `frag_reads_corr.fastb`.
     """
     p = OptionParser(fill.__doc__)
-    p.add_option(
+    p.add_argument(
         "--stretch",
         default=3,
         type=int,
@@ -334,13 +334,13 @@ def pairs(args):
     from jcvi.assembly.preprocess import run_FastbAndQualb2Fastq
 
     p = OptionParser(pairs.__doc__)
-    p.add_option(
+    p.add_argument(
         "--header",
         default=False,
         action="store_true",
         help="Print header only",
     )
-    p.add_option(
+    p.add_argument(
         "--suffix",
         default=False,
         action="store_true",
@@ -415,19 +415,19 @@ def prepare(args):
     from jcvi.formats.fastq import guessoffset, readlen
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
-    p.add_option(
+    p.add_argument(
         "--corr",
         default=False,
         action="store_true",
         help="Extra parameters for corrected data",
     )
-    p.add_option(
+    p.add_argument(
         "--norun",
         default=False,
         action="store_true",
         help="Don't write `run.sh` script",
     )
-    p.add_option("--ploidy", default="2", choices=("1", "2"), help="Ploidy")
+    p.add_argument("--ploidy", default="2", choices=("1", "2"), help="Ploidy")
     p.set_cpus()
     opts, args = p.parse_args(args)
 

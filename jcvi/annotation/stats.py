@@ -147,7 +147,9 @@ def genestats(args):
     A physical, genetic and functional sequence assembly of the barley genome
     """
     p = OptionParser(genestats.__doc__)
-    p.add_option("--groupby", default="conf_class", help="Print separate stats groupby")
+    p.add_argument(
+        "--groupby", default="conf_class", help="Print separate stats groupby"
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -286,7 +288,7 @@ def histogram(args):
     from jcvi.graphics.histogram import histogram_multiple
 
     p = OptionParser(histogram.__doc__)
-    p.add_option(
+    p.add_argument(
         "--bins",
         dest="bins",
         default=40,
@@ -338,8 +340,8 @@ def stats(args):
     With data written to disk then you can run %prog histogram
     """
     p = OptionParser(stats.__doc__)
-    p.add_option("--gene", default="mRNA", help="The gene type")
-    p.add_option("--exon", default="CDS", help="The exon type")
+    p.add_argument("--gene", default="mRNA", help="The gene type")
+    p.add_argument("--exon", default="CDS", help="The exon type")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

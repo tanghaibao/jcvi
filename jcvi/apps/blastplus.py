@@ -36,19 +36,19 @@ def main():
     """
     p = OptionParser(main.__doc__)
 
-    p.add_option(
+    p.add_argument(
         "--format",
         default=" '6 qseqid sseqid pident length "
         "mismatch gapopen qstart qend sstart send evalue bitscore' ",
         help='0-11, learn more with "blastp -help"',
     )
-    p.add_option(
+    p.add_argument(
         "--path",
         dest="blast_path",
         default=None,
         help="specify BLAST+ path including the program name",
     )
-    p.add_option(
+    p.add_argument(
         "--prog",
         dest="blast_program",
         default="blastp",
@@ -56,14 +56,14 @@ def main():
         "http://www.ncbi.nlm.nih.gov/books/NBK52640/#chapter1.Installation",
     )
     p.set_align(evalue=0.01)
-    p.add_option(
+    p.add_argument(
         "--best",
         default=1,
         type=int,
         help="Only look for best N hits",
     )
     p.set_cpus()
-    p.add_option(
+    p.add_argument(
         "--nprocs",
         default=1,
         type=int,

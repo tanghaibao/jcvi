@@ -43,7 +43,7 @@ def link(args):
     from jcvi.apps.base import mkdir
 
     p = OptionParser(link.__doc__)
-    p.add_option("--dir", help="Place links in a subdirectory")
+    p.add_argument("--dir", help="Place links in a subdirectory")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

@@ -624,9 +624,9 @@ def dist(args):
     from jcvi.graphics.base import human_base_formatter, markup
 
     p = OptionParser(dist.__doc__)
-    p.add_option("--title", help="Title of the histogram")
-    p.add_option("--xmin", default=300, help="Minimum distance")
-    p.add_option("--xmax", default=6000000, help="Maximum distance")
+    p.add_argument("--title", help="Title of the histogram")
+    p.add_argument("--xmin", default=300, help="Minimum distance")
+    p.add_argument("--xmax", default=6000000, help="Maximum distance")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
 
     if len(args) != 2:
@@ -817,12 +817,12 @@ def heatmap(args):
     and seq2 individually with green color.
     """
     p = OptionParser(heatmap.__doc__)
-    p.add_option("--title", help="Title of the heatmap")
-    p.add_option("--groups", help="Groups file, see doc")
-    p.add_option("--vmin", default=1, type=int, help="Minimum value in the heatmap")
-    p.add_option("--vmax", default=6, type=int, help="Maximum value in the heatmap")
-    p.add_option("--chr", help="Plot this contig/chr only")
-    p.add_option(
+    p.add_argument("--title", help="Title of the heatmap")
+    p.add_argument("--groups", help="Groups file, see doc")
+    p.add_argument("--vmin", default=1, type=int, help="Minimum value in the heatmap")
+    p.add_argument("--vmax", default=6, type=int, help="Maximum value in the heatmap")
+    p.add_argument("--chr", help="Plot this contig/chr only")
+    p.add_argument(
         "--nobreaks",
         default=False,
         action="store_true",
@@ -935,13 +935,13 @@ def bam2mat(args):
     from jcvi.utils.cbook import percentage
 
     p = OptionParser(bam2mat.__doc__)
-    p.add_option(
+    p.add_argument(
         "--resolution",
         default=500000,
         type=int,
         help="Resolution when counting the links",
     )
-    p.add_option(
+    p.add_argument(
         "--seqids",
         default=None,
         help="Use a given seqids file, a single line with seqids joined by comma",
@@ -1063,10 +1063,10 @@ def simulate(args):
     - Genes are distributed uniformly
     """
     p = OptionParser(simulate.__doc__)
-    p.add_option("--genomesize", default=10000000, type=int, help="Genome size")
-    p.add_option("--genes", default=1000, type=int, help="Number of genes")
-    p.add_option("--contigs", default=100, type=int, help="Number of contigs")
-    p.add_option("--coverage", default=10, type=int, help="Link coverage")
+    p.add_argument("--genomesize", default=10000000, type=int, help="Genome size")
+    p.add_argument("--genes", default=1000, type=int, help="Number of genes")
+    p.add_argument("--contigs", default=100, type=int, help="Number of contigs")
+    p.add_argument("--coverage", default=10, type=int, help="Link coverage")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1220,7 +1220,7 @@ def density(args):
     Estimate link density of contigs.
     """
     p = OptionParser(density.__doc__)
-    p.add_option(
+    p.add_argument(
         "--save",
         default=False,
         action="store_true",
@@ -1260,19 +1260,19 @@ def optimize(args):
     Optimize the contig order and orientation, based on CLM file.
     """
     p = OptionParser(optimize.__doc__)
-    p.add_option(
+    p.add_argument(
         "--skiprecover",
         default=False,
         action="store_true",
         help="Do not import 'recover' contigs",
     )
-    p.add_option(
+    p.add_argument(
         "--startover",
         default=False,
         action="store_true",
         help="Do not resume from existing tour file",
     )
-    p.add_option("--skipGA", default=False, action="store_true", help="Skip GA step")
+    p.add_argument("--skipGA", default=False, action="store_true", help="Skip GA step")
     p.set_outfile(outfile=None)
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -1479,8 +1479,8 @@ def movie(args):
     Plot optimization history.
     """
     p = OptionParser(movie.__doc__)
-    p.add_option("--frames", default=500, type=int, help="Only plot every N frames")
-    p.add_option(
+    p.add_argument("--frames", default=500, type=int, help="Only plot every N frames")
+    p.add_argument(
         "--engine",
         default="ffmpeg",
         choices=("ffmpeg", "gifsicle"),
@@ -1666,7 +1666,7 @@ def movieframe(args):
     Draw heatmap and synteny in the same plot.
     """
     p = OptionParser(movieframe.__doc__)
-    p.add_option("--label", help="Figure title")
+    p.add_argument("--label", help="Figure title")
     p.set_beds()
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(

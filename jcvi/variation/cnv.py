@@ -804,7 +804,7 @@ def cib(args):
     Convert BAM to CIB (a binary storage of int8 per base).
     """
     p = OptionParser(cib.__doc__)
-    p.add_option("--prefix", help="Report seqids with this prefix only")
+    p.add_argument("--prefix", help="Report seqids with this prefix only")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -837,7 +837,7 @@ def batchcn(args):
     Run CNV segmentation caller in batch mode. Scans a workdir.
     """
     p = OptionParser(batchcn.__doc__)
-    p.add_option(
+    p.add_argument(
         "--upload",
         default="s3://hli-mv-data-science/htang/ccn",
         help="Upload cn and seg results to s3",
@@ -878,14 +878,14 @@ def hmm(args):
     directory.
     """
     p = OptionParser(hmm.__doc__)
-    p.add_option("--mu", default=0.003, type=float, help="Transition probability")
-    p.add_option(
+    p.add_argument("--mu", default=0.003, type=float, help="Transition probability")
+    p.add_argument(
         "--sigma",
         default=0.1,
         type=float,
         help="Standard deviation of Gaussian emission distribution",
     )
-    p.add_option(
+    p.add_argument(
         "--threshold",
         default=1,
         type=float,
@@ -1064,27 +1064,29 @@ def cn(args):
     Download CCN output folder and convert cib to copy number per 1Kb.
     """
     p = OptionParser(cn.__doc__)
-    p.add_option(
+    p.add_argument(
         "--binsize", default=1000, type=int, help="Window size along chromosome"
     )
-    p.add_option(
+    p.add_argument(
         "--cleanup",
         default=False,
         action="store_true",
         help="Clean up downloaded s3 folder",
     )
-    p.add_option(
+    p.add_argument(
         "--hmm",
         default=False,
         action="store_true",
         help="Run HMM caller after computing CN",
     )
-    p.add_option(
+    p.add_argument(
         "--upload",
         default="s3://hli-mv-data-science/htang/ccn",
         help="Upload cn and seg results to s3",
     )
-    p.add_option("--rebuildgc", help="Rebuild GC directory rather than pulling from S3")
+    p.add_argument(
+        "--rebuildgc", help="Rebuild GC directory rather than pulling from S3"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) == 2:
@@ -1182,7 +1184,7 @@ def validate(args):
     Plot RDR/BAF/CN for validation of CNV calls in `sample.vcf.gz`.
     """
     p = OptionParser(validate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--no-rdr-logy",
         default=False,
         action="store_true",
@@ -1421,7 +1423,7 @@ def wes_vs_wgs(args):
     Compare WES and WGS CNVs.
     """
     p = OptionParser(wes_vs_wgs.__doc__)
-    p.add_option(
+    p.add_argument(
         "--no-rdr-logy",
         default=False,
         action="store_true",

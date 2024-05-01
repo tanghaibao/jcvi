@@ -21,8 +21,10 @@ def lcn(args):
     %prog lcn Orthogroups/Orthogroups.tsv Orthogroup_Sequences/ lcn/
     """
     p = OptionParser(lcn.__doc__)
-    p.add_option("--min-single-ratio", default=0.9, help="Single copy ratio must be > ")
-    p.add_option("--max-zero-ratio", default=0, help="Zero copy ratio must be < ")
+    p.add_argument(
+        "--min-single-ratio", default=0.9, help="Single copy ratio must be > "
+    )
+    p.add_argument("--max-zero-ratio", default=0, help="Zero copy ratio must be < ")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:

@@ -129,21 +129,21 @@ def cov(args):
     homeologous gene pairs. Allow multiple chromosomes to multiple chromosomes.
     """
     p = OptionParser(cov.__doc__)
-    p.add_option(
+    p.add_argument(
         "--order",
         default="swede,kale,h165,yudal,aviso,abu,bristol,bzh",
         help="The order to plot the tracks, comma-separated",
     )
-    p.add_option(
+    p.add_argument(
         "--reverse",
         default=False,
         action="store_true",
         help="Plot the order in reverse",
     )
-    p.add_option(
+    p.add_argument(
         "--gauge_step", default=5000000, type=int, help="Step size for the base scale"
     )
-    p.add_option(
+    p.add_argument(
         "--hlsuffix",
         default="regions.forhaibao",
         help="Suffix for the filename to be used to highlight regions",
@@ -284,7 +284,7 @@ def fig3(args):
     from jcvi.formats.bed import Bed
 
     p = OptionParser(fig3.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gauge_step",
         default=10000000,
         type=int,
@@ -533,7 +533,7 @@ def fig4(args):
     showing read alignments from high GL and low GL lines.
     """
     p = OptionParser(fig4.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gauge_step", default=200000, type=int, help="Step size for the base scale"
     )
     opts, args, iopts = p.set_image_options(args, figsize="9x7")

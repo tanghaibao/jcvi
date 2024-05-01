@@ -165,26 +165,26 @@ def trimUTR(args):
     from jcvi.formats.base import SetFile
 
     p = OptionParser(trimUTR.__doc__)
-    p.add_option(
+    p.add_argument(
         "--trim5",
         default=None,
         type=str,
         help="File containing gene list for 5' UTR trimming",
     )
-    p.add_option(
+    p.add_argument(
         "--trim3",
         default=None,
         type=str,
         help="File containing gene list for 3' UTR trimming",
     )
-    p.add_option(
+    p.add_argument(
         "--trimrange",
         default=None,
         type=str,
         help="File containing gene list for UTR trim back"
         + "based on suggested (start, stop) coordinate range",
     )
-    p.add_option(
+    p.add_argument(
         "--refgff",
         default=None,
         type=str,

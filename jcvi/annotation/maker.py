@@ -351,7 +351,7 @@ def batcheval(args):
     from jcvi.formats.gff import make_index
 
     p = OptionParser(evaluate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--type",
         default="CDS",
         help="list of features to extract, use comma to separate (e.g."
@@ -450,17 +450,17 @@ def split(args):
     from jcvi.formats.bed import Bed
 
     p = OptionParser(split.__doc__)
-    p.add_option(
+    p.add_argument(
         "--key",
         default="Name",
         help="Key in the attributes to extract predictor.gff",
     )
-    p.add_option(
+    p.add_argument(
         "--parents",
         default="match",
         help="list of features to extract, use comma to separate (e.g.'gene,mRNA')",
     )
-    p.add_option(
+    p.add_argument(
         "--children",
         default="match_part",
         help="list of features to extract, use comma to separate (e.g."

@@ -136,7 +136,7 @@ def fromagp(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fromagp.__doc__)
-    p.add_option(
+    p.add_argument(
         "--novalidate", default=False, action="store_true", help="Do not validate AGP"
     )
     opts, args = p.parse_args(args)
@@ -219,13 +219,13 @@ def blat(args):
     Generate psl file using blat.
     """
     p = OptionParser(blat.__doc__)
-    p.add_option(
+    p.add_argument(
         "--minscore",
         default=100,
         type=int,
         help="Matches minus mismatches gap penalty",
     )
-    p.add_option(
+    p.add_argument(
         "--minid",
         default=98,
         type=int,

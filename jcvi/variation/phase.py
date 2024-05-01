@@ -83,7 +83,7 @@ def prepare(args):
     - variants_to_phase: in format of phased vcf
     """
     p = OptionParser(prepare.__doc__)
-    p.add_option("--accuracy", default=0.85, help="Sequencing per-base accuracy")
+    p.add_argument("--accuracy", default=0.85, help="Sequencing per-base accuracy")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

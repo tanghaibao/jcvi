@@ -106,7 +106,7 @@ def pad(args):
 
     p = OptionParser(pad.__doc__)
     p.set_beds()
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         default=0.3,
         type=float,
@@ -238,10 +238,10 @@ def cluster(args):
 
     p = OptionParser(cluster.__doc__)
     p.set_beds()
-    p.add_option(
+    p.add_argument(
         "--minsize", default=10, type=int, help="Only segment using blocks >= size"
     )
-    p.add_option(
+    p.add_argument(
         "--path", default="~/scratch/bin", help="Path to the CLUSTER 3.0 binary"
     )
 

@@ -296,13 +296,13 @@ def filter(args):
     - noself: remove self-self hits
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--score", dest="score", default=0, type=int, help="Score cutoff")
+    p.add_argument("--score", dest="score", default=0, type=int, help="Score cutoff")
     p.set_align(pctid=95, hitlen=100, evalue=0.01)
-    p.add_option(
+    p.add_argument(
         "--noself", default=False, action="store_true", help="Remove self-self hits"
     )
-    p.add_option("--ids", help="Path to file with ids to retain")
-    p.add_option(
+    p.add_argument("--ids", help="Path to file with ids to retain")
+    p.add_argument(
         "--inverse",
         default=False,
         action="store_true",
@@ -527,8 +527,8 @@ def annotation(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(annotation.__doc__)
-    p.add_option("--queryids", help="Query IDS file to switch")
-    p.add_option("--subjectids", help="Subject IDS file to switch")
+    p.add_argument("--queryids", help="Query IDS file to switch")
+    p.add_argument("--subjectids", help="Subject IDS file to switch")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -562,7 +562,7 @@ def completeness(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(completeness.__doc__)
-    p.add_option("--ids", help="Save ids that are over 50% complete")
+    p.add_argument("--ids", help="Save ids that are over 50% complete")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -627,7 +627,7 @@ def annotate(args):
 
     p = OptionParser(annotate.__doc__)
     p.set_align(pctid=94, hitlen=500)
-    p.add_option("--hang", default=500, type=int, help="Maximum overhang length")
+    p.add_argument("--hang", default=500, type=int, help="Maximum overhang length")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -665,13 +665,13 @@ def top10(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(top10.__doc__)
-    p.add_option(
+    p.add_argument(
         "--top",
         default=10,
         type=int,
         help="Top N taxa to extract",
     )
-    p.add_option(
+    p.add_argument(
         "--ids",
         default=None,
         help="Two column ids file to query seqid",
@@ -701,25 +701,25 @@ def sort(args):
     sort is 'in-place'.
     """
     p = OptionParser(sort.__doc__)
-    p.add_option(
+    p.add_argument(
         "--query",
         default=False,
         action="store_true",
         help="Sort by query position",
     )
-    p.add_option(
+    p.add_argument(
         "--ref",
         default=False,
         action="store_true",
         help="Sort by reference position",
     )
-    p.add_option(
+    p.add_argument(
         "--refscore",
         default=False,
         action="store_true",
         help="Sort by reference name, then score descending",
     )
-    p.add_option(
+    p.add_argument(
         "--coords",
         default=False,
         action="store_true",
@@ -774,19 +774,19 @@ def cscore(args):
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(cscore.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         default=0.9999,
         type=float,
         help="Minimum C-score to report",
     )
-    p.add_option(
+    p.add_argument(
         "--pct",
         default=False,
         action="store_true",
         help="Also include pct as last column",
     )
-    p.add_option(
+    p.add_argument(
         "--writeblast",
         default=False,
         action="store_true",
@@ -939,7 +939,7 @@ def chain(args):
     Chain adjacent HSPs together to form larger HSP.
     """
     p = OptionParser(chain.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dist",
         dest="dist",
         default=100,
@@ -1042,29 +1042,29 @@ def covfilter(args):
 
     p = OptionParser(covfilter.__doc__)
     p.set_align(pctid=95, pctcov=50)
-    p.add_option(
+    p.add_argument(
         "--scov",
         default=False,
         action="store_true",
         help="Subject coverage instead of query",
     )
-    p.add_option(
+    p.add_argument(
         "--supermap", action="store_true", help="Use supermap instead of union"
     )
-    p.add_option(
+    p.add_argument(
         "--ids",
         dest="ids",
         default=None,
         help="Print out the ids that satisfy",
     )
-    p.add_option(
+    p.add_argument(
         "--list",
         dest="list",
         default=False,
         action="store_true",
         help="List the id% and cov% per gene",
     )
-    p.add_option(
+    p.add_argument(
         "--iterby",
         dest="iterby",
         default="query",
@@ -1264,19 +1264,19 @@ def bed(args):
     from .bed import sort as bed_sort, mergeBed
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--swap",
         default=False,
         action="store_true",
         help="Write query positions",
     )
-    p.add_option(
+    p.add_argument(
         "--both",
         default=False,
         action="store_true",
         help="Generate one line for each of query and subject",
     )
-    p.add_option(
+    p.add_argument(
         "--merge",
         default=None,
         type=int,
@@ -1345,7 +1345,7 @@ def anchors(args):
     """
     p = OptionParser(anchors.__doc__)
     p.set_outfile()
-    p.add_option(
+    p.add_argument(
         "--best", default=False, action="store_true", help="Keep only the best hit"
     )
     opts, args = p.parse_args(args)
@@ -1379,20 +1379,20 @@ def best(args):
     """
     p = OptionParser(best.__doc__)
 
-    p.add_option("-n", default=1, type=int, help="get best N hits")
-    p.add_option(
+    p.add_argument("-n", default=1, type=int, help="get best N hits")
+    p.add_argument(
         "--nosort",
         default=False,
         action="store_true",
         help="assume BLAST is already sorted",
     )
-    p.add_option(
+    p.add_argument(
         "--hsps",
         default=False,
         action="store_true",
         help="get all HSPs for the best pair",
     )
-    p.add_option(
+    p.add_argument(
         "--subject",
         default=False,
         action="store_true",
@@ -1445,13 +1445,13 @@ def summary(args):
     qryspan, pct_qryspan, refspan, pct_refspan
     """
     p = OptionParser(summary.__doc__)
-    p.add_option(
+    p.add_argument(
         "--strict",
         default=False,
         action="store_true",
         help="Strict 'gapless' mode. Exclude gaps from covered base.",
     )
-    p.add_option(
+    p.add_argument(
         "--tabular",
         default=False,
         action="store_true",
@@ -1483,17 +1483,17 @@ def subset(args):
     Otherwise the script will do nothing.
     """
     p = OptionParser(subset.__doc__)
-    p.add_option(
+    p.add_argument(
         "--qchrs",
         default=None,
         help="query chrs to extract, comma sep",
     )
-    p.add_option(
+    p.add_argument(
         "--schrs",
         default=None,
         help="subject chrs to extract, comma sep",
     )
-    p.add_option(
+    p.add_argument(
         "--convert",
         default=False,
         action="store_true",

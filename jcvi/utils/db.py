@@ -171,7 +171,7 @@ def pull(args):
     """
     p = OptionParser(pull.__doc__)
     p.set_db_opts(dbname="mtg2", credentials=None)
-    p.add_option(
+    p.add_argument(
         "--frag",
         default=False,
         action="store_true",
@@ -239,7 +239,7 @@ def query(args):
     """
     p = OptionParser(query.__doc__)
     p.set_db_opts()
-    p.add_option(
+    p.add_argument(
         "--dryrun",
         default=False,
         action="store_true",

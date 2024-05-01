@@ -73,7 +73,7 @@ def wheel(args):
     Wheel plot that shows continous data in radial axes.
     """
     p = OptionParser(wheel.__doc__)
-    p.add_option(
+    p.add_argument(
         "--column",
         default="score",
         choices=("score", "percentile"),

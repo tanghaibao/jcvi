@@ -410,13 +410,13 @@ def check_beds(hintfile, p, opts, sorted=True):
     return qbed, sbed, qorder, sorder, is_self
 
 
-def add_options(p, args, dist=10):
+def add_arguments(p, args, dist=10):
     """
     scan and liftover has similar interfaces, so share common options
     returns opts, files
     """
     p.set_beds()
-    p.add_option(
+    p.add_argument(
         "--dist", default=dist, type=int, help="Extent of flanking regions to search"
     )
 
@@ -569,7 +569,7 @@ def assemble(args):
     from jcvi.formats.fasta import some
 
     p = OptionParser(assemble.__doc__)
-    p.add_option(
+    p.add_argument(
         "--no_strip_names",
         default=False,
         action="store_true",
@@ -784,7 +784,7 @@ def toaligns(args):
     with the Block ID.
     """
     p = OptionParser(toaligns.__doc__)
-    p.add_option("--prefix", default="b", help="Prefix to the block id")
+    p.add_argument("--prefix", default="b", help="Prefix to the block id")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -813,8 +813,8 @@ def mcscanq(args):
     graphics.karyotype and graphics.synteny.
     """
     p = OptionParser(mcscanq.__doc__)
-    p.add_option("--color", help="Add color highlight, used in plotting")
-    p.add_option(
+    p.add_argument("--color", help="Add color highlight, used in plotting")
+    p.add_argument(
         "--invert", default=False, action="store_true", help="Invert query and subject"
     )
     opts, args = p.parse_args(args)
@@ -842,7 +842,7 @@ def spa(args):
     from jcvi.utils.cbook import uniqify
 
     p = OptionParser(spa.__doc__)
-    p.add_option(
+    p.add_argument(
         "--unmapped",
         default=False,
         action="store_true",
@@ -899,10 +899,10 @@ def rebuild(args):
     Rebuild anchors file from pre-built blocks file.
     """
     p = OptionParser(rebuild.__doc__)
-    p.add_option(
+    p.add_argument(
         "--header", default=False, action="store_true", help="First line is header"
     )
-    p.add_option(
+    p.add_argument(
         "--write_blast",
         default=False,
         action="store_true",
@@ -990,7 +990,7 @@ def matrix(args):
     """
 
     p = OptionParser(matrix.__doc__)
-    p.add_option("--seqids", help="File with seqids")
+    p.add_argument("--seqids", help="File with seqids")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -1056,22 +1056,22 @@ def simple(args):
     block_id  seqidB    startB    endB     bpSpanB  GeneB1   GeneB2  geneSpanB
     """
     p = OptionParser(simple.__doc__)
-    p.add_option(
+    p.add_argument(
         "--rich", default=False, action="store_true", help="Output additional columns"
     )
-    p.add_option(
+    p.add_argument(
         "--coords",
         default=False,
         action="store_true",
         help="Output columns with base coordinates",
     )
-    p.add_option(
+    p.add_argument(
         "--bed",
         default=False,
         action="store_true",
         help="Generate BED file for the blocks",
     )
-    p.add_option(
+    p.add_argument(
         "--noheader", default=False, action="store_true", help="Don't output header"
     )
     p.set_beds()
@@ -1240,18 +1240,18 @@ def screen(args):
 
     p = OptionParser(screen.__doc__)
     p.set_beds()
-    p.add_option("--ids", help="File with block IDs (0-based)")
-    p.add_option("--seqids", help="File with seqids")
-    p.add_option("--seqpairs", help="File with seqpairs")
-    p.add_option(
+    p.add_argument("--ids", help="File with block IDs (0-based)")
+    p.add_argument("--seqids", help="File with seqids")
+    p.add_argument("--seqpairs", help="File with seqpairs")
+    p.add_argument(
         "--intrabound",
         default=300,
         type=int,
         help="Lower bound of intra-chromosomal blocks (only for self comparison)",
     )
-    p.add_option("--minspan", default=0, type=int, help="Only blocks with span >=")
-    p.add_option("--minsize", default=0, type=int, help="Only blocks with anchors >=")
-    p.add_option(
+    p.add_argument("--minspan", default=0, type=int, help="Only blocks with span >=")
+    p.add_argument("--minsize", default=0, type=int, help="Only blocks with anchors >=")
+    p.add_argument(
         "--simple", action="store_true", help="Write simple anchorfile with block ends"
     )
     opts, args = p.parse_args(args)
@@ -1358,7 +1358,7 @@ def summary(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--prefix", help="Generate per block stats")
+    p.add_argument("--prefix", help="Generate per block stats")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1454,20 +1454,22 @@ def mcscan(args):
     tandem cluster as one line, tab separated.
     """
     p = OptionParser(mcscan.__doc__)
-    p.add_option("--iter", default=100, type=int, help="Max number of chains to output")
-    p.add_option(
+    p.add_argument(
+        "--iter", default=100, type=int, help="Max number of chains to output"
+    )
+    p.add_argument(
         "--ascii",
         default=False,
         action="store_true",
         help="Output symbols rather than gene names",
     )
-    p.add_option(
+    p.add_argument(
         "--Nm", default=10, type=int, help="Clip block ends to allow slight overlaps"
     )
-    p.add_option(
+    p.add_argument(
         "--trackids", action="store_true", help="Track block IDs in separate file"
     )
-    p.add_option(
+    p.add_argument(
         "--mergetandem",
         default=None,
         help="merge tandems genes in output acoording to PATH-TO-TANDEM_FILE, "
@@ -1579,13 +1581,13 @@ def depth(args):
     from jcvi.graphics.base import latex
 
     p = OptionParser(depth.__doc__)
-    p.add_option("--depthfile", help="Generate file with gene and depth")
-    p.add_option(
+    p.add_argument("--depthfile", help="Generate file with gene and depth")
+    p.add_argument(
         "--histogram", default=False, action="store_true", help="Plot histograms in PDF"
     )
-    p.add_option("--xmax", type=int, help="x-axis maximum to display in plot")
-    p.add_option("--title", default=None, help="Title to display in plot")
-    p.add_option("--quota", help="Force to use this quota, e.g. 1:1, 1:2 ...")
+    p.add_argument("--xmax", type=int, help="x-axis maximum to display in plot")
+    p.add_argument("--title", default=None, help="Title to display in plot")
+    p.add_argument("--quota", help="Force to use this quota, e.g. 1:1, 1:2 ...")
     p.set_beds()
 
     opts, args = p.parse_args(args)
@@ -1721,13 +1723,13 @@ def breakpoint(args):
     from jcvi.utils.range import range_interleave
 
     p = OptionParser(breakpoint.__doc__)
-    p.add_option(
+    p.add_argument(
         "--xdist", type=int, default=20, help="xdist (in related genome) cutoff"
     )
-    p.add_option(
+    p.add_argument(
         "--ydist", type=int, default=200000, help="ydist (in current genome) cutoff"
     )
-    p.add_option("-n", type=int, default=5, help="number of markers in a block")
+    p.add_argument("-n", type=int, default=5, help="number of markers in a block")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1758,7 +1760,7 @@ def scan(args):
     pull out syntenic anchors from blastfile based on single-linkage algorithm
     """
     p = OptionParser(scan.__doc__)
-    p.add_option(
+    p.add_argument(
         "-n",
         "--min_size",
         dest="n",
@@ -1766,21 +1768,21 @@ def scan(args):
         default=4,
         help="minimum number of anchors in a cluster",
     )
-    p.add_option(
+    p.add_argument(
         "--intrabound",
         default=300,
         type=int,
         help="Lower bound of intra-chromosomal blocks (only for self comparison)",
     )
-    p.add_option("--liftover", help="Scan BLAST file to find extra anchors")
-    p.add_option(
+    p.add_argument("--liftover", help="Scan BLAST file to find extra anchors")
+    p.add_argument(
         "--liftover_dist",
         type=int,
         help="Distance to extend from liftover. Defaults to half of --dist",
     )
     p.set_stripnames()
 
-    blast_file, anchor_file, dist, opts = add_options(p, args, dist=20)
+    blast_file, anchor_file, dist, opts = add_arguments(p, args, dist=20)
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
     intrabound = opts.intrabound
@@ -1836,7 +1838,7 @@ def liftover(args):
     p = OptionParser(liftover.__doc__)
     p.set_stripnames()
 
-    blast_file, anchor_file, dist, opts = add_options(p, args)
+    blast_file, anchor_file, dist, opts = add_arguments(p, args)
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
     filtered_blast = read_blast(

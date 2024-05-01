@@ -918,7 +918,7 @@ def fromcsv(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fromcsv.__doc__)
-    p.add_option("--evidence", default="map", help="Linkage evidence to add in AGP")
+    p.add_argument("--evidence", default="map", help="Linkage evidence to add in AGP")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -1113,7 +1113,7 @@ def format(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(format.__doc__)
-    p.add_option("--switchcomponent", help="Switch component id based on")
+    p.add_argument("--switchcomponent", help="Switch component id based on")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1147,13 +1147,13 @@ def frombed(args):
     columns. With the 4-th column indicating the new object.
     """
     p = OptionParser(frombed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gapsize",
         default=100,
         type=int,
         help="Insert gaps of size",
     )
-    p.add_option("--evidence", default="map", help="Linkage evidence to add in AGP")
+    p.add_argument("--evidence", default="map", help="Linkage evidence to add in AGP")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1259,7 +1259,7 @@ def stats(args):
     from jcvi.utils.table import tabulate
 
     p = OptionParser(stats.__doc__)
-    p.add_option(
+    p.add_argument(
         "--warn",
         default=False,
         action="store_true",
@@ -1311,7 +1311,7 @@ def cut(args):
     Cut at the boundaries of the ranges in the bedfile.
     """
     p = OptionParser(cut.__doc__)
-    p.add_option("--sep", default=".", help="Separator for splits")
+    p.add_argument("--sep", default=".", help="Separator for splits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1383,36 +1383,36 @@ def mask(args):
     (--splitsingle).
     """
     p = OptionParser(mask.__doc__)
-    p.add_option(
+    p.add_argument(
         "--splitobject",
         default=False,
         action="store_true",
         help="Create new names for object",
     )
-    p.add_option(
+    p.add_argument(
         "--splitcomponent",
         default=False,
         action="store_true",
         help="Create new names for component",
     )
-    p.add_option(
+    p.add_argument(
         "--splitsingle",
         default=False,
         action="store_true",
         help="Do not remove base on single point",
     )
-    p.add_option(
+    p.add_argument(
         "--gaptype",
         default="scaffold",
         help="Masked region has gap type of",
     )
-    p.add_option(
+    p.add_argument(
         "--noretain",
         default=False,
         action="store_true",
         help="Do not retain old names for non-split objects",
     )
-    p.add_option("--sep", default=".", help="Separator for splits")
+    p.add_argument("--sep", default=".", help="Separator for splits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1532,13 +1532,13 @@ def reindex(args):
     the target coordinates.
     """
     p = OptionParser(reindex.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nogaps",
         default=False,
         action="store_true",
         help="Remove all gap lines",
     )
-    p.add_option(
+    p.add_argument(
         "--inplace",
         default=False,
         action="store_true",
@@ -1695,13 +1695,13 @@ def tpf(args):
     Can optionally output scaffold gaps.
     """
     p = OptionParser(tpf.__doc__)
-    p.add_option(
+    p.add_argument(
         "--noversion",
         default=False,
         action="store_true",
         help="Remove trailing accession versions",
     )
-    p.add_option(
+    p.add_argument(
         "--gaps",
         default=False,
         action="store_true",
@@ -1739,25 +1739,25 @@ def bed(args):
     from jcvi.formats.obo import validate_term
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gaps",
         default=False,
         action="store_true",
         help="Only print bed lines for gaps",
     )
-    p.add_option(
+    p.add_argument(
         "--nogaps",
         default=False,
         action="store_true",
         help="Do not print bed lines for gaps",
     )
-    p.add_option(
+    p.add_argument(
         "--bed12",
         default=False,
         action="store_true",
         help="Produce bed12 formatted output",
     )
-    p.add_option(
+    p.add_argument(
         "--component",
         default=False,
         action="store_true",
@@ -1768,14 +1768,14 @@ def bed(args):
         "GFF specific parameters",
         "Note: If not specified, output will be in `bed` format",
     )
-    g1.add_option(
+    g1.add_argument(
         "--gff",
         default=False,
         action="store_true",
         help="Produce gff3 formatted output. By default, ignores AGP gap lines",
     )
-    g1.add_option("--source", default="MGSC", help="Specify a gff3 source")
-    g1.add_option(
+    g1.add_argument("--source", default="MGSC", help="Specify a gff3 source")
+    g1.add_argument(
         "--feature",
         default="golden_path_fragment",
         help="Specify a gff3 feature type",
@@ -1849,19 +1849,19 @@ def extendbed(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(extendbed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nogaps",
         default=False,
         action="store_true",
         help="Do not print bed lines for gaps",
     )
-    p.add_option(
+    p.add_argument(
         "--bed12",
         default=False,
         action="store_true",
         help="Produce bed12 formatted output",
     )
-    p.add_option(
+    p.add_argument(
         "--gff",
         default=False,
         action="store_true",
@@ -1936,14 +1936,14 @@ def gaps(args):
     from jcvi.graphics.histogram import loghistogram
 
     p = OptionParser(gaps.__doc__)
-    p.add_option(
+    p.add_argument(
         "--merge",
         dest="merge",
         default=False,
         action="store_true",
         help="Merge adjacent gaps (to conform to AGP specification)",
     )
-    p.add_option(
+    p.add_argument(
         "--header",
         default=False,
         action="store_true",
@@ -2033,7 +2033,7 @@ def tidy(args):
     Final output is in `.tidy.agp`.
     """
     p = OptionParser(tidy.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nogaps",
         default=False,
         action="store_true",
@@ -2098,14 +2098,14 @@ def build(args):
     Build targetfasta based on info from agpfile
     """
     p = OptionParser(build.__doc__)
-    p.add_option(
+    p.add_argument(
         "--newagp",
         dest="newagp",
         default=False,
         action="store_true",
         help="Check components to trim dangling N's",
     )
-    p.add_option(
+    p.add_argument(
         "--novalidate",
         dest="novalidate",
         default=False,

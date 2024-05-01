@@ -47,7 +47,7 @@ def variation(args):
     Associate IES in parents and progeny.
     """
     p = OptionParser(variation.__doc__)
-    p.add_option(
+    p.add_argument(
         "--diversity",
         choices=("breakpoint", "variant"),
         default="variant",
@@ -197,7 +197,7 @@ def insertionpairs(args):
             (RE)   (LE)
     """
     p = OptionParser(insertionpairs.__doc__)
-    p.add_option(
+    p.add_argument(
         "--extend",
         default=10,
         type=int,
@@ -240,7 +240,7 @@ def insertion(args):
     'lesions' (stack of broken reads) in the MAC genome.
     """
     p = OptionParser(insertion.__doc__)
-    p.add_option(
+    p.add_argument(
         "--mindepth", default=6, type=int, help="Minimum depth to call an insertion"
     )
     p.set_outfile()
@@ -276,13 +276,13 @@ def deletion(args):
     Find IES based on mapping MAC reads to MIC genome.
     """
     p = OptionParser(deletion.__doc__)
-    p.add_option(
+    p.add_argument(
         "--mindepth", default=3, type=int, help="Minimum depth to call a deletion"
     )
-    p.add_option(
+    p.add_argument(
         "--minspan", default=30, type=int, help="Minimum span to call a deletion"
     )
-    p.add_option(
+    p.add_argument(
         "--split",
         default=False,
         action="store_true",

@@ -83,19 +83,19 @@ def pastegenes(args):
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(pastegenes.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         default=90,
         type=int,
         help="Coverage cutoff to call gene missing",
     )
-    p.add_option(
+    p.add_argument(
         "--flank",
         default=2000,
         type=int,
         help="Get the seq of size on two ends",
     )
-    p.add_option(
+    p.add_argument(
         "--maxsize",
         default=50000,
         type=int,
@@ -200,7 +200,7 @@ def pasteprepare(args):
     Prepare sequences for paste.
     """
     p = OptionParser(pasteprepare.__doc__)
-    p.add_option(
+    p.add_argument(
         "--flank",
         default=5000,
         type=int,
@@ -238,13 +238,13 @@ def paste(args):
     from jcvi.formats.bed import uniq
 
     p = OptionParser(paste.__doc__)
-    p.add_option(
+    p.add_argument(
         "--maxsize",
         default=300000,
         type=int,
         help="Maximum size of patchers to be replaced",
     )
-    p.add_option("--prefix", help="Prefix of the new object")
+    p.add_argument("--prefix", help="Prefix of the new object")
     p.set_rclip(rclip=1)
     opts, args = p.parse_args(args)
 
@@ -298,7 +298,7 @@ def closest(args):
     Identify the nearest gaps flanking suggested regions.
     """
     p = OptionParser(closest.__doc__)
-    p.add_option(
+    p.add_argument(
         "--om",
         default=False,
         action="store_true",
@@ -516,7 +516,7 @@ def fill(args):
     Perform gap filling of one assembly (bad) using sequences from another.
     """
     p = OptionParser(fill.__doc__)
-    p.add_option(
+    p.add_argument(
         "--extend",
         default=2000,
         type=int,
@@ -730,14 +730,14 @@ def install(args):
 
     p = OptionParser(install.__doc__)
     p.set_rclip(rclip=1)
-    p.add_option(
+    p.add_argument(
         "--maxsize",
         default=300000,
         type=int,
         help="Maximum size of patchers to be replaced",
     )
-    p.add_option("--prefix", help="Prefix of the new object")
-    p.add_option(
+    p.add_argument("--prefix", help="Prefix of the new object")
+    p.add_argument(
         "--strict",
         default=False,
         action="store_true",
@@ -814,7 +814,7 @@ def refine(args):
     from pybedtools import BedTool
 
     p = OptionParser(refine.__doc__)
-    p.add_option(
+    p.add_argument(
         "--closest",
         default=False,
         action="store_true",
@@ -917,12 +917,12 @@ def patcher(args):
     from jcvi.formats.bed import uniq
 
     p = OptionParser(patcher.__doc__)
-    p.add_option(
+    p.add_argument(
         "--backbone",
         default="OM",
         help="Prefix of the backbone assembly",
     )
-    p.add_option("--object", default="object", help="New object name")
+    p.add_argument("--object", default="object", help="New object name")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

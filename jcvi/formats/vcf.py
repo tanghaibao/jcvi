@@ -151,7 +151,7 @@ def validate(args):
     import pyfasta
 
     p = OptionParser(validate.__doc__)
-    p.add_option("--prefix", help="Add prefix to seqid")
+    p.add_argument("--prefix", help="Add prefix to seqid")
     opts, args = p.parse_args(args)
 
     vcffile, fastafile = args
@@ -496,7 +496,7 @@ def location(args):
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(location.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dist",
         default=100,
         type=int,
@@ -551,8 +551,8 @@ def summary(args):
     from jcvi.utils.table import tabulate
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--counts", help="Print SNP counts in a txt file")
-    p.add_option("--bed", help="Print SNPs locations in a bed file")
+    p.add_argument("--counts", help="Print SNP counts in a txt file")
+    p.add_argument("--bed", help="Print SNPs locations in a bed file")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -685,43 +685,43 @@ def mstmap(args):
     from jcvi.assembly.geneticmap import MSTMatrix
 
     p = OptionParser(mstmap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dh",
         default=False,
         action="store_true",
         help="Double haploid population, no het",
     )
-    p.add_option(
+    p.add_argument(
         "--freq",
         default=0.2,
         type=float,
         help="Allele must be above frequency",
     )
-    p.add_option(
+    p.add_argument(
         "--mindepth",
         default=3,
         type=int,
         help="Only trust genotype calls with depth",
     )
-    p.add_option(
+    p.add_argument(
         "--missing_threshold",
         default=0.25,
         type=float,
         help="Fraction missing must be below",
     )
-    p.add_option(
+    p.add_argument(
         "--noheader",
         default=False,
         action="store_true",
         help="Do not print MSTmap run parameters",
     )
-    p.add_option(
+    p.add_argument(
         "--pv4",
         default=False,
         action="store_true",
         help="Enable filtering strand-bias, tail distance bias, etc.",
     )
-    p.add_option(
+    p.add_argument(
         "--freebayes",
         default=False,
         action="store_true",
@@ -796,7 +796,7 @@ def liftover(args):
     Lift over coordinates in vcf file.
     """
     p = OptionParser(liftover.__doc__)
-    p.add_option(
+    p.add_argument(
         "--newid", default=False, action="store_true", help="Make new identifiers"
     )
     opts, args = p.parse_args(args)

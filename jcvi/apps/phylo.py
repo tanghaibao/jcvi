@@ -701,8 +701,8 @@ def prepare(args):
     from jcvi.graphics.base import discrete_rainbow
 
     p = OptionParser(prepare.__doc__)
-    p.add_option("--addtandem", help="path to tandemfile")
-    p.add_option(
+    p.add_argument("--addtandem", help="path to tandemfile")
+    p.add_argument(
         "--writecolors",
         default=False,
         action="store_true",
@@ -819,53 +819,53 @@ def build(args):
     from jcvi.formats.fasta import translate
 
     p = OptionParser(build.__doc__)
-    p.add_option(
+    p.add_argument(
         "--longest",
         action="store_true",
         help="Get longest ORF, only works if no pep file, e.g. ESTs",
     )
-    p.add_option(
+    p.add_argument(
         "--nogblocks",
         action="store_true",
         help="don't use Gblocks to edit alignment",
     )
-    p.add_option(
+    p.add_argument(
         "--synonymous",
         action="store_true",
         help="extract synonymous sites of the alignment",
     )
-    p.add_option(
+    p.add_argument(
         "--fourfold",
         action="store_true",
         help="extract fourfold degenerate sites of the alignment",
     )
-    p.add_option(
+    p.add_argument(
         "--msa",
         default="muscle",
         choices=("clustalw", "muscle"),
         help="software used to align the proteins",
     )
-    p.add_option(
+    p.add_argument(
         "--noneighbor",
         action="store_true",
         help="don't build NJ tree",
     )
-    p.add_option(
+    p.add_argument(
         "--ml",
         default=None,
         choices=("raxml", "phyml"),
         help="software used to build ML tree",
     )
-    p.add_option("--outgroup", help="path to file containing outgroup orders")
-    p.add_option("--SH", help="path to reference Newick tree")
-    p.add_option("--shout", default="SH_out.txt", help="SH output file name")
-    p.add_option(
+    p.add_argument("--outgroup", help="path to file containing outgroup orders")
+    p.add_argument("--SH", help="path to reference Newick tree")
+    p.add_argument("--shout", default="SH_out.txt", help="SH output file name")
+    p.add_argument(
         "--treefix",
         action="store_true",
         help="use TreeFix to rearrange ML tree",
     )
-    p.add_option("--stree", help="path to species Newick tree")
-    p.add_option(
+    p.add_argument("--stree", help="path to species Newick tree")
+    p.add_argument(
         "--smap",
         help="path to smap file: gene_name_pattern<tab>species_name",
     )
@@ -1085,18 +1085,18 @@ def draw(args):
     """
     trunc_name_options = ["headn", "oheadn", "tailn", "otailn"]
     p = OptionParser(draw.__doc__)
-    p.add_option(
+    p.add_argument(
         "--input",
         help="path to single input tree file or a dir "
         "containing ONLY the input tree files",
     )
-    p.add_option(
+    p.add_argument(
         "--combine",
         type=str,
         default="1x1",
         help="combine multiple trees into one plot in nrowxncol",
     )
-    p.add_option(
+    p.add_argument(
         "--trunc_name",
         default=None,
         help="Options are: {0}. "
@@ -1104,27 +1104,27 @@ def draw(args):
         "truncate last n chars, retain only last chars. "
         "n=1~99.".format(trunc_name_options),
     )
-    p.add_option(
+    p.add_argument(
         "--SH",
         default=None,
         help="path to a file containing SH test p-values in format:"
         "tree_file_name<tab>p-values "
         "This file can be generated with jcvi.apps.phylo build",
     )
-    p.add_option(
+    p.add_argument(
         "--scutoff",
         default=50,
         type=int,
         help="cutoff for displaying node support, 0-100",
     )
-    p.add_option(
+    p.add_argument(
         "--barcode",
         default=None,
         help="path to seq/taxon name barcode mapping file: "
         "barcode<tab>new_name "
         "This option is downstream of `--trunc_name`",
     )
-    p.add_option(
+    p.add_argument(
         "--leafcolorfile",
         default=None,
         help="path to a mapping file containing font colors "

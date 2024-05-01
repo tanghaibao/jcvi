@@ -400,57 +400,57 @@ def subset_bed(bed, seqids):
 def dotplot_main(args):
     p = OptionParser(__doc__)
     p.set_beds()
-    p.add_option(
+    p.add_argument(
         "--synteny",
         default=False,
         action="store_true",
         help="Run a fast synteny scan and display blocks",
     )
-    p.add_option("--cmaptext", help="Draw colormap box on the bottom-left corner")
-    p.add_option(
+    p.add_argument("--cmaptext", help="Draw colormap box on the bottom-left corner")
+    p.add_argument(
         "--vmin",
         dest="vmin",
         type=float,
         default=0,
         help="Minimum value in the colormap",
     )
-    p.add_option(
+    p.add_argument(
         "--vmax",
         dest="vmax",
         type=float,
         default=2,
         help="Maximum value in the colormap",
     )
-    p.add_option(
+    p.add_argument(
         "--nmax",
         dest="sample_number",
         type=int,
         default=10000,
         help="Maximum number of data points to plot",
     )
-    p.add_option(
+    p.add_argument(
         "--minfont",
         type=int,
         default=4,
         help="Do not render labels with size smaller than",
     )
-    p.add_option("--colormap", help="Two column file, block id to color mapping")
-    p.add_option(
+    p.add_argument("--colormap", help="Two column file, block id to color mapping")
+    p.add_argument(
         "--colororientation",
         action="store_true",
         default=False,
         help="Color the blocks based on orientation, similar to mummerplot",
     )
-    p.add_option(
+    p.add_argument(
         "--nosort",
         default=False,
         action="store_true",
         help="Do not sort the seqids along the axes",
     )
-    p.add_option(
+    p.add_argument(
         "--nosep", default=False, action="store_true", help="Do not add contig lines"
     )
-    p.add_option("--title", help="Title of the dot plot")
+    p.add_argument("--title", help="Title of the dot plot")
     p.set_dotplot_opts()
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(

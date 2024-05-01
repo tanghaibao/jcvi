@@ -157,7 +157,7 @@ def minimap(args):
     from jcvi.formats.fasta import Fasta
 
     p = OptionParser(minimap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--chunks",
         type=int,
         default=2000000,
@@ -216,7 +216,9 @@ def nucmer(args):
     from jcvi.formats.base import split
 
     p = OptionParser(nucmer.__doc__)
-    p.add_option("--chunks", type=int, help="Split both query and subject into chunks")
+    p.add_argument(
+        "--chunks", type=int, help="Split both query and subject into chunks"
+    )
     p.set_params(prog="nucmer", params="-l 100 -c 500")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -350,9 +352,9 @@ def blast(args):
     task_choices = ("blastn", "blastn-short", "dc-megablast", "megablast", "vecscreen")
     p = OptionParser(blast.__doc__)
     p.set_align(pctid=0, evalue=0.01)
-    p.add_option("--wordsize", type=int, help="Word size")
-    p.add_option("--best", default=1, type=int, help="Only look for best N hits")
-    p.add_option(
+    p.add_argument("--wordsize", type=int, help="Word size")
+    p.add_argument("--best", default=1, type=int, help="Only look for best N hits")
+    p.add_argument(
         "--task", default="megablast", choices=task_choices, help="Task of the blastn"
     )
     p.set_cpus()
@@ -489,29 +491,29 @@ def last(args, dbtype=None):
     Works with LAST-719.
     """
     p = OptionParser(last.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dbtype",
         default="nucl",
         choices=("nucl", "prot"),
         help="Molecule type of subject database",
     )
-    p.add_option("--path", help="Specify LAST path")
-    p.add_option(
+    p.add_argument("--path", help="Specify LAST path")
+    p.add_argument(
         "--mask", default=False, action="store_true", help="Invoke -c in lastdb"
     )
-    p.add_option(
+    p.add_argument(
         "--format",
         default="BlastTab",
         choices=("TAB", "MAF", "BlastTab", "BlastTab+"),
         help="Output format",
     )
-    p.add_option(
+    p.add_argument(
         "--minlen",
         default=0,
         type=int,
         help="Filter alignments by how many bases match",
     )
-    p.add_option("--minid", default=0, type=int, help="Minimum sequence identity")
+    p.add_argument("--minid", default=0, type=int, help="Minimum sequence identity")
     p.set_cpus()
     p.set_outdir()
     p.set_params()
@@ -598,13 +600,13 @@ def blast_main(args, dbtype=None):
     Run blastp/blastn by calling BLAST+ blastp/blastn depends on dbtype.
     """
     p = OptionParser(blast_main.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dbtype",
         default="nucl",
         choices=("nucl", "prot"),
         help="Molecule type of subject database",
     )
-    p.add_option("--path", help="Specify BLAST path for blastn or blastp")
+    p.add_argument("--path", help="Specify BLAST path for blastn or blastp")
 
     p.set_cpus()
     p.set_outdir()
@@ -662,7 +664,7 @@ def diamond_blastp_main(args, dbtype="prot"):
     """
     p = OptionParser(diamond_blastp_main.__doc__)
 
-    p.add_option("--path", help="Specify diamond path for diamond blastp")
+    p.add_argument("--path", help="Specify diamond path for diamond blastp")
 
     p.set_cpus()
     p.set_outdir()

@@ -390,7 +390,7 @@ def treds(args):
     from jcvi.apps.base import datafile
 
     p = OptionParser(treds.__doc__)
-    p.add_option(
+    p.add_argument(
         "--csv", default=False, action="store_true", help="Also write `meta.csv`"
     )
     opts, args = p.parse_args(args)
@@ -615,7 +615,7 @@ def meta(args):
     $ intersectBed -a all-STR.bed -b all-exons.bed -wo > STR-exons.wo.bed
     """
     p = OptionParser(meta.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         default=0.5,
         type=float,
@@ -693,7 +693,7 @@ def bin(args):
     Conver tsv to binary format.
     """
     p = OptionParser(bin.__doc__)
-    p.add_option("--dtype", choices=("float32", "int32"), help="dtype of the matrix")
+    p.add_argument("--dtype", choices=("float32", "int32"), help="dtype of the matrix")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -790,7 +790,7 @@ def data(args):
     Make data.tsv based on meta.tsv.
     """
     p = OptionParser(data.__doc__)
-    p.add_option(
+    p.add_argument(
         "--notsv", default=False, action="store_true", help="Do not write data.tsv"
     )
     opts, args = p.parse_args(args)
@@ -990,8 +990,8 @@ def compilevcf(args):
     Compile vcf results into master spreadsheet.
     """
     p = OptionParser(compilevcf.__doc__)
-    p.add_option("--db", default="hg38", help="Use these lobSTR db")
-    p.add_option(
+    p.add_argument("--db", default="hg38", help="Use these lobSTR db")
+    p.add_argument(
         "--nofilter",
         default=False,
         action="store_true",
@@ -1150,7 +1150,7 @@ def liftover(args):
     LiftOver CODIS/Y-STR markers.
     """
     p = OptionParser(liftover.__doc__)
-    p.add_option(
+    p.add_argument(
         "--checkvalid",
         default=False,
         action="store_true",
@@ -1192,24 +1192,24 @@ def trf(args):
     cparams = "1 1 2 80 5 200 2000"
 
     p = OptionParser(trf.__doc__)
-    p.add_option("--mismatch", default=31, type=int, help="Mismatch and gap penalty")
-    p.add_option(
+    p.add_argument("--mismatch", default=31, type=int, help="Mismatch and gap penalty")
+    p.add_argument(
         "--minscore", default=MINSCORE, type=int, help="Minimum score to report"
     )
-    p.add_option("--period", default=6, type=int, help="Maximum period to report")
-    p.add_option(
+    p.add_argument("--period", default=6, type=int, help="Maximum period to report")
+    p.add_argument(
         "--lobstr",
         default=False,
         action="store_true",
         help="Generate output for lobSTR",
     )
-    p.add_option(
+    p.add_argument(
         "--telomeres",
         default=False,
         action="store_true",
         help="Run telomere search: minscore=140 period=7",
     )
-    p.add_option(
+    p.add_argument(
         "--centromeres",
         default=False,
         action="store_true",
@@ -1267,7 +1267,7 @@ def batchlobstr(args):
     sample-name,s3-location
     """
     p = OptionParser(batchlobstr.__doc__)
-    p.add_option("--sep", default=",", help="Separator for building commandline")
+    p.add_argument("--sep", default=",", help="Separator for building commandline")
     p.set_home("lobstr", default="s3://hli-mv-data-science/htang/str-build/lobSTR/")
     p.set_aws_opts(store="hli-mv-data-science/htang/str-data")
     opts, args = p.parse_args(args)
@@ -1324,11 +1324,11 @@ def lobstr(args):
     (e.g. s3://hli-mv-data-science/htang/str-build/lobSTR/)
     """
     p = OptionParser(lobstr.__doc__)
-    p.add_option(
+    p.add_argument(
         "--haploid", default="chrY,chrM", help="Use haploid model for these chromosomes"
     )
-    p.add_option("--chr", help="Run only this chromosome")
-    p.add_option(
+    p.add_argument("--chr", help="Run only this chromosome")
+    p.add_argument(
         "--simulation", default=False, action="store_true", help="Simulation mode"
     )
     p.set_home("lobstr", default="s3://hli-mv-data-science/htang/str-build/lobSTR/")
@@ -1458,8 +1458,8 @@ def locus(args):
     db_choices = ("hg38", "hg19")
 
     p = OptionParser(locus.__doc__)
-    p.add_option("--tred", choices=INCLUDE, help="TRED name")
-    p.add_option("--ref", choices=db_choices, default="hg38", help="Reference genome")
+    p.add_argument("--tred", choices=INCLUDE, help="TRED name")
+    p.add_argument("--ref", choices=db_choices, default="hg38", help="Reference genome")
     p.set_home("lobstr")
     opts, args = p.parse_args(args)
 
@@ -1511,7 +1511,7 @@ def lobstrindex(args):
     by str().
     """
     p = OptionParser(lobstrindex.__doc__)
-    p.add_option(
+    p.add_argument(
         "--notreds",
         default=False,
         action="store_true",

@@ -443,7 +443,7 @@ def gc(args):
     Plot G+C content distribution.
     """
     p = OptionParser(gc.__doc__)
-    p.add_option("--binsize", default=500, type=int, help="Bin size to use")
+    p.add_argument("--binsize", default=500, type=int, help="Bin size to use")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -485,7 +485,7 @@ def trimsplit(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(trimsplit.__doc__)
-    p.add_option(
+    p.add_argument(
         "--minlength", default=1000, type=int, help="Min length of contigs to keep"
     )
     opts, args = p.parse_args(args)
@@ -540,7 +540,9 @@ def qual(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(qual.__doc__)
-    p.add_option("--qv", default=31, type=int, help="Dummy qv score for extended bases")
+    p.add_argument(
+        "--qv", default=31, type=int, help="Dummy qv score for extended bases"
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -567,7 +569,7 @@ def info(args):
     Run `sequence_info` on FASTA files. Generate a report per file.
     """
     p = OptionParser(info.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gaps", default=False, action="store_true", help="Count number of gaps"
     )
     p.set_table()
@@ -594,10 +596,10 @@ def fromtab(args):
     """
     p = OptionParser(fromtab.__doc__)
     p.set_sep(sep=None)
-    p.add_option(
+    p.add_argument(
         "--noheader", default=False, action="store_true", help="Ignore first line"
     )
-    p.add_option("--replace", help="Replace spaces in name to char")
+    p.add_argument("--replace", help="Replace spaces in name to char")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -633,7 +635,7 @@ def longestorf(args):
     Find longest ORF for each sequence in fastafile.
     """
     p = OptionParser(longestorf.__doc__)
-    p.add_option("--ids", action="store_true", help="Generate table with ORF info")
+    p.add_argument("--ids", action="store_true", help="Generate table with ORF info")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -684,7 +686,7 @@ def ispcr(args):
     format: name, forward, reverse
     """
     p = OptionParser(ispcr.__doc__)
-    p.add_option(
+    p.add_argument(
         "-r",
         dest="rclip",
         default=1,
@@ -780,10 +782,10 @@ def clean(args):
     Remove irregular chars in FASTA seqs.
     """
     p = OptionParser(clean.__doc__)
-    p.add_option(
+    p.add_argument(
         "--fancy", default=False, action="store_true", help="Pretty print the sequence"
     )
-    p.add_option(
+    p.add_argument(
         "--canonical", default=False, action="store_true", help="Use only acgtnACGTN"
     )
     p.set_outfile()
@@ -822,31 +824,31 @@ def translate(args):
 
     transl_tables = [str(x) for x in range(1, 25)]
     p = OptionParser(translate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ids",
         default=False,
         action="store_true",
         help="Create .ids file with the complete/partial/gaps label",
     )
-    p.add_option(
+    p.add_argument(
         "--longest",
         default=False,
         action="store_true",
         help="Find the longest ORF from each input CDS",
     )
-    p.add_option(
+    p.add_argument(
         "--table",
         default=1,
         choices=transl_tables,
         help="Specify translation table to use",
     )
-    p.add_option(
+    p.add_argument(
         "--strip_names",
         default=False,
         action="store_true",
         help="Strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
-    p.add_option(
+    p.add_argument(
         "--unique",
         default=False,
         action="store_true",
@@ -976,7 +978,7 @@ def filter(args):
     Filter the FASTA file to contain records with size >= or <= certain cutoff.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option(
+    p.add_argument(
         "--less",
         default=False,
         action="store_true",
@@ -1023,8 +1025,8 @@ def pool(args):
     from jcvi.formats.base import longest_unique_prefix
 
     p = OptionParser(pool.__doc__)
-    p.add_option("--sep", default=".", help="Separator between prefix and name")
-    p.add_option(
+    p.add_argument("--sep", default=".", help="Separator between prefix and name")
+    p.add_argument(
         "--sequential", default=False, action="store_true", help="Add sequential IDs"
     )
     opts, args = p.parse_args(args)
@@ -1049,10 +1051,10 @@ def ids(args):
     Generate the FASTA headers without the '>'.
     """
     p = OptionParser(ids.__doc__)
-    p.add_option(
+    p.add_argument(
         "--until", default=None, help="Truncate the name and description at words"
     )
-    p.add_option(
+    p.add_argument(
         "--description",
         default=False,
         action="store_true",
@@ -1090,7 +1092,7 @@ def sort(args):
     Sort a list of sequences and output with sorted IDs, etc.
     """
     p = OptionParser(sort.__doc__)
-    p.add_option(
+    p.add_argument(
         "--sizes", default=False, action="store_true", help="Sort by decreasing size"
     )
 
@@ -1138,18 +1140,20 @@ def join(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(join.__doc__)
-    p.add_option("--newid", default=None, help="New sequence ID")
-    p.add_option(
+    p.add_argument("--newid", default=None, help="New sequence ID")
+    p.add_argument(
         "--gapsize",
         default=100,
         type=int,
         help="Number of N's in between the sequences",
     )
-    p.add_option("--gaptype", default="contig", help="Gap type to use in the AGP file")
-    p.add_option(
+    p.add_argument(
+        "--gaptype", default="contig", help="Gap type to use in the AGP file"
+    )
+    p.add_argument(
         "--evidence", default="", help="Linkage evidence to report in the AGP file"
     )
-    p.add_option("--oo", help="Use .oo file generated by bambus")
+    p.add_argument("--oo", help="Use .oo file generated by bambus")
     opts, args = p.parse_args(args)
 
     nargs = len(args)
@@ -1218,10 +1222,10 @@ def summary(args):
     from natsort import natsort_key
 
     p = OptionParser(summary.__doc__)
-    p.add_option(
+    p.add_argument(
         "--suffix", default="Mb", help="make the base pair counts human readable"
     )
-    p.add_option("--ids", help="write the ids that have >= 50% N's")
+    p.add_argument("--ids", help="write the ids that have >= 50% N's")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1275,70 +1279,70 @@ def format(args):
     """
     sequential_choices = ("replace", "prefix", "suffix")
     p = OptionParser(format.__doc__)
-    p.add_option(
+    p.add_argument(
         "--pairs",
         default=False,
         action="store_true",
         help="Add trailing /1 and /2 for interleaved pairs",
     )
-    p.add_option(
+    p.add_argument(
         "--sequential",
         default=None,
         choices=sequential_choices,
         help="Add sequential IDs",
     )
-    p.add_option(
+    p.add_argument(
         "--sequentialoffset", default=0, type=int, help="Sequential IDs start at"
     )
-    p.add_option(
+    p.add_argument(
         "--pad0", default=0, type=int, help="Pad a few zeros in front of sequential"
     )
-    p.add_option(
+    p.add_argument(
         "--gb",
         default=False,
         action="store_true",
         help="For Genbank ID, get the accession",
     )
-    p.add_option("--sep", default=None, help="Split description by certain symbol")
-    p.add_option(
+    p.add_argument("--sep", default=None, help="Split description by certain symbol")
+    p.add_argument(
         "--index",
         default=0,
         type=int,
         help="Extract i-th field after split with --sep",
     )
-    p.add_option(
+    p.add_argument(
         "--noversion",
         default=False,
         action="store_true",
         help="Remove the gb trailing version",
     )
-    p.add_option("--prefix", help="Prepend prefix to sequence ID")
-    p.add_option("--suffix", help="Append suffix to sequence ID")
-    p.add_option(
+    p.add_argument("--prefix", help="Prepend prefix to sequence ID")
+    p.add_argument("--suffix", help="Append suffix to sequence ID")
+    p.add_argument(
         "--template",
         default=False,
         action="store_true",
         help="Extract `template=aaa dir=x library=m` to `m-aaa/x`",
     )
-    p.add_option("--switch", help="Switch ID from two-column file")
-    p.add_option(
+    p.add_argument("--switch", help="Switch ID from two-column file")
+    p.add_argument(
         "--annotation",
         help="Add functional annotation from two-column file ('ID <--> Annotation')",
     )
-    p.add_option("--ids", help="Generate ID conversion table")
-    p.add_option(
+    p.add_argument("--ids", help="Generate ID conversion table")
+    p.add_argument(
         "--upper",
         default=False,
         action="store_true",
         help="Convert sequence to upper case",
     )
-    p.add_option(
+    p.add_argument(
         "--nodesc",
         default=False,
         action="store_true",
         help="Remove description after identifier",
     )
-    p.add_option(
+    p.add_argument(
         "--minlength", default=0, type=int, help="Minimum sequence length to keep"
     )
     opts, args = p.parse_args(args)
@@ -1522,31 +1526,31 @@ def diff(args):
     from jcvi.utils.table import banner
 
     p = OptionParser(diff.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ignore_case",
         default=False,
         action="store_true",
         help="ignore case when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore_N",
         default=False,
         action="store_true",
         help="ignore N and X's when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore_stop",
         default=False,
         action="store_true",
         help="ignore stop codon when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--rc",
         default=False,
         action="store_true",
         help="also consider reverse complement",
     )
-    p.add_option(
+    p.add_argument(
         "--quiet",
         default=False,
         action="store_true",
@@ -1665,31 +1669,31 @@ def identical(args):
     allowed_checksum = ["MD5", "GCG"]
 
     p = OptionParser(identical.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ignore_case",
         default=False,
         action="store_true",
         help="ignore case when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore_N",
         default=False,
         action="store_true",
         help="ignore N and X's when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore_stop",
         default=False,
         action="store_true",
         help="ignore stop codon when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--output_uniq",
         default=False,
         action="store_true",
         help="output uniq sequences in FASTA format",
     )
-    p.add_option(
+    p.add_argument(
         "--checksum",
         default="MD5",
         choices=allowed_checksum,
@@ -1788,19 +1792,19 @@ def some(args):
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(some.__doc__)
-    p.add_option(
+    p.add_argument(
         "--exclude",
         default=False,
         action="store_true",
         help="Output sequences not in the list file",
     )
-    p.add_option(
+    p.add_argument(
         "--no_strip_names",
         default=False,
         action="store_true",
         help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
-    p.add_option(
+    p.add_argument(
         "--uniprot", default=False, action="store_true", help="Header is from uniprot"
     )
 
@@ -1863,7 +1867,7 @@ def fastq(args):
     from jcvi.formats.fastq import FastqLite
 
     p = OptionParser(fastq.__doc__)
-    p.add_option("--qv", type=int, help="Use generic qv value")
+    p.add_argument("--qv", type=int, help="Use generic qv value")
 
     opts, args = p.parse_args(args)
 
@@ -1911,7 +1915,7 @@ def pair(args):
         help="Separator in name to reduce to clone id"
         + "e.g. GFNQ33242/1 use /, BOT01-2453H.b1 use .",
     )
-    p.add_option(
+    p.add_argument(
         "-m",
         dest="matepairs",
         default=False,
@@ -1995,7 +1999,7 @@ def pairinplace(args):
     bulk.frags.fasta.
     """
     p = OptionParser(pairinplace.__doc__)
-    p.add_option(
+    p.add_argument(
         "-r",
         dest="rclip",
         default=1,
@@ -2053,23 +2057,23 @@ def extract(args):
     "seqname", or "seqname:start-stop", or "seqname:start-stop:-"
     """
     p = OptionParser(extract.__doc__)
-    p.add_option("--newname", help="Use this new name instead")
-    p.add_option(
+    p.add_argument("--newname", help="Use this new name instead")
+    p.add_argument(
         "--include",
         default=False,
         action="store_true",
         help="search description line for match",
     )
-    p.add_option(
+    p.add_argument(
         "--exclude",
         default=False,
         action="store_true",
         help="exclude description that matches",
     )
-    p.add_option(
+    p.add_argument(
         "--idonly", default=False, action="store_true", help="Only search identifier"
     )
-    p.add_option(
+    p.add_argument(
         "--bed",
         default=None,
         help="path to bed file to guide extraction by matching seqname",
@@ -2197,10 +2201,10 @@ def uniq(args):
     remove fasta records that are the same
     """
     p = OptionParser(uniq.__doc__)
-    p.add_option(
+    p.add_argument(
         "--seq", default=False, action="store_true", help="Uniqify the sequences"
     )
-    p.add_option(
+    p.add_argument(
         "-t",
         "--trimname",
         dest="trimname",
@@ -2314,14 +2318,14 @@ def trim(args):
     from jcvi.algorithms.maxsum import max_sum
 
     p = OptionParser(trim.__doc__)
-    p.add_option(
+    p.add_argument(
         "-c",
         dest="min_length",
         type=int,
         default=64,
         help="minimum sequence length after trimming",
     )
-    p.add_option("-s", dest="score", default=QUAL, help="quality trimming cutoff")
+    p.add_argument("-s", dest="score", default=QUAL, help="quality trimming cutoff")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -2394,12 +2398,12 @@ def sequin(args):
     TATTAACGATGAATAATAATGAGAAGCCATATAGAATTGGTGATAATGTAAAAAAAGGGGCTCTTATTAC
     """
     p = OptionParser(sequin.__doc__)
-    p.add_option("--unk", default=100, type=int, help="The size for unknown gaps")
-    p.add_option("--newid", default=None, help="Use this identifier instead")
-    p.add_option(
+    p.add_argument("--unk", default=100, type=int, help="The size for unknown gaps")
+    p.add_argument("--newid", default=None, help="Use this identifier instead")
+    p.add_argument(
         "--chromosome", default=None, help="Add [chromosome= ] to FASTA header"
     )
-    p.add_option("--clone", default=None, help="Add [clone= ] to FASTA header")
+    p.add_argument("--clone", default=None, help="Add [clone= ] to FASTA header")
     p.set_mingap(default=100)
     opts, args = p.parse_args(args)
 
@@ -2485,14 +2489,14 @@ def tidy(args):
     Trim terminal Ns, normalize gap sizes and remove small components.
     """
     p = OptionParser(tidy.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gapsize",
         dest="gapsize",
         default=0,
         type=int,
         help="Set all gaps to the same size",
     )
-    p.add_option(
+    p.add_argument(
         "--minlen",
         dest="minlen",
         default=100,
@@ -2594,7 +2598,7 @@ def gaps(args):
     from jcvi.formats.agp import mask, build
 
     p = OptionParser(gaps.__doc__)
-    p.add_option(
+    p.add_argument(
         "--split", default=False, action="store_true", help="Generate .split.fasta"
     )
     p.set_mingap(default=100)

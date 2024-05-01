@@ -96,7 +96,7 @@ def mask(args):
     (default to lower case, set --hard for hardmasking).
     """
     p = OptionParser(mask.__doc__)
-    p.add_option(
+    p.add_argument(
         "--hard",
         dest="hard",
         default=False,

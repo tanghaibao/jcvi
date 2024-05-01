@@ -84,7 +84,7 @@ def filter(args):
     from jcvi.formats.fasta import Fasta, SeqIO
 
     p = OptionParser(filter.__doc__)
-    p.add_option("--minsize", default=2, type=int, help="Minimum cluster size")
+    p.add_argument("--minsize", default=2, type=int, help="Minimum cluster size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -136,7 +136,7 @@ def ids(args):
     Get the representative ids from clstr file.
     """
     p = OptionParser(ids.__doc__)
-    p.add_option("--prefix", type=int, help="Find rep id for prefix of len")
+    p.add_argument("--prefix", type=int, help="Find rep id for prefix of len")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -192,25 +192,25 @@ def deduplicate(args):
     """
     p = OptionParser(deduplicate.__doc__)
     p.set_align(pctid=96, pctcov=0)
-    p.add_option(
+    p.add_argument(
         "--fast",
         default=False,
         action="store_true",
         help="Place sequence in the first cluster",
     )
-    p.add_option(
+    p.add_argument(
         "--consensus",
         default=False,
         action="store_true",
         help="Compute consensus sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--reads",
         default=False,
         action="store_true",
         help="Use `cd-hit-454` to deduplicate",
     )
-    p.add_option(
+    p.add_argument(
         "--samestrand",
         default=False,
         action="store_true",

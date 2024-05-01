@@ -183,21 +183,21 @@ def main():
         "sam-, softsam-, cigar, BLASTN, BLASTN-, differences, rdotplot, text".split(",")
     )
 
-    p.add_option(
+    p.add_argument(
         "--format",
         default="BLASTN-",
         choices=supported_formats,
         help="Ooutput format",
     )
-    p.add_option("--path", dest="lastz_path", default=None, help="specify LASTZ path")
-    p.add_option(
+    p.add_argument("--path", dest="lastz_path", default=None, help="specify LASTZ path")
+    p.add_argument(
         "--mask",
         dest="mask",
         default=False,
         action="store_true",
         help="treat lower-case letters as mask info",
     )
-    p.add_option(
+    p.add_argument(
         "--similar",
         default=False,
         action="store_true",

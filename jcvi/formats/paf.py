@@ -90,7 +90,7 @@ def bed(args):
     from jcvi.formats.bed import sort as sort_bed
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--swap", default=False, action="store_true", help="Write query positions"
     )
 

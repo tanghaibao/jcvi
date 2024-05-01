@@ -144,14 +144,14 @@ def start(args):
     Launch ec2 instance through command line.
     """
     p = OptionParser(start.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ondemand",
         default=False,
         action="store_true",
         help="Do we want a more expensive on-demand instance",
     )
-    p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
-    p.add_option("--price", default=4.0, type=float, help="Spot price")
+    p.add_argument("--profile", default="mvrad-datasci-role", help="Profile name")
+    p.add_argument("--price", default=4.0, type=float, help="Spot price")
     opts, args = p.parse_args(args)
 
     if len(args) != 0:
@@ -257,7 +257,7 @@ def stop(args):
     Stop EC2 instance.
     """
     p = OptionParser(stop.__doc__)
-    p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
+    p.add_argument("--profile", default="mvrad-datasci-role", help="Profile name")
     opts, args = p.parse_args(args)
 
     if len(args) != 0:
@@ -362,7 +362,7 @@ def cp(args):
     Copy files to folder. Accepts list of s3 addresses as input.
     """
     p = OptionParser(cp.__doc__)
-    p.add_option(
+    p.add_argument(
         "--force", default=False, action="store_true", help="Force overwrite if exists"
     )
     p.set_cpus()
@@ -405,8 +405,8 @@ def ls(args):
     List files with support for wildcards.
     """
     p = OptionParser(ls.__doc__)
-    p.add_option("--keys", help="List of keys to include")
-    p.add_option(
+    p.add_argument("--keys", help="List of keys to include")
+    p.add_argument(
         "--recursive", default=False, action="store_true", help="Recursive search"
     )
     opts, args = p.parse_args(args)
@@ -510,8 +510,8 @@ def role(args):
     ) = "205134639408 htang 114692162163 mvrad-datasci-role".split()
 
     p = OptionParser(role.__doc__)
-    p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
-    p.add_option(
+    p.add_argument("--profile", default="mvrad-datasci-role", help="Profile name")
+    p.add_argument(
         "--device",
         default="arn:aws:iam::" + src_acct + ":mfa/" + src_username,
         metavar="arn:aws:iam::123456788990:mfa/dudeman",
@@ -519,7 +519,7 @@ def role(args):
         "provided via the environment variable 'MFA_DEVICE' or"
         " the ~/.aws/credentials variable 'aws_mfa_device'.",
     )
-    p.add_option(
+    p.add_argument(
         "--duration",
         type=int,
         default=3600,
@@ -531,7 +531,7 @@ def role(args):
         "can also be provided via the environment "
         "variable 'MFA_STS_DURATION'. ",
     )
-    p.add_option(
+    p.add_argument(
         "--assume-role",
         "--assume",
         default="arn:aws:iam::" + dst_acct + ":role/" + dst_role,
@@ -540,12 +540,12 @@ def role(args):
         "assume, if specified. This value can also be provided"
         " via the environment variable 'MFA_ASSUME_ROLE'",
     )
-    p.add_option(
+    p.add_argument(
         "--role-session-name",
         help="Friendly session name required when using --assume-role",
         default=getpass.getuser(),
     )
-    p.add_option(
+    p.add_argument(
         "--force",
         help="Refresh credentials even if currently valid.",
         action="store_true",

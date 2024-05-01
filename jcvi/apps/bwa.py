@@ -124,9 +124,9 @@ def index(args):
 
 def set_align_options(p):
     """Used in align() and batch()"""
-    p.add_option("--bwa", default="bwa", help="Run bwa at this path")
-    p.add_option("--rg", help="Read group")
-    p.add_option(
+    p.add_argument("--bwa", default="bwa", help="Run bwa at this path")
+    p.add_argument("--rg", help="Read group")
+    p.add_argument(
         "--readtype",
         choices=("pacbio", "pbread", "ont2d", "intractg"),
         help="Read type in bwa-mem",
@@ -142,7 +142,7 @@ def align(args):
     """
     valid_modes = ("bwasw", "aln", "mem")
     p = OptionParser(align.__doc__)
-    p.add_option("--mode", default="mem", choices=valid_modes, help="BWA mode")
+    p.add_argument("--mode", default="mem", choices=valid_modes, help="BWA mode")
     set_align_options(p)
     p.set_sam_options()
 

@@ -64,13 +64,13 @@ def bed(args):
     Write bed files where the bases have at least certain depth.
     """
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "-o",
         dest="output",
         default="stdout",
         help="Output file name",
     )
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         dest="cutoff",
         default=10,

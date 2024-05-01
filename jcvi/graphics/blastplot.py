@@ -233,43 +233,43 @@ if __name__ == "__main__":
     from jcvi.formats.bed import sizes
 
     p = OptionParser(__doc__)
-    p.add_option("--qsizes", help="Path to two column qsizes file")
-    p.add_option("--ssizes", help="Path to two column ssizes file")
-    p.add_option("--qbed", help="Path to qbed")
-    p.add_option("--sbed", help="Path to sbed")
-    p.add_option(
+    p.add_argument("--qsizes", help="Path to two column qsizes file")
+    p.add_argument("--ssizes", help="Path to two column ssizes file")
+    p.add_argument("--qbed", help="Path to qbed")
+    p.add_argument("--sbed", help="Path to sbed")
+    p.add_argument(
         "--qselect",
         default=0,
         type=int,
         help="Minimum size of query contigs to select",
     )
-    p.add_option(
+    p.add_argument(
         "--sselect",
         default=0,
         type=int,
         help="Minimum size of subject contigs to select",
     )
-    p.add_option("--qh", help="Path to highlight bed for query")
-    p.add_option("--sh", help="Path to highlight bed for subject")
-    p.add_option(
+    p.add_argument("--qh", help="Path to highlight bed for query")
+    p.add_argument("--sh", help="Path to highlight bed for subject")
+    p.add_argument(
         "--dotstyle",
         default="dot",
         choices=DotStyles,
         help="Style of the dots",
     )
-    p.add_option(
+    p.add_argument(
         "--proportional",
         default=False,
         action="store_true",
         help="Make image width:height equal to seq ratio",
     )
-    p.add_option(
+    p.add_argument(
         "--stripNames",
         default=False,
         action="store_true",
         help="Remove trailing .? from gene names",
     )
-    p.add_option(
+    p.add_argument(
         "--nmax",
         default=None,
         type=int,

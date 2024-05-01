@@ -268,17 +268,17 @@ def add_seeds_options(p, args):
     Add options to the OptionParser for seeds() and batchseeds() functions.
     """
     g1 = p.add_argument_group("Image manipulation")
-    g1.add_option("--rotate", default=0, type=int, help="Rotate degrees clockwise")
-    g1.add_option(
+    g1.add_argument("--rotate", default=0, type=int, help="Rotate degrees clockwise")
+    g1.add_argument(
         "--rows", default=":", help="Crop rows e.g. `:800` from first 800 rows"
     )
-    g1.add_option(
+    g1.add_argument(
         "--cols", default=":", help="Crop cols e.g. `-800:` from last 800 cols"
     )
-    g1.add_option("--labelrows", help="Label rows e.g. `:800` from first 800 rows")
-    g1.add_option("--labelcols", help="Label cols e.g. `-800: from last 800 rows")
+    g1.add_argument("--labelrows", help="Label rows e.g. `:800` from first 800 rows")
+    g1.add_argument("--labelcols", help="Label cols e.g. `-800: from last 800 rows")
     valid_colors = ("red", "green", "blue", "purple", "yellow", "orange", "INVERSE")
-    g1.add_option(
+    g1.add_argument(
         "--changeBackground",
         default=0,
         choices=valid_colors,
@@ -286,17 +286,19 @@ def add_seeds_options(p, args):
     )
 
     g2 = p.add_argument_group("Object recognition")
-    g2.add_option(
+    g2.add_argument(
         "--minsize",
         default=0.05,
         type=float,
         help="Min percentage of object to image",
     )
-    g2.add_option(
+    g2.add_argument(
         "--maxsize", default=50, type=float, help="Max percentage of object to image"
     )
-    g2.add_option("--count", default=100, type=int, help="Report max number of objects")
-    g2.add_option(
+    g2.add_argument(
+        "--count", default=100, type=int, help="Report max number of objects"
+    )
+    g2.add_argument(
         "--watershed",
         default=False,
         action="store_true",
@@ -305,41 +307,41 @@ def add_seeds_options(p, args):
 
     g3 = p.add_argument_group("De-noise")
     valid_filters = ("canny", "roberts", "sobel")
-    g3.add_option(
+    g3.add_argument(
         "--filter",
         default="canny",
         choices=valid_filters,
         help="Edge detection algorithm",
     )
-    g3.add_option(
+    g3.add_argument(
         "--sigma",
         default=1,
         type=int,
         help="Canny edge detection sigma, higher for noisy image",
     )
-    g3.add_option(
+    g3.add_argument(
         "--kernel",
         default=2,
         type=int,
         help="Edge closure, higher if the object edges are dull",
     )
-    g3.add_option(
+    g3.add_argument(
         "--border", default=5, type=int, help="Remove image border of certain pixels"
     )
 
     g4 = p.add_argument_group("Output")
-    g4.add_option("--calibrate", help="JSON file to correct distance and color")
-    g4.add_option(
+    g4.add_argument("--calibrate", help="JSON file to correct distance and color")
+    g4.add_argument(
         "--edges",
         default=False,
         action="store_true",
         help="Visualize edges in middle PDF panel",
     )
-    g4.add_option(
+    g4.add_argument(
         "--outdir", default=".", help="Store intermediate images and PDF in folder"
     )
-    g4.add_option("--prefix", help="Output prefix")
-    g4.add_option(
+    g4.add_argument("--prefix", help="Output prefix")
+    g4.add_argument(
         "--noheader", default=False, action="store_true", help="Do not print header"
     )
     opts, args, iopts = p.set_image_options(args, figsize="12x6", style="white")

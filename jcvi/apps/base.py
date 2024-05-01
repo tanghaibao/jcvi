@@ -154,14 +154,6 @@ class OptionParser(ArgumentParser):
     def __init__(self, doc: Optional[str]):
         super(OptionParser, self).__init__(doc, epilog=JCVIHELP)
 
-    def add_option(self, *args, **kwargs):
-        """
-        Add an option to the parser.
-        """
-        if "help" in kwargs:
-            kwargs["help"] = kwargs["help"].replace("%prog", self.prog)
-        return self.add_argument(*args, **kwargs)
-
     def parse_args(self, args=None):
         """
         Parse the command line arguments.

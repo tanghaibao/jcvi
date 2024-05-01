@@ -113,7 +113,7 @@ def index(args):
         Wrapper for `gmap_build`. Same interface.
     """
     p = OptionParser(index.__doc__)
-    p.add_option(
+    p.add_argument(
         "--supercat",
         default=False,
         action="store_true",
@@ -135,10 +135,10 @@ def gmap(args):
     Wrapper for `gmap`.
     """
     p = OptionParser(gmap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cross", default=False, action="store_true", help="Cross-species alignment"
     )
-    p.add_option(
+    p.add_argument(
         "--npaths",
         default=0,
         type=int,
@@ -185,13 +185,13 @@ def align(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(align.__doc__)
-    p.add_option(
+    p.add_argument(
         "--rnaseq",
         default=False,
         action="store_true",
         help="Input is RNA-seq reads, turn splicing on",
     )
-    p.add_option(
+    p.add_argument(
         "--native",
         default=False,
         action="store_true",

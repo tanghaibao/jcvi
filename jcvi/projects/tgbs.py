@@ -164,12 +164,12 @@ def mstmap(args):
     from jcvi.assembly.geneticmap import MSTMatrix
 
     p = OptionParser(mstmap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--population_type",
         default="RIL6",
         help="Type of population, possible values are DH and RILd",
     )
-    p.add_option(
+    p.add_argument(
         "--missing_threshold",
         default=0.5,
         help="Missing threshold, .25 excludes any marker with >25% missing",
@@ -207,8 +207,8 @@ def weblogo(args):
     from rich.progress import Progress
 
     p = OptionParser(weblogo.__doc__)
-    p.add_option("-N", default=10, type=int, help="Count the first and last N bases")
-    p.add_option("--nreads", default=1000000, type=int, help="Parse first N reads")
+    p.add_argument("-N", default=10, type=int, help="Count the first and last N bases")
+    p.add_argument("--nreads", default=1000000, type=int, help="Parse first N reads")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -286,7 +286,7 @@ def count(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(count.__doc__)
-    p.add_option("--csv", help="Write depth per contig to file")
+    p.add_argument("--csv", help="Write depth per contig to file")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -335,7 +335,7 @@ def novo(args):
     from jcvi.apps.cdhit import filter as cdhit_filter
 
     p = OptionParser(novo.__doc__)
-    p.add_option(
+    p.add_argument(
         "--technology",
         choices=("illumina", "454", "iontorrent"),
         default="iontorrent",

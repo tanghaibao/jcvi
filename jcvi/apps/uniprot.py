@@ -98,36 +98,36 @@ def fetch(args):
 
     p = OptionParser(fetch.__doc__)
 
-    p.add_option(
+    p.add_argument(
         "--format",
         default="tab",
         choices=valid_formats,
         help="download format",
     )
-    p.add_option(
+    p.add_argument(
         "--columns",
         default="entry name, protein names, genes,organism",
         help="columns to download, if --format is `tab` or `xls`",
     )
-    p.add_option(
+    p.add_argument(
         "--include",
         default=False,
         action="store_true",
         help="Include isoforms when --format is `fasta` or include `description` when --format is `rdf`.",
     )
-    p.add_option(
+    p.add_argument(
         "--limit",
         default=10,
         type=int,
         help="Max number of results to retrieve",
     )
-    p.add_option(
+    p.add_argument(
         "--offset",
         default=0,
         type=int,
         help="Offset of first result, used with --limit",
     )
-    p.add_option(
+    p.add_argument(
         "--skipcheck",
         default=False,
         action="store_true",

@@ -134,13 +134,15 @@ def bed(args):
     from ..compara.base import AnchorFile
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--switch",
         default=False,
         action="store_true",
         help="Switch reference and aligned map elements",
     )
-    p.add_option("--scale", type=float, help="Scale the aligned map distance by factor")
+    p.add_argument(
+        "--scale", type=float, help="Scale the aligned map distance by factor"
+    )
     p.set_beds()
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -228,14 +230,14 @@ def partition(args):
     """
     allowed_format = ("png", "ps")
     p = OptionParser(partition.__doc__)
-    p.add_option("--prefix", help="Add prefix to the name")
-    p.add_option(
+    p.add_argument("--prefix", help="Add prefix to the name")
+    p.add_argument(
         "--namestart",
         default=0,
         type=int,
         help="Use a shorter name, starting index",
     )
-    p.add_option(
+    p.add_argument(
         "--format",
         default="png",
         choices=allowed_format,
@@ -297,7 +299,7 @@ def merge(args):
     Merge multiple graphs together and visualize.
     """
     p = OptionParser(merge.__doc__)
-    p.add_option(
+    p.add_argument(
         "--colorlist",
         default="black,red,pink,blue,green",
         help="The color palette",
@@ -339,7 +341,7 @@ def happy(args):
     +-8254707:8254647:-8254690:{[8254694]:[8254713]:[8254531]:[8254797]}:8254802:8254788+
     """
     p = OptionParser(happy.__doc__)
-    p.add_option("--prefix", help="Add prefix to the name")
+    p.add_argument("--prefix", help="Add prefix to the name")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -374,13 +376,13 @@ def fromblast(args):
     from jcvi.utils.range import range_distance
 
     p = OptionParser(fromblast.__doc__)
-    p.add_option(
+    p.add_argument(
         "--clique",
         default=False,
         action="store_true",
         help="Populate clique instead of linear path",
     )
-    p.add_option(
+    p.add_argument(
         "--maxdist",
         default=100000,
         type=int,
@@ -484,7 +486,7 @@ def connect(args):
     Connect contigs using long reads.
     """
     p = OptionParser(connect.__doc__)
-    p.add_option(
+    p.add_argument(
         "--clip",
         default=2000,
         type=int,

@@ -40,8 +40,8 @@ def gallery(args):
     from jcvi.apps.base import iglob
 
     p = OptionParser(gallery.__doc__)
-    p.add_option("--columns", default=3, type=int, help="How many cells per row")
-    p.add_option("--width", default=200, type=int, help="Image width")
+    p.add_argument("--columns", default=3, type=int, help="How many cells per row")
+    p.add_argument("--width", default=200, type=int, help="Image width")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -72,7 +72,7 @@ def links(args):
     Extract all the links "<a href=''>" from web page.
     """
     p = OptionParser(links.__doc__)
-    p.add_option(
+    p.add_argument(
         "--img",
         default=False,
         action="store_true",

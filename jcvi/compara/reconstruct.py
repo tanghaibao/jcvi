@@ -244,7 +244,7 @@ def zipbed(args):
     proceeds by interleaving the genes together.
     """
     p = OptionParser(zipbed.__doc__)
-    p.add_option("--prefix", default="b", help="Prefix for the new seqid")
+    p.add_argument("--prefix", default="b", help="Prefix for the new seqid")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

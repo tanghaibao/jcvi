@@ -165,13 +165,13 @@ def fromcsv(args):
     from jcvi.formats.base import flexible_cast
 
     p = OptionParser(fromcsv.__doc__)
-    p.add_option(
+    p.add_argument(
         "--noheader",
         default=False,
         action="store_true",
         help="Do not treat the first row as header",
     )
-    p.add_option("--rgb", default=-1, type=int, help="Show RGB color box")
+    p.add_argument("--rgb", default=-1, type=int, help="Show RGB color box")
     p.set_sep()
     opts, args = p.parse_args(args)
 

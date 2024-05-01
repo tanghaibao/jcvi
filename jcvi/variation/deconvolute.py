@@ -141,19 +141,19 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     p.set_outdir(outdir="deconv")
-    p.add_option(
+    p.add_argument(
         "--nocheckprefix",
         default=False,
         action="store_true",
         help="Don't check shared prefix",
     )
-    p.add_option(
+    p.add_argument(
         "--paired",
         default=False,
         action="store_true",
         help="Paired-end data",
     )
-    p.add_option(
+    p.add_argument(
         "--append",
         default=False,
         action="store_true",

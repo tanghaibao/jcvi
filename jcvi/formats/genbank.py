@@ -326,23 +326,23 @@ def gff(args):
 
 
 def preparegb(p, args):
-    p.add_option(
+    p.add_argument(
         "--gb_dir", default=None, help="path to dir containing GanBank files (.gb)"
     )
-    p.add_option(
+    p.add_argument(
         "--id",
         default=None,
         help="GenBank accession IDs in a file. One ID per row, or all IDs"
         " in one row comma separated.",
     )
-    p.add_option(
+    p.add_argument(
         "--simple",
         default=None,
         type=str,
         help="GenBank accession IDs comma separated "
         "(for lots of IDs please use --id instead).",
     )
-    p.add_option(
+    p.add_argument(
         "--individual",
         default=False,
         action="store_true",
@@ -388,7 +388,7 @@ def tofasta(args):
     or all records in one file
     """
     p = OptionParser(tofasta.__doc__)
-    p.add_option("--prefix", default="gbfasta", help="prefix of output files")
+    p.add_argument("--prefix", default="gbfasta", help="prefix of output files")
     filenames, accessions, idfile, opts, args = preparegb(p, args)
     prefix = opts.prefix
 
@@ -411,8 +411,8 @@ def getgenes(args):
     Either --gb_dir or --id/--simple should be provided.
     """
     p = OptionParser(getgenes.__doc__)
-    p.add_option("--prefix", default="gbout", help="prefix of output files")
-    p.add_option(
+    p.add_argument("--prefix", default="gbout", help="prefix of output files")
+    p.add_argument(
         "--nopep",
         default=False,
         action="store_true",
@@ -467,14 +467,14 @@ def getquals(args):
     into a tab-delimited file
     """
     p = OptionParser(getquals.__doc__)
-    p.add_option(
+    p.add_argument(
         "--types",
         default="gene,mRNA,CDS",
         type=str,
         dest="quals_ftypes",
         help="Feature types from which to extract qualifiers",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore",
         default="locus_tag,product,codon_start,translation",
         type=str,

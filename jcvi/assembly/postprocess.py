@@ -126,7 +126,7 @@ def circular(args):
     from jcvi.assembly.goldenpath import overlap
 
     p = OptionParser(circular.__doc__)
-    p.add_option(
+    p.add_argument(
         "--flip",
         default=False,
         action="store_true",
@@ -246,7 +246,7 @@ def build(args):
     from jcvi.formats.fasta import sort
 
     p = OptionParser(build.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nodedup",
         default=False,
         action="store_true",
@@ -283,7 +283,7 @@ def screen(args):
 
     p = OptionParser(screen.__doc__)
     p.set_align(pctid=95, pctcov=50)
-    p.add_option("--best", default=1, type=int, help="Get the best N hit")
+    p.add_argument("--best", default=1, type=int, help="Get the best N hit")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -324,7 +324,7 @@ def scaffold(args):
     from jcvi.formats.bed import Bed
 
     p = OptionParser(scaffold.__doc__)
-    p.add_option(
+    p.add_argument(
         "--prefix",
         default=False,
         action="store_true",

@@ -89,7 +89,7 @@ def genemark(args):
     model gff file is needed.
     """
     p = OptionParser(genemark.__doc__)
-    p.add_option("--junctions", help="Path to `junctions.bed` from Tophat2")
+    p.add_argument("--junctions", help="Path to `junctions.bed` from Tophat2")
     p.set_home("gmes")
     p.set_cpus(cpus=32)
     opts, args = p.parse_args(args)
@@ -168,7 +168,7 @@ def augustus(args):
     <http://www.molecularevolution.org/molevolfiles/exercises/augustus/training.html>
     """
     p = OptionParser(augustus.__doc__)
-    p.add_option(
+    p.add_argument(
         "--autotrain",
         default=False,
         action="store_true",

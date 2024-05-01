@@ -209,9 +209,9 @@ def plot(args):
     from jcvi.graphics.chromosome import ChromosomeMap
 
     p = OptionParser(plot.__doc__)
-    p.add_option("--firstn", type=int, help="Only plot the first N genes")
-    p.add_option("--ymax", type=int, help="Y-axis max value")
-    p.add_option("--log", action="store_true", help="Write plotting data")
+    p.add_argument("--firstn", type=int, help="Only plot the first N genes")
+    p.add_argument("--ymax", type=int, help="Y-axis max value")
+    p.add_argument("--log", action="store_true", help="Write plotting data")
     opts, args, iopts = p.set_image_options(args, figsize="6x4")
 
     if len(args) != 2:
@@ -305,7 +305,7 @@ def instantiate(args):
     """
     p = OptionParser(instantiate.__doc__)
     p.set_annot_reformat_opts()
-    p.add_option(
+    p.add_argument(
         "--extended_stride",
         default=False,
         action="store_true",
@@ -594,13 +594,13 @@ def annotate(args):
     valid_resolve_choices = ["alignment", "overlap"]
 
     p = OptionParser(annotate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--resolve",
         default="alignment",
         choices=valid_resolve_choices,
         help="Resolve ID assignment based on a certain metric",
     )
-    p.add_option(
+    p.add_argument(
         "--atg_name",
         default=False,
         action="store_true",
@@ -611,14 +611,14 @@ def annotate(args):
         "Optional parameters (alignment):\n"
         + "Use if resolving ambiguities based on sequence `alignment`",
     )
-    g1.add_option(
+    g1.add_argument(
         "--pid",
         dest="pid",
         default=35.0,
         type=float,
         help="Percent identity cutoff",
     )
-    g1.add_option(
+    g1.add_argument(
         "--score",
         dest="score",
         default=250.0,
@@ -631,21 +631,21 @@ def annotate(args):
         + "Use if resolving ambiguities based on `overlap` length\n"
         + "Parameters equivalent to `intersectBed`",
     )
-    g2.add_option(
+    g2.add_argument(
         "-f",
         dest="f",
         default=0.5,
         type=float,
         help="Minimum overlap fraction (0.0 - 1.0)",
     )
-    g2.add_option(
+    g2.add_argument(
         "-r",
         dest="r",
         default=False,
         action="store_true",
         help="Require fraction overlap to be reciprocal",
     )
-    g2.add_option(
+    g2.add_argument(
         "-s",
         dest="s",
         default=True,
@@ -944,34 +944,34 @@ def rename(args):
     import string
 
     p = OptionParser(rename.__doc__)
-    p.add_option(
+    p.add_argument(
         "-a",
         dest="gene_increment",
         default=10,
         type=int,
         help="Increment for continuous genes",
     )
-    p.add_option(
+    p.add_argument(
         "-b",
         dest="gap_increment",
         default=1000,
         type=int,
         help="Increment for gaps",
     )
-    p.add_option(
+    p.add_argument(
         "--pad0",
         default=6,
         type=int,
         help="Pad gene identifiers with 0",
     )
-    p.add_option(
+    p.add_argument(
         "--spad0",
         default=4,
         type=int,
         help="Pad gene identifiers on small scaffolds",
     )
-    p.add_option("--prefix", default="Bo", help="Genome prefix")
-    p.add_option(
+    p.add_argument("--prefix", default="Bo", help="Genome prefix")
+    p.add_argument(
         "--jgi",
         default=False,
         action="store_true",
@@ -1072,7 +1072,7 @@ def reindex(args):
     from tempfile import mkstemp
 
     p = OptionParser(reindex.__doc__)
-    p.add_option(
+    p.add_argument(
         "--scores", type=str, help="read from existing EMBOSS `needle` scores file"
     )
     p.set_outfile()
@@ -1235,7 +1235,7 @@ def publocus(args):
     Medtr1g007060.2		MTR_1g007060B
     """
     p = OptionParser(publocus.__doc__)
-    p.add_option("--locus_tag", default="MTR_", help="GenBank locus tag")
+    p.add_argument("--locus_tag", default="MTR_", help="GenBank locus tag")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

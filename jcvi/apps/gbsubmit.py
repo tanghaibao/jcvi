@@ -135,7 +135,7 @@ def fcs(args):
     contig0800      124133  30512..30559    primer/adapter
     """
     p = OptionParser(fcs.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         default=200,
         help="Skip small components less than",
@@ -259,7 +259,7 @@ def htgnew(args):
     from jcvi.formats.fasta import sequin
 
     p = OptionParser(htgnew.__doc__)
-    p.add_option("--comment", default="", help="Comments for this submission")
+    p.add_argument("--comment", default="", help="Comments for this submission")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -358,12 +358,12 @@ def htg(args):
     from jcvi.apps.fetch import entrez
 
     p = OptionParser(htg.__doc__)
-    p.add_option(
+    p.add_argument(
         "--phases",
         default=None,
         help="Use another phasefile to override",
     )
-    p.add_option("--comment", default="", help="Comments for this update")
+    p.add_argument("--comment", default="", help="Comments for this update")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

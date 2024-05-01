@@ -47,10 +47,10 @@ def cat(args):
             In case you don't want chapter 10 before chapter 2.
     """
     p = OptionParser(cat.__doc__.format(page_range_help=PAGE_RANGE_HELP))
-    p.add_option(
+    p.add_argument(
         "--nosort", default=False, action="store_true", help="Do not sort file names"
     )
-    p.add_option(
+    p.add_argument(
         "--cleanup",
         default=False,
         action="store_true",

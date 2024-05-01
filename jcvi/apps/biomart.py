@@ -123,7 +123,7 @@ class MartXMLParser(ElementTree):
         for t in self.getiterator("FilterDescription"):
             f = Filter(**t.attrib)
             options = [Option(**x.attrib) for x in t.getiterator("Option")]
-            f.add_options(options)
+            f.add_arguments(options)
             yield f
 
 
@@ -317,7 +317,7 @@ class Filter(MartArgument):
     then use the filter chromosome_name with value `1`
     """
 
-    def add_options(self, options):
+    def add_arguments(self, options):
         self.options = dict((x.displayName, x) for x in options)
 
 

@@ -74,7 +74,7 @@ def validate_term(term, so=None, method="verify"):
 
 if __name__ == "__main__":
     p = OptionParser(__doc__)
-    p.add_option(
+    p.add_argument(
         "--term",
         help="Write the parents and children of this query term",
     )

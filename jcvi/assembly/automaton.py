@@ -144,7 +144,7 @@ def contamination(args):
     from jcvi.apps.bowtie import align
 
     p = OptionParser(contamination.__doc__)
-    p.add_option(
+    p.add_argument(
         "--mapped",
         default=False,
         action="store_true",
@@ -235,7 +235,7 @@ def allpaths(args):
     Run automated ALLPATHS on list of dirs.
     """
     p = OptionParser(allpaths.__doc__)
-    p.add_option("--ploidy", default="1", choices=("1", "2"), help="Ploidy")
+    p.add_argument("--ploidy", default="1", choices=("1", "2"), help="Ploidy")
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -263,7 +263,7 @@ def prepare(args):
     Note that JIRA report can also be a list of FASTQ files.
     """
     p = OptionParser(prepare.__doc__)
-    p.add_option(
+    p.add_argument(
         "--first",
         default=0,
         type=int,

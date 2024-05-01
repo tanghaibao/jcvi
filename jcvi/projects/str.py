@@ -283,7 +283,7 @@ def mendelian2(args):
     counts and gender information to correct error estimate of X-linked loci.
     """
     p = OptionParser(mendelian2.__doc__)
-    p.add_option(
+    p.add_argument(
         "--treds", default=None, help="Extract specific treds, use comma to separate"
     )
     opts, args = p.parse_args(args)
@@ -764,7 +764,7 @@ def mendelian(args):
     Calculate Mendelian errors based on trios and duos.
     """
     p = OptionParser(mendelian.__doc__)
-    p.add_option("--tolerance", default=0, type=int, help="Tolernace for differences")
+    p.add_argument("--tolerance", default=0, type=int, help="Tolernace for differences")
     p.set_verbose()
     opts, args = p.parse_args(args)
 
@@ -884,10 +884,10 @@ def mini(args):
     Prepare mini-BAMs that contain only the STR loci.
     """
     p = OptionParser(mini.__doc__)
-    p.add_option(
+    p.add_argument(
         "--pad", default=20000, type=int, help="Add padding to the STR reigons"
     )
-    p.add_option(
+    p.add_argument(
         "--treds", default=None, help="Extract specific treds, use comma to separate"
     )
     p.set_outfile()
@@ -1439,13 +1439,13 @@ def allelefreq(args):
     Plot the allele frequencies of some STRs.
     """
     p = OptionParser(allelefreq.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nopanels",
         default=False,
         action="store_true",
         help="No panel labels A, B, ...",
     )
-    p.add_option("--usereport", help="Use allele frequency in report file")
+    p.add_argument("--usereport", help="Use allele frequency in report file")
     opts, args, iopts = p.set_image_options(args, figsize="9x13")
 
     if len(args) != 1:
@@ -1500,8 +1500,8 @@ def make_fasta(seq, fastafile, id):
 
 
 def add_simulate_options(p):
-    p.add_option("--readlen", default=150, type=int, help="Length of the read")
-    p.add_option(
+    p.add_argument("--readlen", default=150, type=int, help="Length of the read")
+    p.add_argument(
         "--distance",
         default=500,
         type=int,
@@ -1519,16 +1519,16 @@ def simulate(args):
     `run_dir`.
     """
     p = OptionParser(simulate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--method", choices=("wgsim", "eagle"), default="eagle", help="Read simulator"
     )
-    p.add_option(
+    p.add_argument(
         "--ref",
         default="hg38",
         choices=("hg38", "hg19"),
         help="Reference genome version",
     )
-    p.add_option("--tred", default="HD", help="TRED locus")
+    p.add_argument("--tred", default="HD", help="TRED locus")
     add_simulate_options(p)
     opts, args = p.parse_args(args)
 
@@ -1642,7 +1642,7 @@ def batchlobstr(args):
     $ tred.py bamlist --haploid chr4 --workdir tredparse_results
     """
     p = OptionParser(batchlobstr.__doc__)
-    p.add_option(
+    p.add_argument(
         "--haploid", default="chrY,chrM", help="Use haploid model for these chromosomes"
     )
     p.set_cpus()
@@ -1703,7 +1703,7 @@ def evidences(args):
     - Longer allele
     """
     p = OptionParser(evidences.__doc__)
-    p.add_option(
+    p.add_argument(
         "--csv", default="hli.20170328.tred.tsv", help="TRED csv output to plot"
     )
     opts, args, iopts = p.set_image_options(args, format="pdf")
@@ -2044,7 +2044,9 @@ def compare2(args):
     Compare performances of various variant callers on simulated STR datasets.
     """
     p = OptionParser(compare2.__doc__)
-    p.add_option("--maxinsert", default=300, type=int, help="Maximum number of repeats")
+    p.add_argument(
+        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
+    )
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x5")
 
@@ -2099,7 +2101,9 @@ def power(args):
     This compares the power of various evidence types.
     """
     p = OptionParser(power.__doc__)
-    p.add_option("--maxinsert", default=300, type=int, help="Maximum number of repeats")
+    p.add_argument(
+        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
+    )
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x10", format="png")
 
@@ -2196,7 +2200,9 @@ def tredparse(args):
     Adds coverage comparisons as panel C and D.
     """
     p = OptionParser(tredparse.__doc__)
-    p.add_option("--maxinsert", default=300, type=int, help="Maximum number of repeats")
+    p.add_argument(
+        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
+    )
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x10")
 

@@ -364,7 +364,7 @@ def gc3(args):
     concatenated or separated.
     """
     p = OptionParser(gc3.__doc__)
-    p.add_option(
+    p.add_argument(
         "--plot", default=False, action="store_true", help="Also plot the GC3 histogram"
     )
     p.set_outfile()
@@ -549,18 +549,18 @@ def calc(args):
     from jcvi.formats.fasta import translate
 
     p = OptionParser(calc.__doc__)
-    p.add_option(
+    p.add_argument(
         "--longest",
         action="store_true",
         help="Get longest ORF, only works if no pep file, e.g. ESTs",
     )
-    p.add_option(
+    p.add_argument(
         "--msa",
         default="clustalw",
         choices=("clustalw", "muscle"),
         help="software used to align the proteins",
     )
-    p.add_option("--workdir", default=os.getcwd(), help="Work directory")
+    p.add_argument("--workdir", default=os.getcwd(), help="Work directory")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -822,10 +822,10 @@ def subset(args):
     in tab delimited pairsfile/anchorfile.
     """
     p = OptionParser(subset.__doc__)
-    p.add_option(
+    p.add_argument(
         "--noheader", action="store_true", help="don't write ksfile header line"
     )
-    p.add_option(
+    p.add_argument(
         "--block", action="store_true", help="preserve block structure in input"
     )
     p.set_stripnames()
@@ -1081,21 +1081,25 @@ def plot_ks_dist(
 
 
 def add_plot_options(p):
-    p.add_option("--fit", default=False, action="store_true", help="Plot fitted lines")
-    p.add_option("--kde", default=False, action="store_true", help="Use KDE smoothing")
-    p.add_option("--vmin", default=0.0, type=float, help="Minimum value, inclusive")
-    p.add_option("--vmax", default=3.0, type=float, help="Maximum value, inclusive")
-    p.add_option(
+    p.add_argument(
+        "--fit", default=False, action="store_true", help="Plot fitted lines"
+    )
+    p.add_argument(
+        "--kde", default=False, action="store_true", help="Use KDE smoothing"
+    )
+    p.add_argument("--vmin", default=0.0, type=float, help="Minimum value, inclusive")
+    p.add_argument("--vmax", default=3.0, type=float, help="Maximum value, inclusive")
+    p.add_argument(
         "--bins", default=60, type=int, help="Number of bins to plot in the histogram"
     )
-    p.add_option("--legendp", default="upper right", help="Place of the legend")
-    p.add_option(
+    p.add_argument("--legendp", default="upper right", help="Place of the legend")
+    p.add_argument(
         "--fill",
         default=False,
         action="store_true",
         help="Do not fill the histogram area",
     )
-    p.add_option("--title", default="*Ks* distribution", help="Title of the plot")
+    p.add_argument("--title", default="*Ks* distribution", help="Title of the plot")
 
 
 def report(args):
@@ -1109,13 +1113,13 @@ def report(args):
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(report.__doc__)
-    p.add_option(
+    p.add_argument(
         "--pdf",
         default=False,
         action="store_true",
         help="Generate graphic output for the histogram",
     )
-    p.add_option(
+    p.add_argument(
         "--components",
         default=1,
         type=int,

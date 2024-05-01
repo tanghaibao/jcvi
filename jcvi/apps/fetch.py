@@ -148,7 +148,7 @@ def ensembl(args):
     $ %prog ensembl danio_rerio,gasterosteus_aculeatus
     """
     p = OptionParser(ensembl.__doc__)
-    p.add_option("--version", default="75", help="Ensembl version")
+    p.add_argument("--version", default="75", help="Ensembl version")
     opts, args = p.parse_args(args)
 
     version = opts.version
@@ -227,19 +227,19 @@ def phytozome(args):
     from jcvi.apps.biomart import GlobusXMLParser
 
     p = OptionParser(phytozome.__doc__)
-    p.add_option(
+    p.add_argument(
         "--version",
         default="12",
         choices=("9", "10", "11", "12", "12_unrestricted", "13"),
         help="Phytozome version",
     )
-    p.add_option(
+    p.add_argument(
         "--assembly",
         default=False,
         action="store_true",
         help="Download assembly",
     )
-    p.add_option(
+    p.add_argument(
         "--format",
         default=False,
         action="store_true",
@@ -363,13 +363,13 @@ def phytozome9(args):
     $ %prog phytozome9 Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
     """
     p = OptionParser(phytozome9.__doc__)
-    p.add_option(
+    p.add_argument(
         "--assembly",
         default=False,
         action="store_true",
         help="Download assembly",
     )
-    p.add_option(
+    p.add_argument(
         "--format",
         default=False,
         action="store_true",
@@ -545,45 +545,45 @@ def entrez(args):
     valid_formats = tuple(allowed_databases.keys())
     valid_databases = ("genome", "nuccore", "nucest", "nucgss", "protein", "gene")
 
-    p.add_option(
+    p.add_argument(
         "--noversion",
         dest="noversion",
         default=False,
         action="store_true",
         help="Remove trailing accession versions",
     )
-    p.add_option(
+    p.add_argument(
         "--format",
         default="fasta",
         choices=valid_formats,
         help="download format",
     )
-    p.add_option(
+    p.add_argument(
         "--database",
         default="nuccore",
         choices=valid_databases,
         help="search database",
     )
-    p.add_option(
+    p.add_argument(
         "--retmax",
         default=1000000,
         type=int,
         help="how many results to return",
     )
-    p.add_option(
+    p.add_argument(
         "--skipcheck",
         default=False,
         action="store_true",
         help="turn off prompt to check file existence",
     )
-    p.add_option(
+    p.add_argument(
         "--batchsize",
         default=500,
         type=int,
         help="download the results in batch for speed-up",
     )
     p.set_outdir(outdir=None)
-    p.add_option("--outprefix", default="out", help="output file name prefix")
+    p.add_argument("--outprefix", default="out", help="output file name prefix")
     p.set_email()
     opts, args = p.parse_args(args)
 
@@ -674,7 +674,7 @@ def sra(args):
     """
     p = OptionParser(sra.__doc__)
 
-    p.add_option(
+    p.add_argument(
         "--nogzip",
         dest="nogzip",
         default=False,

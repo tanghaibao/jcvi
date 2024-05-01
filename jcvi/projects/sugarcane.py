@@ -418,13 +418,13 @@ def simulate(args):
     sns.set_style("darkgrid")
 
     p = OptionParser(simulate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--verbose",
         default=False,
         action="store_true",
         help="Verbose logging during simulation",
     )
-    p.add_option("-N", default=10000, type=int, help="Number of simulated samples")
+    p.add_argument("-N", default=10000, type=int, help="Number of simulated samples")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -669,8 +669,8 @@ def divergence(args):
     sns.set_style("white")
 
     p = OptionParser(divergence.__doc__)
-    p.add_option("--title", default="Gapless", help="Plot title")
-    p.add_option(
+    p.add_argument("--title", default="Gapless", help="Plot title")
+    p.add_argument(
         "--xmin",
         default=94,
         type=int,

@@ -310,7 +310,7 @@ def append(args):
     training AUGUSTUS gene models.
     """
     p = OptionParser(append.__doc__)
-    p.add_option("--prepend", help="Prepend string to read names")
+    p.add_argument("--prepend", help="Prepend string to read names")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -407,7 +407,7 @@ def count(args):
     Count the number of reads mapped using `htseq-count`.
     """
     p = OptionParser(count.__doc__)
-    p.add_option("--type", default="exon", help="Only count feature type")
+    p.add_argument("--type", default="exon", help="Only count feature type")
     p.set_cpus(cpus=8)
     opts, args = p.parse_args(args)
 
@@ -444,13 +444,15 @@ def coverage(args):
     --nosort.
     """
     p = OptionParser(coverage.__doc__)
-    p.add_option(
+    p.add_argument(
         "--format",
         default="bigwig",
         choices=("bedgraph", "bigwig", "coverage"),
         help="Output format",
     )
-    p.add_option("--nosort", default=False, action="store_true", help="Do not sort BAM")
+    p.add_argument(
+        "--nosort", default=False, action="store_true", help="Do not sort BAM"
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -568,10 +570,10 @@ def consensus(args):
     """
     valid_callers = ("bcftools", "gatk4")
     p = OptionParser(consensus.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nosort", default=False, action="store_true", help="Do not sort the BAM files"
     )
-    p.add_option(
+    p.add_argument(
         "--caller",
         default="bcftools",
         choices=valid_callers,
@@ -610,10 +612,10 @@ def vcf(args):
     valid_callers = ("mpileup", "freebayes")
     p = OptionParser(vcf.__doc__)
     p.set_outfile(outfile="out.vcf.gz")
-    p.add_option(
+    p.add_argument(
         "--nosort", default=False, action="store_true", help="Do not sort the BAM files"
     )
-    p.add_option(
+    p.add_argument(
         "--caller", default="mpileup", choices=valid_callers, help="Use variant caller"
     )
     opts, args = p.parse_args(args)
@@ -704,10 +706,10 @@ def index(args):
     If SAM file, convert to BAM, sort and then index, using SAMTOOLS
     """
     p = OptionParser(index.__doc__)
-    p.add_option(
+    p.add_argument(
         "--fasta", dest="fasta", default=None, help="add @SQ header to the BAM file"
     )
-    p.add_option(
+    p.add_argument(
         "--unique",
         default=False,
         action="store_true",
@@ -887,39 +889,39 @@ def ace(args):
     assembler.
     """
     p = OptionParser(ace.__doc__)
-    p.add_option(
+    p.add_argument(
         "--splitdir",
         dest="splitdir",
         default="outRoot",
         help="split the ace per contig to dir",
     )
-    p.add_option(
+    p.add_argument(
         "--unpaired",
         dest="unpaired",
         default=False,
         help="remove read pairs on the same contig",
     )
-    p.add_option(
+    p.add_argument(
         "--minreadno",
         dest="minreadno",
         default=3,
         type=int,
         help="minimum read numbers per contig",
     )
-    p.add_option(
+    p.add_argument(
         "--minctgsize",
         dest="minctgsize",
         default=100,
         type=int,
         help="minimum contig size per contig",
     )
-    p.add_option(
+    p.add_argument(
         "--astat",
         default=False,
         action="store_true",
         help="create .astat to list repetitiveness",
     )
-    p.add_option(
+    p.add_argument(
         "--readids",
         default=False,
         action="store_true",

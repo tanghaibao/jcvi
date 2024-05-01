@@ -156,7 +156,7 @@ def segment(args):
     from jcvi.formats.base import SetFile
 
     p = OptionParser(segment.__doc__)
-    p.add_option(
+    p.add_argument(
         "--chain",
         default=1,
         type=int,
@@ -354,7 +354,7 @@ def gaps(args):
     from jcvi.utils.cbook import percentage
 
     p = OptionParser(gaps.__doc__)
-    p.add_option("--bdist", default=0, type=int, help="Base pair distance")
+    p.add_argument("--bdist", default=0, type=int, help="Base pair distance")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -439,7 +439,7 @@ def summary(args):
     from jcvi.utils.cbook import percentage, Registry
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--extra", help="Cross with extra tsv file")
+    p.add_argument("--extra", help="Cross with extra tsv file")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -672,14 +672,14 @@ def loss(args):
     Extract likely gene loss candidates between genome a and b.
     """
     p = OptionParser(loss.__doc__)
-    p.add_option(
+    p.add_argument(
         "--bed",
         default=False,
         action="store_true",
         help="Genomic BLAST is in bed format",
     )
-    p.add_option("--gdist", default=20, type=int, help="Gene distance")
-    p.add_option(
+    p.add_argument("--gdist", default=20, type=int, help="Gene distance")
+    p.add_argument(
         "--bdist",
         default=20000,
         type=int,

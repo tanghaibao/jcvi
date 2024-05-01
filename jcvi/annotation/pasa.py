@@ -81,7 +81,7 @@ def assemble(args):
     """
     p = OptionParser(assemble.__doc__)
     p.set_pasa_opts()
-    p.add_option(
+    p.add_argument(
         "--prepare",
         default=False,
         action="store_true",
@@ -228,7 +228,7 @@ def compare(args):
     """
     p = OptionParser(compare.__doc__)
     p.set_pasa_opts(action="compare")
-    p.add_option(
+    p.add_argument(
         "--prepare",
         default=False,
         action="store_true",
@@ -320,7 +320,7 @@ def longest(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(longest.__doc__)
-    p.add_option(
+    p.add_argument(
         "--prefix",
         default="pasa",
         help="Replace asmbl_ with prefix",
@@ -393,31 +393,31 @@ def consolidate(args):
 
     supported_modes = ["name", "coords"]
     p = OptionParser(consolidate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--slop",
         default=False,
         action="store_true",
         help="allow minor variation in terminal 5'/3' UTR start/stop position",
     )
-    p.add_option(
+    p.add_argument(
         "--inferUTR",
         default=False,
         action="store_true",
         help="infer presence of UTRs from exon coordinates",
     )
-    p.add_option(
+    p.add_argument(
         "--mode",
         default="name",
         choices=supported_modes,
         help="method used to determine overlapping loci",
     )
-    p.add_option(
+    p.add_argument(
         "--summary",
         default=False,
         action="store_true",
         help="Generate summary table of consolidation process",
     )
-    p.add_option(
+    p.add_argument(
         "--clusters",
         default=False,
         action="store_true",

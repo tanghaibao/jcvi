@@ -433,7 +433,7 @@ def heatmap(args):
     Calculate pairwise linkage disequilibrium given MSTmap.
     """
     p = OptionParser(heatmap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--subsample",
         default=1000,
         type=int,
@@ -469,8 +469,8 @@ def header(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(header.__doc__)
-    p.add_option("--prefix", default="", help="Prepend text to line number")
-    p.add_option("--ids", help="Write ids to file")
+    p.add_argument("--prefix", default="", help="Prepend text to line number")
+    p.add_argument("--ids", help="Write ids to file")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -570,13 +570,13 @@ def bed(args):
     Convert MSTMAP output into bed format.
     """
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--switch",
         default=False,
         action="store_true",
         help="Switch reference and aligned map elements",
     )
-    p.add_option(
+    p.add_argument(
         "--sep",
         default=".",
         help="Separator that is used to delimit scaffold and position in the marker name",
@@ -604,7 +604,7 @@ def fasta(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fasta.__doc__)
-    p.add_option(
+    p.add_argument(
         "--extend",
         default=1000,
         type=int,
@@ -673,7 +673,7 @@ def breakpoint(args):
     from more_itertools import pairwise
 
     p = OptionParser(breakpoint.__doc__)
-    p.add_option(
+    p.add_argument(
         "--diff",
         default=0.1,
         type=float,

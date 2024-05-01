@@ -98,25 +98,25 @@ def align(args):
 
     p = OptionParser(align.__doc__)
     p.set_firstN(firstN=0)
-    p.add_option(
+    p.add_argument(
         "--full",
         default=False,
         action="store_true",
         help="Enforce end-to-end alignment [default: local]",
     )
-    p.add_option(
+    p.add_argument(
         "--reorder",
         default=False,
         action="store_true",
         help="Keep the input read order",
     )
-    p.add_option(
+    p.add_argument(
         "--null",
         default=False,
         action="store_true",
         help="Do not write to SAM/BAM output",
     )
-    p.add_option(
+    p.add_argument(
         "--fasta", default=False, action="store_true", help="Query reads are FASTA"
     )
     p.set_cutoff(cutoff=800)

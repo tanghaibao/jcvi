@@ -43,13 +43,13 @@ def prepare(args):
     If "--merge" is specified, the fastq files are merged together before assembling
     """
     p = OptionParser(prepare.__doc__)
-    p.add_option(
+    p.add_argument(
         "--paired",
         default=False,
         action="store_true",
         help="Paired-end mode",
     )
-    p.add_option(
+    p.add_argument(
         "--merge",
         default=False,
         action="store_true",

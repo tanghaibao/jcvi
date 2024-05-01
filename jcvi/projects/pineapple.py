@@ -71,7 +71,7 @@ def flanking(args):
     Extract flanking genes for given SI loci.
     """
     p = OptionParser(flanking.__doc__)
-    p.add_option("-N", default=50, type=int, help="How many genes on both directions")
+    p.add_argument("-N", default=50, type=int, help="How many genes on both directions")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -300,7 +300,7 @@ def ploidy(args):
     and graphic.synteny.
     """
     p = OptionParser(ploidy.__doc__)
-    p.add_option("--switch", help="Rename the seqid with two-column file")
+    p.add_argument("--switch", help="Rename the seqid with two-column file")
     opts, args, iopts = p.set_image_options(args, figsize="9x7")
 
     if len(args) != 5:

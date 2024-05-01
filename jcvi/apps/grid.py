@@ -618,7 +618,7 @@ def kill(args):
 
     valid_methods = ("pattern", "jobid")
     p = OptionParser(kill.__doc__)
-    p.add_option(
+    p.add_argument(
         "--method",
         choices=valid_methods,
         help="Identify jobs based on [default: guess]",

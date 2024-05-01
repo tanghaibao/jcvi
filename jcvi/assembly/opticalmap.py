@@ -380,26 +380,26 @@ def bed(args):
     from jcvi.formats.bed import sort
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--blockonly",
         default=False,
         action="store_true",
         help="Only print out large blocks, not fragments",
     )
-    p.add_option(
+    p.add_argument(
         "--point",
         default=False,
         action="store_true",
         help="Print accesssion as single point instead of interval",
     )
-    p.add_option("--scale", type=float, help="Scale the OM distance by factor")
-    p.add_option(
+    p.add_argument("--scale", type=float, help="Scale the OM distance by factor")
+    p.add_argument(
         "--switch",
         default=False,
         action="store_true",
         help="Switch reference and aligned map elements",
     )
-    p.add_option(
+    p.add_argument(
         "--nosort",
         default=False,
         action="store_true",

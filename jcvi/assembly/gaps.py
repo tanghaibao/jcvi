@@ -38,7 +38,7 @@ def annotate(args):
     from jcvi.formats.agp import AGP, bed, tidy
 
     p = OptionParser(annotate.__doc__)
-    p.add_option("--minsize", default=200, help="Smallest component size")
+    p.add_argument("--minsize", default=200, help="Smallest component size")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -243,7 +243,7 @@ def flanks(args):
     Create sequences flanking the gaps.
     """
     p = OptionParser(flanks.__doc__)
-    p.add_option(
+    p.add_argument(
         "--extend",
         default=2000,
         type=int,

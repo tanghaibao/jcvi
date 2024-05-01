@@ -62,14 +62,14 @@ def parse_csv(csvfile, vmin=0, groups=False):
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option(
+    p.add_argument(
         "--groups",
         default=False,
         action="store_true",
         help="The first row contains group info",
     )
-    p.add_option("--rowgroups", help="Row groupings")
-    p.add_option(
+    p.add_argument("--rowgroups", help="Row groupings")
+    p.add_argument(
         "--horizontalbar",
         default=False,
         action="store_true",

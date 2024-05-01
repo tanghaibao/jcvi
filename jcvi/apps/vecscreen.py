@@ -47,7 +47,7 @@ def mask(args):
     perform FASTA tidy if requested.
     """
     p = OptionParser(mask.__doc__)
-    p.add_option(
+    p.add_argument(
         "--db",
         default=ECOLI_URL,
         help="Contaminant db other than Ecoli K12, will download if file starts with http://, https://, or ftp://",
@@ -90,13 +90,13 @@ def blast(args):
     on the vector/contaminant ranges.
     """
     p = OptionParser(blast.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dist",
         default=100,
         type=int,
         help="Merge adjacent HSPs separated by",
     )
-    p.add_option("--db", help="Use a different database rather than UniVec_Core")
+    p.add_argument("--db", help="Use a different database rather than UniVec_Core")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

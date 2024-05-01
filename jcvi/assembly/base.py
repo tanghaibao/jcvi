@@ -156,7 +156,7 @@ def n50(args):
     from jcvi.graphics.histogram import loghistogram
 
     p = OptionParser(n50.__doc__)
-    p.add_option(
+    p.add_argument(
         "--print0",
         default=False,
         action="store_true",

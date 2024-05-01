@@ -554,7 +554,7 @@ def fix(args):
     Fix ugly names from Uniprot.
     """
     p = OptionParser(fix.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ignore_sym_pat",
         default=False,
         action="store_true",
@@ -650,19 +650,19 @@ def batch(args):
     ahrd_weights = {"blastp": [0.5, 0.3, 0.2], "blastx": [0.6, 0.4, 0.0]}
     blast_progs = tuple(ahrd_weights.keys())
 
-    p.add_option(
+    p.add_argument(
         "--path",
         default="~/code/AHRD/",
         help="Path where AHRD is installed",
     )
-    p.add_option(
+    p.add_argument(
         "--blastprog",
         default="blastp",
         choices=blast_progs,
         help="Specify the blast program being run. Based on this option,"
         + " the AHRD parameters (score_weights) will be modified",
     )
-    p.add_option(
+    p.add_argument(
         "--iprscan",
         default=None,
         help="Specify path to InterProScan results file if available."

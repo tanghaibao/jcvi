@@ -215,7 +215,7 @@ def setup_gauge_ax(gauge_ax, start, end, gauge_step, float_formatter=False):
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option("--order", help="The order to plot the tracks, comma-separated")
+    p.add_argument("--order", help="The order to plot the tracks, comma-separated")
     opts, args, iopts = p.set_image_options()
 
     if len(args) != 3:

@@ -38,7 +38,7 @@ def mappability(args):
     <https://github.com/xuefzhao/Reference.Mappability>
     """
     p = OptionParser(mappability.__doc__)
-    p.add_option("--mer", default=50, type=int, help="User mer size")
+    p.add_argument("--mer", default=50, type=int, help="User mer size")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -85,7 +85,7 @@ def gatk(args):
     Call SNPs based on GATK best practices.
     """
     p = OptionParser(gatk.__doc__)
-    p.add_option(
+    p.add_argument(
         "--indelrealign",
         default=False,
         action="store_true",
@@ -207,7 +207,7 @@ def rmdup(args):
     Remove PCR duplicates from BAM files, generate a list of commands.
     """
     p = OptionParser(rmdup.__doc__)
-    p.add_option(
+    p.add_argument(
         "-S", default=False, action="store_true", help="Treat PE reads as SE in rmdup"
     )
     opts, args = p.parse_args(args)
@@ -258,8 +258,8 @@ def freebayes(args):
     Call SNPs using freebayes.
     """
     p = OptionParser(freebayes.__doc__)
-    p.add_option("--mindepth", default=3, type=int, help="Minimum depth")
-    p.add_option("--minqual", default=20, type=int, help="Minimum quality")
+    p.add_argument("--mindepth", default=3, type=int, help="Minimum depth")
+    p.add_argument("--minqual", default=20, type=int, help="Minimum quality")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -283,8 +283,8 @@ def freq(args):
     Call SNP frequencies and generate GFF file.
     """
     p = OptionParser(freq.__doc__)
-    p.add_option("--mindepth", default=3, type=int, help="Minimum depth")
-    p.add_option("--minqual", default=20, type=int, help="Minimum quality")
+    p.add_argument("--mindepth", default=3, type=int, help="Minimum depth")
+    p.add_argument("--minqual", default=20, type=int, help="Minimum quality")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -306,7 +306,7 @@ def frommaf(args):
     Convert to four-column tabular format from MAF.
     """
     p = OptionParser(frommaf.__doc__)
-    p.add_option("--validate", help="Validate coordinates against FASTA")
+    p.add_argument("--validate", help="Validate coordinates against FASTA")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

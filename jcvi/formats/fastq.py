@@ -356,13 +356,13 @@ def readlen(args):
     """
     p = OptionParser(readlen.__doc__)
     p.set_firstN()
-    p.add_option(
+    p.add_argument(
         "--silent",
         default=False,
         action="store_true",
         help="Do not print read length stats",
     )
-    p.add_option(
+    p.add_argument(
         "--nocheck",
         default=False,
         action="store_true",
@@ -392,7 +392,7 @@ def fasta(args):
     Convert fastq to fasta and qual file.
     """
     p = OptionParser(fasta.__doc__)
-    p.add_option(
+    p.add_argument(
         "--seqtk", default=False, action="store_true", help="Use seqtk to convert"
     )
     p.set_outdir()
@@ -496,14 +496,14 @@ def filter(args):
     format (two files) to filter on paired reads.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option(
+    p.add_argument(
         "-q",
         dest="qv",
         default=20,
         type=int,
         help="Minimum quality score to keep",
     )
-    p.add_option(
+    p.add_argument(
         "-p",
         dest="pct",
         default=95,
@@ -709,7 +709,7 @@ def format(args):
     """
     p = OptionParser(format.__doc__)
 
-    p.add_option(
+    p.add_argument(
         "--convert",
         default=None,
         choices=[">=1.8", "<1.8", "sra"],
@@ -784,14 +784,14 @@ def trim(args):
     Wraps `fastx_trimmer` to trim from begin or end of reads.
     """
     p = OptionParser(trim.__doc__)
-    p.add_option(
+    p.add_argument(
         "-f",
         dest="first",
         default=0,
         type=int,
         help="First base to keep. Default is 1.",
     )
-    p.add_option(
+    p.add_argument(
         "-l",
         dest="last",
         default=0,
@@ -861,14 +861,14 @@ def splitread(args):
     Split fastqfile into two read fastqfiles, cut in the middle.
     """
     p = OptionParser(splitread.__doc__)
-    p.add_option(
+    p.add_argument(
         "-n",
         dest="n",
         default=76,
         type=int,
         help="Split at N-th base position",
     )
-    p.add_option(
+    p.add_argument(
         "--rc",
         default=False,
         action="store_true",
@@ -993,7 +993,7 @@ def pairinplace(args):
     p = OptionParser(pairinplace.__doc__)
     p.set_rclip()
     p.set_tag()
-    p.add_option("--base", help="Base name for the output files")
+    p.add_argument("--base", help="Base name for the output files")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1050,13 +1050,13 @@ def fromsra(args):
     Convert sra file to fastq using the sratoolkit `fastq-dump`
     """
     p = OptionParser(fromsra.__doc__)
-    p.add_option(
+    p.add_argument(
         "--paired",
         default=False,
         action="store_true",
         help="Specify if library layout is paired-end",
     )
-    p.add_option(
+    p.add_argument(
         "--compress",
         default=None,
         choices=["gzip", "bzip2"],

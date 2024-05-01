@@ -147,14 +147,14 @@ if __name__ == "__main__":
 
     filter_choices = ("ref", "query", "intersection", "union")
     dialect_choices = ("blast", "coords")
-    p.add_option(
+    p.add_argument(
         "--filter",
         choices=filter_choices,
         default="intersection",
         help="Available filters",
     )
-    p.add_option("--dialect", choices=dialect_choices, help="Input format")
-    p.add_option(
+    p.add_argument("--dialect", choices=dialect_choices, help="Input format")
+    p.add_argument(
         "--clip",
         default=0,
         type=int,

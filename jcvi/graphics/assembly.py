@@ -44,10 +44,10 @@ def covlen(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(covlen.__doc__)
-    p.add_option("--maxsize", default=1000000, type=int, help="Max contig size")
-    p.add_option("--maxcov", default=100, type=int, help="Max contig size")
-    p.add_option("--color", default="m", help="Color of the data points")
-    p.add_option(
+    p.add_argument("--maxsize", default=1000000, type=int, help="Max contig size")
+    p.add_argument("--maxcov", default=100, type=int, help="Max contig size")
+    p.add_argument("--color", default="m", help="Color of the data points")
+    p.add_argument(
         "--kind",
         default="scatter",
         choices=("scatter", "reg", "resid", "kde", "hex"),
@@ -109,8 +109,8 @@ def coverage(args):
     from jcvi.formats.bed import mates, bedpe
 
     p = OptionParser(coverage.__doc__)
-    p.add_option("--ymax", default=None, type=int, help="Limit ymax")
-    p.add_option(
+    p.add_argument("--ymax", default=None, type=int, help="Limit ymax")
+    p.add_argument(
         "--spans",
         default=False,
         action="store_true",
@@ -260,13 +260,13 @@ def scaffold(args):
     from more_itertools import grouper
 
     p = OptionParser(scaffold.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         type=int,
         default=1000000,
         help="Plot scaffolds with size larger than",
     )
-    p.add_option(
+    p.add_argument(
         "--highlights",
         help="A set of regions in BED format to highlight",
     )
@@ -450,20 +450,20 @@ def A50(args):
     Plots A50 graphics, see blog post (http://blog.malde.org/index.php/a50/)
     """
     p = OptionParser(A50.__doc__)
-    p.add_option(
+    p.add_argument(
         "--overwrite",
         default=False,
         action="store_true",
         help="overwrite .rplot file if exists",
     )
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         default=0,
         type=int,
         dest="cutoff",
         help="use contigs above certain size",
     )
-    p.add_option(
+    p.add_argument(
         "--stepsize",
         default=10,
         type=int,

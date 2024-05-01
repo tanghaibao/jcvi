@@ -290,20 +290,20 @@ def main(args):
     p = OptionParser(__doc__)
     p.set_beds()
     p.set_stripnames()
-    p.add_option(
+    p.add_argument(
         "--tandems_only",
         dest="tandems_only",
         action="store_true",
         default=False,
         help="only calculate tandems, write .localdup file and exit.",
     )
-    p.add_option(
+    p.add_argument(
         "--tandem_Nmax",
         type=int,
         default=10,
         help="merge tandem genes within distance",
     )
-    p.add_option(
+    p.add_argument(
         "--cscore",
         type=float,
         default=0.7,
@@ -311,7 +311,7 @@ def main(args):
         "keep all values that are 50% or greater of the best hit. "
         "higher is more stringent",
     )
-    p.add_option("--exclude", help="Remove anchors from a previous run")
+    p.add_argument("--exclude", help="Remove anchors from a previous run")
 
     opts, args = p.parse_args(args)
 

@@ -388,7 +388,7 @@ def coverage(args):
     jcvi.algorithms.supermap --filter query
     """
     p = OptionParser(coverage.__doc__)
-    p.add_option(
+    p.add_argument(
         "-c",
         dest="cutoff",
         default=0.5,
@@ -434,13 +434,13 @@ def annotate(args):
     overlaps: {0}.
     """
     p = OptionParser(annotate.__doc__.format(", ".join(Overlap_types)))
-    p.add_option(
+    p.add_argument(
         "--maxhang",
         default=100,
         type=int,
         help="Max hang to call dovetail overlap",
     )
-    p.add_option(
+    p.add_argument(
         "--all",
         default=False,
         action="store_true",
@@ -476,7 +476,7 @@ def summary(args):
     """
 
     p = OptionParser(summary.__doc__)
-    p.add_option(
+    p.add_argument(
         "-s",
         dest="single",
         default=False,
@@ -503,7 +503,7 @@ def filter(args):
     """
     p = OptionParser(filter.__doc__)
     p.set_align(pctid=0, hitlen=0)
-    p.add_option(
+    p.add_argument(
         "--overlap",
         default=False,
         action="store_true",
@@ -563,19 +563,19 @@ def bed(args):
     be beyond quality cutoff, say 50) in bed format
     """
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--query",
         default=False,
         action="store_true",
         help="print out query intervals rather than ref",
     )
-    p.add_option(
+    p.add_argument(
         "--pctid",
         default=False,
         action="store_true",
         help="use pctid in score",
     )
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         dest="cutoff",
         default=0,

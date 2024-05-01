@@ -656,7 +656,7 @@ def anneal(args):
     """
     p = OptionParser(anneal.__doc__)
     p.set_align(pctid=GoodPct, hitlen=GoodOverlap)
-    p.add_option(
+    p.add_argument(
         "--hang", default=GoodOverhang, type=int, help="Maximum overhang length"
     )
     p.set_outdir(outdir="outdir")
@@ -759,7 +759,7 @@ def blast(args):
     from jcvi.apps.align import run_megablast
 
     p = OptionParser(blast.__doc__)
-    p.add_option("-n", type=int, default=2, help="Take best N hits")
+    p.add_argument("-n", type=int, default=2, help="Take best N hits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -926,23 +926,23 @@ def overlap(args):
     from jcvi.formats.blast import chain_HSPs
 
     p = OptionParser(overlap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dir",
         default=os.getcwd(),
         help="Download sequences to dir",
     )
-    p.add_option(
+    p.add_argument(
         "--suffix",
         default="fasta",
         help="Suffix of the sequence file in dir",
     )
-    p.add_option(
+    p.add_argument(
         "--qreverse",
         default=False,
         action="store_true",
         help="Reverse seq a",
     )
-    p.add_option(
+    p.add_argument(
         "--nochain",
         default=False,
         action="store_true",

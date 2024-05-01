@@ -86,8 +86,8 @@ def mitosomatic(args):
     import pandas as pd
 
     p = OptionParser(mitosomatic.__doc__)
-    p.add_option("--minaf", default=0.005, type=float, help="Minimum allele fraction")
-    p.add_option("--maxaf", default=0.1, type=float, help="Maximum allele fraction")
+    p.add_argument("--minaf", default=0.005, type=float, help="Minimum allele fraction")
+    p.add_argument("--maxaf", default=0.1, type=float, help="Maximum allele fraction")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -196,16 +196,16 @@ def mito(args):
     """
     p = OptionParser(mito.__doc__)
     p.set_aws_opts(store="hli-mv-data-science/htang/mito-deletions")
-    p.add_option(
+    p.add_argument(
         "--realignonly", default=False, action="store_true", help="Realign only"
     )
-    p.add_option(
+    p.add_argument(
         "--svonly",
         default=False,
         action="store_true",
         help="Run Realign => SV calls only",
     )
-    p.add_option(
+    p.add_argument(
         "--support", default=1, type=int, help="Minimum number of supporting reads"
     )
     p.set_home("speedseq", default="/mnt/software/speedseq/bin")

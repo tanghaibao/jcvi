@@ -156,8 +156,8 @@ def histogram(args):
     p.set_histogram(
         vmax=50000, bins=100, xlabel="Read length", title="Read length distribution"
     )
-    p.add_option("--ylabel1", default="Counts", help="Label of y-axis on the left")
-    p.add_option(
+    p.add_argument("--ylabel1", default="Counts", help="Label of y-axis on the left")
+    p.add_argument(
         "--color",
         default="0",
         choices=[str(x) for x in range(8)],

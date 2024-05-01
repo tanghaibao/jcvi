@@ -125,13 +125,13 @@ def fragment(args):
     ends are NOT extracted, as in the first fragment.
     """
     p = OptionParser(fragment.__doc__)
-    p.add_option(
+    p.add_argument(
         "--flank",
         default=150,
         type=int,
         help="Extract flanking bases of the cut sites",
     )
-    p.add_option(
+    p.add_argument(
         "--full",
         default=False,
         action="store_true",

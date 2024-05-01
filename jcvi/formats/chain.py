@@ -28,6 +28,7 @@ import sys
 from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh, which
 
 from .base import BaseFile, read_block
+from .sizes import Sizes
 
 
 class ChainLine(object):
@@ -133,7 +134,6 @@ def fromagp(args):
     genome (target) and the objects represent new genome (query).
     """
     from jcvi.formats.agp import AGP
-    from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fromagp.__doc__)
     p.add_argument(
@@ -263,8 +263,6 @@ def frompsl(args):
     Generate chain file from psl file. The pipeline is describe in:
     <http://genomewiki.ucsc.edu/index.php/Minimal_Steps_For_LiftOver>
     """
-    from jcvi.formats.sizes import Sizes
-
     p = OptionParser(frompsl.__doc__)
     opts, args = p.parse_args(args)
 

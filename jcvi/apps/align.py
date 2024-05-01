@@ -23,6 +23,7 @@ from .base import (
     sh,
     which,
 )
+from .grid import MakeManager
 
 
 @depends
@@ -154,7 +155,6 @@ def minimap(args):
     is the same, we are in "self-scan" mode (e.g. useful for finding internal
     duplications resulted from mis-assemblies).
     """
-    from jcvi.apps.grid import MakeManager
     from jcvi.formats.fasta import Fasta
 
     p = OptionParser(minimap.__doc__)
@@ -213,7 +213,6 @@ def nucmer(args):
     """
     from itertools import product
 
-    from jcvi.apps.grid import MakeManager
     from jcvi.formats.base import split
 
     p = OptionParser(nucmer.__doc__)
@@ -256,7 +255,6 @@ def blasr(args):
     strategy described below.
     """
     from more_itertools import grouper
-    from jcvi.apps.grid import MakeManager
 
     p = OptionParser(blasr.__doc__)
     p.set_cpus(cpus=8)
@@ -392,8 +390,6 @@ def lastgenome(args):
     $ lastal -E0.05 -C2 Chr10A-NEAR Chr10A.fa -fTAB > Chr10A.Chr10A.tab
     $ last-dotplot Chr10A.Chr10A.tab
     """
-    from jcvi.apps.grid import MakeManager
-
     p = OptionParser(lastgenome.__doc__)
     opts, args = p.parse_args(args)
 
@@ -436,8 +432,6 @@ def lastgenomeuniq(args):
 
     Works with LAST v959.
     """
-    from jcvi.apps.grid import MakeManager
-
     p = OptionParser(lastgenome.__doc__)
     opts, args = p.parse_args(args)
 

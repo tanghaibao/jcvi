@@ -176,13 +176,13 @@ class OptionParser(ArgumentParser):
             self.add_help_from_choices(o)
             dests.add(o.dest)
 
-        return ArgumentParser.parse_args(self, args)
+        return self.parse_known_args(args)
 
     def add_help_from_choices(self, o):
         if o.help == SUPPRESS:
             return
 
-        default_tag = "%default"
+        default_tag = "%(default)s"
         assert o.help, "Option {0} do not have help string".format(o)
         help_pf = o.help[:1].upper() + o.help[1:]
         if "[" in help_pf:

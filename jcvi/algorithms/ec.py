@@ -9,13 +9,15 @@ ordering and orientation problem.
 
 import array
 import random
-import logging
 import multiprocessing
 
 from deap import base, creator, tools
 from deap.algorithms import varAnd
-from jcvi.algorithms.lis import longest_monotonic_subseq_length
-from jcvi.utils.console import printf
+
+from ..apps.base import logger
+from ..utils.console import printf
+
+from .lis import longest_monotonic_subseq_length
 
 
 # This has to be in global space, otherwise runs into error "creator.Individual
@@ -174,7 +176,7 @@ def eaSimpleConverge(
 
 
 def GA_run(toolbox, ngen=500, npop=100, seed=666, cpus=1, callback=None):
-    logging.debug("GA setup: ngen=%d npop=%d cpus=%d seed=%d", ngen, npop, cpus, seed)
+    logger.debug("GA setup: ngen=%d npop=%d cpus=%d seed=%d", ngen, npop, cpus, seed)
     if cpus > 1:
         pool = multiprocessing.Pool(cpus)
         toolbox.register("map", pool.map)

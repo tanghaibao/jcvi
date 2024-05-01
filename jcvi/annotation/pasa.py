@@ -7,10 +7,9 @@ Utilities for submitting PASA jobs and processing PASA results.
 import os
 import os.path as op
 import sys
-import logging
 
-from jcvi.formats.base import write_file, must_open, FileMerger
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, symlink, which
+from ..apps.base import ActionDispatcher, OptionParser, logger, sh, symlink, which
+from ..formats.base import write_file, must_open, FileMerger
 
 
 alignAssembly_conf = """
@@ -103,14 +102,14 @@ def assemble(args):
 
     PASA_HOME = opts.pasa_home
     if not op.isdir(PASA_HOME):
-        logging.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
+        logger.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
         sys.exit()
 
     aligners = opts.aligners.split(",")
     for aligner in aligners:
         if aligner not in ALLOWED_ALIGNERS:
-            logging.error("Error: Unknown aligner `{0}`".format(aligner))
-            logging.error(
+            logger.error("Error: Unknown aligner `{0}`".format(aligner))
+            logger.error(
                 "Can be any of {0}, ".format("|".join(ALLOWED_ALIGNERS))
                 + "combine multiple aligners in list separated by comma"
             )
@@ -245,7 +244,7 @@ def compare(args):
 
     PASA_HOME = opts.pasa_home
     if not op.isdir(PASA_HOME):
-        logging.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
+        logger.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
         sys.exit()
 
     launch_pasa = which(op.join(PASA_HOME, "scripts", "Launch_PASA_pipeline.pl"))
@@ -354,7 +353,7 @@ def longest(args):
         keep.update(set(x for x in asmbls if sizes[x] >= cutoff))
 
     fw.close()
-    logging.debug("{0} fl-cDNA records written to `{1}`.".format(nrecs, idsfile))
+    logger.debug("{0} fl-cDNA records written to `{1}`.".format(nrecs, idsfile))
 
     f = Fasta(fastafile, lazy=True)
     newfastafile = prefix + ".clean.fasta"
@@ -370,7 +369,7 @@ def longest(args):
         nrecs += 1
 
     fw.close()
-    logging.debug("{0} valid records written to `{1}`.".format(nrecs, newfastafile))
+    logger.debug("{0} valid records written to `{1}`.".format(nrecs, newfastafile))
 
 
 def consolidate(args):

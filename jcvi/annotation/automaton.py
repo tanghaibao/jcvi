@@ -7,19 +7,19 @@ Automate genome annotation by iterating processing a set of files, individually.
 
 import os.path as op
 import sys
-import logging
 
 from functools import partial
 from tempfile import mkdtemp
 
-from jcvi.assembly.automaton import iter_project
-from jcvi.apps.grid import Jobs, MakeManager
-from jcvi.formats.base import FileMerger, split
-from jcvi.apps.base import (
+from ..assembly.automaton import iter_project
+from ..apps.grid import Jobs, MakeManager
+from ..formats.base import FileMerger, split
+from ..apps.base import (
     ActionDispatcher,
     OptionParser,
     cleanup,
     iglob,
+    logger,
     mkdir,
     need_update,
     sh,
@@ -259,7 +259,7 @@ def tophat(args):
         outdir = "{0}_tophat".format(prefix)
         outfile = op.join(outdir, "accepted_hits.bam")
         if op.exists(outfile):
-            logging.debug("File `{0}` found. Skipping.".format(outfile))
+            logger.debug("File `%s` found. Skipping.", outfile)
             continue
 
         cmd = "tophat -p {0}".format(opts.cpus)

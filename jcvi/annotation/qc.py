@@ -10,7 +10,8 @@ testing. Several aspects of annotation QC are implemented in this script.
 """
 import sys
 
-from jcvi.formats.gff import (
+from ..apps.base import ActionDispatcher, OptionParser
+from ..formats.gff import (
     Gff,
     get_piles,
     make_index,
@@ -18,10 +19,9 @@ from jcvi.formats.gff import (
     populate_children,
     to_range,
 )
-from jcvi.formats.base import must_open
-from jcvi.formats.sizes import Sizes
-from jcvi.utils.range import range_minmax, range_chain, range_overlap
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..formats.base import must_open
+from ..formats.sizes import Sizes
+from ..utils.range import range_chain, range_minmax, range_overlap
 
 
 def main():

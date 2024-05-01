@@ -7,15 +7,14 @@ Exon length, Intron length, Gene length, Exon count
 """
 import os.path as op
 import sys
-import logging
 
-from jcvi.utils.cbook import SummaryStats, percentage, human_size
-from jcvi.utils.range import range_interleave
-from jcvi.utils.table import tabulate
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.gff import make_index
-from jcvi.formats.base import DictFile, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, need_update
+from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir, need_update
+from ..formats.base import DictFile, must_open
+from ..formats.fasta import Fasta
+from ..formats.gff import make_index
+from ..utils.cbook import SummaryStats, human_size, percentage
+from ..utils.range import range_interleave
+from ..utils.table import tabulate
 
 
 metrics = ("Exon_Length", "Intron_Length", "Gene_Length", "Exon_Count")
@@ -176,7 +175,7 @@ def genestats(args):
 
     tsizes = DictFile(tf, cast=int)
     conf_classes = DictFile(tf, valuepos=2)
-    logging.debug("A total of {0} transcripts populated.".format(len(tsizes)))
+    logger.debug("A total of {0} transcripts populated.".format(len(tsizes)))
 
     genes = []
     for feat in g.features_of_type("gene"):
@@ -262,7 +261,7 @@ def statstable(args):
 
     gff_files = args
     for metric in metrics:
-        logging.debug("Parsing files in `{0}`..".format(metric))
+        logger.debug("Parsing files in `{0}`..".format(metric))
 
         table = {}
         for x in gff_files:
@@ -306,7 +305,7 @@ def histogram(args):
     vmaxes = (1000, 1000, 4000, 20)
     xlabels = ("bp", "bp", "bp", "number")
     for metric, color, vmax, xlabel in zip(metrics, colors, vmaxes, xlabels):
-        logging.debug("Parsing files in `{0}`..".format(metric))
+        logger.debug("Parsing files in `{0}`..".format(metric))
         numberfiles = [
             op.join(metric, op.basename(x).split(".")[0] + ".txt") for x in gff_files
         ]

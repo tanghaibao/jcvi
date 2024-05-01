@@ -7,9 +7,8 @@ Train ab initio gene predictors.
 import os
 import os.path as op
 import sys
-import logging
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh, need_update
+from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir, need_update, sh
 
 
 def main():
@@ -74,7 +73,7 @@ def pasa(args):
             seen.add(id)
 
     fw.close()
-    logging.debug(
+    logger.debug(
         "A total of {0} complete models extracted to `{1}`.".format(
             len(seen), completegff
         )
@@ -116,7 +115,7 @@ def genemark(args):
         cmd += " --ES"
     sh(cmd)
 
-    logging.debug("GENEMARK matrix written to `output/gmhmm.mod")
+    logger.debug("GENEMARK matrix written to `output/gmhmm.mod")
 
 
 def snap(args):
@@ -144,12 +143,12 @@ def snap(args):
     os.chdir(snapdir)
 
     newgffile = "training.gff3"
-    logging.debug("Construct GFF file combined with sequence ...")
+    logger.debug("Construct GFF file combined with sequence ...")
     sh("cat {0} > {1}".format(gffile, newgffile))
     sh('echo "##FASTA" >> {0}'.format(newgffile))
     sh("cat {0} >> {1}".format(fastafile, newgffile))
 
-    logging.debug("Make models ...")
+    logger.debug("Make models ...")
     sh("{0}/src/bin/maker2zff training.gff3".format(mhome))
     sh("{0}/exe/snap/fathom -categorize 1000 genome.ann genome.dna".format(mhome))
     sh("{0}/exe/snap/fathom -export 1000 -plus uni.ann uni.dna".format(mhome))
@@ -157,7 +156,7 @@ def snap(args):
     sh("{0}/exe/snap/hmm-assembler.pl {1} . > {1}.hmm".format(mhome, species))
 
     os.chdir(cwd)
-    logging.debug("SNAP matrix written to `{0}/{1}.hmm`".format(snapdir, species))
+    logger.debug("SNAP matrix written to `{0}/{1}.hmm`".format(snapdir, species))
 
 
 def augustus(args):
@@ -192,7 +191,7 @@ def augustus(args):
     target = "{0}/config/species/{1}".format(mhome, species)
 
     if op.exists(target):
-        logging.debug("Removing existing target `{0}`".format(target))
+        logger.debug("Removing existing target `{0}`".format(target))
         sh("rm -rf {0}".format(target))
 
     config_path = "{0}/config".format(mhome)

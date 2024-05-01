@@ -7,13 +7,13 @@ Utility to run Automated Human Readable Description (AHRD) pipeline.
 <https://github.com/groupschoof/AHRD>
 """
 import os.path as op
-from os import symlink
 import sys
 import re
-import logging
 
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, glob
+from os import symlink
+
+from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir, glob
+from ..formats.base import must_open
 
 
 # --- Compiled RegExps ----
@@ -625,7 +625,7 @@ def merge(args):
             atoms = row.rstrip().split("\t")
             id = atoms[0]
             if id in seen:
-                logging.error("ID `{0}` ignored.".format(id))
+                logger.error("ID `%s` ignored.", id)
                 continue
 
             seen.add(id)

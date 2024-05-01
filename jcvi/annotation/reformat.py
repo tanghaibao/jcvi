@@ -15,17 +15,18 @@ import re
 from collections import defaultdict
 from itertools import groupby, product
 
-from jcvi.utils.cbook import AutoVivification
-from jcvi.formats.bed import Bed, BedLine, sort
-from jcvi.formats.base import SetFile, must_open, get_number, flexible_cast
-from jcvi.apps.base import (
+from ..apps.base import (
     ActionDispatcher,
     OptionParser,
     cleanup,
+    logger,
     need_update,
     popen,
     sh,
 )
+from ..utils.cbook import AutoVivification
+from ..formats.bed import Bed, BedLine, sort
+from ..formats.base import SetFile, flexible_cast, get_number, must_open
 
 
 FRAME, RETAIN, OVERLAP, NEW = "FRAME", "RETAIN", "OVERLAP", "NEW"
@@ -241,7 +242,7 @@ def plot(args):
     ngenes = i
     assert ngenes == len(new) + len(old)
 
-    logging.debug("Imported {0} ranks on {1}.".format(ngenes, chr))
+    logger.debug("Imported {0} ranks on {1}.".format(ngenes, chr))
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
@@ -456,7 +457,7 @@ def prepare(bedfile):
                 if method in ("liftOver", "GMAP", ""):
                     accn = a
             if accn in seen:
-                logging.error("Duplicate id {0} found. Ignored.".format(accn))
+                logger.error("Duplicate id {0} found. Ignored.".format(accn))
                 continue
 
             new_accns.append(accn)
@@ -666,9 +667,9 @@ def annotate(args):
     if not os.path.isfile(cbedfile):
         consolidate(nbedfile, obedfile, cbedfile)
     else:
-        logging.warning("`{0}` already exists. Skipping step".format(cbedfile))
+        logger.warning("`{0}` already exists. Skipping step".format(cbedfile))
 
-    logging.warning(
+    logger.warning(
         "Resolving ID assignment ambiguity based on `{0}`".format(opts.resolve)
     )
 
@@ -679,13 +680,13 @@ def annotate(args):
         if not os.path.isfile(pairsfile):
             get_pairs(cbedfile, pairsfile)
         else:
-            logging.warning(
+            logger.warning(
                 "`{0}` already exists. Checking for needle output".format(pairsfile)
             )
 
         # If needle scores do not exist, prompt user to run needle
         if not os.path.isfile(scoresfile):
-            logging.error(
+            logger.error(
                 "`{0}` does not exist. Please process {1} using `needle`".format(
                     scoresfile, pairsfile
                 )
@@ -696,7 +697,7 @@ def annotate(args):
         # Calculate overlap length using intersectBed
         calculate_ovl(nbedfile, obedfile, opts, scoresfile)
 
-    logging.warning("`{0}' exists. Storing scores in memory".format(scoresfile))
+    logger.warning("`{0}' exists. Storing scores in memory".format(scoresfile))
     scores = read_scores(scoresfile, opts)
 
     # Iterate through consolidated bed and
@@ -750,7 +751,7 @@ def read_scores(scoresfile, opts=None, sort=False, trimsuffix=True):
     )
 
     fp = must_open(scoresfile)
-    logging.debug("Load scores file `{0}`".format(scoresfile))
+    logger.debug("Load scores file `{0}`".format(scoresfile))
     for row in fp:
         (new, old, identity, score) = row.strip().split("\t")
         if trimsuffix:
@@ -1027,8 +1028,8 @@ def rename(args):
             r.accn = accn
 
     genes.print_to_file(newbedfile)
-    logging.debug("Converted IDs written to `{0}`.".format(idsfile))
-    logging.debug("Converted bed written to `{0}`.".format(newbedfile))
+    logger.debug("Converted IDs written to `{0}`.".format(idsfile))
+    logger.debug("Converted bed written to `{0}`.".format(newbedfile))
 
 
 def parse_prefix(identifier):
@@ -1249,7 +1250,7 @@ def publocus(args):
     for row in fp:
         locus, chrom, sep, rank, iso = atg_name(row, retval="locus,chr,sep,rank,iso")
         if None in (locus, chrom, sep, rank, iso):
-            logging.warning("{0} is not a valid gene model identifier".format(row))
+            logger.warning("{0} is not a valid gene model identifier".format(row))
             continue
         if locus not in index.keys():
             pub_locus = gene_name(chrom, rank, prefix=locus_tag, sep=sep)

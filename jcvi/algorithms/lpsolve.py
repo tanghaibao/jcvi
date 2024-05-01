@@ -195,7 +195,7 @@ class AbstractMIPSolver(object):
         mkdir(work_dir)
 
         lpfile = op.join(work_dir, "data.lp")  # problem instance
-        logger.debug("write MIP instance to `{0}`".format(lpfile))
+        logger.debug("Write MIP instance to `%s`", lpfile)
 
         fw = open(lpfile, "w")
         fw.write(lp_data)
@@ -208,7 +208,7 @@ class AbstractMIPSolver(object):
             self.results = self.parse_output(outfile)
 
         if self.results:
-            logger.debug("optimized objective value ({0})".format(self.obj_val))
+            logger.debug("Optimized objective value (%s)", self.obj_val)
 
     def run(self, lp_data):
         raise NotImplementedError
@@ -241,8 +241,7 @@ class GLPKSolver(AbstractMIPSolver):
 
         if retcode == 127:
             logger.error(
-                "You need to install program `glpsol` "
-                + "[http://www.gnu.org/software/glpk/]"
+                "You need to install program `glpsol` [http://www.gnu.org/software/glpk/]"
             )
             return -1, None
 
@@ -314,9 +313,7 @@ class SCIPSolver(AbstractMIPSolver):
         retcode = sh(cmd, outfile=outf)
 
         if retcode == 127:
-            logger.error(
-                "You need to install program `scip` " + "[http://scip.zib.de/]"
-            )
+            logger.error("You need to install program `scip` [http://scip.zib.de/]")
             return -1, None
 
         return retcode, outfile
@@ -780,7 +777,7 @@ def min_feedback_arc_set(edges, remove=False, maxcycles=20000):
         ncycles += 1
         if ncycles == maxcycles:
             break
-    logger.debug("A total of {0} cycles found.".format(ncycles))
+    logger.debug("A total of %d cycles found.", ncycles)
 
     L.constraints = constraints
     L.add_vars(nedges)

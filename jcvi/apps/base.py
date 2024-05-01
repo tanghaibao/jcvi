@@ -599,7 +599,10 @@ class OptionParser(ArgumentParser):
             "--notex", default=False, action="store_true", help="Do not use tex"
         )
         # https://github.com/tanghaibao/jcvi/issues/515#issuecomment-1327305211
-        if args is None or not "--seed" in args:
+        if (
+            "--seed" not in self._option_string_actions
+            and "--seed" not in group._option_string_actions
+        ):
             group.add_argument(
                 "--seed",
                 default=seed,

@@ -137,7 +137,9 @@ class OptionParser(ArgumentParser):
     """
 
     def __init__(self, doc: Optional[str]):
-        super(OptionParser, self).__init__(doc, epilog=JCVIHELP)
+        super(OptionParser, self).__init__(
+            usage=doc.replace("%prog", "%(prog)s"), epilog=JCVIHELP
+        )
 
     def parse_args(self, args=None):
         """

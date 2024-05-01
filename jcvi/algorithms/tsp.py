@@ -17,7 +17,7 @@ import numpy as np
 from more_itertools import pairwise
 
 from jcvi.formats.base import must_open
-from jcvi.apps.base import cleanup, mkdir, sh, which
+from jcvi.apps.base import cleanup, logger, mkdir, sh, which
 
 
 INF = 10000

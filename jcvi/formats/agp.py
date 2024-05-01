@@ -5,34 +5,33 @@
 Genbank AGP file format, see spec here
 http://www.ncbi.nlm.nih.gov/projects/genome/assembly/agp
 """
-import os
 import re
-import sys
 import shutil
-import logging
+import sys
 
-from copy import deepcopy
 from collections import defaultdict
+from copy import deepcopy
 from itertools import groupby, zip_longest
-from more_itertools import pairwise
 
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio import SeqIO
+from more_itertools import pairwise
 
-from jcvi.formats.base import LineFile, must_open
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.bed import Bed
-from jcvi.assembly.base import calculate_A50
-from jcvi.utils.range import range_intersect
-from jcvi.apps.base import (
-    OptionParser,
-    OptionGroup,
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
     cleanup,
     flatten,
+    logger,
     need_update,
 )
+from ..assembly.base import calculate_A50
+from ..utils.range import range_intersect
+
+from .base import LineFile, must_open
+from .bed import Bed
+from .fasta import Fasta
 
 
 Supported_AGP_Version = "2.1"
@@ -116,7 +115,7 @@ class AGPLine(object):
             try:
                 self.validate()
             except AssertionError as b:
-                logging.error("%s\nerror when validating this line:\n%s" % (b, row))
+                logger.error("%s\nerror when validating this line:\n%s", b, row)
 
         self.sign = {"+": 1, "-": -1, "?": 0}.get(self.orientation)
 
@@ -408,7 +407,7 @@ class AGP(LineFile):
         for a in self:
             print(a, file=fw)
         fw.close()
-        logging.debug("AGP file written to `%s`.", filename)
+        logger.debug("AGP file written to `%s`.", filename)
         if index:
             reindex([filename, "--inplace"])
 
@@ -517,7 +516,7 @@ class AGP(LineFile):
             rec = SeqRecord(Seq("".join(components)), id=object, description="")
             SeqIO.write([rec], fw, "fasta")
             if len(rec) > 1000000:
-                logging.debug("Write object %s to `%s`" % (object, fw.name))
+                logger.debug("Write object %s to `%s`", object, fw.name)
 
     def build_all(self, componentfasta, targetfasta, newagp=None):
         f = Fasta(componentfasta, index=False)
@@ -831,7 +830,7 @@ def trimNs(seq, line, newagp):
     oldrange = (start, end)
 
     if trimrange != oldrange:
-        logging.debug("{0} trimmed of N's: {1} => {2}".format(lid, oldrange, trimrange))
+        logger.debug("{0} trimmed of N's: {1} => {2}".format(lid, oldrange, trimrange))
 
         if leftNs:
             print(
@@ -919,7 +918,7 @@ def fromcsv(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fromcsv.__doc__)
-    p.add_option("--evidence", default="map", help="Linkage evidence to add in AGP")
+    p.add_argument("--evidence", default="map", help="Linkage evidence to add in AGP")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -1114,7 +1113,7 @@ def format(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(format.__doc__)
-    p.add_option("--switchcomponent", help="Switch component id based on")
+    p.add_argument("--switchcomponent", help="Switch component id based on")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1133,11 +1132,11 @@ def format(args):
             oldid = a.component_id
             newid = switchcomponent[a.component_id]
             a.component_id = newid
-            logging.debug("Covert {0} to {1} on line {2}".format(oldid, newid, i + 1))
+            logger.debug("Covert {0} to {1} on line {2}".format(oldid, newid, i + 1))
             nconverts += 1
         print(a, file=fw)
 
-    logging.debug("Total converted records: {0}".format(nconverts))
+    logger.debug("Total converted records: {0}".format(nconverts))
 
 
 def frombed(args):
@@ -1148,13 +1147,13 @@ def frombed(args):
     columns. With the 4-th column indicating the new object.
     """
     p = OptionParser(frombed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gapsize",
         default=100,
-        type="int",
+        type=int,
         help="Insert gaps of size",
     )
-    p.add_option("--evidence", default="map", help="Linkage evidence to add in AGP")
+    p.add_argument("--evidence", default="map", help="Linkage evidence to add in AGP")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1260,7 +1259,7 @@ def stats(args):
     from jcvi.utils.table import tabulate
 
     p = OptionParser(stats.__doc__)
-    p.add_option(
+    p.add_argument(
         "--warn",
         default=False,
         action="store_true",
@@ -1287,7 +1286,7 @@ def stats(args):
             )
             component_lengths.append((span, label))
             if opts.warn and span < 50:
-                logging.error("component span too small ({0}):\n{1}".format(span, a))
+                logger.error("component span too small ({0}):\n{1}".format(span, a))
 
     table = dict()
     for label, lengths in zip(("Gaps", "Components"), (gap_lengths, component_lengths)):
@@ -1312,7 +1311,7 @@ def cut(args):
     Cut at the boundaries of the ranges in the bedfile.
     """
     p = OptionParser(cut.__doc__)
-    p.add_option("--sep", default=".", help="Separator for splits")
+    p.add_argument("--sep", default=".", help="Separator for splits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1384,36 +1383,36 @@ def mask(args):
     (--splitsingle).
     """
     p = OptionParser(mask.__doc__)
-    p.add_option(
+    p.add_argument(
         "--splitobject",
         default=False,
         action="store_true",
         help="Create new names for object",
     )
-    p.add_option(
+    p.add_argument(
         "--splitcomponent",
         default=False,
         action="store_true",
         help="Create new names for component",
     )
-    p.add_option(
+    p.add_argument(
         "--splitsingle",
         default=False,
         action="store_true",
         help="Do not remove base on single point",
     )
-    p.add_option(
+    p.add_argument(
         "--gaptype",
         default="scaffold",
         help="Masked region has gap type of",
     )
-    p.add_option(
+    p.add_argument(
         "--noretain",
         default=False,
         action="store_true",
         help="Do not retain old names for non-split objects",
     )
-    p.add_option("--sep", default=".", help="Separator for splits")
+    p.add_argument("--sep", default=".", help="Separator for splits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1533,13 +1532,13 @@ def reindex(args):
     the target coordinates.
     """
     p = OptionParser(reindex.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nogaps",
         default=False,
         action="store_true",
         help="Remove all gap lines",
     )
-    p.add_option(
+    p.add_argument(
         "--inplace",
         default=False,
         action="store_true",
@@ -1582,7 +1581,7 @@ def reindex(args):
 
     if inplace:
         shutil.move(newagpfile, agpfile)
-        logging.debug("Rename file `{0}` to `{1}`".format(newagpfile, agpfile))
+        logger.debug("Rename file `{0}` to `{1}`".format(newagpfile, agpfile))
         newagpfile = agpfile
 
     return newagpfile
@@ -1653,7 +1652,6 @@ def get_phase(rec):
             assert "COMPLETE" in description, description
             phase = 3
     else:
-        # logging.error("{0}: {1}".format(rec.name, description))
         phase = 3
 
     return phase, keywords
@@ -1696,13 +1694,13 @@ def tpf(args):
     Can optionally output scaffold gaps.
     """
     p = OptionParser(tpf.__doc__)
-    p.add_option(
+    p.add_argument(
         "--noversion",
         default=False,
         action="store_true",
         help="Remove trailing accession versions",
     )
-    p.add_option(
+    p.add_argument(
         "--gaps",
         default=False,
         action="store_true",
@@ -1740,49 +1738,47 @@ def bed(args):
     from jcvi.formats.obo import validate_term
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gaps",
         default=False,
         action="store_true",
         help="Only print bed lines for gaps",
     )
-    p.add_option(
+    p.add_argument(
         "--nogaps",
         default=False,
         action="store_true",
         help="Do not print bed lines for gaps",
     )
-    p.add_option(
+    p.add_argument(
         "--bed12",
         default=False,
         action="store_true",
         help="Produce bed12 formatted output",
     )
-    p.add_option(
+    p.add_argument(
         "--component",
         default=False,
         action="store_true",
         help="Generate bed file for components",
     )
     p.set_outfile()
-    g1 = OptionGroup(
-        p,
+    g1 = p.add_argument_group(
         "GFF specific parameters",
         "Note: If not specified, output will be in `bed` format",
     )
-    g1.add_option(
+    g1.add_argument(
         "--gff",
         default=False,
         action="store_true",
         help="Produce gff3 formatted output. By default, ignores AGP gap lines",
     )
-    g1.add_option("--source", default="MGSC", help="Specify a gff3 source")
-    g1.add_option(
+    g1.add_argument("--source", default="MGSC", help="Specify a gff3 source")
+    g1.add_argument(
         "--feature",
         default="golden_path_fragment",
         help="Specify a gff3 feature type",
     )
-    p.add_option_group(g1)
     p.set_SO_opts()
 
     opts, args = p.parse_args(args)
@@ -1852,19 +1848,19 @@ def extendbed(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(extendbed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nogaps",
         default=False,
         action="store_true",
         help="Do not print bed lines for gaps",
     )
-    p.add_option(
+    p.add_argument(
         "--bed12",
         default=False,
         action="store_true",
         help="Produce bed12 formatted output",
     )
-    p.add_option(
+    p.add_argument(
         "--gff",
         default=False,
         action="store_true",
@@ -1939,14 +1935,14 @@ def gaps(args):
     from jcvi.graphics.histogram import loghistogram
 
     p = OptionParser(gaps.__doc__)
-    p.add_option(
+    p.add_argument(
         "--merge",
         dest="merge",
         default=False,
         action="store_true",
         help="Merge adjacent gaps (to conform to AGP specification)",
     )
-    p.add_option(
+    p.add_argument(
         "--header",
         default=False,
         action="store_true",
@@ -2036,7 +2032,7 @@ def tidy(args):
     Final output is in `.tidy.agp`.
     """
     p = OptionParser(tidy.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nogaps",
         default=False,
         action="store_true",
@@ -2072,10 +2068,10 @@ def tidy(args):
         a = list(a)
         if a[0].is_gap:
             g, a = a[0], a[1:]
-            logging.debug("Trim beginning Ns({0}) of {1}".format(g.gap_length, object))
+            logger.debug("Trim beginning Ns({0}) of {1}".format(g.gap_length, object))
         if a and a[-1].is_gap:
             a, g = a[:-1], a[-1]
-            logging.debug("Trim trailing Ns({0}) of {1}".format(g.gap_length, object))
+            logger.debug("Trim trailing Ns({0}) of {1}".format(g.gap_length, object))
         print("\n".join(str(x) for x in a), file=fw)
     fw.close()
     cleanup(agpfile)
@@ -2090,7 +2086,7 @@ def tidy(args):
     tidyagpfile = originalagpfile.replace(".agp", ".tidy.agp")
     shutil.move(agpfile, tidyagpfile)
 
-    logging.debug("File written to `%s`.", tidyagpfile)
+    logger.debug("File written to `%s`.", tidyagpfile)
     return tidyagpfile
 
 
@@ -2101,14 +2097,14 @@ def build(args):
     Build targetfasta based on info from agpfile
     """
     p = OptionParser(build.__doc__)
-    p.add_option(
+    p.add_argument(
         "--newagp",
         dest="newagp",
         default=False,
         action="store_true",
         help="Check components to trim dangling N's",
     )
-    p.add_option(
+    p.add_argument(
         "--novalidate",
         dest="novalidate",
         default=False,
@@ -2133,7 +2129,7 @@ def build(args):
 
     agp = AGP(agpfile, validate=validate, sorted=True)
     agp.build_all(componentfasta=componentfasta, targetfasta=targetfasta, newagp=newagp)
-    logging.debug("Target fasta written to `%s`.", targetfasta)
+    logger.debug("Target fasta written to `%s`.", targetfasta)
 
     return newagpfile
 
@@ -2176,16 +2172,16 @@ def validate(args):
                     )
                 )
 
-                assert build_seq.upper() == bac_seq.upper(), (
-                    "sequence mismatch: %s" % aline
-                )
+                assert (
+                    build_seq.upper() == bac_seq.upper()
+                ), f"sequence mismatch: {aline}"
 
-            logging.debug(
-                "%s:%d-%d verified" % (aline.object, aline.object_beg, aline.object_end)
+            logger.debug(
+                "%s:%d-%d verified", aline.object, aline.object_beg, aline.object_end
             )
 
         except Exception as e:
-            logging.error(e)
+            logger.error(e)
 
 
 if __name__ == "__main__":

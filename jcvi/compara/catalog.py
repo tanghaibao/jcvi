@@ -119,7 +119,7 @@ def enrich(args):
     Enrich OMG output by pulling genes misses by OMG.
     """
     p = OptionParser(enrich.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ghost",
         default=False,
         action="store_true",
@@ -309,7 +309,7 @@ def layout(args):
     separated by comma in place of taxa, e.g. "BR,BO,AN,CN"
     """
     p = OptionParser(layout.__doc__)
-    p.add_option("--sort", help="Sort layout file based on bedfile")
+    p.add_argument("--sort", help="Sort layout file based on bedfile")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -508,11 +508,11 @@ def omgprepare(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(omgprepare.__doc__)
-    p.add_option("--norbh", action="store_true", help="Disable RBH hits")
-    p.add_option(
-        "--pctid", default=0, type="int", help="Percent id cutoff for RBH hits"
+    p.add_argument("--norbh", action="store_true", help="Disable RBH hits")
+    p.add_argument(
+        "--pctid", default=0, type=int, help="Percent id cutoff for RBH hits"
     )
-    p.add_option("--cscore", default=90, type="int", help="C-score cutoff for RBH hits")
+    p.add_argument("--cscore", default=90, type=int, help="C-score cutoff for RBH hits")
     p.set_stripnames()
     p.set_beds()
 
@@ -611,66 +611,66 @@ def ortholog(args):
     from jcvi.formats.blast import cscore, filter, filtered_blastfile_name
 
     p = OptionParser(ortholog.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dbtype",
         default="nucl",
         choices=("nucl", "prot"),
         help="Molecule type of subject database",
     )
 
-    p.add_option(
+    p.add_argument(
         "--full",
         default=False,
         action="store_true",
         help="Run in full 1x1 mode, including blocks and RBH",
     )
-    p.add_option("--cscore", default=0.7, type="float", help="C-score cutoff")
-    p.add_option(
-        "--dist", default=20, type="int", help="Extent of flanking regions to search"
+    p.add_argument("--cscore", default=0.7, type=float, help="C-score cutoff")
+    p.add_argument(
+        "--dist", default=20, type=int, help="Extent of flanking regions to search"
     )
-    p.add_option(
+    p.add_argument(
         "-n",
         "--min_size",
         dest="n",
-        type="int",
+        type=int,
         default=4,
         help="minimum number of anchors in a cluster",
     )
-    p.add_option("--quota", help="Quota align parameter")
-    p.add_option("--exclude", help="Remove anchors from a previous run")
-    p.add_option(
+    p.add_argument("--quota", help="Quota align parameter")
+    p.add_argument("--exclude", help="Remove anchors from a previous run")
+    p.add_argument(
         "--self_remove",
         default=98,
-        type="float",
+        type=float,
         help="Remove self hits that are above this percent identity",
     )
-    p.add_option(
+    p.add_argument(
         "--no_strip_names",
         default=False,
         action="store_true",
         help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
-    p.add_option(
+    p.add_argument(
         "--liftover_dist",
-        type="int",
+        type=int,
         help="Distance to extend from liftover. Defaults to half of --dist",
     )
     p.set_cpus()
     dotplot_group = p.set_dotplot_opts()
-    dotplot_group.add_option(
+    dotplot_group.add_argument(
         "--notex", default=False, action="store_true", help="Do not use tex"
     )
-    dotplot_group.add_option(
+    dotplot_group.add_argument(
         "--no_dotplot", default=False, action="store_true", help="Do not make dotplot"
     )
-    p.add_option(
+    p.add_argument(
         "--ignore_zero_anchor",
         default=False,
         action="store_true",
         help="Ignore this pair of ortholog identification instead of throwing an error when performing many pairs of cataloging.",
     )
 
-    p.add_option(
+    p.add_argument(
         "--align_soft",
         default="last",
         choices=("last", "blast", "diamond_blastp"),
@@ -923,34 +923,34 @@ def tandem(args):
     pep_file can also be used in same manner.
     """
     p = OptionParser(tandem.__doc__)
-    p.add_option(
+    p.add_argument(
         "--tandem_Nmax",
         dest="tandem_Nmax",
-        type="int",
+        type=int,
         default=3,
         help="merge tandem genes within distance",
     )
-    p.add_option(
+    p.add_argument(
         "--percent_overlap",
-        type="int",
+        type=int,
         default=50,
         help="tandem genes have >=x% aligned sequence, x=0-100",
     )
     p.set_align(evalue=0.01)
-    p.add_option(
+    p.add_argument(
         "--not_self",
         default=False,
         action="store_true",
         help="provided is not self blast file",
     )
-    p.add_option(
+    p.add_argument(
         "--strip_gene_name",
         dest="sep",
-        type="string",
+        type=str,
         default=".",
         help="strip alternative splicing. Use None for no stripping.",
     )
-    p.add_option(
+    p.add_argument(
         "--genefamily",
         dest="genefam",
         action="store_true",

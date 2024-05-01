@@ -9,10 +9,10 @@ import sys
 from collections import defaultdict
 from urllib.parse import quote, unquote
 
+from ..annotation.reformat import atg_name
 from ..apps.base import (
-    OptionParser,
-    OptionGroup,
     ActionDispatcher,
+    OptionParser,
     cleanup,
     flatten,
     logger,
@@ -21,10 +21,9 @@ from ..apps.base import (
     parse_multi_values,
     sh,
 )
-from ..annotation.reformat import atg_name
 from ..utils.cbook import AutoVivification
-from ..utils.range import Range, range_minmax
 from ..utils.orderedcollections import DefaultOrderedDict, OrderedDict, parse_qs
+from ..utils.range import Range, range_minmax
 
 from .base import DictFile, LineFile, must_open, is_number
 from .bed import Bed, BedLine, natsorted
@@ -547,8 +546,8 @@ def addparent(args):
     Merge sister features and infer parents.
     """
     p = OptionParser(addparent.__doc__)
-    p.add_option("--childfeat", default="CDS", help="Type of children feature")
-    p.add_option("--parentfeat", default="mRNA", help="Type of merged feature")
+    p.add_argument("--childfeat", default="CDS", help="Type of children feature")
+    p.add_argument("--parentfeat", default="mRNA", help="Type of merged feature")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -813,13 +812,13 @@ def sizes(args):
     """
     p = OptionParser(sizes.__doc__)
     p.set_outfile()
-    p.add_option(
+    p.add_argument(
         "--parents",
         dest="parents",
         default="mRNA",
         help="parent feature(s) for which size is to be calculated",
     )
-    p.add_option(
+    p.add_argument(
         "--child",
         dest="child",
         default="CDS",
@@ -862,13 +861,13 @@ def cluster(args):
     from itertools import combinations
 
     p = OptionParser(cluster.__doc__)
-    p.add_option(
+    p.add_argument(
         "--slop",
         default=False,
         action="store_true",
         help="allow minor variation in terminal 5'/3' UTR" + " start/stop position",
     )
-    p.add_option(
+    p.add_argument(
         "--inferUTR",
         default=False,
         action="store_true",
@@ -969,13 +968,13 @@ def summary(args):
     from jcvi.utils.table import tabulate
 
     p = OptionParser(summary.__doc__)
-    p.add_option(
+    p.add_argument(
         "--isoform",
         default=False,
         action="store_true",
         help="Find longest isoform of each id",
     )
-    p.add_option("--ids", help="Only include features from certain IDs")
+    p.add_argument("--ids", help="Only include features from certain IDs")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1167,30 +1166,28 @@ def filter(args):
     (2) Total bp length of child features
     """
     p = OptionParser(filter.__doc__)
-    p.add_option(
+    p.add_argument(
         "--type", default="mRNA", help="The feature to scan for the attributes"
     )
-    g1 = OptionGroup(p, "Filter by identity/coverage attribute values")
-    g1.add_option("--id", default=95, type="float", help="Minimum identity")
-    g1.add_option("--coverage", default=90, type="float", help="Minimum coverage")
-    g1.add_option(
+    g1 = p.add_argument_group("Filter by identity/coverage attribute values")
+    g1.add_argument("--id", default=95, type=float, help="Minimum identity")
+    g1.add_argument("--coverage", default=90, type=float, help="Minimum coverage")
+    g1.add_argument(
         "--nocase",
         default=False,
         action="store_true",
         help="Case insensitive lookup of attribute names",
     )
-    p.add_option_group(g1)
-    g2 = OptionGroup(p, "Filter by child feature bp length")
-    g2.add_option(
-        "--child_ftype", default=None, type="str", help="Child featuretype to consider"
+    g2 = p.add_argument_group("Filter by child feature bp length")
+    g2.add_argument(
+        "--child_ftype", default=None, type=str, help="Child featuretype to consider"
     )
-    g2.add_option(
+    g2.add_argument(
         "--child_bp",
         default=None,
-        type="int",
+        type=int,
         help="Filter by total bp of children of chosen ftype",
     )
-    p.add_option_group(g2)
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1384,35 +1381,35 @@ def chain(args):
     valid_merge_op = ("sum", "min", "max", "mean", "collapse")
 
     p = OptionParser(chain.__doc__)
-    p.add_option(
+    p.add_argument(
         "--key",
         dest="attrib_key",
         default=None,
         help="Attribute to use as `key` for chaining operation",
     )
-    p.add_option(
+    p.add_argument(
         "--chain_ftype",
         default="cDNA_match",
         help="GFF feature type to use for chaining operation",
     )
-    p.add_option(
+    p.add_argument(
         "--parent_ftype",
         default=None,
         help="GFF feature type to use for the chained coordinates",
     )
-    p.add_option(
+    p.add_argument(
         "--break",
         dest="break_chain",
         action="store_true",
         help="Break long chains which are non-contiguous",
     )
-    p.add_option(
+    p.add_argument(
         "--transfer_attrib",
         dest="attrib_list",
         help="Attributes to transfer to parent feature; accepts comma"
         + " separated list of attribute names",
     )
-    p.add_option(
+    p.add_argument(
         "--transfer_score",
         dest="score_merge_op",
         choices=valid_merge_op,
@@ -1549,136 +1546,133 @@ def format(args):
 
     p = OptionParser(format.__doc__)
 
-    g1 = OptionGroup(p, "Parameter(s) used to modify GFF attributes (9th column)")
-    g1.add_option("--name", help="Add Name attribute from two-column file")
-    g1.add_option("--note", help="Add Note attribute from two-column file")
-    g1.add_option(
+    g1 = p.add_argument_group("Parameter(s) used to modify GFF attributes (9th column)")
+    g1.add_argument("--name", help="Add Name attribute from two-column file")
+    g1.add_argument("--note", help="Add Note attribute from two-column file")
+    g1.add_argument(
         "--add_attribute",
         dest="attrib_files",
         help="Add new attribute(s) "
         + "from two-column file(s); attribute name comes from filename; "
         + "accepts comma-separated list of files",
     )
-    g1.add_option(
+    g1.add_argument(
         "--add_dbxref",
         dest="dbxref_files",
         help="Add new Dbxref value(s) (DBTAG:ID) "
         + "from two-column file(s). DBTAG comes from filename, ID comes from 2nd column; "
         + "accepts comma-separated list of files",
     )
-    g1.add_option(
+    g1.add_argument(
         "--nostrict",
         default=False,
         action="store_true",
         help="Disable strict parsing of GFF file and/or mapping file",
     )
-    g1.add_option(
+    g1.add_argument(
         "--remove_attr",
         dest="remove_attrs",
         help="Specify attributes to remove; "
         + "accepts comma-separated list of attribute names",
     )
-    g1.add_option(
+    g1.add_argument(
         "--copy_id_attr_to_name",
         default=False,
         action="store_true",
         help="Copy `ID` attribute value to `Name`, when `Name` is not defined",
     )
-    g1.add_option(
+    g1.add_argument(
         "--invent_name_attr",
         default=False,
         action="store_true",
         help="Invent `Name` attribute for 2nd level child features; "
         + "Formatted like PARENT:FEAT_TYPE:FEAT_INDEX",
     )
-    g1.add_option(
+    g1.add_argument(
         "--no_keep_attr_order",
         default=False,
         action="store_true",
         help="Do not maintain attribute order",
     )
-    p.add_option_group(g1)
 
-    g2 = OptionGroup(p, "Parameter(s) used to modify content within columns 1-8")
-    g2.add_option(
+    g2 = p.add_argument_group("Parameter(s) used to modify content within columns 1-8")
+    g2.add_argument(
         "--seqid",
         help="Switch seqid from two-column file. If not"
         + " a file, value will globally replace GFF seqid",
     )
-    g2.add_option(
+    g2.add_argument(
         "--source",
         help="Switch GFF source from two-column file. If not"
         + " a file, value will globally replace GFF source",
     )
-    g2.add_option(
+    g2.add_argument(
         "--type",
         help="Switch GFF feature type from two-column file. If not"
         + " a file, value will globally replace GFF type",
     )
-    g2.add_option(
+    g2.add_argument(
         "--fixphase",
         default=False,
         action="store_true",
         help="Change phase 1<->2, 2<->1",
     )
-    p.add_option_group(g2)
 
-    g3 = OptionGroup(
-        p, "Other parameter(s) to perform manipulations to the GFF " + "file content"
+    g3 = p.add_argument_group(
+        "Other parameter(s) to perform manipulations to the GFF file content"
     )
-    g3.add_option(
+    g3.add_argument(
         "--unique", default=False, action="store_true", help="Make IDs unique"
     )
-    g3.add_option(
+    g3.add_argument(
         "--chaindup",
         default=None,
         dest="duptype",
         help="Chain duplicate features of a particular GFF3 `type`,"
         + " sharing the same ID attribute",
     )
-    g3.add_option(
+    g3.add_argument(
         "--multiparents",
         default=None,
         choices=valid_multiparent_ops,
         help="Split/merge identical features (same `seqid`, `source`, `type`, `coord-range`, `strand`, `phase`) mapping to multiple parents",
     )
-    g3.add_option(
+    g3.add_argument(
         "--remove_feats", help="Comma separated list of features to remove by type"
     )
-    g3.add_option(
+    g3.add_argument(
         "--remove_feats_by_ID",
         help="List of features to remove by ID;"
         + " accepts comma-separated list or list file",
     )
-    g3.add_option(
+    g3.add_argument(
         "--gsac",
         default=False,
         action="store_true",
         help="Fix GSAC GFF3 file attributes",
     )
-    g3.add_option(
+    g3.add_argument(
         "--invent_protein_feat",
         default=False,
         action="store_true",
         help="Invent a protein feature span (chain CDS feats)",
     )
-    g3.add_option(
+    g3.add_argument(
         "--process_ftype",
         default=None,
-        type="str",
+        type=str,
         help="Specify feature types to process; "
         "accepts comma-separated list of feature types",
     )
-    g3.add_option(
+    g3.add_argument(
         "--gff3", default=False, action="store_true", help="Print output in GFF3 format"
     )
-    g3.add_option(
+    g3.add_argument(
         "--make_gff_store",
         default=False,
         action="store_true",
         help="Store entire GFF file in memory during first iteration",
     )
-    p.add_option_group(g3)
 
     p.set_outfile()
     p.set_SO_opts()
@@ -2063,16 +2057,16 @@ def fixboundaries(args):
     range chained child features, extracting their min and max values
     """
     p = OptionParser(fixboundaries.__doc__)
-    p.add_option(
+    p.add_argument(
         "--type",
         default="gene",
-        type="str",
+        type=str,
         help="Feature type for which to adjust boundaries",
     )
-    p.add_option(
+    p.add_argument(
         "--child_ftype",
         default="mRNA",
-        type="str",
+        type=str,
         help="Child featuretype(s) to use for identifying boundaries",
     )
     p.set_outfile()
@@ -2107,7 +2101,7 @@ def liftover(args):
     "gannotation.asmbl.000095.7" is the 8-th tile on asmbl.000095.
     """
     p = OptionParser(liftover.__doc__)
-    p.add_option("--tilesize", default=50000, type="int", help="The size for each tile")
+    p.add_argument("--tilesize", default=50000, type=int, help="The size for each tile")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -2258,16 +2252,16 @@ def uniq(args):
     """
     supported_modes = ("span", "score")
     p = OptionParser(uniq.__doc__)
-    p.add_option("--type", default="gene", help="Types of features to non-redundify")
-    p.add_option("--mode", default="span", choices=supported_modes, help="Pile mode")
-    p.add_option("--best", default=1, type="int", help="Use best N features")
-    p.add_option(
+    p.add_argument("--type", default="gene", help="Types of features to non-redundify")
+    p.add_argument("--mode", default="span", choices=supported_modes, help="Pile mode")
+    p.add_argument("--best", default=1, type=int, help="Use best N features")
+    p.add_argument(
         "--name",
         default=False,
         action="store_true",
         help="Non-redundify Name attribute",
     )
-    p.add_option(
+    p.add_argument(
         "--iter",
         default="2",
         choices=("1", "2"),
@@ -2376,13 +2370,13 @@ def sort(args):
     valid_sort_methods = ("unix", "topo")
 
     p = OptionParser(sort.__doc__)
-    p.add_option(
+    p.add_argument(
         "--method",
         default="unix",
         choices=valid_sort_methods,
         help="Specify sort method",
     )
-    p.add_option(
+    p.add_argument(
         "-i",
         dest="inplace",
         default=False,
@@ -2436,11 +2430,11 @@ def fromgtf(args):
     the "transcript_id" in exon/CDS feature will be converted to "Parent=".
     """
     p = OptionParser(fromgtf.__doc__)
-    p.add_option(
+    p.add_argument(
         "--transcript_id", default="transcript_id", help="Field name for transcript"
     )
-    p.add_option("--gene_id", default="gene_id", help="Field name for gene")
-    p.add_option(
+    p.add_argument("--gene_id", default="gene_id", help="Field name for gene")
+    p.add_argument(
         "--augustus", default=False, action="store_true", help="Input is AUGUSTUS gtf"
     )
     p.set_home("augustus")
@@ -2495,8 +2489,8 @@ def frombed(args):
     Default type will be `match` and default source will be `source`
     """
     p = OptionParser(frombed.__doc__)
-    p.add_option("--type", default="match", help="GFF feature type")
-    p.add_option("--source", default="default", help="GFF source qualifier")
+    p.add_argument("--type", default="match", help="GFF feature type")
+    p.add_argument("--source", default="default", help="GFF source qualifier")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -2515,8 +2509,8 @@ def fromsoap(args):
 
     """
     p = OptionParser(fromsoap.__doc__)
-    p.add_option("--type", default="nucleotide_match", help="GFF feature type")
-    p.add_option("--source", default="soap", help="GFF source qualifier")
+    p.add_argument("--type", default="nucleotide_match", help="GFF feature type")
+    p.add_argument("--source", default="soap", help="GFF source qualifier")
     p.set_fixchrnames(orgn="maize")
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -2623,7 +2617,7 @@ def merge(args):
     to be a file with a list of gff files.
     """
     p = OptionParser(merge.__doc__)
-    p.add_option(
+    p.add_argument(
         "--seq",
         default=False,
         action="store_true",
@@ -2691,23 +2685,23 @@ def extract(args):
     involved, use "," to separate; or provide a file with multiple IDs, one per line
     """
     p = OptionParser(extract.__doc__)
-    p.add_option("--contigs", help="Extract features from certain contigs")
-    p.add_option("--names", help="Extract features with certain names")
-    p.add_option(
+    p.add_argument("--contigs", help="Extract features from certain contigs")
+    p.add_argument("--names", help="Extract features with certain names")
+    p.add_argument(
         "--types",
-        type="str",
+        type=str,
         default=None,
         help="Extract features of certain feature types",
     )
-    p.add_option(
+    p.add_argument(
         "--children",
         default=0,
         choices=["1", "2"],
         help="Specify number of iterations: `1` grabs children, "
         + "`2` grabs grand-children",
     )
-    p.add_option("--tag", default="ID", help="Scan the tags for the names")
-    p.add_option(
+    p.add_argument("--tag", default="ID", help="Scan the tags for the names")
+    p.add_argument(
         "--fasta", default=False, action="store_true", help="Write FASTA if available"
     )
     p.set_outfile()
@@ -2808,18 +2802,18 @@ def note(args):
     Extract certain attribute field for each feature.
     """
     p = OptionParser(note.__doc__)
-    p.add_option(
+    p.add_argument(
         "--type",
         default=None,
         help="Only process certain types, multiple types allowed with comma",
     )
-    p.add_option(
+    p.add_argument(
         "--attribute",
         default="Parent,Note",
         help="Attribute field to extract, multiple fields allowd with comma",
     )
-    p.add_option("--AED", type="float", help="Only extract lines with AED score <=")
-    p.add_option(
+    p.add_argument("--AED", type=float, help="Only extract lines with AED score <=")
+    p.add_argument(
         "--exoncount",
         default=False,
         action="store_true",
@@ -2943,7 +2937,7 @@ def splicecov(args):
         for iso in isos:
             if iso in scov[locus].keys():
                 juncs = scov[locus][iso]
-                jstats = SummaryStats(juncs, dtype="int")
+                jstats = SummaryStats(juncs, dtype=int)
                 out.extend(
                     [jstats.size, jstats.mean, jstats.median, jstats.min, jstats.max]
                 )
@@ -2961,68 +2955,68 @@ def bed(args):
     generate a bed file
     """
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--type",
         dest="type",
         default="gene",
         help="Feature type to extract, use comma for multiple, and `all` for all",
     )
-    p.add_option("--key", default="ID", help="Key in the attributes to extract")
-    p.add_option("--accn", help="Use fixed accn in the 4th column")
-    p.add_option("--source", help="Source to extract from, use comma for multiple")
-    p.add_option(
+    p.add_argument("--key", default="ID", help="Key in the attributes to extract")
+    p.add_argument("--accn", help="Use fixed accn in the 4th column")
+    p.add_argument("--source", help="Source to extract from, use comma for multiple")
+    p.add_argument(
         "--span",
         default=False,
         action="store_true",
         help="Use feature span in the score column",
     )
-    p.add_option(
+    p.add_argument(
         "--score_attrib",
         dest="score_attrib",
         default=False,
         help="Attribute whose value is to be used as score in `bedline`",
     )
-    p.add_option(
+    p.add_argument(
         "--append_source",
         default=False,
         action="store_true",
         help="Append GFF source name to extracted key value",
     )
-    p.add_option(
+    p.add_argument(
         "--append_ftype",
         default=False,
         action="store_true",
         help="Append GFF feature type to extracted key value",
     )
-    p.add_option(
+    p.add_argument(
         "--append_attrib",
         default=None,
         help="Append attribute to extracted key value",
     )
-    p.add_option(
+    p.add_argument(
         "--nosort",
         default=False,
         action="store_true",
         help="Do not sort the output bed file",
     )
-    p.add_option(
+    p.add_argument(
         "--primary_only",
         default=False,
         action="store_true",
         help="Only retains a single transcript per gene",
     )
-    p.add_option(
+    p.add_argument(
         "--parent_key",
         default="Parent",
         help="Parent gene key to group with --primary_only",
     )
-    p.add_option(
+    p.add_argument(
         "--human_chr",
         default=False,
         action="store_true",
         help="Only allow 1-22XY, and add `chr` prefix to seqid",
     )
-    p.add_option(
+    p.add_argument(
         "--ensembl_cds",
         default=False,
         action="store_true",
@@ -3151,7 +3145,7 @@ def children(args):
     Get the children that have the same parent.
     """
     p = OptionParser(children.__doc__)
-    p.add_option(
+    p.add_argument(
         "--parents",
         default="gene",
         help="list of features to extract, use comma to separate (e.g. 'gene,mRNA')",
@@ -3205,21 +3199,21 @@ def load(args):
     valid_avoid_features = ["both_strands", "strand_specific"]
 
     p = OptionParser(load.__doc__)
-    p.add_option(
+    p.add_argument(
         "--parents",
         dest="parents",
         default="mRNA",
         help="list of features to extract, use comma to separate (e.g."
         + "'gene,mRNA')",
     )
-    p.add_option(
+    p.add_argument(
         "--children",
         dest="children",
         default="CDS",
         help="list of features to extract, use comma to separate (e.g."
         + "'five_prime_UTR,CDS,three_prime_UTR')",
     )
-    p.add_option(
+    p.add_argument(
         "--feature",
         dest="feature",
         help="feature type to extract (e.g. `--feature=CDS`). Extract "
@@ -3227,49 +3221,48 @@ def load(args):
         + "upstream|downstream:TSS|TrSS|TES|TrES:length "
         + "(e.g. `--feature=upstream:TSS:500`)",
     )
-    p.add_option(
+    p.add_argument(
         "--avoidFeatures",
         default=None,
         choices=["both_strands", "strand_specific"],
         help="Specify whether or not to avoid up or downstream features",
     )
-    p.add_option(
+    p.add_argument(
         "--id_attribute",
         choices=valid_id_attributes,
         help="The attribute field to extract and use as FASTA sequence ID",
     )
-    p.add_option(
+    p.add_argument(
         "--desc_attribute",
         default="Note",
         help="The attribute field to extract and use as FASTA sequence description",
     )
-    p.add_option(
+    p.add_argument(
         "--full_header",
         default=None,
         choices=["default", "tair"],
         help="Specify if full FASTA header (with seqid, coordinates and datestamp) should be generated",
     )
 
-    g1 = OptionGroup(p, "Optional parameters (if generating full header)")
-    g1.add_option(
+    g1 = p.add_argument_group("Optional parameters (if generating full header)")
+    g1.add_argument(
         "--sep",
         dest="sep",
         default=" ",
         help="Specify separator used to delimiter header elements",
     )
-    g1.add_option(
+    g1.add_argument(
         "--datestamp",
         dest="datestamp",
         help="Specify a datestamp in the format YYYYMMDD or automatically pick `today`",
     )
-    g1.add_option(
+    g1.add_argument(
         "--conf_class",
         dest="conf_class",
         default=False,
         action="store_true",
         help="Specify if `conf_class` attribute should be parsed and placed in the header",
     )
-    p.add_option_group(g1)
 
     p.set_outfile()
 
@@ -3700,9 +3693,9 @@ def bed12(args):
     12. blockStarts
     """
     p = OptionParser(bed12.__doc__)
-    p.add_option("--parent", default="mRNA", help="Top feature type")
-    p.add_option("--block", default="exon", help="Feature type for regular blocks")
-    p.add_option("--thick", default="CDS", help="Feature type for thick blocks")
+    p.add_argument("--parent", default="mRNA", help="Top feature type")
+    p.add_argument("--block", default="exon", help="Feature type for regular blocks")
+    p.add_argument("--thick", default="CDS", help="Feature type for thick blocks")
     p.set_outfile()
     opts, args = p.parse_args(args)
 

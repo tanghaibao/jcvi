@@ -8,14 +8,14 @@ RNA-seq into annotation pipelines.
 """
 import sys
 import os.path as op
-import numpy as np
-import logging
 
 from itertools import groupby
 
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher
+import numpy as np
+
+from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..formats.base import BaseFile, must_open
+from ..formats.sizes import Sizes
 
 
 class BinFile(BaseFile):
@@ -64,17 +64,17 @@ def bed(args):
     Write bed files where the bases have at least certain depth.
     """
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "-o",
         dest="output",
         default="stdout",
         help="Output file name",
     )
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         dest="cutoff",
         default=10,
-        type="int",
+        type=int,
         help="Minimum read depth to report intervals",
     )
     opts, args = p.parse_args(args)
@@ -131,26 +131,26 @@ def merge(args):
     binfiles = args[:-1]
     mergedbin = args[-1]
     if op.exists(mergedbin):
-        logging.error("`{0}` file exists. Remove before proceed.".format(mergedbin))
+        logger.error("`{0}` file exists. Remove before proceed.".format(mergedbin))
         return
 
     b = BinFile(binfiles[0])
     ar = b.mmarray
     (fastasize,) = ar.shape
-    logging.debug("Initialize array of uint16 with size {0}".format(fastasize))
+    logger.debug("Initialize array of uint16 with size {0}".format(fastasize))
 
     merged_ar = np.zeros(fastasize, dtype=np.uint16)
     for binfile in binfiles:
         b = BinFile(binfile)
         merged_ar += b.array
 
-    logging.debug("Resetting the count max to 255.")
+    logger.debug("Resetting the count max to 255.")
     merged_ar[merged_ar > 255] = 255
 
-    logging.debug("Compact array back to uint8 with size {0}".format(fastasize))
+    logger.debug("Compact array back to uint8 with size {0}".format(fastasize))
     merged_ar = np.array(merged_ar, dtype=np.uint8)
     merged_ar.tofile(mergedbin)
-    logging.debug("Merged array written to `{0}`".format(mergedbin))
+    logger.debug("Merged array written to `{0}`".format(mergedbin))
 
 
 def query(args):
@@ -176,7 +176,7 @@ def query(args):
 
 def update_array(ar, coveragefile, offsets):
     fp = open(coveragefile)
-    logging.debug("Parse file `{0}`".format(coveragefile))
+    logger.debug("Parse file `{0}`".format(coveragefile))
     for k, rows in groupby(fp, key=(lambda x: x.split()[0])):
         rows = list(rows)
         offset = offsets[k]
@@ -223,17 +223,17 @@ def count(args):
 
     countsfile = coveragefile.split(".")[0] + ".bin"
     if op.exists(countsfile):
-        logging.error("`{0}` file exists. Remove before proceed.".format(countsfile))
+        logger.error("`{0}` file exists. Remove before proceed.".format(countsfile))
         return
 
     fastasize, sizes, offsets = get_offsets(fastafile)
-    logging.debug("Initialize array of uint8 with size {0}".format(fastasize))
+    logger.debug("Initialize array of uint8 with size {0}".format(fastasize))
     ar = np.zeros(fastasize, dtype=np.uint8)
 
     update_array(ar, coveragefile, offsets)
 
     ar.tofile(countsfile)
-    logging.debug("Array written to `{0}`".format(countsfile))
+    logger.debug("Array written to `{0}`".format(countsfile))
 
 
 if __name__ == "__main__":

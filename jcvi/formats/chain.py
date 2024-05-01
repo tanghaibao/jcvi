@@ -24,10 +24,10 @@ alignment size of the last block.
 
 import os.path as op
 import sys
-import logging
 
-from jcvi.formats.base import BaseFile, read_block
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, which
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh, which
+
+from .base import BaseFile, read_block
 
 
 class ChainLine(object):
@@ -136,7 +136,7 @@ def fromagp(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fromagp.__doc__)
-    p.add_option(
+    p.add_argument(
         "--novalidate", default=False, action="store_true", help="Do not validate AGP"
     )
     opts, args = p.parse_args(args)
@@ -201,7 +201,7 @@ def fromagp(args):
         print(file=fw)
 
     fw.close()
-    logging.debug("File written to `%s`.", chainfile)
+    logger.debug("File written to `%s`.", chainfile)
 
 
 def faToTwoBit(fastafile):
@@ -219,16 +219,16 @@ def blat(args):
     Generate psl file using blat.
     """
     p = OptionParser(blat.__doc__)
-    p.add_option(
+    p.add_argument(
         "--minscore",
         default=100,
-        type="int",
+        type=int,
         help="Matches minus mismatches gap penalty",
     )
-    p.add_option(
+    p.add_argument(
         "--minid",
         default=98,
-        type="int",
+        type=int,
         help="Minimum sequence identity",
     )
     p.set_cpus()

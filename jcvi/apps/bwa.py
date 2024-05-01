@@ -9,16 +9,17 @@ The whole pipeline is following bwa documentation at
 
 import os.path as op
 import sys
-import logging
 
-from jcvi.formats.sam import output_bam, get_samfile, mapped
-from jcvi.assembly.automaton import iter_project
-from jcvi.apps.grid import MakeManager
-from jcvi.apps.base import (
+from ..apps.grid import MakeManager
+from ..assembly.automaton import iter_project
+from ..formats.sam import get_samfile, mapped, output_bam
+
+from .base import (
     ActionDispatcher,
     OptionParser,
     cleanup,
     get_abs_path,
+    logger,
     mkdir,
     need_update,
     sh,
@@ -84,7 +85,7 @@ def check_index(dbfile):
         cmd = "bwa index {0}".format(dbfile)
         sh(cmd)
     else:
-        logging.error("`{0}` exists. `bwa index` already run.".format(safile))
+        logger.error("`{0}` exists. `bwa index` already run.".format(safile))
 
     return dbfile
 
@@ -101,7 +102,7 @@ def check_aln(dbfile, readfile, cpus=32):
             cmd += " -I"
         sh(cmd, outfile=saifile)
     else:
-        logging.error("`{0}` exists. `bwa aln` already run.".format(saifile))
+        logger.error("`{0}` exists. `bwa aln` already run.".format(saifile))
 
     return saifile
 
@@ -124,9 +125,9 @@ def index(args):
 
 def set_align_options(p):
     """Used in align() and batch()"""
-    p.add_option("--bwa", default="bwa", help="Run bwa at this path")
-    p.add_option("--rg", help="Read group")
-    p.add_option(
+    p.add_argument("--bwa", default="bwa", help="Run bwa at this path")
+    p.add_argument("--rg", help="Read group")
+    p.add_argument(
         "--readtype",
         choices=("pacbio", "pbread", "ont2d", "intractg"),
         help="Read type in bwa-mem",
@@ -142,7 +143,7 @@ def align(args):
     """
     valid_modes = ("bwasw", "aln", "mem")
     p = OptionParser(align.__doc__)
-    p.add_option("--mode", default="mem", choices=valid_modes, help="BWA mode")
+    p.add_argument("--mode", default="mem", choices=valid_modes, help="BWA mode")
     set_align_options(p)
     p.set_sam_options()
 
@@ -167,7 +168,7 @@ def align(args):
         if mode == "aln":
             c = sampe
 
-    logging.debug(tag)
+    logger.debug(tag)
     cmd, samfile = c(args, opts)
     if cmd:
         cmd = output_bam(cmd, samfile)
@@ -200,7 +201,7 @@ def samse(args, opts):
         readfile, dbfile, bam=opts.bam, unmapped=opts.unmapped
     )
     if not need_update((dbfile, saifile), samfile):
-        logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
+        logger.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return "", samfile
 
     cmd = "bwa samse {0} {1} {2}".format(dbfile, saifile, readfile)
@@ -226,7 +227,7 @@ def sampe(args, opts):
         read1file, dbfile, bam=opts.bam, unmapped=opts.unmapped
     )
     if not need_update((dbfile, sai1file, sai2file), samfile):
-        logging.error("`{0}` exists. `bwa samse` already run.".format(samfile))
+        logger.error("`{0}` exists. `bwa samse` already run.".format(samfile))
         return "", samfile
 
     cmd = "bwa sampe " + " ".join((dbfile, sai1file, sai2file, read1file, read2file))
@@ -257,7 +258,7 @@ def mem(args, opts):
         read1file, dbfile, bam=opts.bam, unmapped=opts.unmapped
     )
     if not need_update(read1file, samfile):
-        logging.error("`{0}` exists. `bwa mem` already run.".format(samfile))
+        logger.error("`{0}` exists. `bwa mem` already run.".format(samfile))
         return "", samfile
 
     cmd = "{} mem".format(opts.bwa)
@@ -287,7 +288,7 @@ def bwasw(args, opts):
         readfile, dbfile, bam=opts.bam, unmapped=opts.unmapped
     )
     if not need_update(dbfile, samfile):
-        logging.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
+        logger.error("`{0}` exists. `bwa bwasw` already run.".format(samfile))
         return "", samfile
 
     cmd = "bwa bwasw " + " ".join(args)

@@ -10,29 +10,30 @@ http://samtools.sourceforge.net/SAM1.pdf
 import os
 import os.path as op
 import sys
-import logging
 
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.base import LineFile, must_open
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.sizes import Sizes
-from jcvi.utils.cbook import fill
-from jcvi.assembly.base import Astat
-from jcvi.apps.base import (
-    OptionParser,
+from ..apps.base import (
     ActionDispatcher,
-    Popen,
+    OptionParser,
     PIPE,
+    Popen,
     cleanup,
-    need_update,
-    sh,
-    mkdir,
-    glob,
-    popen,
     get_abs_path,
+    glob,
+    logger,
+    mkdir,
+    need_update,
+    popen,
+    sh,
 )
+from ..utils.cbook import fill
+from ..assembly.base import Astat
+
+from .base import LineFile, must_open
+from .fasta import Fasta
+from .sizes import Sizes
 
 
 class SamLine(object):
@@ -166,7 +167,7 @@ def get_minibam(bamfile, region, overwrite=True):
         sh("rm {}".format(baifile))
 
     if not overwrite and op.exists(minibamfile):
-        logging.error("Output name exists: `{}`".format(minibamfile))
+        logger.error("Output name exists: `{}`".format(minibamfile))
         return
 
     cmd = "samtools view {} {} -b".format(bamfile, region)
@@ -310,7 +311,7 @@ def append(args):
     training AUGUSTUS gene models.
     """
     p = OptionParser(append.__doc__)
-    p.add_option("--prepend", help="Prepend string to read names")
+    p.add_argument("--prepend", help="Prepend string to read names")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -379,7 +380,7 @@ def merge(args):
         bams += glob(op.join(x, "*.bam"))
     bams = [x for x in bams if "nsorted" not in x]
 
-    logging.debug("Found a total of {0} BAM files.".format(len(bams)))
+    logger.debug("Found a total of {0} BAM files.".format(len(bams)))
 
     sep = opts.sep
     key = lambda x: op.basename(x).split(sep)[0]
@@ -407,7 +408,7 @@ def count(args):
     Count the number of reads mapped using `htseq-count`.
     """
     p = OptionParser(count.__doc__)
-    p.add_option("--type", default="exon", help="Only count feature type")
+    p.add_argument("--type", default="exon", help="Only count feature type")
     p.set_cpus(cpus=8)
     opts, args = p.parse_args(args)
 
@@ -444,13 +445,15 @@ def coverage(args):
     --nosort.
     """
     p = OptionParser(coverage.__doc__)
-    p.add_option(
+    p.add_argument(
         "--format",
         default="bigwig",
         choices=("bedgraph", "bigwig", "coverage"),
         help="Output format",
     )
-    p.add_option("--nosort", default=False, action="store_true", help="Do not sort BAM")
+    p.add_argument(
+        "--nosort", default=False, action="store_true", help="Do not sort BAM"
+    )
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -460,7 +463,7 @@ def coverage(args):
     fastafile, bamfile = args
     format = opts.format
     if opts.nosort:
-        logging.debug("BAM sorting skipped")
+        logger.debug("BAM sorting skipped")
     else:
         bamfile = index([bamfile, "--fasta={0}".format(fastafile)])
 
@@ -529,7 +532,7 @@ def fpkm(args):
                 file=fw,
             )
         fw.close()
-        logging.debug("Dummy GFF created: {0}".format(gffile))
+        logger.debug("Dummy GFF created: {0}".format(gffile))
 
     cmd = "cuffdiff {0} {1}".format(gffile, " ".join(bamfiles))
     sh(cmd)
@@ -568,10 +571,10 @@ def consensus(args):
     """
     valid_callers = ("bcftools", "gatk4")
     p = OptionParser(consensus.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nosort", default=False, action="store_true", help="Do not sort the BAM files"
     )
-    p.add_option(
+    p.add_argument(
         "--caller",
         default="bcftools",
         choices=valid_callers,
@@ -610,10 +613,10 @@ def vcf(args):
     valid_callers = ("mpileup", "freebayes")
     p = OptionParser(vcf.__doc__)
     p.set_outfile(outfile="out.vcf.gz")
-    p.add_option(
+    p.add_argument(
         "--nosort", default=False, action="store_true", help="Do not sort the BAM files"
     )
-    p.add_option(
+    p.add_argument(
         "--caller", default="mpileup", choices=valid_callers, help="Use variant caller"
     )
     opts, args = p.parse_args(args)
@@ -704,10 +707,10 @@ def index(args):
     If SAM file, convert to BAM, sort and then index, using SAMTOOLS
     """
     p = OptionParser(index.__doc__)
-    p.add_option(
+    p.add_argument(
         "--fasta", dest="fasta", default=None, help="add @SQ header to the BAM file"
     )
-    p.add_option(
+    p.add_argument(
         "--unique",
         default=False,
         action="store_true",
@@ -800,7 +803,7 @@ def mapped(args):
     view_opts.append(mopts)
 
     for vo in view_opts:
-        logging.debug("samtools view {0}".format(" ".join(vo)))
+        logger.debug("samtools view {0}".format(" ".join(vo)))
 
     jobs = Jobs(pysam.view, [(z for z in x) for x in view_opts])
     jobs.run()
@@ -887,39 +890,39 @@ def ace(args):
     assembler.
     """
     p = OptionParser(ace.__doc__)
-    p.add_option(
+    p.add_argument(
         "--splitdir",
         dest="splitdir",
         default="outRoot",
         help="split the ace per contig to dir",
     )
-    p.add_option(
+    p.add_argument(
         "--unpaired",
         dest="unpaired",
         default=False,
         help="remove read pairs on the same contig",
     )
-    p.add_option(
+    p.add_argument(
         "--minreadno",
         dest="minreadno",
         default=3,
-        type="int",
+        type=int,
         help="minimum read numbers per contig",
     )
-    p.add_option(
+    p.add_argument(
         "--minctgsize",
         dest="minctgsize",
         default=100,
-        type="int",
+        type=int,
         help="minimum contig size per contig",
     )
-    p.add_option(
+    p.add_argument(
         "--astat",
         default=False,
         action="store_true",
         help="create .astat to list repetitiveness",
     )
-    p.add_option(
+    p.add_argument(
         "--readids",
         default=False,
         action="store_true",
@@ -943,16 +946,16 @@ def ace(args):
     readsfile = prefix + ".reads"
     astatfile = prefix + ".astat"
 
-    logging.debug("Load {0}".format(bamfile))
+    logger.debug("Load {0}".format(bamfile))
     s = Samfile(bamfile, "rb")
 
     ncontigs = s.nreferences
     genomesize = sum(x for a, x in f.itersizes())
-    logging.debug("Total {0} contigs with size {1} base".format(ncontigs, genomesize))
+    logger.debug("Total {0} contigs with size {1} base".format(ncontigs, genomesize))
     qual = "20"  # default qual
 
     totalreads = sum(s.count(x) for x in s.references)
-    logging.debug("Total {0} reads mapped".format(totalreads))
+    logger.debug("Total {0} reads mapped".format(totalreads))
 
     fw = open(acefile, "w")
     if astat:

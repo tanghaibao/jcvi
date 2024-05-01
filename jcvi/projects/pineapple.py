@@ -5,18 +5,17 @@
 Scripts for the pineapple genome paper.
 """
 import sys
-import logging
 
-from jcvi.formats.base import DictFile, LineFile, SetFile, must_open, get_number
-from jcvi.formats.bed import Bed
-from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import Rectangle, panel_labels, plt, savefig
-from jcvi.graphics.chromosome import Chromosome
-from jcvi.graphics.karyotype import Karyotype
-from jcvi.graphics.synteny import Synteny, draw_gene_legend
-from jcvi.graphics.glyph import TextCircle
-from jcvi.annotation.ahrd import read_interpro
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..annotation.ahrd import read_interpro
+from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..formats.base import DictFile, LineFile, SetFile, get_number, must_open
+from ..formats.bed import Bed
+from ..formats.sizes import Sizes
+from ..graphics.base import Rectangle, panel_labels, plt, savefig
+from ..graphics.chromosome import Chromosome
+from ..graphics.glyph import TextCircle
+from ..graphics.karyotype import Karyotype
+from ..graphics.synteny import Synteny, draw_gene_legend
 
 
 class RegionsLine(object):
@@ -71,7 +70,7 @@ def flanking(args):
     Extract flanking genes for given SI loci.
     """
     p = OptionParser(flanking.__doc__)
-    p.add_option("-N", default=50, type="int", help="How many genes on both directions")
+    p.add_argument("-N", default=50, type=int, help="How many genes on both directions")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:
@@ -300,7 +299,7 @@ def ploidy(args):
     and graphic.synteny.
     """
     p = OptionParser(ploidy.__doc__)
-    p.add_option("--switch", help="Rename the seqid with two-column file")
+    p.add_argument("--switch", help="Rename the seqid with two-column file")
     opts, args, iopts = p.set_image_options(args, figsize="9x7")
 
     if len(args) != 5:
@@ -395,7 +394,7 @@ def breakpoints(args):
         old = scaffold + old
         start, end = int(start), int(end)
         if start >= end:
-            logging.warning("{0} {1} >= {2}".format(old, start, end))
+            logger.warning("%s %d >= %d", old, start, end)
             start, end = end, start
         print("\t".join(str(x) for x in (old, start - 1, end)))
         nbreaks += 1

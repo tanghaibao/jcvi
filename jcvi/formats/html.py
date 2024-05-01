@@ -6,12 +6,12 @@ Parse html pages.
 """
 import os.path as op
 import sys
-import logging
 
-from BeautifulSoup import BeautifulSoup
 from urllib.parse import urljoin
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, download
+from BeautifulSoup import BeautifulSoup
+
+from ..apps.base import ActionDispatcher, OptionParser, download, logger
 
 
 def main():
@@ -40,8 +40,8 @@ def gallery(args):
     from jcvi.apps.base import iglob
 
     p = OptionParser(gallery.__doc__)
-    p.add_option("--columns", default=3, type="int", help="How many cells per row")
-    p.add_option("--width", default=200, type="int", help="Image width")
+    p.add_argument("--columns", default=3, type=int, help="How many cells per row")
+    p.add_argument("--width", default=200, type=int, help="Image width")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -72,7 +72,7 @@ def links(args):
     Extract all the links "<a href=''>" from web page.
     """
     p = OptionParser(links.__doc__)
-    p.add_option(
+    p.add_argument(
         "--img",
         default=False,
         action="store_true",
@@ -151,7 +151,7 @@ def table(args):
                 row.append(cell)
             writer.writerow(row)
             nrows += 1
-        logging.debug("Table with {0} rows written to `{1}`.".format(nrows, csvfile))
+        logger.debug("Table with %d rows written to `%s`.", nrows, csvfile)
 
 
 if __name__ == "__main__":

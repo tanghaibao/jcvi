@@ -570,7 +570,7 @@ def seqids(args):
     A03,A02,A01
     """
     p = OptionParser(seqids.__doc__)
-    p.add_option("--pad0", default=0, help="How many zeros to pad")
+    p.add_argument("--pad0", default=0, help="How many zeros to pad")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -702,7 +702,7 @@ def flatten(args):
 
     p = OptionParser(flatten.__doc__)
     p.set_sep(sep=",")
-    p.add_option(
+    p.add_argument(
         "--zipflatten",
         default=None,
         dest="zipsep",
@@ -741,7 +741,7 @@ def unflatten(args):
     Given a list of ids, one per line, unflatten the list onto a single line with sep.
     """
     p = OptionParser(unflatten.__doc__)
-    p.add_option("--sep", default=",", help="Separator when joining ids")
+    p.add_argument("--sep", default=",", help="Separator when joining ids")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -785,13 +785,13 @@ def group(args):
 
     p = OptionParser(group.__doc__)
     p.set_sep()
-    p.add_option(
-        "--groupby", default=None, type="int", help="Default column to groupby"
+    p.add_argument(
+        "--groupby", default=None, type=int, help="Default column to groupby"
     )
-    p.add_option(
+    p.add_argument(
         "--groupsep", default=",", help="Separator to join the grouped elements"
     )
-    p.add_option(
+    p.add_argument(
         "--nouniq",
         default=False,
         action="store_true",
@@ -898,14 +898,16 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     mode_choices = ("batch", "cycle", "optimal")
-    p.add_option("--all", default=False, action="store_true", help="split all records")
-    p.add_option(
+    p.add_argument(
+        "--all", default=False, action="store_true", help="split all records"
+    )
+    p.add_argument(
         "--mode",
         default="optimal",
         choices=mode_choices,
         help="Mode when splitting records",
     )
-    p.add_option(
+    p.add_argument(
         "--format", choices=("fasta", "fastq", "txt", "clust"), help="input file format"
     )
 
@@ -943,21 +945,21 @@ def join(args):
       in each file.
     """
     p = OptionParser(join.__doc__)
-    p.add_option(
+    p.add_argument(
         "--column", default="0", help="0-based column id, multiple values allowed"
     )
     p.set_sep(multiple=True)
-    p.add_option(
+    p.add_argument(
         "--noheader", default=False, action="store_true", help="Do not print header"
     )
-    p.add_option("--na", default="na", help="Value for unjoined data")
-    p.add_option(
+    p.add_argument("--na", default="na", help="Value for unjoined data")
+    p.add_argument(
         "--compact",
         default=False,
         action="store_true",
         help="Do not repeat pivotal columns in output",
     )
-    p.add_option(
+    p.add_argument(
         "--keysep",
         default=",",
         help="specify separator joining multiple elements in the key column"
@@ -1048,14 +1050,14 @@ def subset(args):
     """
 
     p = OptionParser(subset.__doc__)
-    p.add_option(
+    p.add_argument(
         "--column", default="0", help="0-based column id, multiple values allowed"
     )
     p.set_sep(multiple=True)
-    p.add_option(
+    p.add_argument(
         "--pivot",
         default=1,
-        type="int",
+        type=int,
         help="1 for using order in file1, 2 for using order in \
                     file2",
     )
@@ -1129,10 +1131,10 @@ def setop(args):
     from natsort import natsorted
 
     p = OptionParser(setop.__doc__)
-    p.add_option(
+    p.add_argument(
         "--column",
         default=0,
-        type="int",
+        type=int,
         help="The column to extract, 0-based, -1 to disable",
     )
     opts, args = p.parse_args(args)

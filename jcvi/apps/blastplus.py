@@ -3,21 +3,21 @@
 
 import os.path as op
 import sys
-import logging
 
 from multiprocessing import Lock
 
-from jcvi.formats.base import must_open, split
-from jcvi.apps.grid import Jobs
-from jcvi.apps.align import run_formatdb
-from jcvi.apps.base import OptionParser, Popen
+from ..formats.base import must_open, split
+
+from .align import run_formatdb
+from .base import OptionParser, Popen, logger
+from .grid import Jobs
 
 
 def blastplus(out_fh, cmd, query, lock):
     cmd += " -query {0}".format(query)
     proc = Popen(cmd)
 
-    logging.debug("job <%d> started: %s" % (proc.pid, cmd))
+    logger.debug("job <%d> started: %s", proc.pid, cmd)
     for row in proc.stdout:
         if row[0] == "#":
             continue
@@ -25,7 +25,7 @@ def blastplus(out_fh, cmd, query, lock):
         out_fh.write(row)
         out_fh.flush()
         lock.release()
-    logging.debug("job <%d> finished" % proc.pid)
+    logger.debug("job <%d> finished", proc.pid)
 
 
 def main():
@@ -36,19 +36,19 @@ def main():
     """
     p = OptionParser(main.__doc__)
 
-    p.add_option(
+    p.add_argument(
         "--format",
         default=" '6 qseqid sseqid pident length "
         "mismatch gapopen qstart qend sstart send evalue bitscore' ",
         help='0-11, learn more with "blastp -help"',
     )
-    p.add_option(
+    p.add_argument(
         "--path",
         dest="blast_path",
         default=None,
         help="specify BLAST+ path including the program name",
     )
-    p.add_option(
+    p.add_argument(
         "--prog",
         dest="blast_program",
         default="blastp",
@@ -56,17 +56,17 @@ def main():
         "http://www.ncbi.nlm.nih.gov/books/NBK52640/#chapter1.Installation",
     )
     p.set_align(evalue=0.01)
-    p.add_option(
+    p.add_argument(
         "--best",
         default=1,
-        type="int",
+        type=int,
         help="Only look for best N hits",
     )
     p.set_cpus()
-    p.add_option(
+    p.add_argument(
         "--nprocs",
         default=1,
-        type="int",
+        type=int,
         help="number of BLAST processes to run in parallel. "
         + "split query.fa into `nprocs` chunks, "
         + "each chunk uses -num_threads=`cpus`",
@@ -96,7 +96,7 @@ def main():
 
     nprocs, cpus = opts.nprocs, opts.cpus
     if nprocs > 1:
-        logging.debug("Dispatch job to %d processes" % nprocs)
+        logger.debug("Dispatch job to %d processes", nprocs)
         outdir = "outdir"
         fs = split([afasta_fn, outdir, str(nprocs)])
         queries = fs.names

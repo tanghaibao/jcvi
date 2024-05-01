@@ -205,8 +205,8 @@ def mosdepth(args):
     sns.set_style("darkgrid")
 
     p = OptionParser(mosdepth.__doc__)
-    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to plot")
-    p.add_option(
+    p.add_argument("--maxdepth", default=100, type=int, help="Maximum depth to plot")
+    p.add_argument(
         "--logscale", default=False, action="store_true", help="Use log-scale on depth"
     )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="6x8")
@@ -494,15 +494,15 @@ def depth(args):
     composite figure.
     """
     p = OptionParser(depth.__doc__)
-    p.add_option(
+    p.add_argument(
         "--chrinfo", help="Comma-separated mappings between seqid, color, new_name"
     )
-    p.add_option(
+    p.add_argument(
         "--titleinfo",
         help="Comma-separated titles mappings between filename, title",
     )
-    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to show")
-    p.add_option(
+    p.add_argument("--maxdepth", default=100, type=int, help="Maximum depth to show")
+    p.add_argument(
         "--logscale", default=False, action="store_true", help="Use log-scale on depth"
     )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
@@ -548,10 +548,10 @@ def add_window_options(p):
     """
     Add options for window plotting.
     """
-    p.add_option("--window", default=500000, type="int", help="Size of window")
-    p.add_option("--shift", default=100000, type="int", help="Size of shift")
-    p.add_option("--subtract", help="Subtract bases from window")
-    p.add_option(
+    p.add_argument("--window", default=500000, type=int, help="Size of window")
+    p.add_argument("--shift", default=100000, type=int, help="Size of shift")
+    p.add_argument("--subtract", help="Subtract bases from window")
+    p.add_argument(
         "--nomerge", default=False, action="store_true", help="Do not merge features"
     )
 
@@ -586,7 +586,7 @@ def linearray(binfile, chr, window, shift):
     mn = binfile.mapping[chr]
     m, _ = zip(*mn)
 
-    m = np.array(m, dtype="float")
+    m = np.array(m, dtype=float)
     w = window // shift
     m = moving_sum(m, window=w)
     return m
@@ -641,16 +641,16 @@ def composite(args):
     --altbars: similar to bars, yet in two alternating tracks, e.g. scaffolds
     """
     p = OptionParser(composite.__doc__)
-    p.add_option("--lines", help="Features to plot in lineplot")
-    p.add_option("--bars", help="Features to plot in bars")
-    p.add_option("--altbars", help="Features to plot in alt-bars")
-    p.add_option(
+    p.add_argument("--lines", help="Features to plot in lineplot")
+    p.add_argument("--bars", help="Features to plot in bars")
+    p.add_argument("--altbars", help="Features to plot in alt-bars")
+    p.add_argument(
         "--fatten",
         default=False,
         action="store_true",
         help="Help visualize certain narrow features",
     )
-    p.add_option(
+    p.add_argument(
         "--mode",
         default="span",
         choices=("span", "count", "score"),
@@ -754,22 +754,22 @@ def multilineplot(args):
     --lines: traditional line plots, useful for plotting feature freq
     """
     p = OptionParser(multilineplot.__doc__)
-    p.add_option("--lines", help="Features to plot in lineplot")
-    p.add_option("--colors", help="List of colors matching number of input bed files")
-    p.add_option(
+    p.add_argument("--lines", help="Features to plot in lineplot")
+    p.add_argument("--colors", help="List of colors matching number of input bed files")
+    p.add_argument(
         "--mode",
         default="span",
         choices=("span", "count", "score"),
         help="Accumulate feature based on",
     )
-    p.add_option(
+    p.add_argument(
         "--binned",
         default=False,
         action="store_true",
         help="Specify whether the input is already binned; "
         + "if True, input files are considered to be binfiles",
     )
-    p.add_option("--ymax", type="int", help="Set Y-axis max")
+    p.add_argument("--ymax", type=int, help="Set Y-axis max")
     add_window_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
@@ -946,17 +946,17 @@ def heatmap(args):
     given chromosome. Need to give multiple beds to --stacks and --heatmaps
     """
     p = OptionParser(heatmap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--stacks",
         default="Exons,Introns,DNA_transposons,Retrotransposons",
         help="Features to plot in stackplot",
     )
-    p.add_option(
+    p.add_argument(
         "--heatmaps",
         default="Copia,Gypsy,hAT,Helitron,Introns,Exons",
         help="Features to plot in heatmaps",
     )
-    p.add_option("--meres", default=None, help="Extra centromere / telomere features")
+    p.add_argument("--meres", default=None, help="Extra centromere / telomere features")
     add_window_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
@@ -1058,8 +1058,8 @@ def stackarray(binfile: BinFile, chr: str, window: int, shift: int):
     mn = binfile.mapping[chr]
     m, n = zip(*mn)
 
-    m = np.array(m, dtype="float")
-    n = np.array(n, dtype="float")
+    m = np.array(m, dtype=float)
+    n = np.array(n, dtype=float)
 
     w = window // shift
     m = moving_sum(m, window=w)
@@ -1081,8 +1081,8 @@ def stackplot(
     """
     Plot stackplot on the given axes, using data from binfiles.
     """
-    t = np.arange(nbins, dtype="float") + 0.5
-    m = np.zeros(nbins, dtype="float")
+    t = np.arange(nbins, dtype=float) + 0.5
+    m = np.zeros(nbins, dtype=float)
     zorders = range(10)[::-1]
     for binfile, p, z in zip(binfiles, palette, zorders):
         s = stackarray(binfile, chr, window, shift)
@@ -1172,13 +1172,13 @@ def stack(args):
     sequences along the chromosomes.
     """
     p = OptionParser(stack.__doc__)
-    p.add_option("--top", default=10, type="int", help="Draw the first N chromosomes")
-    p.add_option(
+    p.add_argument("--top", default=10, type=int, help="Draw the first N chromosomes")
+    p.add_argument(
         "--stacks",
         default="Exons,Introns,DNA_transposons,Retrotransposons",
         help="Features to plot in stackplot",
     )
-    p.add_option("--switch", help="Change chr names based on two-column file")
+    p.add_argument("--switch", help="Change chr names based on two-column file")
     add_window_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
 

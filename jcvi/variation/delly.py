@@ -7,13 +7,12 @@ Convert delly output to BED format.
 
 import os.path as op
 import sys
-import logging
 
-from jcvi.formats.base import BaseFile, read_until, must_open
-from jcvi.formats.sam import coverage
-from jcvi.utils.cbook import percentage
-from jcvi.utils.aws import ls_s3, push_to_s3
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
+from ..formats.base import BaseFile, read_until, must_open
+from ..formats.sam import coverage
+from ..utils.aws import ls_s3, push_to_s3
+from ..utils.cbook import percentage
 
 
 class DelLine(object):
@@ -62,7 +61,7 @@ class Delly(BaseFile):
         fw = must_open(bedfile, "w")
         for d in self:
             print(d.bedline, file=fw)
-        logging.debug("File written to `%s`.", bedfile)
+        logger.debug("File written to `%s`.", bedfile)
 
 
 def main():
@@ -86,8 +85,8 @@ def mitosomatic(args):
     import pandas as pd
 
     p = OptionParser(mitosomatic.__doc__)
-    p.add_option("--minaf", default=0.005, type="float", help="Minimum allele fraction")
-    p.add_option("--maxaf", default=0.1, type="float", help="Maximum allele fraction")
+    p.add_argument("--minaf", default=0.005, type=float, help="Minimum allele fraction")
+    p.add_argument("--maxaf", default=0.1, type=float, help="Maximum allele fraction")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -113,7 +112,7 @@ def mitosomatic(args):
         print("{}\t{}\t{:.6f}".format(row["chrom"], row["start"], af), file=fw)
     fw.close()
 
-    logging.debug("Allele freq written to `{}`".format(af_file))
+    logger.debug("Allele freq written to `{}`".format(af_file))
 
 
 def bed(args):
@@ -157,7 +156,7 @@ def mitocompile(args):
     print("\t".join("vcf samplekey depth seqid pos alt svlen pe sr".split()))
     for i, vcf in enumerate(vcfs):
         if (i + 1) % 100 == 0:
-            logging.debug("Process `{}` [{}]".format(vcf, percentage(i + 1, len(vcfs))))
+            logger.debug("Process `{}` [{}]".format(vcf, percentage(i + 1, len(vcfs))))
         depthfile = vcf.replace(".sv.vcf.gz", ".depth")
         fp = must_open(depthfile)
         _, depth = next(fp).split()
@@ -196,17 +195,17 @@ def mito(args):
     """
     p = OptionParser(mito.__doc__)
     p.set_aws_opts(store="hli-mv-data-science/htang/mito-deletions")
-    p.add_option(
+    p.add_argument(
         "--realignonly", default=False, action="store_true", help="Realign only"
     )
-    p.add_option(
+    p.add_argument(
         "--svonly",
         default=False,
         action="store_true",
         help="Run Realign => SV calls only",
     )
-    p.add_option(
-        "--support", default=1, type="int", help="Minimum number of supporting reads"
+    p.add_argument(
+        "--support", default=1, type=int, help="Minimum number of supporting reads"
     )
     p.set_home("speedseq", default="/mnt/software/speedseq/bin")
     p.set_cpus()
@@ -220,7 +219,7 @@ def mito(args):
     cleanup = not opts.nocleanup
 
     if not op.exists(chrMfa):
-        logging.debug("File `{}` missing. Exiting.".format(chrMfa))
+        logger.debug("File `{}` missing. Exiting.".format(chrMfa))
         return
 
     chrMfai = chrMfa + ".fai"
@@ -242,14 +241,14 @@ def mito(args):
             x for x in bamfiles if op.basename(x).split(".")[0] not in computed
         ]
 
-        logging.debug(
+        logger.debug(
             "Already computed on `{}`: {}".format(
                 store, len(bamfiles) - len(remaining_samples)
             )
         )
         bamfiles = remaining_samples
 
-    logging.debug("Total samples: {}".format(len(bamfiles)))
+    logger.debug("Total samples: {}".format(len(bamfiles)))
 
     for bamfile in bamfiles:
         run_mito(
@@ -273,7 +272,7 @@ def run_mito(
     if not op.exists(minibam):
         get_minibam(bamfile, region)
     else:
-        logging.debug("{} found. Skipped.".format(minibam))
+        logger.debug("{} found. Skipped.".format(minibam))
 
     speedseq_bin = op.join(opts.speedseq_home, "speedseq")
 

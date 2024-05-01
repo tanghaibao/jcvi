@@ -4,7 +4,7 @@
 Set of scripts relating to variation studies such as imputation, phasing, SNP/CNV analysis, and other supporting routines
 """
 
-from jcvi.apps.base import dmain
+from ..apps.base import dmain
 
 
 if __name__ == "__main__":

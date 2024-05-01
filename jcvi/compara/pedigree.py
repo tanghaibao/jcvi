@@ -238,9 +238,9 @@ def pedigree(args):
     Plot pedigree and calculate pedigree coefficients from a pedigree file.
     """
     p = OptionParser(pedigree.__doc__)
-    p.add_option("--ploidy", default=2, type="int", help="Ploidy")
-    p.add_option("--N", default=10000, type="int", help="Number of samples")
-    p.add_option("--title", default="", help="Title of the graph")
+    p.add_argument("--ploidy", default=2, type=int, help="Ploidy")
+    p.add_argument("--N", default=10000, type=int, help="Number of samples")
+    p.add_argument("--title", default="", help="Title of the graph")
     opts, args, iopts = p.set_image_options(args)
 
     if len(args) != 1:

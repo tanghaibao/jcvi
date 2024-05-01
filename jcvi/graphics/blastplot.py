@@ -14,17 +14,18 @@ whether you are BLASTing raw sequences or makers, you need to place --sizes or
 
 import os.path as op
 import sys
-import logging
-import numpy as np
 
 from random import sample
 
-from jcvi.formats.base import is_number
-from jcvi.formats.blast import BlastLine
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.bed import Bed, BedLine
-from jcvi.apps.base import OptionParser
-from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, savefig
+import numpy as np
+
+from ..apps.base import OptionParser, logger
+from ..formats.base import is_number
+from ..formats.bed import Bed, BedLine
+from ..formats.blast import BlastLine
+from ..formats.sizes import Sizes
+
+from .base import Rectangle, plt, savefig, set_human_base_axis
 
 
 DotStyles = ("line", "circle", "dot")
@@ -100,10 +101,10 @@ def blastplot(
             data = sample(data, sampleN)
 
     if not data:
-        return logging.error("no blast data imported")
+        return logger.error("no blast data imported")
 
     xsize, ysize = qsizes.totalsize, ssizes.totalsize
-    logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
+    logger.debug("xsize=%d ysize=%d" % (xsize, ysize))
 
     if style == "line":
         for a, b in data:
@@ -125,7 +126,7 @@ def blastplot(
     ignore_size_x = ignore_size_y = 0
 
     # plot the chromosome breaks
-    logging.debug("xbreaks={0} ybreaks={1}".format(len(qsizes), len(ssizes)))
+    logger.debug("xbreaks={0} ybreaks={1}".format(len(qsizes), len(ssizes)))
     for seqid, beg, end in qsizes.get_breaks():
         ignore = abs(end - beg) < ignore_size_x
         if ignore:
@@ -233,46 +234,46 @@ if __name__ == "__main__":
     from jcvi.formats.bed import sizes
 
     p = OptionParser(__doc__)
-    p.add_option("--qsizes", help="Path to two column qsizes file")
-    p.add_option("--ssizes", help="Path to two column ssizes file")
-    p.add_option("--qbed", help="Path to qbed")
-    p.add_option("--sbed", help="Path to sbed")
-    p.add_option(
+    p.add_argument("--qsizes", help="Path to two column qsizes file")
+    p.add_argument("--ssizes", help="Path to two column ssizes file")
+    p.add_argument("--qbed", help="Path to qbed")
+    p.add_argument("--sbed", help="Path to sbed")
+    p.add_argument(
         "--qselect",
         default=0,
-        type="int",
+        type=int,
         help="Minimum size of query contigs to select",
     )
-    p.add_option(
+    p.add_argument(
         "--sselect",
         default=0,
-        type="int",
+        type=int,
         help="Minimum size of subject contigs to select",
     )
-    p.add_option("--qh", help="Path to highlight bed for query")
-    p.add_option("--sh", help="Path to highlight bed for subject")
-    p.add_option(
+    p.add_argument("--qh", help="Path to highlight bed for query")
+    p.add_argument("--sh", help="Path to highlight bed for subject")
+    p.add_argument(
         "--dotstyle",
         default="dot",
         choices=DotStyles,
         help="Style of the dots",
     )
-    p.add_option(
+    p.add_argument(
         "--proportional",
         default=False,
         action="store_true",
         help="Make image width:height equal to seq ratio",
     )
-    p.add_option(
+    p.add_argument(
         "--stripNames",
         default=False,
         action="store_true",
         help="Remove trailing .? from gene names",
     )
-    p.add_option(
+    p.add_argument(
         "--nmax",
         default=None,
-        type="int",
+        type=int,
         help="Only plot maximum of N dots",
     )
     opts, args, iopts = p.set_image_options(figsize="8x8", style="dark", dpi=150)

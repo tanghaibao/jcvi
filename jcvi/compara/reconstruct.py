@@ -7,18 +7,18 @@ between the anchors. This is the bottom-up method used first in Bowers (2003),
 and in Tang (2010), to reconstruct pre-alpha and pre-rho order, respectively.
 """
 import sys
-import logging
 
 from itertools import zip_longest
 from math import sqrt
 from more_itertools import pairwise
 
-from jcvi.compara.synteny import check_beds
-from jcvi.formats.base import get_number
-from jcvi.formats.bed import Bed
-from jcvi.utils.grouper import Grouper
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..formats.base import get_number
+from ..formats.bed import Bed
+from ..utils.grouper import Grouper
+
 from .base import AnchorFile
+from .synteny import check_beds
 
 
 def main():
@@ -95,7 +95,7 @@ def fuse(args):
             families.join(a, b)
 
     allowed = set(families.keys())
-    logging.debug(
+    logger.debug(
         "Total families: {}, Gene members: {}".format(len(families), len(allowed))
     )
 
@@ -214,7 +214,7 @@ def pairs(args):
         print("\n".join(sorted(lines)), file=fw)
 
     fw.close()
-    logging.debug("A total of {0} pairs written to `{1}`.".format(npairs, outfile))
+    logger.debug("A total of {0} pairs written to `{1}`.".format(npairs, outfile))
 
 
 def interleave_pairs(pairs):
@@ -244,7 +244,7 @@ def zipbed(args):
     proceeds by interleaving the genes together.
     """
     p = OptionParser(zipbed.__doc__)
-    p.add_option("--prefix", default="b", help="Prefix for the new seqid")
+    p.add_argument("--prefix", default="b", help="Prefix for the new seqid")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -272,7 +272,7 @@ def zipbed(args):
             accn = bed[b].accn
             print("\t".join(str(x) for x in (block_id, i, i + 1, accn)), file=fw)
 
-    logging.debug("Reconstructed bedfile written to `{0}`.".format(newbedfile))
+    logger.debug("Reconstructed bedfile written to `{0}`.".format(newbedfile))
 
 
 # Non-linear transformation of anchor scores

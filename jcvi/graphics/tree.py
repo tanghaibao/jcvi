@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import logging
 import sys
 
 from collections import defaultdict
@@ -9,10 +8,11 @@ from itertools import groupby
 
 from ete3 import Tree
 
-from jcvi.apps.base import OptionParser, glob
-from jcvi.formats.base import LineFile
-from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import (
+from ..apps.base import OptionParser, glob, logger
+from ..formats.base import LineFile
+from ..formats.sizes import Sizes
+
+from .base import (
     FancyBboxPatch,
     Rectangle,
     linear_shade,
@@ -22,7 +22,7 @@ from jcvi.graphics.base import (
     savefig,
     set3_n,
 )
-from jcvi.graphics.glyph import ExonGlyph, TextCircle, get_setups
+from .glyph import ExonGlyph, TextCircle, get_setups
 
 
 class LeafInfoLine:
@@ -548,44 +548,46 @@ def main(args):
     on, also show the number of amino acids.
     """
     p = OptionParser(main.__doc__)
-    p.add_option(
+    p.add_argument(
         "--outgroup",
         help="Outgroup for rerooting the tree. "
         + "Use comma to separate multiple taxa.",
     )
-    p.add_option(
+    p.add_argument(
         "--noreroot",
         default=False,
         action="store_true",
         help="Don't reroot the input tree",
     )
-    p.add_option(
-        "--rmargin", default=0.2, type="float", help="Set blank rmargin to the right"
+    p.add_argument(
+        "--rmargin", default=0.2, type=float, help="Set blank rmargin to the right"
     )
-    p.add_option("--gffdir", default=None, help="The directory that contain GFF files")
-    p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
-    p.add_option("--SH", default=None, type="string", help="SH test p-value")
+    p.add_argument(
+        "--gffdir", default=None, help="The directory that contain GFF files"
+    )
+    p.add_argument("--sizes", default=None, help="The FASTA file or the sizes file")
+    p.add_argument("--SH", default=None, type=str, help="SH test p-value")
 
-    group = p.add_option_group("Node style")
-    group.add_option("--leafcolor", default="k", help="Font color for the OTUs")
-    group.add_option("--leaffont", default=12, help="Font size for the OTUs")
-    group.add_option(
+    group = p.add_argument_group("Node style")
+    group.add_argument("--leafcolor", default="k", help="Font color for the OTUs")
+    group.add_argument("--leaffont", default=12, help="Font size for the OTUs")
+    group.add_argument(
         "--leafinfo", help="CSV file specifying the leaves: name,color,new_name"
     )
-    group.add_option(
+    group.add_argument(
         "--scutoff",
         default=0,
-        type="int",
+        type=int,
         help="cutoff for displaying node support, 0-100",
     )
-    group.add_option(
+    group.add_argument(
         "--no_support",
         dest="support",
         default=True,
         action="store_false",
         help="Do not print node support values",
     )
-    group.add_option(
+    group.add_argument(
         "--no_internal",
         dest="internal",
         default=True,
@@ -593,25 +595,25 @@ def main(args):
         help="Do not show internal nodes",
     )
 
-    group = p.add_option_group("Edge style")
-    group.add_option(
+    group = p.add_argument_group("Edge style")
+    group.add_argument(
         "--dashedoutgroup",
         default=False,
         action="store_true",
         help="Gray out the edges connecting outgroup and non-outgroup",
     )
 
-    group = p.add_option_group("Additional annotations")
-    group.add_option(
+    group = p.add_argument_group("Additional annotations")
+    group.add_argument(
         "--geoscale",
         default=False,
         action="store_true",
         help="Plot geological scale",
     )
-    group.add_option(
+    group.add_argument(
         "--wgdinfo", help="CSV specifying the position and style of WGD events"
     )
-    group.add_option(
+    group.add_argument(
         "--groups",
         help="Group names from top to bottom, to the right of the tree. "
         "Each distinct color in --leafinfo is considered part of the same group. "
@@ -639,7 +641,7 @@ def main(args):
         (Os10g0534700:0.06592,Sb01g030630:0.04824)-1.0:0.07886):0.09389);"""
         )
     else:
-        logging.debug("Load tree file `{0}`".format(datafile))
+        logger.debug("Load tree file `%s`", datafile)
         t, hpd = parse_tree(datafile)
 
     pf = datafile.rsplit(".", 1)[0]

@@ -21,8 +21,8 @@ from configparser import (
     ParsingError,
 )
 
+from argparse import ArgumentParser, SUPPRESS
 from http.client import HTTPSConnection
-from optparse import OptionGroup, OptionParser as OptionP, SUPPRESS_HELP
 from socket import gethostname
 from subprocess import CalledProcessError, PIPE, call, check_output
 from time import ctime
@@ -145,28 +145,36 @@ class ActionDispatcher(object):
         globals[action](sys.argv[2:])
 
 
-class OptionParser(OptionP):
-    def __init__(self, doc):
-        OptionP.__init__(self, doc, epilog=JCVIHELP)
+class OptionParser(ArgumentParser):
+    """
+    This class is a wrapper around argparse.ArgumentParser, with some added
+    features.
+    """
+
+    def __init__(self, doc: Optional[str]):
+        super(OptionParser, self).__init__(doc, epilog=JCVIHELP)
 
     def parse_args(self, args=None):
+        """
+        Parse the command line arguments.
+        """
         dests = set()
         ol = []
-        for g in [self] + self.option_groups:
-            ol += g.option_list
+        for g in [self] + self._action_groups:
+            ol += g._actions
         for o in ol:
             if o.dest in dests:
                 continue
             self.add_help_from_choices(o)
             dests.add(o.dest)
 
-        return OptionP.parse_args(self, args)
+        return self.parse_known_args(args)
 
     def add_help_from_choices(self, o):
-        if o.help == SUPPRESS_HELP:
+        if o.help == SUPPRESS:
             return
 
-        default_tag = "%default"
+        default_tag = "%(default)s"
         assert o.help, "Option {0} do not have help string".format(o)
         help_pf = o.help[:1].upper() + o.help[1:]
         if "[" in help_pf:
@@ -185,17 +193,14 @@ class OptionParser(OptionP):
             o.help = help_pf
             if o.default is None:
                 default_tag = "disabled"
-            if (
-                o.get_opt_string() not in ("--help", "--version")
-                and o.action != "store_false"
-            ):
+            if not set(o.option_strings) & set(("--help", "--version")):
                 o.help += " [default: {0}]".format(default_tag)
 
     def set_grid(self):
         """
         Add --grid options for command line programs
         """
-        self.add_option(
+        self.add_argument(
             "--grid",
             dest="grid",
             default=False,
@@ -203,46 +208,45 @@ class OptionParser(OptionP):
             help="Run on the grid",
         )
 
-    def set_grid_opts(self, array=False):
-        group = OptionGroup(self, "Grid parameters")
-        group.add_option(
+    def set_grid_opts(self, array: bool = False):
+        group = self.add_argument_group("Grid parameters")
+        group.add_argument(
             "-l",
             dest="queue",
             help="Name of the queue",
         )
-        group.add_option(
+        group.add_argument(
             "-t",
             dest="threaded",
             default=None,
-            type="int",
+            type=int,
             help="Append '-pe threaded N'",
         )
         if array:
-            group.add_option(
+            group.add_argument(
                 "-c",
                 dest="concurrency",
-                type="int",
+                type=int,
                 help="Append task concurrency limit '-tc N'",
             )
-        group.add_option(
+        group.add_argument(
             "-d",
             dest="outdir",
             default=".",
             help="Specify directory to store grid output/error files",
         )
-        group.add_option(
+        group.add_argument(
             "-N", dest="name", default=None, help="Specify descriptive name for the job"
         )
-        group.add_option(
+        group.add_argument(
             "-H", dest="hold_jid", default=None, help="Define the job dependency list"
         )
-        self.add_option_group(group)
 
     def set_table(self, sep=",", align=False):
-        group = OptionGroup(self, "Table formatting")
-        group.add_option("--sep", default=sep, help="Separator")
+        group = self.add_argument_group("Table formatting")
+        group.add_argument("--sep", default=sep, help="Separator")
         if align:
-            group.add_option(
+            group.add_argument(
                 "--noalign",
                 dest="align",
                 default=True,
@@ -250,10 +254,9 @@ class OptionParser(OptionP):
                 help="Cell alignment",
             )
         else:
-            group.add_option(
+            group.add_argument(
                 "--align", default=False, action="store_true", help="Cell alignment"
             )
-        self.add_option_group(group)
 
     def set_downloader(self, downloader=None):
         """
@@ -262,7 +265,7 @@ class OptionParser(OptionP):
         from jcvi.utils.ez_setup import ALL_DOWNLOADERS
 
         downloader_choices = [x[0] for x in ALL_DOWNLOADERS]
-        self.add_option(
+        self.add_argument(
             "--downloader",
             default=downloader,
             choices=downloader_choices,
@@ -274,7 +277,7 @@ class OptionParser(OptionP):
         Add --params options for given command line programs
         """
         dest_prog = "to {0}".format(prog) if prog else ""
-        self.add_option(
+        self.add_argument(
             "--params",
             dest="extra",
             default=params,
@@ -286,16 +289,16 @@ class OptionParser(OptionP):
         """
         Add --outfile options to print out to filename.
         """
-        self.add_option("-o", "--outfile", default=outfile, help="Outfile name")
+        self.add_argument("-o", "--outfile", default=outfile, help="Outfile name")
 
     def set_outdir(self, outdir="."):
-        self.add_option("--outdir", default=outdir, help="Specify output directory")
+        self.add_argument("--outdir", default=outdir, help="Specify output directory")
 
     def set_email(self):
         """
         Add --email option to specify an email address
         """
-        self.add_option(
+        self.add_argument(
             "--email",
             default=get_email_address(),
             help="Specify an email address",
@@ -305,7 +308,7 @@ class OptionParser(OptionP):
         """
         Add --temporary_directory option to specify unix `sort` tmpdir
         """
-        self.add_option(
+        self.add_argument(
             "-T", "--tmpdir", default=tmpdir, help="Use temp directory instead of $TMP"
         )
 
@@ -318,10 +321,10 @@ class OptionParser(OptionP):
         max_cpus = cpu_count()
         if not 0 < cpus < max_cpus:
             cpus = max_cpus
-        self.add_option(
+        self.add_argument(
             "--cpus",
             default=cpus,
-            type="int",
+            type=int,
             help="Number of CPUs to use, 0=unlimited",
         )
 
@@ -331,13 +334,13 @@ class OptionParser(OptionP):
         """
         from jcvi.utils.db import valid_dbconn, get_profile
 
-        self.add_option(
+        self.add_argument(
             "--db",
             default=dbname,
             dest="dbname",
             help="Specify name of database to query",
         )
-        self.add_option(
+        self.add_argument(
             "--connector",
             default="Sybase",
             dest="dbconn",
@@ -346,28 +349,27 @@ class OptionParser(OptionP):
         )
         hostname, username, password = get_profile()
         if credentials:
-            self.add_option("--hostname", default=hostname, help="Specify hostname")
-            self.add_option(
+            self.add_argument("--hostname", default=hostname, help="Specify hostname")
+            self.add_argument(
                 "--username", default=username, help="Username to connect to database"
             )
-            self.add_option(
+            self.add_argument(
                 "--password", default=password, help="Password to connect to database"
             )
-        self.add_option("--port", type="int", help="Specify port number")
+        self.add_argument("--port", type=int, help="Specify port number")
 
     def set_aws_opts(self, store="hli-mv-data-science/htang"):
         from jcvi.utils.aws import s3ify
 
         store = s3ify(store)
-        group = OptionGroup(self, "AWS and Docker options")
-        self.add_option_group(group)
+        group = self.add_argument_group("AWS and Docker options")
         # https://github.com/hlids/infrastructure/wiki/Docker-calling-convention
-        group.add_option("--sample_id", help="Sample ID")
-        group.add_option("--workflow_execution_id", help="Workflow execution ID")
-        group.add_option("--input_bam_path", help="Input BAM location (s3 ok)")
-        group.add_option("--output_path", default=store, help="Output s3 path")
-        group.add_option("--workdir", default=os.getcwd(), help="Specify work dir")
-        group.add_option(
+        group.add_argument("--sample_id", help="Sample ID")
+        group.add_argument("--workflow_execution_id", help="Workflow execution ID")
+        group.add_argument("--input_bam_path", help="Input BAM location (s3 ok)")
+        group.add_argument("--output_path", default=store, help="Output s3 path")
+        group.add_argument("--workdir", default=os.getcwd(), help="Specify work dir")
+        group.add_argument(
             "--nocleanup",
             default=False,
             action="store_true",
@@ -376,7 +378,7 @@ class OptionParser(OptionP):
 
     def set_stripnames(self, default=True):
         if default:
-            self.add_option(
+            self.add_argument(
                 "--no_strip_names",
                 dest="strip_names",
                 action="store_false",
@@ -385,7 +387,7 @@ class OptionParser(OptionP):
                 "(e.g. At5g06540.1 -> At5g06540)",
             )
         else:
-            self.add_option(
+            self.add_argument(
                 "--strip_names",
                 action="store_true",
                 default=False,
@@ -393,7 +395,7 @@ class OptionParser(OptionP):
             )
 
     def set_fixchrnames(self, orgn="medicago"):
-        self.add_option(
+        self.add_argument(
             "--fixchrname",
             default=orgn,
             dest="fix_chr_name",
@@ -402,7 +404,7 @@ class OptionParser(OptionP):
 
     def set_SO_opts(self):
         verifySO_choices = ("verify", "resolve:prefix", "resolve:suffix")
-        self.add_option(
+        self.add_argument(
             "--verifySO",
             choices=verifySO_choices,
             help="Verify validity of GFF3 feature type against the SO; "
@@ -413,44 +415,44 @@ class OptionParser(OptionP):
         )
 
     def set_beds(self):
-        self.add_option("--qbed", help="Path to qbed")
-        self.add_option("--sbed", help="Path to sbed")
+        self.add_argument("--qbed", help="Path to qbed")
+        self.add_argument("--sbed", help="Path to sbed")
 
     def set_histogram(self, vmin=0, vmax=None, bins=20, xlabel="value", title=None):
-        self.add_option(
-            "--vmin", default=vmin, type="int", help="Minimum value, inclusive"
+        self.add_argument(
+            "--vmin", default=vmin, type=int, help="Minimum value, inclusive"
         )
-        self.add_option(
-            "--vmax", default=vmax, type="int", help="Maximum value, inclusive"
+        self.add_argument(
+            "--vmax", default=vmax, type=int, help="Maximum value, inclusive"
         )
-        self.add_option(
+        self.add_argument(
             "--bins",
             default=bins,
-            type="int",
+            type=int,
             help="Number of bins to plot in the histogram",
         )
-        self.add_option("--xlabel", default=xlabel, help="Label on the X-axis")
-        self.add_option("--title", default=title, help="Title of the plot")
+        self.add_argument("--xlabel", default=xlabel, help="Label on the X-axis")
+        self.add_argument("--title", default=title, help="Title of the plot")
 
     def set_sam_options(self, extra=True, bowtie=False):
-        self.add_option(
+        self.add_argument(
             "--sam",
             dest="bam",
             default=True,
             action="store_false",
             help="Write to SAM file instead of BAM",
         )
-        self.add_option(
+        self.add_argument(
             "--uniq",
             default=False,
             action="store_true",
             help="Keep only uniquely mapped",
         )
         if bowtie:
-            self.add_option(
+            self.add_argument(
                 "--mapped", default=False, action="store_true", help="Keep mapped reads"
             )
-        self.add_option(
+        self.add_argument(
             "--unmapped", default=False, action="store_true", help="Keep unmapped reads"
         )
         if extra:
@@ -458,8 +460,8 @@ class OptionParser(OptionP):
             self.set_params()
 
     def set_mingap(self, default=100):
-        self.add_option(
-            "--mingap", default=default, type="int", help="Minimum size of gaps"
+        self.add_argument(
+            "--mingap", default=default, type=int, help="Minimum size of gaps"
         )
 
     def set_align(
@@ -474,52 +476,52 @@ class OptionParser(OptionP):
         bpsplice=None,
     ):
         if pctid is not None:
-            self.add_option(
-                "--pctid", default=pctid, type="float", help="Sequence percent identity"
+            self.add_argument(
+                "--pctid", default=pctid, type=float, help="Sequence percent identity"
             )
         if hitlen is not None:
-            self.add_option(
-                "--hitlen", default=hitlen, type="int", help="Minimum overlap length"
+            self.add_argument(
+                "--hitlen", default=hitlen, type=int, help="Minimum overlap length"
             )
         if pctcov is not None:
-            self.add_option(
+            self.add_argument(
                 "--pctcov",
                 default=pctcov,
-                type="int",
+                type=int,
                 help="Percentage coverage cutoff",
             )
         if evalue is not None:
-            self.add_option(
-                "--evalue", default=evalue, type="float", help="E-value cutoff"
+            self.add_argument(
+                "--evalue", default=evalue, type=float, help="E-value cutoff"
             )
         if compreh_pctid is not None:
-            self.add_option(
+            self.add_argument(
                 "--compreh_pctid",
                 default=compreh_pctid,
-                type="int",
+                type=int,
                 help="Sequence percent identity cutoff used to "
                 + "build PASA comprehensive transcriptome",
             )
         if compreh_pctcov is not None:
-            self.add_option(
+            self.add_argument(
                 "--compreh_pctcov",
                 default=compreh_pctcov,
-                type="int",
+                type=int,
                 help="Percent coverage cutoff used to "
                 + "build PASA comprehensive transcriptome",
             )
         if intron is not None:
-            self.add_option(
+            self.add_argument(
                 "--intron",
                 default=intron,
-                type="int",
+                type=int,
                 help="Maximum intron length used for mapping",
             )
         if bpsplice is not None:
-            self.add_option(
+            self.add_argument(
                 "--bpsplice",
                 default=bpsplice,
-                type="int",
+                type=int,
                 help="Number of bp of perfect splice boundary",
             )
 
@@ -564,46 +566,47 @@ class OptionParser(OptionP):
             "Spectral",
         )
 
-        group = OptionGroup(self, "Image options")
-        self.add_option_group(group)
-
-        group.add_option(
+        group = self.add_argument_group("Image options")
+        group.add_argument(
             "--figsize", default=figsize, help="Figure size `width`x`height` in inches"
         )
-        group.add_option(
+        group.add_argument(
             "--dpi",
             default=dpi,
-            type="int",
+            type=int,
             help="Physical dot density (dots per inch)",
         )
-        group.add_option(
+        group.add_argument(
             "--format",
             default=format,
             choices=GRAPHIC_FORMATS,
             help="Generate image of format",
         )
-        group.add_option(
+        group.add_argument(
             "--font", default=font, choices=allowed_fonts, help="Font name"
         )
-        group.add_option(
+        group.add_argument(
             "--style", default=style, choices=allowed_styles, help="Axes background"
         )
-        group.add_option(
+        group.add_argument(
             "--diverge",
             default="PiYG",
             choices=allowed_diverge,
             help="Contrasting color scheme",
         )
-        group.add_option("--cmap", default=cmap, help="Use this color map")
-        group.add_option(
+        group.add_argument("--cmap", default=cmap, help="Use this color map")
+        group.add_argument(
             "--notex", default=False, action="store_true", help="Do not use tex"
         )
         # https://github.com/tanghaibao/jcvi/issues/515#issuecomment-1327305211
-        if not group.has_option("--seed"):
-            group.add_option(
+        if (
+            "--seed" not in self._option_string_actions
+            and "--seed" not in group._option_string_actions
+        ):
+            group.add_argument(
                 "--seed",
                 default=seed,
-                type="int",
+                type=int,
                 help="Random seed when assigning colors (supported only for some plots)",
             )
 
@@ -629,39 +632,39 @@ class OptionParser(OptionP):
 
         return opts, args, iopts
 
-    def set_dotplot_opts(self, theme: int = 2) -> OptionGroup:
+    def set_dotplot_opts(self, theme: int = 2):
         """
         Used in compara.catalog and graphics.dotplot
         """
         from jcvi.graphics.base import set1
 
-        group = OptionGroup(self, "Dot plot parameters")
-        group.add_option(
+        group = self.add_argument_group("Dot plot parameters")
+        group.add_argument(
             "--skipempty",
             default=False,
             action="store_true",
             help="Skip seqids that do not have matches",
         )
-        group.add_option(
+        group.add_argument(
             "--nochpf",
             default=False,
             action="store_true",
             help="Do not change the contig name",
         )
-        group.add_option(
+        group.add_argument(
             "--nostdpf",
             default=False,
             action="store_true",
             help="Do not standardize contig names",
         )
-        group.add_option(
+        group.add_argument(
             "--genomenames",
-            type="string",
+            type=str,
             default=None,
             help="genome names for labeling axes in the form of qname_sname, "
             'eg. "*Vitis vinifera*_*Oryza sativa*"',
         )
-        group.add_option(
+        group.add_argument(
             "--theme",
             choices=[str(x) for x in range(len(set1))],
             default=str(theme),
@@ -669,36 +672,34 @@ class OptionParser(OptionP):
                 "|".join(set1)
             ),
         )
-        self.add_option_group(group)
-        return group
 
     def set_depth(self, depth=50):
-        self.add_option("--depth", default=depth, type="float", help="Desired depth")
+        self.add_argument("--depth", default=depth, type=float, help="Desired depth")
 
     def set_rclip(self, rclip=0):
-        self.add_option(
+        self.add_argument(
             "--rclip",
             default=rclip,
-            type="int",
+            type=int,
             help="Pair ID is derived from rstrip N chars",
         )
 
     def set_chr(self, chr=",".join([str(x) for x in range(1, 23)] + ["X", "Y", "MT"])):
-        self.add_option("--chr", default=chr, help="Chromosomes to process")
+        self.add_argument("--chr", default=chr, help="Chromosomes to process")
 
     def set_ref(self, ref="/mnt/ref"):
-        self.add_option("--ref", default=ref, help="Reference folder")
+        self.add_argument("--ref", default=ref, help="Reference folder")
 
     def set_cutoff(self, cutoff=0):
-        self.add_option(
+        self.add_argument(
             "--cutoff",
             default=cutoff,
-            type="int",
+            type=int,
             help="Distance to call valid links between mates",
         )
 
     def set_mateorientation(self, mateorientation=None):
-        self.add_option(
+        self.add_argument(
             "--mateorientation",
             default=mateorientation,
             choices=("++", "--", "+-", "-+"),
@@ -711,28 +712,28 @@ class OptionParser(OptionP):
         self.set_mateorientation(mateorientation=mateorientation)
 
     def set_bedpe(self):
-        self.add_option(
+        self.add_argument(
             "--norc",
             dest="rc",
             default=True,
             action="store_false",
             help="Do not reverse complement, expect innie reads",
         )
-        self.add_option(
-            "--minlen", default=2000, type="int", help="Minimum insert size"
+        self.add_argument(
+            "--minlen", default=2000, type=int, help="Minimum insert size"
         )
-        self.add_option(
-            "--maxlen", default=8000, type="int", help="Maximum insert size"
+        self.add_argument(
+            "--maxlen", default=8000, type=int, help="Maximum insert size"
         )
-        self.add_option(
+        self.add_argument(
             "--dup",
             default=10,
-            type="int",
+            type=int,
             help="Filter duplicates with coordinates within this distance",
         )
 
     def set_fastq_names(self):
-        self.add_option(
+        self.add_argument(
             "--names",
             default="*.fq,*.fastq,*.fq.gz,*.fastq.gz",
             help="File names to search, use comma to separate multiple",
@@ -749,23 +750,23 @@ class OptionParser(OptionP):
         """
         self.set_usage(self.set_pairs.__doc__)
 
-        self.add_option(
+        self.add_argument(
             "--pairsfile", default=None, help="Write valid pairs to pairsfile"
         )
-        self.add_option(
-            "--nrows", default=200000, type="int", help="Only use the first n lines"
+        self.add_argument(
+            "--nrows", default=200000, type=int, help="Only use the first n lines"
         )
         self.set_mates()
-        self.add_option(
+        self.add_argument(
             "--pdf",
             default=False,
             action="store_true",
             help="Print PDF instead ASCII histogram",
         )
-        self.add_option(
-            "--bins", default=20, type="int", help="Number of bins in the histogram"
+        self.add_argument(
+            "--bins", default=20, type=int, help="Number of bins in the histogram"
         )
-        self.add_option(
+        self.add_argument(
             "--distmode",
             default="ss",
             choices=("ss", "ee"),
@@ -776,16 +777,16 @@ class OptionParser(OptionP):
     def set_sep(self, sep="\t", help="Separator in the tabfile", multiple=False):
         if multiple:
             help += ", multiple values allowed"
-        self.add_option("--sep", default=sep, help=help)
+        self.add_argument("--sep", default=sep, help=help)
 
     def set_firstN(self, firstN=100000):
-        self.add_option(
-            "--firstN", default=firstN, type="int", help="Use only the first N reads"
+        self.add_argument(
+            "--firstN", default=firstN, type=int, help="Use only the first N reads"
         )
 
     def set_tag(self, tag=False, specify_tag=False):
         if not specify_tag:
-            self.add_option(
+            self.add_argument(
                 "--tag",
                 default=tag,
                 action="store_true",
@@ -793,7 +794,7 @@ class OptionParser(OptionP):
             )
         else:
             tag_choices = ["/1", "/2"]
-            self.add_option(
+            self.add_argument(
                 "--tag",
                 default=None,
                 choices=tag_choices,
@@ -802,7 +803,7 @@ class OptionParser(OptionP):
 
     def set_phred(self, phred=None):
         phdchoices = ("33", "64")
-        self.add_option(
+        self.add_argument(
             "--phred",
             default=phred,
             choices=phdchoices,
@@ -810,10 +811,10 @@ class OptionParser(OptionP):
         )
 
     def set_size(self, size=0):
-        self.add_option(
+        self.add_argument(
             "--size",
             default=size,
-            type="int",
+            type=int,
             help="Insert mean size, stdev assumed to be 20% around mean",
         )
 
@@ -822,50 +823,48 @@ class OptionParser(OptionP):
         self.set_home("hpcgridrunner")
         self.set_cpus()
         self.set_params(prog="Trinity")
-        topts = OptionGroup(self, "General Trinity options")
-        self.add_option_group(topts)
-        topts.add_option(
+        topts = self.add_argument_group("General Trinity options")
+        topts.add_argument(
             "--max_memory",
             default="128G",
-            type="str",
+            type=str,
             help="Jellyfish memory allocation",
         )
-        topts.add_option(
+        topts.add_argument(
             "--min_contig_length",
             default=90,
-            type="int",
+            type=int,
             help="Minimum assembled contig length to report",
         )
-        topts.add_option(
+        topts.add_argument(
             "--bflyGCThreads",
             default=None,
-            type="int",
+            type=int,
             help="Threads for garbage collection",
         )
-        topts.add_option(
+        topts.add_argument(
             "--grid_conf_file",
             default="JCVI_SGE.0689.conf",
-            type="str",
+            type=str,
             help="HpcGridRunner config file for supported compute farms",
         )
-        topts.add_option(
+        topts.add_argument(
             "--cleanup",
             default=False,
             action="store_true",
             help="Force clean-up of unwanted files after Trinity run is complete",
         )
-        ggopts = OptionGroup(self, "Genome-guided Trinity options")
-        self.add_option_group(ggopts)
-        ggopts.add_option(
+        ggopts = self.add_argument_group("Genome-guided Trinity options")
+        ggopts.add_argument(
             "--bam",
             default=None,
-            type="str",
+            type=str,
             help="provide coord-sorted bam file as starting point",
         )
-        ggopts.add_option(
+        ggopts.add_argument(
             "--max_intron",
             default=15000,
-            type="int",
+            type=int,
             help="maximum allowed intron length",
         )
 
@@ -873,43 +872,43 @@ class OptionParser(OptionP):
         self.set_home("pasa")
         if action == "assemble":
             self.set_home("tgi")
-            self.add_option(
+            self.add_argument(
                 "--clean",
                 default=False,
                 action="store_true",
                 help="Clean transcripts using tgi seqclean",
             )
             self.set_align(pctid=95, pctcov=90, intron=15000, bpsplice=3)
-            self.add_option(
+            self.add_argument(
                 "--aligners",
                 default="blat,gmap",
                 help="Specify splice aligners to use for mapping",
             )
-            self.add_option(
+            self.add_argument(
                 "--fl_accs",
                 default=None,
-                type="str",
+                type=str,
                 help="File containing list of FL-cDNA accessions",
             )
             self.set_cpus()
-            self.add_option(
+            self.add_argument(
                 "--compreh",
                 default=False,
                 action="store_true",
                 help="Run comprehensive transcriptome assembly",
             )
             self.set_align(compreh_pctid=95, compreh_pctcov=30)
-            self.add_option(
+            self.add_argument(
                 "--prefix",
                 default="compreh_init_build",
-                type="str",
+                type=str,
                 help="Prefix for compreh_trans output file names",
             )
         elif action == "compare":
-            self.add_option(
+            self.add_argument(
                 "--annots_gff3",
                 default=None,
-                type="str",
+                type=str,
                 help="Reference annotation to load and compare against",
             )
             genetic_code = [
@@ -919,74 +918,74 @@ class OptionParser(OptionP):
                 "Candida",
                 "Acetabularia",
             ]
-            self.add_option(
+            self.add_argument(
                 "--genetic_code",
                 default="universal",
                 choices=genetic_code,
                 help="Choose translation table",
             )
-            self.add_option(
+            self.add_argument(
                 "--pctovl",
                 default=50,
-                type="int",
+                type=int,
                 help="Minimum pct overlap between gene and FL assembly",
             )
-            self.add_option(
+            self.add_argument(
                 "--pct_coding",
                 default=50,
-                type="int",
+                type=int,
                 help="Minimum pct of cDNA sequence to be protein coding",
             )
-            self.add_option(
+            self.add_argument(
                 "--orf_size",
                 default=0,
-                type="int",
+                type=int,
                 help="Minimum size of ORF encoded protein",
             )
-            self.add_option(
-                "--utr_exons", default=2, type="int", help="Maximum number of UTR exons"
+            self.add_argument(
+                "--utr_exons", default=2, type=int, help="Maximum number of UTR exons"
             )
-            self.add_option(
+            self.add_argument(
                 "--pctlen_FL",
                 default=70,
-                type="int",
+                type=int,
                 help="Minimum protein length for comparisons involving "
                 + "FL assemblies",
             )
-            self.add_option(
+            self.add_argument(
                 "--pctlen_nonFL",
                 default=70,
-                type="int",
+                type=int,
                 help="Minimum protein length for comparisons involving "
                 + "non-FL assemblies",
             )
-            self.add_option(
+            self.add_argument(
                 "--pctid_prot",
                 default=70,
-                type="int",
+                type=int,
                 help="Minimum pctid allowed for protein pairwise comparison",
             )
-            self.add_option(
+            self.add_argument(
                 "--pct_aln",
                 default=70,
-                type="int",
+                type=int,
                 help="Minimum pct of shorter protein length aligning to "
                 + "update protein or isoform",
             )
-            self.add_option(
+            self.add_argument(
                 "--pctovl_gene",
                 default=80,
-                type="int",
+                type=int,
                 help="Minimum pct overlap among genome span of the ORF of "
                 + "each overlapping gene to allow merging",
             )
-            self.add_option(
+            self.add_argument(
                 "--stompovl",
                 default="",
                 action="store_true",
                 help="Ignore alignment results, only consider genome span of ORF",
             )
-            self.add_option(
+            self.add_argument(
                 "--trust_FL",
                 default="",
                 action="store_true",
@@ -994,11 +993,11 @@ class OptionParser(OptionP):
             )
 
     def set_annot_reformat_opts(self):
-        self.add_option(
-            "--pad0", default=6, type="int", help="Pad gene identifiers with 0"
+        self.add_argument(
+            "--pad0", default=6, type=int, help="Pad gene identifiers with 0"
         )
-        self.add_option("--prefix", default="Medtr", help="Genome prefix")
-        self.add_option(
+        self.add_argument("--prefix", default="Medtr", help="Genome prefix")
+        self.add_argument(
             "--uc",
             default=False,
             action="store_true",
@@ -1015,16 +1014,16 @@ class OptionParser(OptionP):
         else:
             default = op.expanduser(default)
         help = f"Home directory for {prog.upper()}"
-        self.add_option(tag, default=default, help=help)
+        self.add_argument(tag, default=default, help=help)
 
     def set_aligner(self, aligner="bowtie"):
         valid_aligners = ("bowtie", "bwa")
-        self.add_option(
+        self.add_argument(
             "--aligner", default=aligner, choices=valid_aligners, help="Use aligner"
         )
 
     def set_verbose(self, help="Print detailed reports"):
-        self.add_option("--verbose", default=False, action="store_true", help=help)
+        self.add_argument("--verbose", default=False, action="store_true", help=help)
 
 
 def ConfigSectionMap(Config, section):
@@ -1570,7 +1569,7 @@ def expand(args):
     link instead.
     """
     p = OptionParser(expand.__doc__)
-    p.add_option(
+    p.add_argument(
         "--symlink", default=False, action="store_true", help="Create symbolic link"
     )
     opts, args = p.parse_args(args)
@@ -1937,37 +1936,36 @@ def notify(args):
     fromaddr = get_email_address(whoami="notifier")
 
     p = OptionParser(notify.__doc__)
-    p.add_option(
+    p.add_argument(
         "--method",
         default="email",
         choices=valid_notif_methods,
         help="Specify the mode of notification",
     )
-    p.add_option(
+    p.add_argument(
         "--subject",
         default="JCVI: job monitor",
         help="Specify the subject of the notification message",
     )
     p.set_email()
 
-    g1 = OptionGroup(p, "Optional `push` parameters")
-    g1.add_option(
+    g1 = p.add_argument_group("Optional `push` parameters")
+    g1.add_argument(
         "--api",
         default="pushover",
         choices=flatten(available_push_api.values()),
         help="Specify API used to send the push notification",
     )
-    g1.add_option(
-        "--priority", default=0, type="int", help="Message priority (-1 <= p <= 2)"
+    g1.add_argument(
+        "--priority", default=0, type=int, help="Message priority (-1 <= p <= 2)"
     )
-    g1.add_option(
+    g1.add_argument(
         "--timestamp",
         default=None,
-        type="int",
+        type=int,
         dest="timestamp",
         help="Message timestamp in unix format",
     )
-    p.add_option_group(g1)
 
     opts, args = p.parse_args(args)
 
@@ -2096,19 +2094,19 @@ def waitpid(args):
     valid_notif_methods.extend(flatten(available_push_api.values()))
 
     p = OptionParser(waitpid.__doc__)
-    p.add_option(
+    p.add_argument(
         "--notify",
         default="email",
         choices=valid_notif_methods,
         help="Specify type of notification to be sent after waiting",
     )
-    p.add_option(
+    p.add_argument(
         "--interval",
         default=120,
-        type="int",
+        type=int,
         help="Specify PID polling interval in seconds",
     )
-    p.add_option("--message", help="Specify notification message")
+    p.add_argument("--message", help="Specify notification message")
     p.set_email()
     p.set_grid()
     opts, args = p.parse_args(args)

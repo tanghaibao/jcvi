@@ -7,17 +7,17 @@ Use R ggplot2 library to plot histogram, also contains an ASCII histogram (use
 """
 import os.path as op
 import sys
-import logging
-
-import numpy as np
 
 from math import log, ceil
 from collections import defaultdict
 
-from jcvi.formats.base import DictFile
-from jcvi.graphics.base import asciiplot, quickplot
-from jcvi.apps.r import RTemplate
-from jcvi.apps.base import OptionParser
+import numpy as np
+
+from ..apps.base import OptionParser, logger
+from ..apps.r import RTemplate
+from ..formats.base import DictFile
+
+from .base import asciiplot, quickplot
 
 
 histogram_header = """
@@ -161,7 +161,7 @@ def stem_leaf_plot(data, vmin, vmax, bins, digit=1, title=None):
 def texthistogram(numberfiles, vmin, vmax, title=None, bins=20, skip=0, col=0, base=0):
 
     for nf in numberfiles:
-        logging.debug("Import `{0}`.".format(nf))
+        logger.debug("Import `%s`.", nf)
         data, vmin, vmax = get_data(nf, vmin, vmax, skip=skip, col=col)
         if base:
             loghistogram(data, base=base, title=title)
@@ -276,47 +276,47 @@ def main():
     """
     allowed_format = ("emf", "eps", "pdf", "png", "ps", "raw", "rgba", "svg", "svgz")
     p = OptionParser(main.__doc__)
-    p.add_option("--skip", default=0, type="int", help="skip the first several lines")
-    p.add_option("--col", default=0, type="int", help="Get the n-th column")
+    p.add_argument("--skip", default=0, type=int, help="skip the first several lines")
+    p.add_argument("--col", default=0, type=int, help="Get the n-th column")
     p.set_histogram()
-    p.add_option(
+    p.add_argument(
         "--tags",
         dest="tags",
         default=None,
         help="tags for data if multiple input files, comma sep",
     )
-    p.add_option(
+    p.add_argument(
         "--ascii",
         default=False,
         action="store_true",
         help="print ASCII text stem-leaf plot",
     )
-    p.add_option(
+    p.add_argument(
         "--base",
         default="0",
         choices=("0", "2", "10"),
         help="use logarithm axis with base, 0 to disable",
     )
-    p.add_option(
+    p.add_argument(
         "--facet",
         default=False,
         action="store_true",
         help="place multiple histograms side-by-side",
     )
-    p.add_option("--fill", default="white", help="color of the bin")
-    p.add_option(
+    p.add_argument("--fill", default="white", help="color of the bin")
+    p.add_argument(
         "--format",
         default="pdf",
         choices=allowed_format,
         help="Generate image of format",
     )
-    p.add_option(
+    p.add_argument(
         "--quick",
         default=False,
         action="store_true",
         help="Use quick plot, assuming bins are already counted",
     )
-    p.add_option(
+    p.add_argument(
         "--noprintstats",
         default=False,
         action="store_true",

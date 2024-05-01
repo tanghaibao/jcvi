@@ -25,7 +25,6 @@ The external software needs be installed first.
 import sys
 import os
 import os.path as op
-import logging
 import re
 import warnings
 
@@ -45,18 +44,19 @@ from Bio.Emboss.Applications import (
 )
 from Bio.Phylo.Applications import PhymlCommandline, RaxmlCommandline
 
-from jcvi.apps.ks import (
+from ..compara.ks import (
     AbstractCommandline,
     find_first_isoform,
     run_mrtrans,
     clustal_align_protein,
     muscle_align_protein,
 )
-from jcvi.formats.base import must_open, DictFile, LineFile
-from jcvi.formats.fasta import Fasta
-from jcvi.utils.orderedcollections import OrderedDict
-from jcvi.graphics.base import plt, savefig
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, sh, getpath
+from ..formats.base import must_open, DictFile, LineFile
+from ..formats.fasta import Fasta
+from ..utils.orderedcollections import OrderedDict
+from ..graphics.base import plt, savefig
+
+from .base import ActionDispatcher, OptionParser, getpath, logger, mkdir, sh
 
 
 GBLOCKS_BIN = partial(getpath, name="GBLOCKS", warn="warn")
@@ -197,7 +197,7 @@ def run_treefix(
         print("***TreeFix could not run", file=sys.stderr)
         return None
     else:
-        logging.debug("new tree written to {0}".format(outtreefile))
+        logger.debug("new tree written to {0}".format(outtreefile))
         return outtreefile
 
 
@@ -280,7 +280,7 @@ def smart_reroot(treefile, outgroupfile, outfile, format=0):
         tree.set_outgroup(outgroup)
     tree.write(outfile=outfile, format=format)
 
-    logging.debug("Rerooted tree printed to {0}".format(outfile))
+    logger.debug("Rerooted tree printed to {0}".format(outfile))
     return outfile
 
 
@@ -312,14 +312,14 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
         seed=12345,
     )
     stdout, stderr = seqboot_cl()
-    logging.debug("Resampling alignment: %s" % seqboot_cl)
+    logger.debug("Resampling alignment: %s" % seqboot_cl)
 
     dnadist_out = phy_file.rsplit(".", 1)[0] + ".fdnadist"
     dnadist_cl = FDNADistCommandline(
         FPHYLIP_BIN("fdnadist"), sequence=seqboot_out, outfile=dnadist_out, method="f"
     )
     stdout, stderr = dnadist_cl()
-    logging.debug("Calculating distance for bootstrapped alignments: %s" % dnadist_cl)
+    logger.debug("Calculating distance for bootstrapped alignments: %s" % dnadist_cl)
 
     neighbor_out = phy_file.rsplit(".", 1)[0] + ".njtree"
     e = phy_file.rsplit(".", 1)[0] + ".fneighbor"
@@ -330,7 +330,7 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
         outtreefile=neighbor_out,
     )
     stdout, stderr = neighbor_cl()
-    logging.debug("Building Neighbor Joining tree: %s" % neighbor_cl)
+    logger.debug("Building Neighbor Joining tree: %s" % neighbor_cl)
 
     consense_out = phy_file.rsplit(".", 1)[0] + ".consensustree.nodesupport"
     e = phy_file.rsplit(".", 1)[0] + ".fconsense"
@@ -341,7 +341,7 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
         outtreefile=consense_out,
     )
     stdout, stderr = consense_cl()
-    logging.debug("Building consensus tree: %s" % consense_cl)
+    logger.debug("Building consensus tree: %s" % consense_cl)
 
     # distance without bootstrapping
     dnadist_out0 = phy_file.rsplit(".", 1)[0] + ".fdnadist0"
@@ -349,7 +349,7 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
         FPHYLIP_BIN("fdnadist"), sequence=phy_file, outfile=dnadist_out0, method="f"
     )
     stdout, stderr = dnadist_cl0()
-    logging.debug("Calculating distance for original alignment: %s" % dnadist_cl0)
+    logger.debug("Calculating distance for original alignment: %s" % dnadist_cl0)
 
     # infer branch length on consensus tree
     consensustree1 = phy_file.rsplit(".", 1)[0] + ".consensustree.branchlength"
@@ -385,10 +385,10 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
     except OSError:
         s = 0
     if s:
-        logging.debug("NJ tree printed to %s" % outfile)
+        logger.debug("NJ tree printed to %s" % outfile)
         return outfile, phy_file
     else:
-        logging.debug("Something was wrong. NJ tree was not built.")
+        logger.debug("Something was wrong. NJ tree was not built.")
         return None
 
 
@@ -400,7 +400,7 @@ def build_ml_phyml(alignment, outfile, work_dir=".", **kwargs):
     AlignIO.write(alignment, open(phy_file, "w"), "phylip-relaxed")
 
     phyml_cl = PhymlCommandline(cmd=PHYML_BIN("phyml"), input=phy_file, **kwargs)
-    logging.debug("Building ML tree using PhyML: %s" % phyml_cl)
+    logger.debug("Building ML tree using PhyML: %s" % phyml_cl)
     stdout, stderr = phyml_cl()
 
     tree_file = phy_file + "_phyml_tree.txt"
@@ -409,7 +409,7 @@ def build_ml_phyml(alignment, outfile, work_dir=".", **kwargs):
         return None
     sh("cp {0} {1}".format(tree_file, outfile), log=False)
 
-    logging.debug("ML tree printed to %s" % outfile)
+    logger.debug("ML tree printed to %s" % outfile)
 
     return outfile, phy_file
 
@@ -438,7 +438,7 @@ def build_ml_raxml(alignment, outfile, work_dir=".", **kwargs):
         **kwargs
     )
 
-    logging.debug("Building ML tree using RAxML: %s" % raxml_cl)
+    logger.debug("Building ML tree using RAxML: %s" % raxml_cl)
     stdout, stderr = raxml_cl()
 
     tree_file = "{0}/RAxML_bipartitions.aln".format(raxml_work)
@@ -448,7 +448,7 @@ def build_ml_raxml(alignment, outfile, work_dir=".", **kwargs):
         return None
     sh("cp {0} {1}".format(tree_file, outfile), log=False)
 
-    logging.debug("ML tree printed to %s" % outfile)
+    logger.debug("ML tree printed to %s" % outfile)
     sh("rm -rf %s" % raxml_work)
 
     return outfile, phy_file
@@ -476,7 +476,7 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
         working_dir=raxml_work,
     )
 
-    logging.debug("Running SH test in RAxML: %s" % raxml_cl)
+    logger.debug("Running SH test in RAxML: %s" % raxml_cl)
     o, stderr = raxml_cl()
     # hard coded
     try:
@@ -486,7 +486,7 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
     else:
         pval = pval.strip().replace("\t", " ").replace("%", "\%")
         print("{0}\t{1}".format(op.basename(querytree), pval), file=shout)
-        logging.debug("SH p-value appended to %s" % shout.name)
+        logger.debug("SH p-value appended to %s" % shout.name)
 
     shout.close()
     return shout.name
@@ -661,11 +661,11 @@ def add_tandems(mcscanfile, tandemfile):
     fw.close()
     newmcscanfile = merge_rows_local(fw.name)
 
-    logging.debug(
+    logger.debug(
         "Tandems added to `{0}`. Results in `{1}`".format(mcscanfile, newmcscanfile)
     )
     fp.seek(0)
-    logging.debug(
+    logger.debug(
         "{0} rows merged to {1} rows".format(
             len(fp.readlines()), len(open(newmcscanfile).readlines())
         )
@@ -701,8 +701,8 @@ def prepare(args):
     from jcvi.graphics.base import discrete_rainbow
 
     p = OptionParser(prepare.__doc__)
-    p.add_option("--addtandem", help="path to tandemfile")
-    p.add_option(
+    p.add_argument("--addtandem", help="path to tandemfile")
+    p.add_argument(
         "--writecolors",
         default=False,
         action="store_true",
@@ -781,9 +781,9 @@ def prepare(args):
 
     if opts.writecolors:
         fc.close()
-        logging.debug("leaf colors written to `{0}`".format(fc.name))
+        logger.debug("leaf colors written to `{0}`".format(fc.name))
 
-    logging.debug("cds of {0} syntelog groups written to {1}/".format(n, seqdir))
+    logger.debug("cds of {0} syntelog groups written to {1}/".format(n, seqdir))
 
     return seqdir
 
@@ -819,53 +819,53 @@ def build(args):
     from jcvi.formats.fasta import translate
 
     p = OptionParser(build.__doc__)
-    p.add_option(
+    p.add_argument(
         "--longest",
         action="store_true",
         help="Get longest ORF, only works if no pep file, e.g. ESTs",
     )
-    p.add_option(
+    p.add_argument(
         "--nogblocks",
         action="store_true",
         help="don't use Gblocks to edit alignment",
     )
-    p.add_option(
+    p.add_argument(
         "--synonymous",
         action="store_true",
         help="extract synonymous sites of the alignment",
     )
-    p.add_option(
+    p.add_argument(
         "--fourfold",
         action="store_true",
         help="extract fourfold degenerate sites of the alignment",
     )
-    p.add_option(
+    p.add_argument(
         "--msa",
         default="muscle",
         choices=("clustalw", "muscle"),
         help="software used to align the proteins",
     )
-    p.add_option(
+    p.add_argument(
         "--noneighbor",
         action="store_true",
         help="don't build NJ tree",
     )
-    p.add_option(
+    p.add_argument(
         "--ml",
         default=None,
         choices=("raxml", "phyml"),
         help="software used to build ML tree",
     )
-    p.add_option("--outgroup", help="path to file containing outgroup orders")
-    p.add_option("--SH", help="path to reference Newick tree")
-    p.add_option("--shout", default="SH_out.txt", help="SH output file name")
-    p.add_option(
+    p.add_argument("--outgroup", help="path to file containing outgroup orders")
+    p.add_argument("--SH", help="path to reference Newick tree")
+    p.add_argument("--shout", default="SH_out.txt", help="SH output file name")
+    p.add_argument(
         "--treefix",
         action="store_true",
         help="use TreeFix to rearrange ML tree",
     )
-    p.add_option("--stree", help="path to species Newick tree")
-    p.add_option(
+    p.add_argument("--stree", help="path to species Newick tree")
+    p.add_argument(
         "--smap",
         help="path to smap file: gene_name_pattern<tab>species_name",
     )
@@ -915,7 +915,7 @@ def build(args):
     mrtrans_fasta = run_mrtrans(align_fasta, n_recs, work_dir, outfmt="fasta")
 
     if not mrtrans_fasta:
-        logging.debug("pal2nal aborted. Cannot reliably build tree for %s", dna_file)
+        logger.debug("pal2nal aborted. Cannot reliably build tree for %s", dna_file)
         return
 
     codon_aln_fasta = mrtrans_fasta
@@ -1085,18 +1085,18 @@ def draw(args):
     """
     trunc_name_options = ["headn", "oheadn", "tailn", "otailn"]
     p = OptionParser(draw.__doc__)
-    p.add_option(
+    p.add_argument(
         "--input",
         help="path to single input tree file or a dir "
         "containing ONLY the input tree files",
     )
-    p.add_option(
+    p.add_argument(
         "--combine",
-        type="string",
+        type=str,
         default="1x1",
         help="combine multiple trees into one plot in nrowxncol",
     )
-    p.add_option(
+    p.add_argument(
         "--trunc_name",
         default=None,
         help="Options are: {0}. "
@@ -1104,27 +1104,27 @@ def draw(args):
         "truncate last n chars, retain only last chars. "
         "n=1~99.".format(trunc_name_options),
     )
-    p.add_option(
+    p.add_argument(
         "--SH",
         default=None,
         help="path to a file containing SH test p-values in format:"
         "tree_file_name<tab>p-values "
         "This file can be generated with jcvi.apps.phylo build",
     )
-    p.add_option(
+    p.add_argument(
         "--scutoff",
         default=50,
-        type="int",
+        type=int,
         help="cutoff for displaying node support, 0-100",
     )
-    p.add_option(
+    p.add_argument(
         "--barcode",
         default=None,
         help="path to seq/taxon name barcode mapping file: "
         "barcode<tab>new_name "
         "This option is downstream of `--trunc_name`",
     )
-    p.add_option(
+    p.add_argument(
         "--leafcolorfile",
         default=None,
         help="path to a mapping file containing font colors "
@@ -1182,7 +1182,7 @@ def draw(args):
         else:
             tree += row
 
-    logging.debug("A total of {0} trees imported.".format(len(trees)))
+    logger.debug("A total of {0} trees imported.".format(len(trees)))
     sh("rm {0}".format(op.join(outdir, "alltrees.dnd")))
 
     _draw_trees(

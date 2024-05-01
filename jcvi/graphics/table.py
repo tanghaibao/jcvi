@@ -10,14 +10,15 @@
 import csv
 import sys
 
-from jcvi.apps.base import OptionParser
-from jcvi.graphics.base import (
+from ..apps.base import OptionParser
+
+from .base import (
     Rectangle,
+    load_image,
     markup,
     normalize_axes,
     plt,
     savefig,
-    load_image,
 )
 
 

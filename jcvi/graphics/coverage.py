@@ -10,21 +10,21 @@ data in the form of tab-delimited (x, y) lists.
 
 import os.path as op
 import sys
-import logging
 
 import numpy as np
 
-from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import (
-    plt,
-    savefig,
+from ..apps.base import OptionParser, glob, logger
+from ..formats.sizes import Sizes
+
+from .base import (
     Rectangle,
-    mb_formatter,
-    mb_float_formatter,
     adjust_spines,
     get_map,
+    mb_float_formatter,
+    mb_formatter,
+    plt,
+    savefig,
 )
-from jcvi.apps.base import OptionParser, glob
 
 
 class XYtrack(object):
@@ -38,9 +38,7 @@ class XYtrack(object):
         fp.close()
 
         self.x, self.y = zip(*self.xy)
-        logging.debug(
-            "File `{0}` imported (records={1}).".format(datafile, len(self.x))
-        )
+        logger.debug("File `{0}` imported (records={1}).".format(datafile, len(self.x)))
         self.color = color or "k"
         self.ymax = ymax
 
@@ -56,7 +54,7 @@ class XYtrack(object):
             self.xy.append([pos, 0])
         self.xy.sort()
         self.x, self.y = zip(*self.xy)
-        logging.debug("After interpolate: {0}".format(len(self.x)))
+        logger.debug("After interpolate: {0}".format(len(self.x)))
 
     def cap(self, ymax):
         self.xy = [[a, 0] if b > ymax else [a, b] for a, b in self.xy]
@@ -88,7 +86,7 @@ class XYtrack(object):
             else:
                 self.highlight(mapping, start, end, color=gg, unit=unit)
             imported += 1
-        logging.debug("Imported {0} regions from file `{1}`.".format(imported, hlfile))
+        logger.debug("Imported {0} regions from file `{1}`.".format(imported, hlfile))
 
     def highlight(self, mapping, start, end, color="r", unit=10000, zorder=10):
         ax = self.ax
@@ -215,7 +213,7 @@ def setup_gauge_ax(gauge_ax, start, end, gauge_step, float_formatter=False):
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option("--order", help="The order to plot the tracks, comma-separated")
+    p.add_argument("--order", help="The order to plot the tracks, comma-separated")
     opts, args, iopts = p.set_image_options()
 
     if len(args) != 3:

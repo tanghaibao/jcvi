@@ -29,6 +29,19 @@ from skimage.segmentation import clear_border, watershed
 from wand.image import Image
 from webcolors import rgb_to_hex, normalize_integer_triplet
 
+from ..algorithms.formula import get_kmeans, reject_outliers
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    datadir,
+    logger,
+    iglob,
+    mkdir,
+)
+from ..formats.base import must_open
+from ..formats.pdf import cat
+from ..utils.webcolors import closest_color
+
 from .base import (
     Rectangle,
     latex,
@@ -38,19 +51,7 @@ from .base import (
     savefig,
     set_helvetica_axis,
 )
-from ..algorithms.formula import get_kmeans, reject_outliers
-from ..apps.base import (
-    OptionParser,
-    OptionGroup,
-    ActionDispatcher,
-    datadir,
-    logger,
-    iglob,
-    mkdir,
-)
-from ..formats.base import must_open
-from ..formats.pdf import cat
-from ..utils.webcolors import closest_color
+
 
 np.seterr(all="ignore")
 
@@ -268,87 +269,83 @@ def add_seeds_options(p, args):
     """
     Add options to the OptionParser for seeds() and batchseeds() functions.
     """
-    g1 = OptionGroup(p, "Image manipulation")
-    g1.add_option("--rotate", default=0, type="int", help="Rotate degrees clockwise")
-    g1.add_option(
+    g1 = p.add_argument_group("Image manipulation")
+    g1.add_argument("--rotate", default=0, type=int, help="Rotate degrees clockwise")
+    g1.add_argument(
         "--rows", default=":", help="Crop rows e.g. `:800` from first 800 rows"
     )
-    g1.add_option(
+    g1.add_argument(
         "--cols", default=":", help="Crop cols e.g. `-800:` from last 800 cols"
     )
-    g1.add_option("--labelrows", help="Label rows e.g. `:800` from first 800 rows")
-    g1.add_option("--labelcols", help="Label cols e.g. `-800: from last 800 rows")
+    g1.add_argument("--labelrows", help="Label rows e.g. `:800` from first 800 rows")
+    g1.add_argument("--labelcols", help="Label cols e.g. `-800: from last 800 rows")
     valid_colors = ("red", "green", "blue", "purple", "yellow", "orange", "INVERSE")
-    g1.add_option(
+    g1.add_argument(
         "--changeBackground",
         default=0,
         choices=valid_colors,
         help="Changes background color",
     )
-    p.add_option_group(g1)
 
-    g2 = OptionGroup(p, "Object recognition")
-    g2.add_option(
+    g2 = p.add_argument_group("Object recognition")
+    g2.add_argument(
         "--minsize",
         default=0.05,
-        type="float",
+        type=float,
         help="Min percentage of object to image",
     )
-    g2.add_option(
-        "--maxsize", default=50, type="float", help="Max percentage of object to image"
+    g2.add_argument(
+        "--maxsize", default=50, type=float, help="Max percentage of object to image"
     )
-    g2.add_option(
-        "--count", default=100, type="int", help="Report max number of objects"
+    g2.add_argument(
+        "--count", default=100, type=int, help="Report max number of objects"
     )
-    g2.add_option(
+    g2.add_argument(
         "--watershed",
         default=False,
         action="store_true",
         help="Run watershed to segment touching objects",
     )
-    p.add_option_group(g2)
 
-    g3 = OptionGroup(p, "De-noise")
+    g3 = p.add_argument_group("De-noise")
     valid_filters = ("canny", "roberts", "sobel")
-    g3.add_option(
+    g3.add_argument(
         "--filter",
         default="canny",
         choices=valid_filters,
         help="Edge detection algorithm",
     )
-    g3.add_option(
+    g3.add_argument(
         "--sigma",
         default=1,
-        type="int",
+        type=int,
         help="Canny edge detection sigma, higher for noisy image",
     )
-    g3.add_option(
+    g3.add_argument(
         "--kernel",
         default=2,
-        type="int",
+        type=int,
         help="Edge closure, higher if the object edges are dull",
     )
-    g3.add_option(
-        "--border", default=5, type="int", help="Remove image border of certain pixels"
+    g3.add_argument(
+        "--border", default=5, type=int, help="Remove image border of certain pixels"
     )
-    p.add_option_group(g3)
 
-    g4 = OptionGroup(p, "Output")
-    g4.add_option("--calibrate", help="JSON file to correct distance and color")
-    g4.add_option(
+    g4 = p.add_argument_group("Output")
+    g4.add_argument("--calibrate", help="JSON file to correct distance and color")
+    g4.add_argument(
         "--edges",
         default=False,
         action="store_true",
         help="Visualize edges in middle PDF panel",
     )
-    g4.add_option(
+    g4.add_argument(
         "--outdir", default=".", help="Store intermediate images and PDF in folder"
     )
-    g4.add_option("--prefix", help="Output prefix")
-    g4.add_option(
+    g4.add_argument("--prefix", help="Output prefix")
+    g4.add_argument(
         "--noheader", default=False, action="store_true", help="Do not print header"
     )
-    p.add_option_group(g4)
     opts, args, iopts = p.set_image_options(args, figsize="12x6", style="white")
 
     return opts, args, iopts

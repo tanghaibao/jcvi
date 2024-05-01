@@ -29,9 +29,8 @@ from ..algorithms.lis import (
 from ..algorithms.matrix import determine_signs
 from ..apps.base import (
     ActionDispatcher,
-    OptionGroup,
     OptionParser,
-    SUPPRESS_HELP,
+    SUPPRESS,
     cleanup,
     flatten,
     get_today,
@@ -1014,10 +1013,10 @@ def split(args):
     modified through --chunk option.
     """
     p = OptionParser(split.__doc__)
-    p.add_option(
-        "--chunk", default=4, type="int", help="Split chunks of at least N markers"
+    p.add_argument(
+        "--chunk", default=4, type=int, help="Split chunks of at least N markers"
     )
-    p.add_option(
+    p.add_argument(
         "--splitsingle",
         default=False,
         action="store_true",
@@ -1062,10 +1061,10 @@ def movie(args):
     specific pseudomolecule, for example `chr1`.
     """
     p = OptionParser(movie.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gapsize",
         default=100,
-        type="int",
+        type=int,
         help="Insert gaps of size between scaffolds",
     )
     add_allmaps_plot_options(p)
@@ -1152,12 +1151,12 @@ def estimategaps(args):
     The AGP file `input.chr.agp` will be modified in-place.
     """
     p = OptionParser(estimategaps.__doc__)
-    p.add_option("--minsize", default=100, type="int", help="Minimum gap size")
-    p.add_option("--maxsize", default=500000, type="int", help="Maximum gap size")
-    p.add_option(
+    p.add_argument("--minsize", default=100, type=int, help="Minimum gap size")
+    p.add_argument("--maxsize", default=500000, type=int, help="Maximum gap size")
+    p.add_argument(
         "--links",
         default=10,
-        type="int",
+        type=int,
         help="Only use linkage grounds with matchings more than",
     )
     p.set_verbose(help="Print details for each gap calculation")
@@ -1234,7 +1233,7 @@ def merge(args):
     scaffold_759,81336,1,9.7
     """
     p = OptionParser(merge.__doc__)
-    p.add_option(
+    p.add_argument(
         "-w", "--weightsfile", default="weights.txt", help="Write weights to file"
     )
     p.set_outfile("out.bed")
@@ -1275,7 +1274,7 @@ def mergebed(args):
     Combine bed maps to bed format, adding the map name.
     """
     p = OptionParser(mergebed.__doc__)
-    p.add_option(
+    p.add_argument(
         "-w", "--weightsfile", default="weights.txt", help="Write weights to file"
     )
     p.set_outfile("out.bed")
@@ -1358,56 +1357,56 @@ def path(args):
     """
     oargs = args
     p = OptionParser(path.__doc__)
-    p.add_option("-b", "--bedfile", help=SUPPRESS_HELP)
-    p.add_option("-s", "--fastafile", help=SUPPRESS_HELP)
-    p.add_option(
+    p.add_argument("-b", "--bedfile", help=SUPPRESS)
+    p.add_argument("-s", "--fastafile", help=SUPPRESS)
+    p.add_argument(
         "-w", "--weightsfile", default="weights.txt", help="Use weights from file"
     )
-    p.add_option(
+    p.add_argument(
         "--compress",
         default=1e-6,
-        type="float",
+        type=float,
         help="Compress markers with distance <=",
     )
-    p.add_option(
+    p.add_argument(
         "--noremoveoutliers",
         default=False,
         action="store_true",
         help="Don't remove outlier markers",
     )
-    p.add_option(
+    p.add_argument(
         "--distance",
         default="rank",
         choices=distance_choices,
         help="Distance function when building initial consensus",
     )
-    p.add_option(
+    p.add_argument(
         "--linkage",
         default="double",
         choices=linkage_choices,
         help="Linkage function when building initial consensus",
     )
-    p.add_option(
+    p.add_argument(
         "--gapsize",
         default=100,
-        type="int",
+        type=int,
         help="Insert gaps of size between scaffolds",
     )
-    p.add_option("--seqid", help="Only run partition with this seqid")
-    p.add_option("--partitions", help="Use predefined partitions of LGs")
-    p.add_option(
-        "--links", default=10, type="int", help="Only plot matchings more than"
+    p.add_argument("--seqid", help="Only run partition with this seqid")
+    p.add_argument("--partitions", help="Use predefined partitions of LGs")
+    p.add_argument(
+        "--links", default=10, type=int, help="Only plot matchings more than"
     )
-    p.add_option(
-        "--mincount", default=1, type="int", help="Minimum markers on a contig"
+    p.add_argument(
+        "--mincount", default=1, type=int, help="Minimum markers on a contig"
     )
-    p.add_option(
+    p.add_argument(
         "--noplot",
         default=False,
         action="store_true",
         help="Do not visualize the alignments",
     )
-    p.add_option(
+    p.add_argument(
         "--renumber",
         default=False,
         action="store_true",
@@ -1415,15 +1414,14 @@ def path(args):
     )
     p.set_cpus(cpus=16)
 
-    q = OptionGroup(p, "Genetic algorithm options")
-    p.add_option_group(q)
-    q.add_option(
-        "--ngen", default=500, type="int", help="Iterations in GA, higher ~ slower"
+    q = p.add_argument_group("Genetic algorithm options")
+    q.add_argument(
+        "--ngen", default=500, type=int, help="Iterations in GA, higher ~ slower"
     )
-    q.add_option(
-        "--npop", default=100, type="int", help="Population size in GA, higher ~ slower"
+    q.add_argument(
+        "--npop", default=100, type=int, help="Population size in GA, higher ~ slower"
     )
-    q.add_option("--seed", default=666, type="int", help="Random seed number")
+    q.add_argument("--seed", default=666, type=int, help="Random seed number")
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 
     if len(args) != 2:
@@ -1711,7 +1709,7 @@ def build(args):
     new positions of the markers will be reported in *.lifted.bed.
     """
     p = OptionParser(build.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cleanup",
         default=False,
         action="store_true",
@@ -1774,19 +1772,19 @@ def build(args):
 
 
 def add_allmaps_plot_options(p):
-    p.add_option(
+    p.add_argument(
         "-w", "--weightsfile", default="weights.txt", help="Use weights from file"
     )
-    p.add_option(
+    p.add_argument(
         "--distance",
         default="cM",
         choices=distance_choices,
         help="Plot markers based on distance",
     )
-    p.add_option(
-        "--links", default=10, type="int", help="Only plot matchings more than"
+    p.add_argument(
+        "--links", default=10, type=int, help="Only plot matchings more than"
     )
-    p.add_option(
+    p.add_argument(
         "--panels", default=False, action="store_true", help="Add panel labels A/B"
     )
 
@@ -1812,7 +1810,7 @@ def plot(args):
     from ..graphics.chromosome import Chromosome, GeneticMap, HorizontalChromosome
 
     p = OptionParser(plot.__doc__)
-    p.add_option("--title", help="Title of the plot")
+    p.add_argument("--title", help="Title of the plot")
     add_allmaps_plot_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x6")
 

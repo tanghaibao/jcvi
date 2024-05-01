@@ -8,10 +8,10 @@ TIGR contig format, see spec:
 """
 
 import sys
-import logging
 
-from jcvi.formats.base import BaseFile, read_block
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser, logger
+
+from .base import BaseFile, read_block
 
 
 class ReadLine(object):
@@ -148,8 +148,8 @@ def frombed(args):
             print(readline, file=fw)
             print(fill(readseq.seq), file=fw)
 
-    logging.debug("Mapped contigs written to `{0}`.".format(contigfile))
-    logging.debug("Contig IDs written to `{0}`.".format(idsfile))
+    logger.debug("Mapped contigs written to `{0}`.".format(contigfile))
+    logger.debug("Contig IDs written to `{0}`.".format(idsfile))
 
 
 def bed(args):
@@ -173,7 +173,7 @@ def bed(args):
         for r in rec.reads:
             print(r.bedline, file=fw)
 
-    logging.debug("File written to `%s`.", bedfile)
+    logger.debug("File written to `%s`.", bedfile)
 
     return bedfile
 

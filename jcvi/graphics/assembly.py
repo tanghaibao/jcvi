@@ -5,18 +5,18 @@
 Assembly QC plots, including general statistics, base and mate coverages, and
 scaffolding consistencies.
 """
-import sys
-import logging
 import os.path as op
+import sys
 
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.bed import Bed, BedLine
-from jcvi.formats.sizes import Sizes
-from jcvi.assembly.base import calculate_A50
-from jcvi.assembly.coverage import Coverage
-from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, savefig
-from jcvi.utils.cbook import thousands
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update
+from ..assembly.base import calculate_A50
+from ..assembly.coverage import Coverage
+from ..formats.bed import Bed, BedLine
+from ..formats.fasta import Fasta
+from ..formats.sizes import Sizes
+from ..utils.cbook import thousands
+
+from .base import plt, Rectangle, set_human_base_axis, savefig
 
 
 def main():
@@ -44,10 +44,10 @@ def covlen(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(covlen.__doc__)
-    p.add_option("--maxsize", default=1000000, type="int", help="Max contig size")
-    p.add_option("--maxcov", default=100, type="int", help="Max contig size")
-    p.add_option("--color", default="m", help="Color of the data points")
-    p.add_option(
+    p.add_argument("--maxsize", default=1000000, type=int, help="Max contig size")
+    p.add_argument("--maxcov", default=100, type=int, help="Max contig size")
+    p.add_argument("--color", default="m", help="Color of the data points")
+    p.add_argument(
         "--kind",
         default="scatter",
         choices=("scatter", "reg", "resid", "kde", "hex"),
@@ -74,7 +74,7 @@ def covlen(args):
     x, y = zip(*data)
     x = np.array(x)
     y = np.array(y)
-    logging.debug("X size {0}, Y size {1}".format(x.size, y.size))
+    logger.debug("X size {0}, Y size {1}".format(x.size, y.size))
 
     df = pd.DataFrame()
     xlab, ylab = "Length", "Coverage of depth (X)"
@@ -109,8 +109,8 @@ def coverage(args):
     from jcvi.formats.bed import mates, bedpe
 
     p = OptionParser(coverage.__doc__)
-    p.add_option("--ymax", default=None, type="int", help="Limit ymax")
-    p.add_option(
+    p.add_argument("--ymax", default=None, type=int, help="Limit ymax")
+    p.add_argument(
         "--spans",
         default=False,
         action="store_true",
@@ -260,13 +260,13 @@ def scaffold(args):
     from more_itertools import grouper
 
     p = OptionParser(scaffold.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cutoff",
-        type="int",
+        type=int,
         default=1000000,
         help="Plot scaffolds with size larger than",
     )
-    p.add_option(
+    p.add_argument(
         "--highlights",
         help="A set of regions in BED format to highlight",
     )
@@ -285,7 +285,7 @@ def scaffold(args):
     for scaffoldID, scafsize in scafsizes.iter_sizes():
         if scafsize < opts.cutoff:
             continue
-        logging.debug("Loading {0} (size={1})".format(scaffoldID, thousands(scafsize)))
+        logger.debug("Loading {0} (size={1})".format(scaffoldID, thousands(scafsize)))
 
         tmpname = scaffoldID + ".sizes"
         tmp = open(tmpname, "w")
@@ -450,23 +450,23 @@ def A50(args):
     Plots A50 graphics, see blog post (http://blog.malde.org/index.php/a50/)
     """
     p = OptionParser(A50.__doc__)
-    p.add_option(
+    p.add_argument(
         "--overwrite",
         default=False,
         action="store_true",
         help="overwrite .rplot file if exists",
     )
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         default=0,
-        type="int",
+        type=int,
         dest="cutoff",
         help="use contigs above certain size",
     )
-    p.add_option(
+    p.add_argument(
         "--stepsize",
         default=10,
-        type="int",
+        type=int,
         dest="stepsize",
         help="stepsize for the distribution",
     )
@@ -497,10 +497,10 @@ def A50(args):
             cmean = int(round(cmean))
             statsrows.append((fastafile, l50, n50, cmin, cmax, cmean, csum, counts))
 
-            logging.debug("`{0}` ctgsizes: {1}".format(fastafile, ctgsizes))
+            logger.debug("`{0}` ctgsizes: {1}".format(fastafile, ctgsizes))
 
             tag = "{0} (L50={1})".format(op.basename(fastafile).rsplit(".", 1)[0], l50)
-            logging.debug(tag)
+            logger.debug(tag)
 
             for i, s in zip(range(0, len(a50), stepsize), a50[::stepsize]):
                 print("\t".join((str(i), str(s / 1000000.0), tag)), file=fw)

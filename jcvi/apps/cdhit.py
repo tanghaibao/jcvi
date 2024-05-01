@@ -6,14 +6,14 @@ Using CD-HIT to remove duplicate reads.
 """
 import os.path as op
 import sys
-import logging
 
 from collections import defaultdict
 
-from jcvi.formats.base import LineFile, read_block, must_open
-from jcvi.formats.fastq import fasta
-from jcvi.utils.cbook import percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from ..formats.base import LineFile, read_block, must_open
+from ..formats.fastq import fasta
+from ..utils.cbook import percentage
+
+from .base import ActionDispatcher, OptionParser, logger, need_update, sh
 
 
 class ClstrLine(object):
@@ -84,7 +84,7 @@ def filter(args):
     from jcvi.formats.fasta import Fasta, SeqIO
 
     p = OptionParser(filter.__doc__)
-    p.add_option("--minsize", default=2, type="int", help="Minimum cluster size")
+    p.add_argument("--minsize", default=2, type=int, help="Minimum cluster size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -115,18 +115,16 @@ def filter(args):
             rec.description = rec.description.split(None, 1)[-1]
             rec.id = pf + "_" + rec.id
             SeqIO.write(rec, fw, "fasta")
-        logging.debug(
-            "Scanned {0} clusters with {1} reads ..".format(nclusters, nreads)
-        )
+        logger.debug("Scanned {0} clusters with {1} reads ..".format(nclusters, nreads))
         cclusters, creads = nclusters - nsingletons, nreads - nsingletons
-        logging.debug(
+        logger.debug(
             "Saved {0} clusters (min={1}) with {2} reads (avg:{3}) [{4}]".format(
                 cclusters, minsize, creads, creads / cclusters, pf
             )
         )
         totalreads += nreads
         totalassembled += nreads - nsingletons
-    logging.debug("Total assembled: {0}".format(percentage(totalassembled, totalreads)))
+    logger.debug("Total assembled: {0}".format(percentage(totalassembled, totalreads)))
 
 
 def ids(args):
@@ -136,7 +134,7 @@ def ids(args):
     Get the representative ids from clstr file.
     """
     p = OptionParser(ids.__doc__)
-    p.add_option("--prefix", type="int", help="Find rep id for prefix of len")
+    p.add_argument("--prefix", type=int, help="Find rep id for prefix of len")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -156,7 +154,7 @@ def ids(args):
     for i, name in reads:
         print("\t".join(str(x) for x in (i, name)), file=fw)
 
-    logging.debug(
+    logger.debug(
         "A total of {0} unique reads written to `{1}`.".format(nreads, idsfile)
     )
     fw.close()
@@ -192,25 +190,25 @@ def deduplicate(args):
     """
     p = OptionParser(deduplicate.__doc__)
     p.set_align(pctid=96, pctcov=0)
-    p.add_option(
+    p.add_argument(
         "--fast",
         default=False,
         action="store_true",
         help="Place sequence in the first cluster",
     )
-    p.add_option(
+    p.add_argument(
         "--consensus",
         default=False,
         action="store_true",
         help="Compute consensus sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--reads",
         default=False,
         action="store_true",
         help="Use `cd-hit-454` to deduplicate",
     )
-    p.add_option(
+    p.add_argument(
         "--samestrand",
         default=False,
         action="store_true",

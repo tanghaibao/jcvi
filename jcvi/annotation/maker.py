@@ -11,15 +11,14 @@ models, either through accuracy (batcheval) or simply the length (longest).
 import os
 import os.path as op
 import sys
-import logging
 
 from collections import Counter, defaultdict
 
-from jcvi.formats.base import BaseFile, LineFile, write_file
-from jcvi.apps.grid import GridProcess, get_grid_engine, PBS_STANZA
-from jcvi.apps.base import (
-    OptionParser,
+from ..apps.grid import GridProcess, get_grid_engine, PBS_STANZA
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
+    logger,
     need_update,
     popen,
     sh,
@@ -27,6 +26,7 @@ from jcvi.apps.base import (
     glob,
     get_abs_path,
 )
+from ..formats.base import BaseFile, LineFile, write_file
 
 
 class CTLine(object):
@@ -70,13 +70,13 @@ class CTLFile(LineFile):
             path = r.value
             if path and op.exists(path):
                 npath = get_abs_path(path)
-                logging.debug("{0}={1} => {2}".format(r.tag, path, npath))
+                logger.debug("{0}={1} => {2}".format(r.tag, path, npath))
                 r.value = npath
 
     def update_tag(self, key, value):
         for r in self:
             if r.tag == key:
-                logging.debug("{0}={1} => {2}".format(r.tag, r.value, value))
+                logger.debug("{0}={1} => {2}".format(r.tag, r.value, value))
                 r.value = value
                 break
 
@@ -85,7 +85,7 @@ class CTLFile(LineFile):
         for r in self:
             print(r, file=fw)
         fw.close()
-        logging.debug("File written to `%s`.", filename)
+        logger.debug("File written to `%s`.", filename)
 
 
 class DatastoreIndexFile(BaseFile):
@@ -277,7 +277,7 @@ def merge(args):
     nlines = sum(1 for _ in open(gfflist))
     assert nlines == nfs  # Be extra, extra careful to include all results
     gmerge([gfflist, "-o", outputgff])
-    logging.debug("Merged GFF file written to `{0}`".format(outputgff))
+    logger.debug("Merged GFF file written to `{0}`".format(outputgff))
 
 
 def validate(args):
@@ -351,7 +351,7 @@ def batcheval(args):
     from jcvi.formats.gff import make_index
 
     p = OptionParser(evaluate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--type",
         default="CDS",
         help="list of features to extract, use comma to separate (e.g."
@@ -450,17 +450,17 @@ def split(args):
     from jcvi.formats.bed import Bed
 
     p = OptionParser(split.__doc__)
-    p.add_option(
+    p.add_argument(
         "--key",
         default="Name",
         help="Key in the attributes to extract predictor.gff",
     )
-    p.add_option(
+    p.add_argument(
         "--parents",
         default="match",
         help="list of features to extract, use comma to separate (e.g.'gene,mRNA')",
     )
-    p.add_option(
+    p.add_argument(
         "--children",
         default="match_part",
         help="list of features to extract, use comma to separate (e.g."

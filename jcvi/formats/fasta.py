@@ -2,25 +2,23 @@
 Wrapper for biopython Fasta, add option to parse sequence headers
 """
 
-import re
-import sys
-import os.path as op
-import shutil
-import logging
-import string
 import hashlib
-
-from random import choice
+import os.path as op
+import re
+import shutil
+import string
+import sys
 
 from itertools import groupby, zip_longest
-from more_itertools import grouper, pairwise
+from random import choice
 
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils.CheckSum import seguid
+from more_itertools import grouper, pairwise
 
-from ..apps.base import OptionParser, ActionDispatcher, cleanup, need_update
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, need_update
 from ..utils.cbook import percentage
 from ..utils.console import printf
 from ..utils.table import write_csv
@@ -118,14 +116,14 @@ class Fasta(BaseFile, dict):
             msg = "start ({0}) must > 0 of `{1}`. Reset to 1".format(
                 start + 1, fasta.id
             )
-            logging.error(msg)
+            logger.error(msg)
             start = 0
 
         if stop > len(fasta):
             msg = "stop ({0}) must be <= length of `{1}` ({2}). Reset to {2}.".format(
                 stop, fasta.id, len(fasta)
             )
-            logging.error(msg)
+            logger.error(msg)
             stop = len(fasta)
 
         seq = fasta.seq[start:stop]
@@ -443,7 +441,7 @@ def gc(args):
     Plot G+C content distribution.
     """
     p = OptionParser(gc.__doc__)
-    p.add_option("--binsize", default=500, type="int", help="Bin size to use")
+    p.add_argument("--binsize", default=500, type=int, help="Bin size to use")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -485,8 +483,8 @@ def trimsplit(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(trimsplit.__doc__)
-    p.add_option(
-        "--minlength", default=1000, type="int", help="Min length of contigs to keep"
+    p.add_argument(
+        "--minlength", default=1000, type=int, help="Min length of contigs to keep"
     )
     opts, args = p.parse_args(args)
 
@@ -522,12 +520,12 @@ def trimsplit(args):
 
     # Reporting
     if removed:
-        logging.debug(
+        logger.debug(
             "Total bases removed: {0}".format(percentage(sum(removed), ntotal))
         )
         print(SummaryStats(removed), file=sys.stderr)
     if Ns:
-        logging.debug("Total Ns removed: {0}".format(percentage(sum(Ns), ntotal)))
+        logger.debug("Total Ns removed: {0}".format(percentage(sum(Ns), ntotal)))
         print(SummaryStats(Ns), file=sys.stderr)
 
 
@@ -540,8 +538,8 @@ def qual(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(qual.__doc__)
-    p.add_option(
-        "--qv", default=31, type="int", help="Dummy qv score for extended bases"
+    p.add_argument(
+        "--qv", default=31, type=int, help="Dummy qv score for extended bases"
     )
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -559,7 +557,7 @@ def qual(args):
         print(" ".join([qvchar] * slen), file=fw)
         total += 1
     fw.close()
-    logging.debug("Written {0} records in `{1}`.".format(total, opts.outfile))
+    logger.debug("Written {0} records in `{1}`.".format(total, opts.outfile))
 
 
 def info(args):
@@ -569,7 +567,7 @@ def info(args):
     Run `sequence_info` on FASTA files. Generate a report per file.
     """
     p = OptionParser(info.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gaps", default=False, action="store_true", help="Count number of gaps"
     )
     p.set_table()
@@ -596,10 +594,10 @@ def fromtab(args):
     """
     p = OptionParser(fromtab.__doc__)
     p.set_sep(sep=None)
-    p.add_option(
+    p.add_argument(
         "--noheader", default=False, action="store_true", help="Ignore first line"
     )
-    p.add_option("--replace", help="Replace spaces in name to char")
+    p.add_argument("--replace", help="Replace spaces in name to char")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -625,7 +623,7 @@ def fromtab(args):
         nseq += 1
     fw.close()
 
-    logging.debug("A total of {0} sequences written to `{1}`.".format(nseq, fastafile))
+    logger.debug("A total of {0} sequences written to `{1}`.".format(nseq, fastafile))
 
 
 def longestorf(args):
@@ -635,7 +633,7 @@ def longestorf(args):
     Find longest ORF for each sequence in fastafile.
     """
     p = OptionParser(longestorf.__doc__)
-    p.add_option("--ids", action="store_true", help="Generate table with ORF info")
+    p.add_argument("--ids", action="store_true", help="Generate table with ORF info")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -669,7 +667,7 @@ def longestorf(args):
     if idsfile:
         fwids.close()
 
-    logging.debug(
+    logger.debug(
         "Longest ORFs written to `{0}` ({1}).".format(
             orffile, percentage(after, before)
         )
@@ -686,11 +684,11 @@ def ispcr(args):
     format: name, forward, reverse
     """
     p = OptionParser(ispcr.__doc__)
-    p.add_option(
+    p.add_argument(
         "-r",
         dest="rclip",
         default=1,
-        type="int",
+        type=int,
         help="pair ID is derived from rstrip N chars",
     )
     opts, args = p.parse_args(args)
@@ -716,7 +714,7 @@ def ispcr(args):
         npairs += 1
 
     fw.close()
-    logging.debug("A total of {0} pairs written to `{1}`.".format(npairs, ispcrfile))
+    logger.debug("A total of {0} pairs written to `{1}`.".format(npairs, ispcrfile))
 
 
 def parse_fasta(infile, upper=False):
@@ -758,7 +756,7 @@ def iter_canonical_fasta(fastafile):
         totalbad += badcounts
         yield header, seq
 
-    logging.debug("Total bad char: {0}".format(totalbad))
+    logger.debug("Total bad char: {0}".format(totalbad))
 
 
 def fancyprint(fw, seq, width=60, chunk=10):
@@ -782,10 +780,10 @@ def clean(args):
     Remove irregular chars in FASTA seqs.
     """
     p = OptionParser(clean.__doc__)
-    p.add_option(
+    p.add_argument(
         "--fancy", default=False, action="store_true", help="Pretty print the sequence"
     )
-    p.add_option(
+    p.add_argument(
         "--canonical", default=False, action="store_true", help="Use only acgtnACGTN"
     )
     p.set_outfile()
@@ -824,31 +822,31 @@ def translate(args):
 
     transl_tables = [str(x) for x in range(1, 25)]
     p = OptionParser(translate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ids",
         default=False,
         action="store_true",
         help="Create .ids file with the complete/partial/gaps label",
     )
-    p.add_option(
+    p.add_argument(
         "--longest",
         default=False,
         action="store_true",
         help="Find the longest ORF from each input CDS",
     )
-    p.add_option(
+    p.add_argument(
         "--table",
         default=1,
         choices=transl_tables,
         help="Specify translation table to use",
     )
-    p.add_option(
+    p.add_argument(
         "--strip_names",
         default=False,
         action="store_true",
         help="Strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
-    p.add_option(
+    p.add_argument(
         "--unique",
         default=False,
         action="store_true",
@@ -906,7 +904,7 @@ def translate(args):
 
         labels = []
         if "*" in pep.rstrip("*"):
-            logging.error("{0} cannot translate".format(name))
+            logger.error("{0} cannot translate".format(name))
             cannot_translate += 1
             labels.append("cannot_translate")
 
@@ -962,7 +960,7 @@ def translate(args):
 
     fw.close()
 
-    logging.debug(
+    logger.debug(
         "Total records: {}, Unique records (strip_names={}): {}".format(
             grand_total, strip_names, len(seen)
         )
@@ -978,7 +976,7 @@ def filter(args):
     Filter the FASTA file to contain records with size >= or <= certain cutoff.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option(
+    p.add_argument(
         "--less",
         default=False,
         action="store_true",
@@ -1025,8 +1023,8 @@ def pool(args):
     from jcvi.formats.base import longest_unique_prefix
 
     p = OptionParser(pool.__doc__)
-    p.add_option("--sep", default=".", help="Separator between prefix and name")
-    p.add_option(
+    p.add_argument("--sep", default=".", help="Separator between prefix and name")
+    p.add_argument(
         "--sequential", default=False, action="store_true", help="Add sequential IDs"
     )
     opts, args = p.parse_args(args)
@@ -1051,10 +1049,10 @@ def ids(args):
     Generate the FASTA headers without the '>'.
     """
     p = OptionParser(ids.__doc__)
-    p.add_option(
+    p.add_argument(
         "--until", default=None, help="Truncate the name and description at words"
     )
-    p.add_option(
+    p.add_argument(
         "--description",
         default=False,
         action="store_true",
@@ -1092,7 +1090,7 @@ def sort(args):
     Sort a list of sequences and output with sorted IDs, etc.
     """
     p = OptionParser(sort.__doc__)
-    p.add_option(
+    p.add_argument(
         "--sizes", default=False, action="store_true", help="Sort by decreasing size"
     )
 
@@ -1109,7 +1107,7 @@ def sort(args):
     if opts.sizes:
         # Sort by decreasing size
         sortlist = sorted(f.itersizes(), key=lambda x: (-x[1], x[0]))
-        logging.debug(
+        logger.debug(
             "Sort by size: max: {0}, min: {1}".format(sortlist[0], sortlist[-1])
         )
         sortlist = [x for x, s in sortlist]
@@ -1120,7 +1118,7 @@ def sort(args):
         rec = f[key]
         SeqIO.write([rec], fw, "fasta")
 
-    logging.debug("Sorted file written to `{0}`.".format(sortedfastafile))
+    logger.debug("Sorted file written to `{0}`.".format(sortedfastafile))
     fw.close()
 
     return sortedfastafile
@@ -1140,18 +1138,20 @@ def join(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(join.__doc__)
-    p.add_option("--newid", default=None, help="New sequence ID")
-    p.add_option(
+    p.add_argument("--newid", default=None, help="New sequence ID")
+    p.add_argument(
         "--gapsize",
         default=100,
-        type="int",
+        type=int,
         help="Number of N's in between the sequences",
     )
-    p.add_option("--gaptype", default="contig", help="Gap type to use in the AGP file")
-    p.add_option(
+    p.add_argument(
+        "--gaptype", default="contig", help="Gap type to use in the AGP file"
+    )
+    p.add_argument(
         "--evidence", default="", help="Linkage evidence to report in the AGP file"
     )
-    p.add_option("--oo", help="Use .oo file generated by bambus")
+    p.add_argument("--oo", help="Use .oo file generated by bambus")
     opts, args = p.parse_args(args)
 
     nargs = len(args)
@@ -1177,7 +1177,7 @@ def join(args):
     if oo:
         seen = o.contigs
         # The leftover contigs not in the oo file
-        logging.debug(
+        logger.debug(
             "A total of {0} contigs ({1} in `{2}`)".format(len(sizes), len(seen), oo)
         )
 
@@ -1220,10 +1220,10 @@ def summary(args):
     from natsort import natsort_key
 
     p = OptionParser(summary.__doc__)
-    p.add_option(
+    p.add_argument(
         "--suffix", default="Mb", help="make the base pair counts human readable"
     )
-    p.add_option("--ids", help="write the ids that have >= 50% N's")
+    p.add_argument("--ids", help="write the ids that have >= 50% N's")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1261,7 +1261,7 @@ def summary(args):
 
     write_csv(header, data, sep=" ", filename=opts.outfile, thousands=True)
     if idsfile:
-        logging.debug(
+        logger.debug(
             "A total of {0} ids >= 50% N's written to {1}.".format(nids, idsfile.name)
         )
         idsfile.close()
@@ -1277,71 +1277,71 @@ def format(args):
     """
     sequential_choices = ("replace", "prefix", "suffix")
     p = OptionParser(format.__doc__)
-    p.add_option(
+    p.add_argument(
         "--pairs",
         default=False,
         action="store_true",
         help="Add trailing /1 and /2 for interleaved pairs",
     )
-    p.add_option(
+    p.add_argument(
         "--sequential",
         default=None,
         choices=sequential_choices,
         help="Add sequential IDs",
     )
-    p.add_option(
-        "--sequentialoffset", default=0, type="int", help="Sequential IDs start at"
+    p.add_argument(
+        "--sequentialoffset", default=0, type=int, help="Sequential IDs start at"
     )
-    p.add_option(
-        "--pad0", default=0, type="int", help="Pad a few zeros in front of sequential"
+    p.add_argument(
+        "--pad0", default=0, type=int, help="Pad a few zeros in front of sequential"
     )
-    p.add_option(
+    p.add_argument(
         "--gb",
         default=False,
         action="store_true",
         help="For Genbank ID, get the accession",
     )
-    p.add_option("--sep", default=None, help="Split description by certain symbol")
-    p.add_option(
+    p.add_argument("--sep", default=None, help="Split description by certain symbol")
+    p.add_argument(
         "--index",
         default=0,
-        type="int",
+        type=int,
         help="Extract i-th field after split with --sep",
     )
-    p.add_option(
+    p.add_argument(
         "--noversion",
         default=False,
         action="store_true",
         help="Remove the gb trailing version",
     )
-    p.add_option("--prefix", help="Prepend prefix to sequence ID")
-    p.add_option("--suffix", help="Append suffix to sequence ID")
-    p.add_option(
+    p.add_argument("--prefix", help="Prepend prefix to sequence ID")
+    p.add_argument("--suffix", help="Append suffix to sequence ID")
+    p.add_argument(
         "--template",
         default=False,
         action="store_true",
         help="Extract `template=aaa dir=x library=m` to `m-aaa/x`",
     )
-    p.add_option("--switch", help="Switch ID from two-column file")
-    p.add_option(
+    p.add_argument("--switch", help="Switch ID from two-column file")
+    p.add_argument(
         "--annotation",
         help="Add functional annotation from two-column file ('ID <--> Annotation')",
     )
-    p.add_option("--ids", help="Generate ID conversion table")
-    p.add_option(
+    p.add_argument("--ids", help="Generate ID conversion table")
+    p.add_argument(
         "--upper",
         default=False,
         action="store_true",
         help="Convert sequence to upper case",
     )
-    p.add_option(
+    p.add_argument(
         "--nodesc",
         default=False,
         action="store_true",
         help="Remove description after identifier",
     )
-    p.add_option(
-        "--minlength", default=0, type="int", help="Minimum sequence length to keep"
+    p.add_argument(
+        "--minlength", default=0, type=int, help="Minimum sequence length to keep"
     )
     opts, args = p.parse_args(args)
 
@@ -1410,7 +1410,7 @@ def format(args):
             if origid in mapping:
                 rec.id = mapping[origid]
             else:
-                logging.error(
+                logger.error(
                     "{0} not found in `{1}`. ID unchanged.".format(origid, mapfile)
                 )
         if prefix:
@@ -1433,11 +1433,11 @@ def format(args):
         SeqIO.write(rec, fw, "fasta")
 
     if idsfile:
-        logging.debug("Conversion table written to `{0}`.".format(idsfile.name))
+        logger.debug("Conversion table written to `{0}`.".format(idsfile.name))
         idsfile.close()
 
     if nremoved:
-        logging.debug(
+        logger.debug(
             "Removed {} sequences with length < {}".format(nremoved, minlength)
         )
 
@@ -1457,7 +1457,7 @@ def print_first_difference(
         report_match=report_match,
     )
     if rc and not plus_match:
-        logging.debug("trying reverse complement of %s" % brec.id)
+        logger.debug("trying reverse complement of %s" % brec.id)
         brec.seq = brec.seq.reverse_complement()
         minus_match = _print_first_difference(
             arec,
@@ -1524,31 +1524,31 @@ def diff(args):
     from jcvi.utils.table import banner
 
     p = OptionParser(diff.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ignore_case",
         default=False,
         action="store_true",
         help="ignore case when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore_N",
         default=False,
         action="store_true",
         help="ignore N and X's when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore_stop",
         default=False,
         action="store_true",
         help="ignore stop codon when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--rc",
         default=False,
         action="store_true",
         help="also consider reverse complement",
     )
-    p.add_option(
+    p.add_argument(
         "--quiet",
         default=False,
         action="store_true",
@@ -1609,7 +1609,7 @@ def diff(args):
             report_match=not opts.quiet,
         )
         if not fd:
-            logging.error("Two sets of sequences differ at `{0}`".format(arec.id))
+            logger.error("Two sets of sequences differ at `{0}`".format(arec.id))
             problem_ids.append(
                 "\t".join(str(x) for x in (arec.id, asize, bsize, abs(asize - bsize)))
             )
@@ -1667,31 +1667,31 @@ def identical(args):
     allowed_checksum = ["MD5", "GCG"]
 
     p = OptionParser(identical.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ignore_case",
         default=False,
         action="store_true",
         help="ignore case when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore_N",
         default=False,
         action="store_true",
         help="ignore N and X's when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore_stop",
         default=False,
         action="store_true",
         help="ignore stop codon when comparing sequences",
     )
-    p.add_option(
+    p.add_argument(
         "--output_uniq",
         default=False,
         action="store_true",
         help="output uniq sequences in FASTA format",
     )
-    p.add_option(
+    p.add_argument(
         "--checksum",
         default="MD5",
         choices=allowed_checksum,
@@ -1711,7 +1711,7 @@ def identical(args):
         pf = fastafile.rsplit(".", 1)[0]
         files.append(pf)
 
-        logging.debug("Hashing individual elements of {0}".format(fastafile))
+        logger.debug("Hashing individual elements of {0}".format(fastafile))
         for name, rec in f.iteritems_ordered():
             seq = re.sub(" ", "", str(rec.seq))
             hashed = hash_fasta(
@@ -1754,7 +1754,7 @@ def identical(args):
 
     fw.close()
     if opts.output_uniq:
-        logging.debug("Uniq sequences written to `{0}`".format(uniqfile))
+        logger.debug("Uniq sequences written to `{0}`".format(uniqfile))
         uniqfw.close()
 
 
@@ -1770,10 +1770,10 @@ def get_qual(fastafile, suffix=QUALSUFFIX, check=True):
 
     if check:
         if op.exists(qualfile1):
-            logging.debug("qual file `{0}` found".format(qualfile1))
+            logger.debug("qual file `{0}` found".format(qualfile1))
             return qualfile1
         elif op.exists(qualfile2):
-            logging.debug("qual file `{0}` found".format(qualfile2))
+            logger.debug("qual file `{0}` found".format(qualfile2))
             return qualfile2
         else:
             return None
@@ -1790,19 +1790,19 @@ def some(args):
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(some.__doc__)
-    p.add_option(
+    p.add_argument(
         "--exclude",
         default=False,
         action="store_true",
         help="Output sequences not in the list file",
     )
-    p.add_option(
+    p.add_argument(
         "--no_strip_names",
         default=False,
         action="store_true",
         help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
-    p.add_option(
+    p.add_argument(
         "--uniprot", default=False, action="store_true", help="Header is from uniprot"
     )
 
@@ -1852,7 +1852,7 @@ def some(args):
         if qualfile:
             SeqIO.write([rec], outqualhandle, "qual")
 
-    logging.debug("A total of %d records written to `%s`" % (len(recs), outfastafile))
+    logger.debug("A total of %d records written to `%s`" % (len(recs), outfastafile))
 
 
 def fastq(args):
@@ -1865,7 +1865,7 @@ def fastq(args):
     from jcvi.formats.fastq import FastqLite
 
     p = OptionParser(fastq.__doc__)
-    p.add_option("--qv", type="int", help="Use generic qv value")
+    p.add_argument("--qv", type=int, help="Use generic qv value")
 
     opts, args = p.parse_args(args)
 
@@ -1879,7 +1879,7 @@ def fastq(args):
 
     if opts.qv is not None:
         qv = chr(ord("!") + opts.qv)
-        logging.debug("QV char '{0}' ({1})".format(qv, opts.qv))
+        logger.debug("QV char '{0}' ({1})".format(qv, opts.qv))
     else:
         qv = None
 
@@ -1897,7 +1897,7 @@ def fastq(args):
             num_records += 1
 
     fastqhandle.close()
-    logging.debug("A total of %d records written to `%s`" % (num_records, fastqfile))
+    logger.debug("A total of %d records written to `%s`" % (num_records, fastqfile))
 
 
 def pair(args):
@@ -1913,7 +1913,7 @@ def pair(args):
         help="Separator in name to reduce to clone id"
         + "e.g. GFNQ33242/1 use /, BOT01-2453H.b1 use .",
     )
-    p.add_option(
+    p.add_argument(
         "-m",
         dest="matepairs",
         default=False,
@@ -1983,9 +1983,9 @@ def pair(args):
                 recqual.description = ""
                 SeqIO.write([recqual], qualfw, "qual")
 
-    logging.debug("sequences written to `%s` and `%s`" % (pairsfile, fragsfile))
+    logger.debug("sequences written to `%s` and `%s`" % (pairsfile, fragsfile))
     if opts.matepairs:
-        logging.debug("mates written to `%s`" % matepairsfile)
+        logger.debug("mates written to `%s`" % matepairsfile)
 
 
 def pairinplace(args):
@@ -1997,11 +1997,11 @@ def pairinplace(args):
     bulk.frags.fasta.
     """
     p = OptionParser(pairinplace.__doc__)
-    p.add_option(
+    p.add_argument(
         "-r",
         dest="rclip",
         default=1,
-        type="int",
+        type=int,
         help="pair ID is derived from rstrip N chars",
     )
     opts, args = p.parse_args(args)
@@ -2044,7 +2044,7 @@ def pairinplace(args):
     if not skipflag:
         SeqIO.write([a], fragsfw, "fasta")
 
-    logging.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
+    logger.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
 
 
 def extract(args):
@@ -2055,23 +2055,23 @@ def extract(args):
     "seqname", or "seqname:start-stop", or "seqname:start-stop:-"
     """
     p = OptionParser(extract.__doc__)
-    p.add_option("--newname", help="Use this new name instead")
-    p.add_option(
+    p.add_argument("--newname", help="Use this new name instead")
+    p.add_argument(
         "--include",
         default=False,
         action="store_true",
         help="search description line for match",
     )
-    p.add_option(
+    p.add_argument(
         "--exclude",
         default=False,
         action="store_true",
         help="exclude description that matches",
     )
-    p.add_option(
+    p.add_argument(
         "--idonly", default=False, action="store_true", help="Only search identifier"
     )
-    p.add_option(
+    p.add_argument(
         "--bed",
         default=None,
         help="path to bed file to guide extraction by matching seqname",
@@ -2095,7 +2095,7 @@ def extract(args):
             try:
                 rec = f[accn]
             except:
-                logging.error("{0} not found in {1}".format(accn, fastafile))
+                logger.error("{0} not found in {1}".format(accn, fastafile))
                 continue
             SeqIO.write([rec], fw, "fasta")
         return fw.name
@@ -2122,7 +2122,7 @@ def extract(args):
         try:
             start, stop = int(start), int(stop)
         except ValueError as e:
-            logging.error(e)
+            logger.error(e)
             sys.exit(p.print_help())
 
         feature["start"] = start
@@ -2168,7 +2168,7 @@ def extract(args):
         try:
             seq = f.sequence(feature, asstring=False)
         except AssertionError as e:
-            logging.error(e)
+            logger.error(e)
             return
 
         newid = opts.newname or query
@@ -2186,7 +2186,7 @@ def _uniq_rec(fastafile, seq=False):
     for rec in SeqIO.parse(fastafile, "fasta"):
         name = str(rec.seq) if seq else rec.id
         if name in seen:
-            logging.debug("ignore {0}".format(rec.id))
+            logger.debug("ignore {0}".format(rec.id))
             continue
         seen.add(name)
         yield rec
@@ -2199,10 +2199,10 @@ def uniq(args):
     remove fasta records that are the same
     """
     p = OptionParser(uniq.__doc__)
-    p.add_option(
+    p.add_argument(
         "--seq", default=False, action="store_true", help="Uniqify the sequences"
     )
-    p.add_option(
+    p.add_argument(
         "-t",
         "--trimname",
         dest="trimname",
@@ -2270,7 +2270,7 @@ def modify_qual(rec):
 
 
 def make_qual(fastafile, score=OKQUAL):
-    logging.warning("assume qual ({0})".format(score))
+    logger.warning("assume qual ({0})".format(score))
     qualfile = fastafile.rsplit(".", 1)[0] + ".qual"
     fw = open(qualfile, "w")
     fasta = Fasta(fastafile, lazy=True)
@@ -2316,14 +2316,14 @@ def trim(args):
     from jcvi.algorithms.maxsum import max_sum
 
     p = OptionParser(trim.__doc__)
-    p.add_option(
+    p.add_argument(
         "-c",
         dest="min_length",
-        type="int",
+        type=int,
         default=64,
         help="minimum sequence length after trimming",
     )
-    p.add_option("-s", dest="score", default=QUAL, help="quality trimming cutoff")
+    p.add_argument("-s", dest="score", default=QUAL, help="quality trimming cutoff")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -2333,7 +2333,7 @@ def trim(args):
     qualfile = get_qual(fastafile)
     newqualfile = get_qual(newfastafile, check=False)
 
-    logging.debug(
+    logger.debug(
         "Trim bad sequence from fasta file `%s` to `%s`" % (fastafile, newfastafile)
     )
 
@@ -2396,12 +2396,12 @@ def sequin(args):
     TATTAACGATGAATAATAATGAGAAGCCATATAGAATTGGTGATAATGTAAAAAAAGGGGCTCTTATTAC
     """
     p = OptionParser(sequin.__doc__)
-    p.add_option("--unk", default=100, type="int", help="The size for unknown gaps")
-    p.add_option("--newid", default=None, help="Use this identifier instead")
-    p.add_option(
+    p.add_argument("--unk", default=100, type=int, help="The size for unknown gaps")
+    p.add_argument("--newid", default=None, help="Use this identifier instead")
+    p.add_argument(
         "--chromosome", default=None, help="Add [chromosome= ] to FASTA header"
     )
-    p.add_option("--clone", default=None, help="Add [clone= ] to FASTA header")
+    p.add_argument("--clone", default=None, help="Add [clone= ] to FASTA header")
     p.set_mingap(default=100)
     opts, args = p.parse_args(args)
 
@@ -2438,7 +2438,7 @@ def sequin(args):
     print(fastaheader, file=fw)
     print(seq, file=fw)
     fw.close()
-    logging.debug(
+    logger.debug(
         "Sequin FASTA written to `{0}` (gaps: {1} unknowns, {2} knowns).".format(
             outputfasta, unknowns, knowns
         )
@@ -2455,7 +2455,7 @@ def remove_small_components(rec, minlen):
         seqlen = len(seq)
         if not gap and seqlen < minlen:
             seq = seqlen * "N"  # Mask small components
-            logging.debug("Discard component ({0}) in {1}".format(seqlen, rec.name))
+            logger.debug("Discard component ({0}) in {1}".format(seqlen, rec.name))
             removed += seqlen
         newseq.append(seq)
     rec.seq = Seq("".join(newseq))
@@ -2487,18 +2487,18 @@ def tidy(args):
     Trim terminal Ns, normalize gap sizes and remove small components.
     """
     p = OptionParser(tidy.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gapsize",
         dest="gapsize",
         default=0,
-        type="int",
+        type=int,
         help="Set all gaps to the same size",
     )
-    p.add_option(
+    p.add_argument(
         "--minlen",
         dest="minlen",
         default=100,
-        type="int",
+        type=int,
         help="Minimum component size",
     )
 
@@ -2525,17 +2525,17 @@ def tidy(args):
             normalized += normalize_gaps(rec, gapsize)
 
         if len(rec) == 0:
-            logging.debug("Drop seq {0}".format(rec.id))
+            logger.debug("Drop seq {0}".format(rec.id))
             continue
         SeqIO.write([rec], fw, "fasta")
 
     # Print statistics
     if removed:
-        logging.debug("Total discarded bases: {0}".format(removed))
+        logger.debug("Total discarded bases: {0}".format(removed))
     if normalized:
-        logging.debug("Gaps normalized: {0}".format(normalized))
+        logger.debug("Gaps normalized: {0}".format(normalized))
 
-    logging.debug("Tidy FASTA written to `{0}`.".format(tidyfastafile))
+    logger.debug("Tidy FASTA written to `{0}`.".format(tidyfastafile))
     fw.close()
 
     return tidyfastafile
@@ -2583,7 +2583,7 @@ def write_gaps_bed(inputfasta, prefix, mingap, cpus):
         print("\t".join(str(x) for x in (b, gapname, b.span)), file=fw)
 
     shutil.move(nbedfile, bedfile)
-    logging.debug("Write gap (>={0}bp) locations to `{1}`.".format(mingap, bedfile))
+    logger.debug("Write gap (>={0}bp) locations to `{1}`.".format(mingap, bedfile))
 
 
 def gaps(args):
@@ -2596,7 +2596,7 @@ def gaps(args):
     from jcvi.formats.agp import mask, build
 
     p = OptionParser(gaps.__doc__)
-    p.add_option(
+    p.add_argument(
         "--split", default=False, action="store_true", help="Generate .split.fasta"
     )
     p.set_mingap(default=100)
@@ -2626,11 +2626,11 @@ def gaps(args):
 
             maskedagpfile = mask([sizesagpfile, bedfile, "--splitobject"])
             shutil.move(maskedagpfile, oagpfile)
-            logging.debug("AGP file written to `{0}`.".format(oagpfile))
+            logger.debug("AGP file written to `{0}`.".format(oagpfile))
 
             maskedagpfile = mask([sizesagpfile, bedfile, "--splitcomponent"])
             shutil.move(maskedagpfile, cagpfile)
-            logging.debug("AGP file written to `{0}`.".format(cagpfile))
+            logger.debug("AGP file written to `{0}`.".format(cagpfile))
 
             build([oagpfile, inputfasta, splitfile])
             cleanup(sizesagpfile)

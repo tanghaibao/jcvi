@@ -7,13 +7,12 @@
 # Created by Haibao Tang on 01/28/20
 # Copyright © 2021 Haibao Tang. All rights reserved.
 #
-
 import logging
 
 import numpy as np
 
-from webcolors import CSS3_HEX_TO_NAMES, hex_to_rgb
 from skimage.color import rgb2lab, deltaE_cmc
+from webcolors import CSS3_HEX_TO_NAMES, hex_to_rgb
 
 
 def color_diff(rgb1, rgb2):

@@ -15,7 +15,7 @@ from ..graphics.base import normalize_axes, panel_labels, plt, savefig
 from ..graphics.chromosome import draw_chromosomes
 from ..graphics.glyph import TextCircle
 from ..graphics.synteny import Synteny, draw_gene_legend
-from ..graphics.tree import parse_tree, LeafInfoFile, WGDInfoFile, draw_tree
+from ..graphics.tree import LeafInfoFile, WGDInfoFile, draw_tree, parse_tree
 
 
 def main():

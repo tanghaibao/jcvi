@@ -135,8 +135,8 @@ def clean(args):
     Clean and dedup paired FASTQ files.
     """
     p = OptionParser(clean.__doc__)
-    p.add_option("-a", default=0, type="int", help="Trim length at 5' end")
-    p.add_option("-b", default=50, type="int", help="Trim length at 3' end")
+    p.add_argument("-a", default=0, type=int, help="Trim length at 5' end")
+    p.add_argument("-b", default=50, type=int, help="Trim length at 3' end")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -233,15 +233,15 @@ def prepare(args):
     from jcvi.formats.base import write_file
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
-    p.add_option("-K", default=45, type="int", help="K-mer size")
-    p.add_option(
+    p.add_argument("-K", default=45, type=int, help="K-mer size")
+    p.add_argument(
         "--assemble_1st_rank_only",
         default=False,
         action="store_true",
         help="Assemble the first rank only, other libs asm_flags=2",
     )
-    p.add_option("--scaffold", help="Only perform scaffolding")
-    p.add_option("--gapclose", help="Only perform gap closure")
+    p.add_argument("--scaffold", help="Only perform scaffolding")
+    p.add_argument("--gapclose", help="Only perform gap closure")
     p.set_cpus()
     opts, args = p.parse_args(args)
 

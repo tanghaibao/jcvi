@@ -7,10 +7,9 @@ Utilities for submitting PASA jobs and processing PASA results.
 import os
 import os.path as op
 import sys
-import logging
 
-from jcvi.formats.base import write_file, must_open, FileMerger
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, symlink, which
+from ..apps.base import ActionDispatcher, OptionParser, logger, sh, symlink, which
+from ..formats.base import write_file, must_open, FileMerger
 
 
 alignAssembly_conf = """
@@ -81,7 +80,7 @@ def assemble(args):
     """
     p = OptionParser(assemble.__doc__)
     p.set_pasa_opts()
-    p.add_option(
+    p.add_argument(
         "--prepare",
         default=False,
         action="store_true",
@@ -103,14 +102,14 @@ def assemble(args):
 
     PASA_HOME = opts.pasa_home
     if not op.isdir(PASA_HOME):
-        logging.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
+        logger.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
         sys.exit()
 
     aligners = opts.aligners.split(",")
     for aligner in aligners:
         if aligner not in ALLOWED_ALIGNERS:
-            logging.error("Error: Unknown aligner `{0}`".format(aligner))
-            logging.error(
+            logger.error("Error: Unknown aligner `{0}`".format(aligner))
+            logger.error(
                 "Can be any of {0}, ".format("|".join(ALLOWED_ALIGNERS))
                 + "combine multiple aligners in list separated by comma"
             )
@@ -228,7 +227,7 @@ def compare(args):
     """
     p = OptionParser(compare.__doc__)
     p.set_pasa_opts(action="compare")
-    p.add_option(
+    p.add_argument(
         "--prepare",
         default=False,
         action="store_true",
@@ -245,7 +244,7 @@ def compare(args):
 
     PASA_HOME = opts.pasa_home
     if not op.isdir(PASA_HOME):
-        logging.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
+        logger.error("PASA_HOME={0} directory does not exist".format(PASA_HOME))
         sys.exit()
 
     launch_pasa = which(op.join(PASA_HOME, "scripts", "Launch_PASA_pipeline.pl"))
@@ -320,7 +319,7 @@ def longest(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(longest.__doc__)
-    p.add_option(
+    p.add_argument(
         "--prefix",
         default="pasa",
         help="Replace asmbl_ with prefix",
@@ -354,7 +353,7 @@ def longest(args):
         keep.update(set(x for x in asmbls if sizes[x] >= cutoff))
 
     fw.close()
-    logging.debug("{0} fl-cDNA records written to `{1}`.".format(nrecs, idsfile))
+    logger.debug("{0} fl-cDNA records written to `{1}`.".format(nrecs, idsfile))
 
     f = Fasta(fastafile, lazy=True)
     newfastafile = prefix + ".clean.fasta"
@@ -370,7 +369,7 @@ def longest(args):
         nrecs += 1
 
     fw.close()
-    logging.debug("{0} valid records written to `{1}`.".format(nrecs, newfastafile))
+    logger.debug("{0} valid records written to `{1}`.".format(nrecs, newfastafile))
 
 
 def consolidate(args):
@@ -393,31 +392,31 @@ def consolidate(args):
 
     supported_modes = ["name", "coords"]
     p = OptionParser(consolidate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--slop",
         default=False,
         action="store_true",
         help="allow minor variation in terminal 5'/3' UTR start/stop position",
     )
-    p.add_option(
+    p.add_argument(
         "--inferUTR",
         default=False,
         action="store_true",
         help="infer presence of UTRs from exon coordinates",
     )
-    p.add_option(
+    p.add_argument(
         "--mode",
         default="name",
         choices=supported_modes,
         help="method used to determine overlapping loci",
     )
-    p.add_option(
+    p.add_argument(
         "--summary",
         default=False,
         action="store_true",
         help="Generate summary table of consolidation process",
     )
-    p.add_option(
+    p.add_argument(
         "--clusters",
         default=False,
         action="store_true",

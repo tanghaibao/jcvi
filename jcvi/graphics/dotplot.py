@@ -27,28 +27,28 @@ see more here: http://matplotlib.sourceforge.net/users/usetex.html
 """
 
 import os.path as op
-import sys
-import logging
 import string
+import sys
 
 from random import sample
 
-from jcvi.compara.synteny import batch_scan, check_beds, get_orientation
-from jcvi.utils.cbook import seqid_parse, thousands
-from jcvi.apps.base import OptionParser, need_update
-from jcvi.graphics.base import (
-    plt,
+from ..apps.base import OptionParser, logger, need_update
+from ..compara.base import AnchorFile
+from ..compara.synteny import batch_scan, check_beds, get_orientation
+from ..utils.cbook import seqid_parse, thousands
+
+from .base import (
     Rectangle,
-    set_human_axis,
-    savefig,
-    draw_cmap,
     TextHandler,
+    draw_cmap,
     latex,
     markup,
     normalize_axes,
+    plt,
+    savefig,
+    set_human_axis,
     set1,
 )
-from ..compara.base import AnchorFile
 
 
 class Palette(dict):
@@ -77,12 +77,12 @@ class Palette(dict):
         self.categories = sorted(set(self.values()))
         self.colors = dict(zip(self.categories, pal))
 
-        logging.debug(
+        logger.debug(
             "Color info ({0} categories) imported for {1} blocks.".format(
                 len(self.colors), len(self)
             )
         )
-        logging.debug(str(self.colors))
+        logger.debug(str(self.colors))
 
         for k, v in self.items():  # Update from categories to colors
             self[k] = self.colors[v]
@@ -225,7 +225,7 @@ def downsample(data, sample_number=10000):
     npairs = len(data)
     # Only show random subset
     if npairs > sample_number:
-        logging.debug(
+        logger.debug(
             "Showing a random subset of {0} data points (total {1}) "
             "for clarity.".format(sample_number, npairs)
         )
@@ -274,7 +274,7 @@ def dotplot(
 
     data = []
     if cmap_text:
-        logging.debug("Capping values within [{0:.1f}, {1:.1f}]".format(vmin, vmax))
+        logger.debug("Capping values within [{0:.1f}, {1:.1f}]".format(vmin, vmax))
 
     block_id = 0
     block_color = "k"
@@ -337,7 +337,7 @@ def dotplot(
         draw_cmap(root, cmap_text, vmin, vmax, cmap=cmap)
 
     xsize, ysize = len(qbed), len(sbed)
-    logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
+    logger.debug("xsize=%d ysize=%d" % (xsize, ysize))
     qbreaks = qbed.get_breaks()
     sbreaks = sbed.get_breaks()
     xlim, _ = plot_breaks_and_labels(
@@ -381,7 +381,7 @@ def dotplot(
         title += " ({0} gene pairs)".format(thousands(npairs))
     root.set_title(title, x=0.5, y=0.96, color="k")
     if title:
-        logging.debug("Dot plot title: {}".format(title))
+        logger.debug("Dot plot title: {}".format(title))
     normalize_axes(root)
 
 
@@ -400,57 +400,57 @@ def subset_bed(bed, seqids):
 def dotplot_main(args):
     p = OptionParser(__doc__)
     p.set_beds()
-    p.add_option(
+    p.add_argument(
         "--synteny",
         default=False,
         action="store_true",
         help="Run a fast synteny scan and display blocks",
     )
-    p.add_option("--cmaptext", help="Draw colormap box on the bottom-left corner")
-    p.add_option(
+    p.add_argument("--cmaptext", help="Draw colormap box on the bottom-left corner")
+    p.add_argument(
         "--vmin",
         dest="vmin",
-        type="float",
+        type=float,
         default=0,
         help="Minimum value in the colormap",
     )
-    p.add_option(
+    p.add_argument(
         "--vmax",
         dest="vmax",
-        type="float",
+        type=float,
         default=2,
         help="Maximum value in the colormap",
     )
-    p.add_option(
+    p.add_argument(
         "--nmax",
         dest="sample_number",
-        type="int",
+        type=int,
         default=10000,
         help="Maximum number of data points to plot",
     )
-    p.add_option(
+    p.add_argument(
         "--minfont",
-        type="int",
+        type=int,
         default=4,
         help="Do not render labels with size smaller than",
     )
-    p.add_option("--colormap", help="Two column file, block id to color mapping")
-    p.add_option(
+    p.add_argument("--colormap", help="Two column file, block id to color mapping")
+    p.add_argument(
         "--colororientation",
         action="store_true",
         default=False,
         help="Color the blocks based on orientation, similar to mummerplot",
     )
-    p.add_option(
+    p.add_argument(
         "--nosort",
         default=False,
         action="store_true",
         help="Do not sort the seqids along the axes",
     )
-    p.add_option(
+    p.add_argument(
         "--nosep", default=False, action="store_true", help="Do not add contig lines"
     )
-    p.add_option("--title", help="Title of the dot plot")
+    p.add_argument("--title", help="Title of the dot plot")
     p.set_dotplot_opts()
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(
@@ -475,7 +475,7 @@ def dotplot_main(args):
     if anchorfile.endswith(".ks"):
         from jcvi.apps.ks import KsFile
 
-        logging.debug("Anchors contain Ks values")
+        logger.debug("Anchors contain Ks values")
         cmaptext = cmaptext or "*Ks* values"
         anchorksfile = anchorfile + ".anchors"
         if need_update(anchorfile, anchorksfile):

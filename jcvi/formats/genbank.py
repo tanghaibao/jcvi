@@ -7,16 +7,16 @@ https://github.com/biopython/biopython/blob/master/Bio/SeqIO/InsdcIO.py
 """
 import os.path as op
 import sys
-import logging
 
 from collections import defaultdict
 
 from Bio import SeqIO
 
-from jcvi.formats.base import BaseFile, get_number, must_open
-from jcvi.formats.gff import GffLine
-from jcvi.apps.fetch import entrez
-from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, glob, mkdir, sh
+from ..apps.fetch import entrez
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, glob, logger, mkdir, sh
+
+from .base import BaseFile, get_number, must_open
+from .gff import GffLine
 
 
 MT = "mol_type"
@@ -51,12 +51,12 @@ class MultiGenBank(BaseFile):
                 nfeats += 1
             nrecs += 1
 
-        logging.debug(
+        logger.debug(
             "A total of {0} records written to `{1}`.".format(nrecs, fastafile)
         )
         fasta_fw.close()
 
-        logging.debug(
+        logger.debug(
             "A total of {0} features written to `{1}`.".format(nfeats, gfffile)
         )
         gff_fw.close()
@@ -188,7 +188,7 @@ class GenBank(dict):
             ]
         )
 
-        logging.debug("GenBank records written to {0}.".format(gbdir))
+        logger.debug("GenBank records written to {0}.".format(gbdir))
         return gbdir
 
     @classmethod
@@ -326,23 +326,23 @@ def gff(args):
 
 
 def preparegb(p, args):
-    p.add_option(
+    p.add_argument(
         "--gb_dir", default=None, help="path to dir containing GanBank files (.gb)"
     )
-    p.add_option(
+    p.add_argument(
         "--id",
         default=None,
         help="GenBank accession IDs in a file. One ID per row, or all IDs"
         " in one row comma separated.",
     )
-    p.add_option(
+    p.add_argument(
         "--simple",
         default=None,
-        type="string",
+        type=str,
         help="GenBank accession IDs comma separated "
         "(for lots of IDs please use --id instead).",
     )
-    p.add_option(
+    p.add_argument(
         "--individual",
         default=False,
         action="store_true",
@@ -388,7 +388,7 @@ def tofasta(args):
     or all records in one file
     """
     p = OptionParser(tofasta.__doc__)
-    p.add_option("--prefix", default="gbfasta", help="prefix of output files")
+    p.add_argument("--prefix", default="gbfasta", help="prefix of output files")
     filenames, accessions, idfile, opts, args = preparegb(p, args)
     prefix = opts.prefix
 
@@ -397,9 +397,9 @@ def tofasta(args):
     )
 
     if opts.individual:
-        logging.debug("Output written dir {0}".format(prefix))
+        logger.debug("Output written dir {0}".format(prefix))
     else:
-        logging.debug("Output written to {0}.fasta".format(prefix))
+        logger.debug("Output written to {0}.fasta".format(prefix))
 
 
 def getgenes(args):
@@ -411,8 +411,8 @@ def getgenes(args):
     Either --gb_dir or --id/--simple should be provided.
     """
     p = OptionParser(getgenes.__doc__)
-    p.add_option("--prefix", default="gbout", help="prefix of output files")
-    p.add_option(
+    p.add_argument("--prefix", default="gbout", help="prefix of output files")
+    p.add_argument(
         "--nopep",
         default=False,
         action="store_true",
@@ -426,15 +426,15 @@ def getgenes(args):
     )
 
     if opts.individual:
-        logging.debug("Output written dir {0}".format(prefix))
+        logger.debug("Output written dir {0}".format(prefix))
     elif opts.nopep:
-        logging.debug(
+        logger.debug(
             "Output written to {0}.bed, {0}.cds".format(
                 prefix,
             )
         )
     else:
-        logging.debug(
+        logger.debug(
             "Output written to {0}.bed, {0}.cds, {0}.pep".format(
                 prefix,
             )
@@ -467,17 +467,17 @@ def getquals(args):
     into a tab-delimited file
     """
     p = OptionParser(getquals.__doc__)
-    p.add_option(
+    p.add_argument(
         "--types",
         default="gene,mRNA,CDS",
-        type="str",
+        type=str,
         dest="quals_ftypes",
         help="Feature types from which to extract qualifiers",
     )
-    p.add_option(
+    p.add_argument(
         "--ignore",
         default="locus_tag,product,codon_start,translation",
-        type="str",
+        type=str,
         dest="quals_ignore",
         help="Qualifiers to exclude from parsing",
     )

@@ -4,31 +4,40 @@
 """
 Helper functions for Copy Number Variations (CNV).
 """
-import sys
 import logging
 import os.path as op
-
-import numpy as np
-import numpy.ma as ma
-import pandas as pd
-import pysam
+import sys
 
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from itertools import groupby
 from multiprocessing import Pool
 from random import choice
+
+import numpy as np
+import numpy.ma as ma
+import pandas as pd
+import pysam
+
 from pybedtools import BedTool, cleanup, set_tempdir
 
-from jcvi.algorithms.formula import get_kmeans
-from jcvi.apps.grid import MakeManager
-from jcvi.utils.aws import glob_s3, push_to_s3, sync_from_s3
-from jcvi.utils.cbook import percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, getfilesize, mkdir, popen, sh
+from ..algorithms.formula import get_kmeans
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    getfilesize,
+    logger,
+    mkdir,
+    popen,
+    sh,
+)
+from ..apps.grid import MakeManager
+from ..utils.aws import glob_s3, push_to_s3, sync_from_s3
+from ..utils.cbook import percentage
 
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
-autosomes = ["chr{}".format(x) for x in range(1, 23)]
+autosomes = [f"chr{x}" for x in range(1, 23)]
 sexsomes = ["chrX", "chrY"]
 allsomes = autosomes + sexsomes
 # See: http://www.ncbi.nlm.nih.gov/projects/genome/assembly/grc/human/
@@ -591,7 +600,7 @@ def gcn(args):
 def vcf_to_df_worker(arg):
     """Convert CANVAS vcf to a dict, single thread"""
     canvasvcf, exonbed, i = arg
-    logging.debug("Working on job {}: {}".format(i, canvasvcf))
+    logger.debug("Working on job {}: {}".format(i, canvasvcf))
     samplekey = op.basename(canvasvcf).split(".")[0].rsplit("_", 1)[0]
     d = {"SampleKey": samplekey}
 
@@ -786,7 +795,7 @@ def bam_to_cib(arg):
     bamfile, seq, samplekey = arg
     bam = pysam.AlignmentFile(bamfile, "rb")
     name, length = seq["SN"], seq["LN"]
-    logging.debug("Computing depth for {} (length={})".format(name, length))
+    logger.debug("Computing depth for {} (length={})".format(name, length))
     pileup = bam.pileup(name)
     a = np.ones(length, dtype=np.int8) * -128
     for x in pileup:
@@ -794,7 +803,7 @@ def bam_to_cib(arg):
 
     cibfile = op.join(samplekey, "{}.{}.cib".format(samplekey, name))
     a.tofile(cibfile)
-    logging.debug("Depth written to `{}`".format(cibfile))
+    logger.debug("Depth written to `{}`".format(cibfile))
 
 
 def cib(args):
@@ -804,7 +813,7 @@ def cib(args):
     Convert BAM to CIB (a binary storage of int8 per base).
     """
     p = OptionParser(cib.__doc__)
-    p.add_option("--prefix", help="Report seqids with this prefix only")
+    p.add_argument("--prefix", help="Report seqids with this prefix only")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -823,7 +832,7 @@ def cib(args):
     for r in refs:
         task_args.append((bamfile, r, samplekey))
     cpus = min(opts.cpus, len(task_args))
-    logging.debug("Use {} cpus".format(cpus))
+    logger.debug("Use {} cpus".format(cpus))
 
     p = Pool(processes=cpus)
     for _ in p.imap(bam_to_cib, task_args):
@@ -837,7 +846,7 @@ def batchcn(args):
     Run CNV segmentation caller in batch mode. Scans a workdir.
     """
     p = OptionParser(batchcn.__doc__)
-    p.add_option(
+    p.add_argument(
         "--upload",
         default="s3://hli-mv-data-science/htang/ccn",
         help="Upload cn and seg results to s3",
@@ -865,7 +874,7 @@ def batchcn(args):
             continue
         print(" ".join((cmd, samplekey, path)))
 
-    logging.debug("Skipped: {}".format(percentage(nskipped, ntotal)))
+    logger.debug("Skipped: {}".format(percentage(nskipped, ntotal)))
 
 
 def hmm(args):
@@ -878,17 +887,17 @@ def hmm(args):
     directory.
     """
     p = OptionParser(hmm.__doc__)
-    p.add_option("--mu", default=0.003, type="float", help="Transition probability")
-    p.add_option(
+    p.add_argument("--mu", default=0.003, type=float, help="Transition probability")
+    p.add_argument(
         "--sigma",
         default=0.1,
-        type="float",
+        type=float,
         help="Standard deviation of Gaussian emission distribution",
     )
-    p.add_option(
+    p.add_argument(
         "--threshold",
         default=1,
-        type="float",
+        type=float,
         help="Standard deviation must be < this in the baseline population",
     )
     opts, args = p.parse_args(args)
@@ -911,7 +920,7 @@ def hmm(args):
         print(" ".join((event.bedline, sample_key)), file=fw)
         nevents += 1
     fw.close()
-    logging.debug(
+    logger.debug(
         "A total of {} aberrant events written to `{}`".format(nevents, hmmfile)
     )
     return hmmfile
@@ -936,7 +945,7 @@ def batchccn(args):
 
     header = next(open(csvfile))
     header = None if header.strip().endswith(".bam") else "infer"
-    logging.debug("Header={}".format(header))
+    logger.debug("Header={}".format(header))
     df = pd.read_csv(csvfile, header=header)
     cmd = "perl /mnt/software/ccn_gcn_hg38_script/ccn_gcn_hg38.pl"
     cmd += " -n {} -b {}"
@@ -981,9 +990,7 @@ def mergecn(args):
             idx = get_kmeans(chr_med, k=2)
             zero_med = np.median(chr_med[idx == 0])
             one_med = np.median(chr_med[idx == 1])
-            logging.debug(
-                "K-means with {} c0:{} c1:{}".format(seqid, zero_med, one_med)
-            )
+            logger.debug("K-means with {} c0:{} c1:{}".format(seqid, zero_med, one_med))
             higher_idx = 1 if one_med > zero_med else 0
             # Use the higher mean coverage componen
             arrays = np.array(arrays)[idx == higher_idx]
@@ -1003,7 +1010,7 @@ def mergecn(args):
         stdfile = op.join(betadir, "{}.std".format(seqid))
         std = np.array(std)
         std.tofile(stdfile)
-        logging.debug("Written to `{}`".format(betafile))
+        logger.debug("Written to `{}`".format(betafile))
         ar.tofile("{}.bin".format(seqid))
 
 
@@ -1042,7 +1049,7 @@ def build_gc_array(fastafile="/mnt/ref/hg38.upper.fa", gcdir="gc", n=1000):
     mkdir(gcdir)
     for seqid in allsomes:
         if seqid not in f:
-            logging.debug("Seq {} not found. Continue anyway.".format(seqid))
+            logger.debug("Seq {} not found. Continue anyway.".format(seqid))
             continue
         c = np.array(f[seqid])
         gc = (c == "G") | (c == "C")  # If base is GC
@@ -1064,27 +1071,29 @@ def cn(args):
     Download CCN output folder and convert cib to copy number per 1Kb.
     """
     p = OptionParser(cn.__doc__)
-    p.add_option(
-        "--binsize", default=1000, type="int", help="Window size along chromosome"
+    p.add_argument(
+        "--binsize", default=1000, type=int, help="Window size along chromosome"
     )
-    p.add_option(
+    p.add_argument(
         "--cleanup",
         default=False,
         action="store_true",
         help="Clean up downloaded s3 folder",
     )
-    p.add_option(
+    p.add_argument(
         "--hmm",
         default=False,
         action="store_true",
         help="Run HMM caller after computing CN",
     )
-    p.add_option(
+    p.add_argument(
         "--upload",
         default="s3://hli-mv-data-science/htang/ccn",
         help="Upload cn and seg results to s3",
     )
-    p.add_option("--rebuildgc", help="Rebuild GC directory rather than pulling from S3")
+    p.add_argument(
+        "--rebuildgc", help="Rebuild GC directory rather than pulling from S3"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) == 2:
@@ -1106,7 +1115,7 @@ def cn(args):
 
     cndir = op.join(workdir, sample_key + "-cn")
     if op.exists(cndir):
-        logging.debug("Directory {} exists. Skipped.".format(cndir))
+        logger.debug("Directory {} exists. Skipped.".format(cndir))
         return
 
     gcdir = "gc"
@@ -1123,7 +1132,7 @@ def cn(args):
     for seqid in allsomes:
         gcfile = op.join(gcdir, "{}.{}.gc".format(seqid, n))
         if not op.exists(gcfile):
-            logging.error("File {} not found. Continue anyway.".format(gcfile))
+            logger.error("File {} not found. Continue anyway.".format(gcfile))
             continue
         gc = np.fromfile(gcfile, dtype=np.uint8)
         cibfile = op.join(sampledir, "{}.{}.cib".format(sample_key, seqid))
@@ -1182,7 +1191,7 @@ def validate(args):
     Plot RDR/BAF/CN for validation of CNV calls in `sample.vcf.gz`.
     """
     p = OptionParser(validate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--no-rdr-logy",
         default=False,
         action="store_true",
@@ -1277,7 +1286,7 @@ def validate(args):
     cc = (rdr + baf + comp + vaf).cols(1)
     htmlfile = f"{sample}.html"
     hv.save(cc, htmlfile)
-    logging.info("Report written to `%s`", htmlfile)
+    logger.info("Report written to `%s`", htmlfile)
 
 
 def get_segments(rfx: pd.DataFrame):
@@ -1388,7 +1397,7 @@ def get_CNV_records(vcffile: str) -> list[CNV]:
         (cn,) = record.format("CN")[0]
         record = CNV(chr, start, end, type, name, is_pass, cn)
         records.append(record)
-    logging.info("A total of %d records imported", len(records))
+    logger.info("A total of %d records imported", len(records))
     return records
 
 
@@ -1421,7 +1430,7 @@ def wes_vs_wgs(args):
     Compare WES and WGS CNVs.
     """
     p = OptionParser(wes_vs_wgs.__doc__)
-    p.add_option(
+    p.add_argument(
         "--no-rdr-logy",
         default=False,
         action="store_true",
@@ -1495,7 +1504,7 @@ def wes_vs_wgs(args):
         )
     htmlfile = f"{sample}.html"
     hv.save(cc, htmlfile)
-    logging.info("Report written to `%s`", htmlfile)
+    logger.info("Report written to `%s`", htmlfile)
 
 
 if __name__ == "__main__":

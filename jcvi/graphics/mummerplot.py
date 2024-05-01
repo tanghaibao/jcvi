@@ -7,12 +7,11 @@ main features in the dot plot.
 """
 import os.path as op
 import sys
-import logging
 
-from jcvi.formats.coords import Coords, filter
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import SetFile
-from jcvi.apps.base import OptionParser, sh
+from ..apps.base import OptionParser, logger, sh
+from ..formats.base import SetFile
+from ..formats.coords import Coords, filter
+from ..formats.sizes import Sizes
 
 
 def writeXfile(ids, sizes_dict, filename):
@@ -20,7 +19,7 @@ def writeXfile(ids, sizes_dict, filename):
     for q in ids:
         print("\t".join(str(x) for x in (q, sizes_dict[q], "+")), file=fw)
 
-    logging.debug("{0} ids written to `{1}`.".format(len(ids), filename))
+    logger.debug("%d ids written to `%s`.", len(ids), filename)
     fw.close()
 
 
@@ -32,26 +31,26 @@ def main(args):
     query. Control "major" by option --refcov.
     """
     p = OptionParser(main.__doc__)
-    p.add_option("--refids", help="Use subset of contigs in the ref")
-    p.add_option(
+    p.add_argument("--refids", help="Use subset of contigs in the ref")
+    p.add_argument(
         "--refcov",
         default=0.01,
-        type="float",
+        type=float,
         help="Minimum reference coverage",
     )
-    p.add_option(
+    p.add_argument(
         "--all",
         default=False,
         action="store_true",
         help="Plot one pdf file per ref in refidsfile",
     )
-    p.add_option(
+    p.add_argument(
         "--color",
         default="similarity",
         choices=("similarity", "direction", "none"),
         help="Color the dots based on",
     )
-    p.add_option(
+    p.add_argument(
         "--nolayout",
         default=False,
         action="store_true",
@@ -128,7 +127,7 @@ def plot_some_queries(
         queries.add(c.query)
 
     if not queries or not refs:
-        logging.debug("Empty - {0} vs. {1}".format(queries, refs))
+        logger.debug("Empty - %s vs. %s", queries, refs)
         return None
 
     if not layout:

@@ -10,9 +10,10 @@ import sys
 from bx import interval_index_file
 from bx.align import maf
 
-from jcvi.formats.base import BaseFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
-from jcvi.apps.lastz import blastz_score_to_ncbi_expectation, blastz_score_to_ncbi_bits
+from ..apps.base import ActionDispatcher, OptionParser, need_update
+from ..apps.lastz import blastz_score_to_ncbi_expectation, blastz_score_to_ncbi_bits
+
+from .base import BaseFile
 
 
 class Maf(BaseFile, dict):

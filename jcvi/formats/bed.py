@@ -18,22 +18,22 @@ from more_itertools import pairwise
 from natsort import natsorted, natsort_key
 
 from ..apps.base import (
-    OptionParser,
     ActionDispatcher,
+    OptionParser,
     cleanup,
     logger,
     need_update,
     popen,
     sh,
 )
-from ..utils.cbook import SummaryStats, thousands, percentage
+from ..utils.cbook import SummaryStats, percentage, thousands
 from ..utils.grouper import Grouper
 from ..utils.range import (
     Range,
-    range_union,
     range_chain,
     range_distance,
     range_intersect,
+    range_union,
 )
 
 from .base import DictFile, LineFile, get_number, is_number, must_open
@@ -503,7 +503,7 @@ def gaps(args):
     from pybedtools import BedTool
 
     p = OptionParser(gaps.__doc__)
-    p.add_option(
+    p.add_argument(
         "--na_in",
         help="Add '_na_in_xxx' to gap name, use comma to separate, "
         + "e.g. --na_in=chr1,chr2 to note if gap is missing in chr1 or "
@@ -511,7 +511,7 @@ def gaps(args):
         + "missing seqids happens to be the seqid of the current feature, "
         + "it will not be reported.",
     )
-    p.add_option("--minsize", default=1000, type="int", help="Minimum gap size")
+    p.add_argument("--minsize", default=1000, type=int, help="Minimum gap size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -560,7 +560,7 @@ def closest(args):
     from pybedtools import BedTool
 
     p = OptionParser(closest.__doc__)
-    p.add_option("--maxdist", default=5000, help="Maximum distance")
+    p.add_argument("--maxdist", default=5000, help="Maximum distance")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -593,8 +593,8 @@ def format(args):
     Re-format BED file, e.g. switch sequence ids.
     """
     p = OptionParser(format.__doc__)
-    p.add_option("--prefix", help="Add prefix to name column (4th)")
-    p.add_option("--switch", help="Switch seqids based on two-column file")
+    p.add_argument("--prefix", help="Add prefix to name column (4th)")
+    p.add_argument("--switch", help="Switch seqids based on two-column file")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -660,10 +660,10 @@ def tiling(args):
     stackoverflow source.
     """
     p = OptionParser(tiling.__doc__)
-    p.add_option(
+    p.add_argument(
         "--overlap",
         default=3000,
-        type="int",
+        type=int,
         help="Minimum amount of overlaps required",
     )
     p.set_verbose()
@@ -739,7 +739,7 @@ def chain(args):
     Chain BED segments together.
     """
     p = OptionParser(chain.__doc__)
-    p.add_option("--dist", default=100000, help="Chaining distance")
+    p.add_argument("--dist", default=100000, help="Chaining distance")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -884,9 +884,9 @@ def seqids(args):
     Print out all seqids on one line. Useful for graphics.karyotype.
     """
     p = OptionParser(seqids.__doc__)
-    p.add_option("--maxn", default=100, type="int", help="Maximum number of seqids")
-    p.add_option("--prefix", help="Seqids must start with")
-    p.add_option("--exclude", default="random", help="Seqids should not contain")
+    p.add_argument("--maxn", default=100, type=int, help="Maximum number of seqids")
+    p.add_argument("--prefix", help="Seqids must start with")
+    p.add_argument("--exclude", default="random", help="Seqids should not contain")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -994,16 +994,16 @@ def filter(args):
     Filter the bedfile to retain records between certain size range.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--minsize", default=0, type="int", help="Minimum feature length")
-    p.add_option(
-        "--maxsize", default=1000000000, type="int", help="Minimum feature length"
+    p.add_argument("--minsize", default=0, type=int, help="Minimum feature length")
+    p.add_argument(
+        "--maxsize", default=1000000000, type=int, help="Minimum feature length"
     )
-    p.add_option(
+    p.add_argument(
         "--minaccn",
-        type="int",
+        type=int,
         help="Minimum value of accn, useful to filter based on coverage",
     )
-    p.add_option("--minscore", type="int", help="Minimum score")
+    p.add_argument("--minscore", type=int, help="Minimum score")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1060,7 +1060,7 @@ def mergebydepth(args):
     Similar to mergeBed, but only returns regions beyond certain depth.
     """
     p = OptionParser(mergebydepth.__doc__)
-    p.add_option("--mindepth", default=3, type="int", help="Minimum depth required")
+    p.add_argument("--mindepth", default=3, type=int, help="Minimum depth required")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1131,9 +1131,9 @@ def longest(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(longest.__doc__)
-    p.add_option("--maxsize", default=20000, type="int", help="Limit max size")
-    p.add_option("--minsize", default=60, type="int", help="Limit min size")
-    p.add_option(
+    p.add_argument("--maxsize", default=20000, type=int, help="Limit max size")
+    p.add_argument("--minsize", default=60, type=int, help="Limit min size")
+    p.add_argument(
         "--precedence", default="Medtr", help="Accessions with prefix take precedence"
     )
     opts, args = p.parse_args(args)
@@ -1216,7 +1216,7 @@ def fix(args):
     Fix non-standard bed files. One typical problem is start > end.
     """
     p = OptionParser(fix.__doc__)
-    p.add_option("--minspan", default=0, type="int", help="Enforce minimum span")
+    p.add_argument("--minspan", default=0, type=int, help="Enforce minimum span")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -1267,7 +1267,7 @@ def some(args):
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(some.__doc__)
-    p.add_option(
+    p.add_argument(
         "-v",
         dest="inverse",
         default=False,
@@ -1314,8 +1314,10 @@ def uniq(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(uniq.__doc__)
-    p.add_option("--sizes", help="Use sequence length as score")
-    p.add_option("--mode", default="span", choices=("span", "score"), help="Pile mode")
+    p.add_argument("--sizes", help="Use sequence length as score")
+    p.add_argument(
+        "--mode", default="span", choices=("span", "score"), help="Pile mode"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1404,15 +1406,15 @@ def bins(args):
     """
 
     p = OptionParser(bins.__doc__)
-    p.add_option("--binsize", default=100000, type="int", help="Size of the bins")
-    p.add_option("--subtract", help="Subtract bases from window")
-    p.add_option(
+    p.add_argument("--binsize", default=100000, type=int, help="Size of the bins")
+    p.add_argument("--subtract", help="Subtract bases from window")
+    p.add_argument(
         "--mode",
         default="span",
         choices=("span", "count", "score"),
         help="Accumulate feature based on",
     )
-    p.add_option(
+    p.add_argument(
         "--nomerge", default=False, action="store_true", help="Do not merge features"
     )
     opts, args = p.parse_args(args)
@@ -1454,8 +1456,8 @@ def bins(args):
         nbins, last_bin = get_nbins(chr_len, binsize)
 
         a = np.zeros(nbins)  # values
-        b = np.zeros(nbins, dtype="int")  # bases
-        c = np.zeros(nbins, dtype="int")  # count
+        b = np.zeros(nbins, dtype=int)  # bases
+        c = np.zeros(nbins, dtype=int)  # count
         b[:-1] = binsize
         b[-1] = last_bin
 
@@ -1506,7 +1508,7 @@ def pile(args):
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(pile.__doc__)
-    p.add_option("--minOverlap", default=0, type="int", help="Minimum overlap required")
+    p.add_argument("--minOverlap", default=0, type=int, help="Minimum overlap required")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1535,8 +1537,8 @@ def index(args):
     so that a bedgraph file can be generated and indexed.
     """
     p = OptionParser(index.__doc__)
-    p.add_option("--fasta", help="Generate bedgraph and index")
-    p.add_option("--query", help="Chromosome location")
+    p.add_argument("--fasta", help="Generate bedgraph and index")
+    p.add_argument("--query", help="Chromosome location")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1695,7 +1697,7 @@ def evaluate(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(evaluate.__doc__)
-    p.add_option("--query", help="Chromosome location")
+    p.add_argument("--query", help="Chromosome location")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -1811,7 +1813,7 @@ def distance(args):
     distances, which can be used to plot histogram, etc.
     """
     p = OptionParser(distance.__doc__)
-    p.add_option(
+    p.add_argument(
         "--distmode",
         default="ss",
         choices=("ss", "ee"),
@@ -1860,15 +1862,15 @@ def sample(args):
     from jcvi.assembly.coverage import Coverage
 
     p = OptionParser(sample.__doc__)
-    p.add_option(
+    p.add_argument(
         "--raindrop",
         default=0,
-        type="int",
+        type=int,
         help="Raindrop selection, ignores all other options",
     )
-    p.add_option("--max", default=10, type="int", help="Max depth allowed")
-    p.add_option(
-        "--targetsize", type="int", help="Sample bed file to get target base number"
+    p.add_argument("--max", default=10, type=int, help="Max depth allowed")
+    p.add_argument(
+        "--targetsize", type=int, help="Sample bed file to get target base number"
     )
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -1950,13 +1952,13 @@ def bedpe(args):
     from jcvi.assembly.coverage import bed_to_bedpe
 
     p = OptionParser(bedpe.__doc__)
-    p.add_option(
+    p.add_argument(
         "--span", default=False, action="store_true", help="Write span bed file"
     )
-    p.add_option(
+    p.add_argument(
         "--strand", default=False, action="store_true", help="Write the strand columns"
     )
-    p.add_option("--mates", help="Check the library stats from .mates file")
+    p.add_argument("--mates", help="Check the library stats from .mates file")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -2098,7 +2100,7 @@ def report_pairs(
 
     # try to infer cutoff as twice the median until convergence
     if cutoff <= 0:
-        dists = np.array([x[0] for x in all_dist], dtype="int")
+        dists = np.array([x[0] for x in all_dist], dtype=int)
         p0 = analyze_dists(dists, cutoff=mpcutoff)
         cutoff = int(2 * p0)  # initial estimate
         cutoff = int(math.ceil(cutoff / bins)) * bins
@@ -2122,7 +2124,7 @@ def report_pairs(
         file=sys.stderr,
     )
 
-    s = SummaryStats(linked_dist, dtype="int")
+    s = SummaryStats(linked_dist, dtype=int)
     num_links = s.size
 
     meandist, stdev = s.mean, s.sd
@@ -2215,10 +2217,10 @@ def summary(args):
     Sum the total lengths of the intervals.
     """
     p = OptionParser(summary.__doc__)
-    p.add_option(
+    p.add_argument(
         "--sizes", default=False, action="store_true", help="Write .sizes file"
     )
-    p.add_option(
+    p.add_argument(
         "--all",
         default=False,
         action="store_true",
@@ -2258,7 +2260,7 @@ def sort(args):
     `sort` command.
     """
     p = OptionParser(sort.__doc__)
-    p.add_option(
+    p.add_argument(
         "-i",
         "--inplace",
         dest="inplace",
@@ -2266,20 +2268,20 @@ def sort(args):
         action="store_true",
         help="Sort bed file in place",
     )
-    p.add_option(
+    p.add_argument(
         "-u",
         dest="unique",
         default=False,
         action="store_true",
         help="Uniqify the bed file",
     )
-    p.add_option(
+    p.add_argument(
         "--accn",
         default=False,
         action="store_true",
         help="Sort based on the accessions",
     )
-    p.add_option(
+    p.add_argument(
         "--num",
         default=False,
         action="store_true",
@@ -2333,19 +2335,19 @@ def mates(args):
     Generate the mates file by inferring from the names.
     """
     p = OptionParser(mates.__doc__)
-    p.add_option(
+    p.add_argument(
         "--lib",
         default=False,
         action="store_true",
         help="Output library information along with pairs",
     )
-    p.add_option(
+    p.add_argument(
         "--nointra",
         default=False,
         action="store_true",
         help="Remove mates that are intra-scaffold",
     )
-    p.add_option(
+    p.add_argument(
         "--prefix",
         default=False,
         action="store_true",
@@ -2431,26 +2433,26 @@ def flanking(args):
     from numpy import array, argsort
 
     p = OptionParser(flanking.__doc__)
-    p.add_option(
+    p.add_argument(
         "--chrom",
         default=None,
-        type="string",
+        type=str,
         help="chrom name of the position in query. Make sure it matches bedfile.",
     )
-    p.add_option(
-        "--coord", default=None, type="int", help="coordinate of the position in query."
+    p.add_argument(
+        "--coord", default=None, type=int, help="coordinate of the position in query."
     )
-    p.add_option(
-        "-n", default=10, type="int", help="number of flanking features to get"
+    p.add_argument(
+        "-n", default=10, type=int, help="number of flanking features to get"
     )
-    p.add_option(
+    p.add_argument(
         "--side",
         default="both",
         choices=("upstream", "downstream", "both"),
         help="which side to get flanking features",
     )
-    p.add_option(
-        "--max_d", default=None, type="int", help="features <= max_d away from position"
+    p.add_argument(
+        "--max_d", default=None, type=int, help="features <= max_d away from position"
     )
     p.set_outfile()
 

@@ -3,7 +3,6 @@ Wrapper for fetching data from various online repositories \
 (Entrez, Ensembl, Phytozome, and SRA)
 """
 
-import logging
 import os.path as op
 import re
 import sys
@@ -15,14 +14,16 @@ from urllib.error import HTTPError, URLError
 from Bio import Entrez, SeqIO
 from more_itertools import grouper
 
-from jcvi.formats.base import must_open
-from jcvi.formats.fasta import print_first_difference
-from jcvi.formats.fastq import fromsra
-from jcvi.utils.cbook import tile
-from jcvi.utils.console import printf
-from jcvi.apps.base import (
+from ..formats.base import must_open
+from ..formats.fasta import print_first_difference
+from ..formats.fastq import fromsra
+from ..utils.cbook import tile
+from ..utils.console import printf
+
+from .base import (
     ActionDispatcher,
     OptionParser,
+    logger,
     cleanup,
     download,
     get_email_address,
@@ -70,7 +71,7 @@ def batch_entrez(
 
     for term in list_of_terms:
 
-        logging.debug("Search term %s", term)
+        logger.debug("Search term %s", term)
         success = False
         ids = None
         if not term:
@@ -83,21 +84,21 @@ def batch_entrez(
                 success = True
                 ids = rec["IdList"]
             except (HTTPError, URLError, RuntimeError, KeyError) as e:
-                logging.error(e)
-                logging.debug("wait 5 seconds to reconnect...")
+                logger.error(e)
+                logger.debug("wait 5 seconds to reconnect...")
                 time.sleep(5)
 
         if not ids:
-            logging.error("term {0} not found".format(term))
+            logger.error("term {0} not found".format(term))
             continue
 
         assert ids
         nids = len(ids)
         if nids > 1:
-            logging.debug("A total of {0} results found.".format(nids))
+            logger.debug("A total of {0} results found.".format(nids))
 
         if batchsize != 1:
-            logging.debug("Use a batch size of {0}.".format(batchsize))
+            logger.debug("Use a batch size of {0}.".format(batchsize))
 
         ids = list(grouper(ids, batchsize))
 
@@ -114,8 +115,8 @@ def batch_entrez(
                     )
                     success = True
                 except (HTTPError, URLError, RuntimeError) as e:
-                    logging.error(e)
-                    logging.debug("wait 5 seconds to reconnect...")
+                    logger.error(e)
+                    logger.debug("wait 5 seconds to reconnect...")
                     time.sleep(5)
 
             yield id, size, term, fetch_handle
@@ -148,7 +149,7 @@ def ensembl(args):
     $ %prog ensembl danio_rerio,gasterosteus_aculeatus
     """
     p = OptionParser(ensembl.__doc__)
-    p.add_option("--version", default="75", help="Ensembl version")
+    p.add_argument("--version", default="75", help="Ensembl version")
     opts, args = p.parse_args(args)
 
     version = opts.version
@@ -196,7 +197,7 @@ def get_cookies(cookies=PHYTOZOME_COOKIES):
         username, pw = None, None
     curlcmd = which("curl")
     if curlcmd is None:
-        logging.error("curl command not installed. Aborting.")
+        logger.error("curl command not installed. Aborting.")
         return None
     cmd = "{} https://signon.jgi.doe.gov/signon/create".format(curlcmd)
     cmd += " --data-urlencode 'login={0}' --data-urlencode 'password={1}' -b {2} -c {2}".format(
@@ -204,7 +205,7 @@ def get_cookies(cookies=PHYTOZOME_COOKIES):
     )
     sh(cmd, outfile="/dev/null", errfile="/dev/null", log=False)
     if not op.exists(cookies):
-        logging.error("Cookies file `{}` not created. Aborting.".format(cookies))
+        logger.error("Cookies file `{}` not created. Aborting.".format(cookies))
         return None
 
     return cookies
@@ -227,19 +228,19 @@ def phytozome(args):
     from jcvi.apps.biomart import GlobusXMLParser
 
     p = OptionParser(phytozome.__doc__)
-    p.add_option(
+    p.add_argument(
         "--version",
         default="12",
         choices=("9", "10", "11", "12", "12_unrestricted", "13"),
         help="Phytozome version",
     )
-    p.add_option(
+    p.add_argument(
         "--assembly",
         default=False,
         action="store_true",
         help="Download assembly",
     )
-    p.add_option(
+    p.add_argument(
         "--format",
         default=False,
         action="store_true",
@@ -259,7 +260,7 @@ def phytozome(args):
     # Make sure we have a valid cookies
     cookies = get_cookies()
     if cookies is None:
-        logging.error("Error fetching cookies ... cleaning up")
+        logger.error("Error fetching cookies ... cleaning up")
         cleanup(directory_listing)
         sys.exit(1)
 
@@ -273,7 +274,7 @@ def phytozome(args):
         )
         g = GlobusXMLParser(directory_listing)
     except:
-        logging.error("Error downloading directory listing ... cleaning up")
+        logger.error("Error downloading directory listing ... cleaning up")
         cleanup(directory_listing, cookies)
         sys.exit(1)
 
@@ -301,7 +302,7 @@ def phytozome(args):
             downloader=downloader,
         )
         if not res:
-            logging.error("No files downloaded")
+            logger.error("No files downloaded")
         gff, fa = res.get("gff"), res.get("cds")
         if opts.format:
             format_bed_and_cds(s, gff, fa)
@@ -363,13 +364,13 @@ def phytozome9(args):
     $ %prog phytozome9 Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
     """
     p = OptionParser(phytozome9.__doc__)
-    p.add_option(
+    p.add_argument(
         "--assembly",
         default=False,
         action="store_true",
         help="Download assembly",
     )
-    p.add_option(
+    p.add_argument(
         "--format",
         default=False,
         action="store_true",
@@ -396,7 +397,7 @@ def phytozome9(args):
     for s in species:
         res = download_species_phytozome9(s, valid_species, url, assembly=opts.assembly)
         if not res:
-            logging.error("No files downloaded")
+            logger.error("No files downloaded")
         gff, cdsfa = res.get("gff"), res.get("cds")
         if opts.format:
             format_bed_and_cds(s, gff, cdsfa)
@@ -452,7 +453,7 @@ def download_species_phytozome9(species, valid_species, base_url, assembly=False
     surl = urljoin(base_url, species)
     contents = [x for x in ls_ftp(surl) if x.endswith("_readme.txt")]
     magic = contents[0].split("_")[1]  # Get the magic number
-    logging.debug("Found magic number for {0}: {1}".format(species, magic))
+    logger.debug("Found magic number for {0}: {1}".format(species, magic))
 
     pf = "{0}_{1}".format(species, magic)
     asm_url = urljoin(surl, "assembly/{0}.fa.gz".format(pf))
@@ -473,7 +474,7 @@ def get_first_rec(fastafile):
     f = list(SeqIO.parse(fastafile, "fasta"))
 
     if len(f) > 1:
-        logging.debug(
+        logger.debug(
             "{0} records found in {1}, using the first one".format(len(f), fastafile)
         )
 
@@ -504,7 +505,7 @@ def bisect(args):
         try:
             query = list(batch_entrez([term], email=opts.email))
         except AssertionError as e:
-            logging.debug(f"no records found for {term}. terminating. {e}")
+            logger.debug(f"no records found for {term}. terminating. {e}")
             return
 
         id, term, handle = query[0]
@@ -545,45 +546,45 @@ def entrez(args):
     valid_formats = tuple(allowed_databases.keys())
     valid_databases = ("genome", "nuccore", "nucest", "nucgss", "protein", "gene")
 
-    p.add_option(
+    p.add_argument(
         "--noversion",
         dest="noversion",
         default=False,
         action="store_true",
         help="Remove trailing accession versions",
     )
-    p.add_option(
+    p.add_argument(
         "--format",
         default="fasta",
         choices=valid_formats,
         help="download format",
     )
-    p.add_option(
+    p.add_argument(
         "--database",
         default="nuccore",
         choices=valid_databases,
         help="search database",
     )
-    p.add_option(
+    p.add_argument(
         "--retmax",
         default=1000000,
-        type="int",
+        type=int,
         help="how many results to return",
     )
-    p.add_option(
+    p.add_argument(
         "--skipcheck",
         default=False,
         action="store_true",
         help="turn off prompt to check file existence",
     )
-    p.add_option(
+    p.add_argument(
         "--batchsize",
         default=500,
-        type="int",
+        type=int,
         help="download the results in batch for speed-up",
     )
     p.set_outdir(outdir=None)
-    p.add_option("--outprefix", default="out", help="output file name prefix")
+    p.add_argument("--outprefix", default="out", help="output file name prefix")
     p.set_email()
     opts, args = p.parse_args(args)
 
@@ -645,7 +646,7 @@ def entrez(args):
 
         rec = handle.read()
         if id in seen:
-            logging.error("Duplicate key ({0}) found".format(rec))
+            logger.error("Duplicate key ({0}) found".format(rec))
             continue
 
         totalsize += size
@@ -674,7 +675,7 @@ def sra(args):
     """
     p = OptionParser(sra.__doc__)
 
-    p.add_option(
+    p.add_argument(
         "--nogzip",
         dest="nogzip",
         default=False,
@@ -708,7 +709,7 @@ def download_srr_term(term):
 
     m = re.search(sra_run_id_re, term)
     if m is None:
-        logging.error(
+        logger.error(
             "Incorrect SRA identifier format "
             + "[should be like SRR126150, SRR1001901. "
             + "len(identifier) should be between 9-10 characters]"
@@ -720,7 +721,7 @@ def download_srr_term(term):
         sra_base_url, prefix, subprefix, term, "{0}.sra".format(term)
     )
 
-    logging.debug("Downloading file: {0}".format(download_url))
+    logger.debug("Downloading file: {0}".format(download_url))
     return download(download_url)
 
 

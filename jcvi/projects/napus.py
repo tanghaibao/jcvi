@@ -6,26 +6,25 @@ Scripts for the Brassica napus genome manuscript (Chalhoub et al. Science 2014).
 """
 import os.path as op
 import sys
-import logging
 
 import numpy as np
 
-from jcvi.graphics.base import (
-    plt,
-    Rectangle,
-    savefig,
-    mpl,
-    adjust_spines,
+from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..formats.base import LineFile
+from ..graphics.base import (
     FancyArrowPatch,
+    Rectangle,
+    adjust_spines,
+    mpl,
     normalize_axes,
     panel_labels,
+    plt,
+    savefig,
 )
-from jcvi.graphics.glyph import TextCircle
-from jcvi.graphics.karyotype import Karyotype
-from jcvi.graphics.synteny import Synteny
-from jcvi.graphics.coverage import Coverage, Sizes, XYtrack, setup_gauge_ax
-from jcvi.formats.base import LineFile
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..graphics.coverage import Coverage, Sizes, XYtrack, setup_gauge_ax
+from ..graphics.glyph import TextCircle
+from ..graphics.karyotype import Karyotype
+from ..graphics.synteny import Synteny
 
 
 template_cov = """# y, xstart, xend, rotation, color, label, va, bed
@@ -104,7 +103,7 @@ def make_seqids(chrs, seqidsfile="seqids"):
     for chr in chrs:
         print(",".join(chr), file=fw)
     fw.close()
-    logging.debug("File `{0}` written.".format(seqidsfile))
+    logger.debug("File `{0}` written.".format(seqidsfile))
     return seqidsfile
 
 
@@ -116,7 +115,7 @@ def make_layout(chrs, chr_sizes, ratio, template, klayout="layout", shift=0):
     fw = open(klayout, "w")
     print(template.format(*coords), file=fw)
     fw.close()
-    logging.debug("File `{0}` written.".format(klayout))
+    logger.debug("File `{0}` written.".format(klayout))
 
     return klayout
 
@@ -129,21 +128,21 @@ def cov(args):
     homeologous gene pairs. Allow multiple chromosomes to multiple chromosomes.
     """
     p = OptionParser(cov.__doc__)
-    p.add_option(
+    p.add_argument(
         "--order",
         default="swede,kale,h165,yudal,aviso,abu,bristol,bzh",
         help="The order to plot the tracks, comma-separated",
     )
-    p.add_option(
+    p.add_argument(
         "--reverse",
         default=False,
         action="store_true",
         help="Plot the order in reverse",
     )
-    p.add_option(
-        "--gauge_step", default=5000000, type="int", help="Step size for the base scale"
+    p.add_argument(
+        "--gauge_step", default=5000000, type=int, help="Step size for the base scale"
     )
-    p.add_option(
+    p.add_argument(
         "--hlsuffix",
         default="regions.forhaibao",
         help="Suffix for the filename to be used to highlight regions",
@@ -258,9 +257,9 @@ def conversion_track(order, filename, col, label, ax, color, ypos=0, asterisk=Fa
     beds = [order[x][1] for x in ids if x in order]
     pts = [x.start for x in beds if x.seqid == label]
     if len(pts):
-        logging.debug("A total of {0} converted loci imported.".format(len(pts)))
+        logger.debug("A total of {0} converted loci imported.".format(len(pts)))
     else:
-        logging.error("Array empty. Skipped scatterplot.")
+        logger.error("Array empty. Skipped scatterplot.")
         return
 
     ax.vlines(pts, [-1], [ypos], color=color)
@@ -284,10 +283,10 @@ def fig3(args):
     from jcvi.formats.bed import Bed
 
     p = OptionParser(fig3.__doc__)
-    p.add_option(
+    p.add_argument(
         "--gauge_step",
         default=10000000,
-        type="int",
+        type=int,
         help="Step size for the base scale",
     )
     opts, args, iopts = p.set_image_options(args, figsize="12x9")
@@ -533,8 +532,8 @@ def fig4(args):
     showing read alignments from high GL and low GL lines.
     """
     p = OptionParser(fig4.__doc__)
-    p.add_option(
-        "--gauge_step", default=200000, type="int", help="Step size for the base scale"
+    p.add_argument(
+        "--gauge_step", default=200000, type=int, help="Step size for the base scale"
     )
     opts, args, iopts = p.set_image_options(args, figsize="9x7")
 

@@ -24,11 +24,13 @@ IV	IRX7,GUX2
 
 import sys
 
-import numpy as np
 from itertools import groupby
 
-from jcvi.graphics.base import mpl, plt, savefig
-from jcvi.apps.base import OptionParser
+import numpy as np
+
+from ..apps.base import OptionParser
+
+from .base import mpl, plt, savefig
 
 
 def parse_csv(csvfile, vmin=0, groups=False):
@@ -62,14 +64,14 @@ def parse_csv(csvfile, vmin=0, groups=False):
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option(
+    p.add_argument(
         "--groups",
         default=False,
         action="store_true",
         help="The first row contains group info",
     )
-    p.add_option("--rowgroups", help="Row groupings")
-    p.add_option(
+    p.add_argument("--rowgroups", help="Row groupings")
+    p.add_argument(
         "--horizontalbar",
         default=False,
         action="store_true",

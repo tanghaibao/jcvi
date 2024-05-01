@@ -8,30 +8,30 @@ detection.
 """
 import os
 import os.path as op
-import sys
 import shutil
-import logging
+import sys
 
 from copy import deepcopy
 from functools import lru_cache
 from itertools import groupby
 
-from jcvi.formats.agp import AGP, TPF, get_phase, reindex, tidy, build
-from jcvi.formats.base import BaseFile, must_open
-from jcvi.formats.fasta import Fasta, SeqIO
-from jcvi.formats.blast import BlastSlow, BlastLine
-from jcvi.formats.coords import Overlap_types
-from jcvi.apps.fetch import entrez
-from jcvi.apps.grid import WriteJobs
-from jcvi.apps.base import (
-    OptionParser,
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
     cleanup,
-    popen,
+    logger,
     mkdir,
-    sh,
     need_update,
+    popen,
+    sh,
 )
+from ..apps.fetch import entrez
+from ..apps.grid import WriteJobs
+from ..formats.agp import AGP, TPF, build, get_phase, reindex, tidy
+from ..formats.base import BaseFile, must_open
+from ..formats.blast import BlastLine, BlastSlow
+from ..formats.coords import Overlap_types
+from ..formats.fasta import Fasta, SeqIO
 
 
 GoodPct = 98
@@ -474,7 +474,7 @@ class Certificate(BaseFile):
                             orientation == sorientation
                         ), "Orientation conflicts:\n{0}\n{1}".format(north, south)
                     except AssertionError as e:
-                        logging.debug(e)
+                        logger.debug(e)
             else:
                 if sorientation:
                     orientation = sorientation
@@ -556,17 +556,17 @@ def dedup(args):
     for a in agp:
         if not a.is_gap and a.component_id not in reps:
             span = a.component_span
-            logging.debug("Drop component {0} ({1})".format(a.component_id, span))
+            logger.debug("Drop component {0} ({1})".format(a.component_id, span))
             ndropped += 1
             ndroppedbases += span
             continue
         print(a, file=fw)
     fw.close()
 
-    logging.debug(
+    logger.debug(
         "Dropped components: {0}, Dropped bases: {1}".format(ndropped, ndroppedbases)
     )
-    logging.debug("Deduplicated file written to `{0}`.".format(dedupagp))
+    logger.debug("Deduplicated file written to `{0}`.".format(dedupagp))
 
     tidyagp = tidy([dedupagp, splitfile])
     dedupfasta = pf + ".dedup.fasta"
@@ -656,8 +656,8 @@ def anneal(args):
     """
     p = OptionParser(anneal.__doc__)
     p.set_align(pctid=GoodPct, hitlen=GoodOverlap)
-    p.add_option(
-        "--hang", default=GoodOverhang, type="int", help="Maximum overhang length"
+    p.add_argument(
+        "--hang", default=GoodOverhang, type=int, help="Maximum overhang length"
     )
     p.set_outdir(outdir="outdir")
     p.set_cpus()
@@ -674,7 +674,7 @@ def anneal(args):
         sh(cmd)
 
     cutoff = Cutoff(opts.pctid, opts.hitlen, opts.hang)
-    logging.debug(str(cutoff))
+    logger.debug(str(cutoff))
 
     agp = AGP(agpfile)
     blastfile = agpfile.replace(".agp", ".blast")
@@ -682,7 +682,7 @@ def anneal(args):
         populate_blastfile(blastfile, agp, outdir, opts)
 
     assert op.exists(blastfile)
-    logging.debug("File `{0}` found. Start loading.".format(blastfile))
+    logger.debug("File `{0}` found. Start loading.".format(blastfile))
     blast = BlastSlow(blastfile).to_dict()
 
     annealedagp = "annealed.agp"
@@ -724,7 +724,7 @@ def anneal(args):
                 newagp.switch_between(bid, aid, verbose=True)
                 newagp.delete_between(bid, aid, verbose=True)
 
-    logging.debug("A total of {0} components with modified CLR.".format(len(clrstore)))
+    logger.debug("A total of {0} components with modified CLR.".format(len(clrstore)))
 
     for cid, c in clrstore.items():
         if c.is_valid:
@@ -759,7 +759,7 @@ def blast(args):
     from jcvi.apps.align import run_megablast
 
     p = OptionParser(blast.__doc__)
-    p.add_option("-n", type="int", default=2, help="Take best N hits")
+    p.add_argument("-n", type=int, default=2, help="Take best N hits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -926,23 +926,23 @@ def overlap(args):
     from jcvi.formats.blast import chain_HSPs
 
     p = OptionParser(overlap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dir",
         default=os.getcwd(),
         help="Download sequences to dir",
     )
-    p.add_option(
+    p.add_argument(
         "--suffix",
         default="fasta",
         help="Suffix of the sequence file in dir",
     )
-    p.add_option(
+    p.add_argument(
         "--qreverse",
         default=False,
         action="store_true",
         help="Reverse seq a",
     )
-    p.add_option(
+    p.add_argument(
         "--nochain",
         default=False,
         action="store_true",
@@ -989,7 +989,7 @@ def overlap(args):
     hsps = [BlastLine(x) for x in hsps]
     hsps = [x for x in hsps if x.hitlen >= hitlen]
     if chain:
-        logging.debug("Chain HSPs in the Blast output.")
+        logger.debug("Chain HSPs in the Blast output.")
         dist = 2 * hitlen  # Distance to chain the HSPs
         hsps = chain_HSPs(hsps, xdist=dist, ydist=dist)
 

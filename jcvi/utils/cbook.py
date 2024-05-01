@@ -6,9 +6,10 @@ mostly decorator patterns
 import os.path as op
 import re
 import sys
-import logging
 
 from collections import defaultdict
+
+from ..apps.base import logger
 
 
 def inspect(item, maxchar=80):
@@ -37,7 +38,7 @@ def timeit(func):
         te = time.time()
 
         msg = "{0}{1} {2:.2f}s".format(func.__name__, args, te - ts)
-        logging.debug(msg)
+        logger.debug(msg)
 
         return result
 
@@ -149,7 +150,7 @@ class SummaryStats(object):
         for x in self.data:
             print(x, file=fw)
         fw.close()
-        logging.debug(
+        logger.debug(
             "Array of size {0} written to file `{1}`.".format(self.size, filename)
         )
 
@@ -394,8 +395,6 @@ def fixChromName(name, orgn="medicago"):
             `chromosome:AGPv2:mitochondrion:1:569630:1` to `Mt`
             `chromosome:AGPv2:chloroplast:1:140384:1` to `Pt`
     """
-    import re
-
     mtr_pat1 = re.compile(r"Mt[0-9]+\.[0-9]+[.[0-9]+]*_([a-z]+[0-9]+)")
     mtr_pat2 = re.compile(r"([A-z0-9]+)_[A-z]+_[A-z]+")
 

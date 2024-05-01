@@ -33,7 +33,6 @@ from ..apps.base import (
     symlink,
 )
 from ..apps.grid import Jobs
-from ..assembly.allmaps import make_movie
 from ..compara.synteny import check_beds, get_bed_filenames
 from ..formats.agp import order_to_agp
 from ..formats.base import LineFile, must_open
@@ -49,6 +48,9 @@ from ..graphics.base import (
 )
 from ..graphics.dotplot import dotplot
 from ..utils.cbook import gene_name
+
+from .allmaps import make_movie
+
 
 # Map orientations to ints
 FF = {"+": 1, "-": -1, "?": 1}
@@ -624,9 +626,9 @@ def dist(args):
     from jcvi.graphics.base import human_base_formatter, markup
 
     p = OptionParser(dist.__doc__)
-    p.add_option("--title", help="Title of the histogram")
-    p.add_option("--xmin", default=300, help="Minimum distance")
-    p.add_option("--xmax", default=6000000, help="Maximum distance")
+    p.add_argument("--title", help="Title of the histogram")
+    p.add_argument("--xmin", default=300, help="Minimum distance")
+    p.add_argument("--xmax", default=6000000, help="Maximum distance")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
 
     if len(args) != 2:
@@ -817,12 +819,12 @@ def heatmap(args):
     and seq2 individually with green color.
     """
     p = OptionParser(heatmap.__doc__)
-    p.add_option("--title", help="Title of the heatmap")
-    p.add_option("--groups", help="Groups file, see doc")
-    p.add_option("--vmin", default=1, type="int", help="Minimum value in the heatmap")
-    p.add_option("--vmax", default=6, type="int", help="Maximum value in the heatmap")
-    p.add_option("--chr", help="Plot this contig/chr only")
-    p.add_option(
+    p.add_argument("--title", help="Title of the heatmap")
+    p.add_argument("--groups", help="Groups file, see doc")
+    p.add_argument("--vmin", default=1, type=int, help="Minimum value in the heatmap")
+    p.add_argument("--vmax", default=6, type=int, help="Maximum value in the heatmap")
+    p.add_argument("--chr", help="Plot this contig/chr only")
+    p.add_argument(
         "--nobreaks",
         default=False,
         action="store_true",
@@ -917,7 +919,7 @@ def get_distbins(start=100, bins=2000, ratio=1.01):
     b[0] = 100
     for i in range(1, bins):
         b[i] = b[i - 1] * ratio
-    bins = np.around(b).astype(dtype="int")
+    bins = np.around(b).astype(dtype=int)
     binsizes = np.diff(bins)
     return bins, binsizes
 
@@ -935,13 +937,13 @@ def bam2mat(args):
     from jcvi.utils.cbook import percentage
 
     p = OptionParser(bam2mat.__doc__)
-    p.add_option(
+    p.add_argument(
         "--resolution",
         default=500000,
-        type="int",
+        type=int,
         help="Resolution when counting the links",
     )
-    p.add_option(
+    p.add_argument(
         "--seqids",
         default=None,
         help="Use a given seqids file, a single line with seqids joined by comma",
@@ -992,8 +994,8 @@ def bam2mat(args):
 
     print(sorted(seqstarts.items(), key=lambda x: x[-1]))
     logger.debug("Initialize matrix of size %dx%d", total_bins, total_bins)
-    A = np.zeros((total_bins, total_bins), dtype="int")
-    B = np.zeros(bins, dtype="int")
+    A = np.zeros((total_bins, total_bins), dtype=int)
+    B = np.zeros(bins, dtype=int)
 
     # Find the bin ID of each read
     def bin_number(chr, pos):
@@ -1063,10 +1065,10 @@ def simulate(args):
     - Genes are distributed uniformly
     """
     p = OptionParser(simulate.__doc__)
-    p.add_option("--genomesize", default=10000000, type="int", help="Genome size")
-    p.add_option("--genes", default=1000, type="int", help="Number of genes")
-    p.add_option("--contigs", default=100, type="int", help="Number of contigs")
-    p.add_option("--coverage", default=10, type="int", help="Link coverage")
+    p.add_argument("--genomesize", default=10000000, type=int, help="Genome size")
+    p.add_argument("--genes", default=1000, type=int, help="Number of genes")
+    p.add_argument("--contigs", default=100, type=int, help="Number of contigs")
+    p.add_argument("--coverage", default=10, type=int, help="Link coverage")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1106,7 +1108,7 @@ def simulate(args):
     LinkStarts = np.sort(np.random.randint(1, GenomeSize, size=Links))
     a, b = 1e-7, 1e-3
     LinkSizes = np.array(
-        np.round_(1 / ((b - a) * np.random.rand(Links) + a), decimals=0), dtype="int"
+        np.round_(1 / ((b - a) * np.random.rand(Links) + a), decimals=0), dtype=int
     )
     LinkEnds = LinkStarts + LinkSizes
 
@@ -1220,7 +1222,7 @@ def density(args):
     Estimate link density of contigs.
     """
     p = OptionParser(density.__doc__)
-    p.add_option(
+    p.add_argument(
         "--save",
         default=False,
         action="store_true",
@@ -1260,19 +1262,19 @@ def optimize(args):
     Optimize the contig order and orientation, based on CLM file.
     """
     p = OptionParser(optimize.__doc__)
-    p.add_option(
+    p.add_argument(
         "--skiprecover",
         default=False,
         action="store_true",
         help="Do not import 'recover' contigs",
     )
-    p.add_option(
+    p.add_argument(
         "--startover",
         default=False,
         action="store_true",
         help="Do not resume from existing tour file",
     )
-    p.add_option("--skipGA", default=False, action="store_true", help="Skip GA step")
+    p.add_argument("--skipGA", default=False, action="store_true", help="Skip GA step")
     p.set_outfile(outfile=None)
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -1479,8 +1481,8 @@ def movie(args):
     Plot optimization history.
     """
     p = OptionParser(movie.__doc__)
-    p.add_option("--frames", default=500, type="int", help="Only plot every N frames")
-    p.add_option(
+    p.add_argument("--frames", default=500, type=int, help="Only plot every N frames")
+    p.add_argument(
         "--engine",
         default="ffmpeg",
         choices=("ffmpeg", "gifsicle"),
@@ -1666,7 +1668,7 @@ def movieframe(args):
     Draw heatmap and synteny in the same plot.
     """
     p = OptionParser(movieframe.__doc__)
-    p.add_option("--label", help="Figure title")
+    p.add_argument("--label", help="Figure title")
     p.set_beds()
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(

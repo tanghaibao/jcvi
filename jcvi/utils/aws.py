@@ -4,31 +4,35 @@
 """
 AWS-related methods.
 """
+import fnmatch
+import getpass
+import json
 import os
 import os.path as op
 import sys
-import fnmatch
-import boto3
-import json
-import logging
 import time
-import getpass
 
 from configparser import NoOptionError, NoSectionError
 from datetime import datetime
 from multiprocessing import Pool
+
+import boto3
+
 from botocore.exceptions import ClientError, ParamValidationError
 
-from jcvi.formats.base import BaseFile, SetFile, timestamp
-from jcvi.utils.console import console
-from jcvi.apps.base import (
-    OptionParser,
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
     datafile,
     get_config,
+    logger,
     popen,
     sh,
 )
+from ..formats.base import BaseFile, SetFile, timestamp
+
+from .console import console
+
 
 AWS_CREDS_PATH = "%s/.aws/credentials" % (op.expanduser("~"),)
 
@@ -144,14 +148,14 @@ def start(args):
     Launch ec2 instance through command line.
     """
     p = OptionParser(start.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ondemand",
         default=False,
         action="store_true",
         help="Do we want a more expensive on-demand instance",
     )
-    p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
-    p.add_option("--price", default=4.0, type=float, help="Spot price")
+    p.add_argument("--profile", default="mvrad-datasci-role", help="Profile name")
+    p.add_argument("--price", default=4.0, type=float, help="Spot price")
     opts, args = p.parse_args(args)
 
     if len(args) != 0:
@@ -165,7 +169,7 @@ def start(args):
     # Make sure the instance id is empty
     instance_id = s.instance_id
     if instance_id != "":
-        logging.error("Instance exists {}".format(instance_id))
+        logger.error("Instance exists {}".format(instance_id))
         sys.exit(1)
 
     launch_spec = s.launch_spec
@@ -208,14 +212,14 @@ def start(args):
             if "InstanceId" in response["SpotInstanceRequests"][0]:
                 instance_id = response["SpotInstanceRequests"][0]["InstanceId"]
             else:
-                logging.debug("Waiting to be fulfilled ...")
+                logger.debug("Waiting to be fulfilled ...")
                 time.sleep(10)
 
     # Check if the instance is running
     print("Instance id {}".format(instance_id), file=sys.stderr)
     status = ""
     while status != "running":
-        logging.debug("Waiting instance to run ...")
+        logger.debug("Waiting instance to run ...")
         time.sleep(3)
         response = client.describe_instance_status(InstanceIds=[instance_id])
         if len(response["InstanceStatuses"]) > 0:
@@ -257,7 +261,7 @@ def stop(args):
     Stop EC2 instance.
     """
     p = OptionParser(stop.__doc__)
-    p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
+    p.add_argument("--profile", default="mvrad-datasci-role", help="Profile name")
     opts, args = p.parse_args(args)
 
     if len(args) != 0:
@@ -271,7 +275,7 @@ def stop(args):
     # Make sure the instance id is NOT empty
     instance_id = s.instance_id
     if instance_id == "":
-        logging.error("Cannot find instance_id {}".format(instance_id))
+        logger.error("Cannot find instance_id {}".format(instance_id))
         sys.exit(1)
 
     block_device_mappings = []
@@ -289,7 +293,7 @@ def stop(args):
 
     image_status = ""
     while image_status != "available":
-        logging.debug("Waiting for image to be ready")
+        logger.debug("Waiting for image to be ready")
         time.sleep(10)
         response = client.describe_images(ImageIds=[new_image_id])
         image_status = response["Images"][0]["State"]
@@ -362,7 +366,7 @@ def cp(args):
     Copy files to folder. Accepts list of s3 addresses as input.
     """
     p = OptionParser(cp.__doc__)
-    p.add_option(
+    p.add_argument(
         "--force", default=False, action="store_true", help="Force overwrite if exists"
     )
     p.set_cpus()
@@ -405,8 +409,8 @@ def ls(args):
     List files with support for wildcards.
     """
     p = OptionParser(ls.__doc__)
-    p.add_option("--keys", help="List of keys to include")
-    p.add_option(
+    p.add_argument("--keys", help="List of keys to include")
+    p.add_argument(
         "--recursive", default=False, action="store_true", help="Recursive search"
     )
     opts, args = p.parse_args(args)
@@ -488,7 +492,7 @@ def check_exists_s3(s3_store_obj_name: str, warn=False) -> bool:
     counts = int(popen(cmd).read())
     exists = counts != 0
     if exists and warn:
-        logging.debug("{} exists. Skipped.".format(s3_store_obj_name))
+        logger.debug("{} exists. Skipped.".format(s3_store_obj_name))
     return exists
 
 
@@ -510,8 +514,8 @@ def role(args):
     ) = "205134639408 htang 114692162163 mvrad-datasci-role".split()
 
     p = OptionParser(role.__doc__)
-    p.add_option("--profile", default="mvrad-datasci-role", help="Profile name")
-    p.add_option(
+    p.add_argument("--profile", default="mvrad-datasci-role", help="Profile name")
+    p.add_argument(
         "--device",
         default="arn:aws:iam::" + src_acct + ":mfa/" + src_username,
         metavar="arn:aws:iam::123456788990:mfa/dudeman",
@@ -519,7 +523,7 @@ def role(args):
         "provided via the environment variable 'MFA_DEVICE' or"
         " the ~/.aws/credentials variable 'aws_mfa_device'.",
     )
-    p.add_option(
+    p.add_argument(
         "--duration",
         type=int,
         default=3600,
@@ -531,7 +535,7 @@ def role(args):
         "can also be provided via the environment "
         "variable 'MFA_STS_DURATION'. ",
     )
-    p.add_option(
+    p.add_argument(
         "--assume-role",
         "--assume",
         default="arn:aws:iam::" + dst_acct + ":role/" + dst_role,
@@ -540,12 +544,12 @@ def role(args):
         "assume, if specified. This value can also be provided"
         " via the environment variable 'MFA_ASSUME_ROLE'",
     )
-    p.add_option(
+    p.add_argument(
         "--role-session-name",
         help="Friendly session name required when using --assume-role",
         default=getpass.getuser(),
     )
-    p.add_option(
+    p.add_argument(
         "--force",
         help="Refresh credentials even if currently valid.",
         action="store_true",
@@ -577,7 +581,7 @@ def validate(args, config):
         )
     else:
         role_msg = ""
-    logging.info("Validating credentials for profile: %s %s" % (profile, role_msg))
+    logger.info("Validating credentials for profile: %s %s" % (profile, role_msg))
     reup_message = "Obtaining credentials for a new role or profile."
 
     try:
@@ -642,7 +646,7 @@ def validate(args, config):
             for option in required_options:
                 short_term[option] = config.get(profile, option)
         except NoOptionError:
-            logging.warning(
+            logger.warning(
                 "Your existing credentials are missing or invalid, "
                 "obtaining new credentials."
             )
@@ -654,12 +658,12 @@ def validate(args, config):
             current_role = None
 
         if args.force:
-            logging.info("Forcing refresh of credentials.")
+            logger.info("Forcing refresh of credentials.")
             force_refresh = True
         # There are not credentials for an assumed role,
         # but the user is trying to assume one
         elif current_role is None and args.assume_role:
-            logging.info(reup_message)
+            logger.info(reup_message)
             force_refresh = True
         # There are current credentials for a role and
         # the role arn being provided is the same.
@@ -676,12 +680,12 @@ def validate(args, config):
             and args.assume_role
             and current_role != args.assume_role
         ):
-            logging.info(reup_message)
+            logger.info(reup_message)
             force_refresh = True
         # There are credentials for a current role and no role arn is
         # being supplied
         elif current_role is not None and args.assume_role is None:
-            logging.info(reup_message)
+            logger.info(reup_message)
             force_refresh = True
 
     should_refresh = True
@@ -691,10 +695,10 @@ def validate(args, config):
         exp = datetime.strptime(config.get(profile, "expiration"), "%Y-%m-%d %H:%M:%S")
         diff = exp - datetime.utcnow()
         if diff.total_seconds() <= 0:
-            logging.info("Your credentials have expired, renewing.")
+            logger.info("Your credentials have expired, renewing.")
         else:
             should_refresh = False
-            logging.info(
+            logger.info(
                 "Your credentials are still valid for %s seconds"
                 " they will expire at %s" % (diff.total_seconds(), exp)
             )
@@ -714,7 +718,7 @@ def get_credentials(profile, args, config):
 
     if args.assume_role:
 
-        logging.info(
+        logger.info(
             "Assuming Role - Profile: %s, Role: %s, Duration: %s",
             profile,
             args.assume_role,
@@ -747,7 +751,7 @@ def get_credentials(profile, args, config):
             args.assume_role,
         )
     else:
-        logging.info(
+        logger.info(
             "Fetching Credentials - Profile: %s, Duration: %s", profile, args.duration
         )
         try:
@@ -790,7 +794,7 @@ def get_credentials(profile, args, config):
     with open(AWS_CREDS_PATH, "w") as configfile:
         config.write(configfile)
 
-    logging.info(
+    logger.info(
         "Success! Your credentials will expire in %s seconds at: %s"
         % (args.duration, response["Credentials"]["Expiration"])
     )
@@ -798,7 +802,7 @@ def get_credentials(profile, args, config):
 
 def log_error_and_exit(message):
     """Log an error message and exit with error"""
-    logging.error(message)
+    logger.error(message)
     sys.exit(1)
 
 

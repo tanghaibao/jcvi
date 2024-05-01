@@ -5,7 +5,7 @@ Collection of scripts to run gene finders, execute annotation pipelines, perform
 """
 
 
-from jcvi.apps.base import dmain
+from ..apps.base import dmain
 
 
 if __name__ == "__main__":

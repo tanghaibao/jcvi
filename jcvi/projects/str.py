@@ -8,26 +8,33 @@ import os.path as op
 import os
 import csv
 import sys
-import logging
 import json
 import numpy as np
 import pandas as pd
 
 from collections import defaultdict
+from itertools import product
 from random import sample
-from pyfaidx import Fasta
+
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from itertools import product
 from natsort import natsorted
+from pyfaidx import Fasta
 
 try:
     import vcf
 except ImportError:
     pass
 
-from jcvi.graphics.base import (
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, iglob, logger, mkdir
+from ..apps.base import datafile, sh
+from ..apps.bwa import align
+from ..apps.grid import Parallel
+from ..assembly.sim import eagle, wgsim
+from ..formats.base import is_number, must_open
+from ..formats.sam import get_minibam_bed, index
+from ..graphics.base import (
     FancyArrow,
     normalize_axes,
     panel_labels,
@@ -35,16 +42,9 @@ from jcvi.graphics.base import (
     savefig,
     set_helvetica_axis,
 )
-from jcvi.formats.base import is_number, must_open
-from jcvi.formats.sam import get_minibam_bed, index
-from jcvi.variation.str import TREDsRepo, af_to_counts, read_treds
-from jcvi.utils.cbook import percentage
-from jcvi.utils.table import tabulate
-from jcvi.apps.grid import Parallel
-from jcvi.apps.bwa import align
-from jcvi.apps.base import datafile, sh
-from jcvi.assembly.sim import eagle, wgsim
-from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, iglob, mkdir
+from ..utils.cbook import percentage
+from ..utils.table import tabulate
+from ..variation.str import TREDsRepo, af_to_counts, read_treds
 
 
 # Huntington risk allele
@@ -233,7 +233,7 @@ def mendelian_errors2(args):
         tred = d["Name"]
         motif = d["Motif"]
         if tred in ignore:
-            logging.debug("Ignore {}".format(d["TRED"]))
+            logger.debug("Ignore {}".format(d["TRED"]))
             continue
 
         if len(motif) > 6:
@@ -283,7 +283,7 @@ def mendelian2(args):
     counts and gender information to correct error estimate of X-linked loci.
     """
     p = OptionParser(mendelian2.__doc__)
-    p.add_option(
+    p.add_argument(
         "--treds", default=None, help="Extract specific treds, use comma to separate"
     )
     opts, args = p.parse_args(args)
@@ -340,7 +340,7 @@ def mendelian2(args):
                 pedp = int(row[tred + ".PEDP"])
                 td[s] = [str(x) for x in (inferredGender, calls, fdp, pdp, rdp, pedp)]
             except ValueError:
-                logging.error("Invalid row: {}".format(row))
+                logger.error("Invalid row: {}".format(row))
                 continue
 
         h = " ".join((header.format("P1"), header.format("P2"), header.format("Kid")))
@@ -522,7 +522,7 @@ def alts(args):
                     altreads += 1
                 nreads += 1
 
-            logging.debug(
+            logger.debug(
                 "A total of {} reads ({} alts) processed".format(nreads, altreads)
             )
             alt_points = natsorted(alt_points)
@@ -563,7 +563,7 @@ def alts(args):
         line = ",".join([tred] + ref_regions)
         print(line, file=sys.stderr)
         print(line, file=fw)
-        logging.debug("Alternative region sum: {} bp".format(alt_sum))
+        logger.debug("Alternative region sum: {} bp".format(alt_sum))
 
     fw.close()
 
@@ -596,13 +596,13 @@ def depth(args):
         (ax1, ax2, ax3, ax4),
         ("Spanning reads", "Partial reads", "Repeat-only reads", "Paired-end reads"),
     ):
-        logging.debug("Build {}".format(title))
+        logger.debug("Build {}".format(title))
         # Construct related data structure
         xd = []  # (tred, dp)
         mdp = []  # (tred, median_dp)
         for tred, motif in zip(treds["abbreviation"], treds["motif"]):
             if tred in ignore:
-                logging.debug("Ignore {}".format(tred))
+                logger.debug("Ignore {}".format(tred))
                 continue
             if len(motif) > 4:
                 if "/" in motif:  # CTG/CAG
@@ -681,7 +681,7 @@ def mendelian_errors(args):
     data = []
     for i, d in df.iterrows():
         if d["TRED"].split()[0] in ignore:
-            logging.debug("Ignore {}".format(d["TRED"]))
+            logger.debug("Ignore {}".format(d["TRED"]))
             continue
         data.append(d)
     treds, duos, trios = zip(*data)
@@ -764,7 +764,7 @@ def mendelian(args):
     Calculate Mendelian errors based on trios and duos.
     """
     p = OptionParser(mendelian.__doc__)
-    p.add_option("--tolerance", default=0, type="int", help="Tolernace for differences")
+    p.add_argument("--tolerance", default=0, type=int, help="Tolernace for differences")
     p.set_verbose()
     opts, args = p.parse_args(args)
 
@@ -884,10 +884,10 @@ def mini(args):
     Prepare mini-BAMs that contain only the STR loci.
     """
     p = OptionParser(mini.__doc__)
-    p.add_option(
-        "--pad", default=20000, type="int", help="Add padding to the STR reigons"
+    p.add_argument(
+        "--pad", default=20000, type=int, help="Add padding to the STR reigons"
     )
-    p.add_option(
+    p.add_argument(
         "--treds", default=None, help="Extract specific treds, use comma to separate"
     )
     p.set_outfile()
@@ -902,7 +902,7 @@ def mini(args):
     bedfile = make_STR_bed(pad=pad, treds=treds)
 
     get_minibam_bed(bamfile, bedfile, minibam)
-    logging.debug("Mini-BAM written to `{}`".format(minibam))
+    logger.debug("Mini-BAM written to `{}`".format(minibam))
 
 
 def parse_log(logfile):
@@ -1428,7 +1428,7 @@ def allelefreqall(args):
 
     pf = op.basename(reportfile).split(".")[0]
     finalpdf = pf + ".allelefreq.pdf"
-    logging.debug("Merging pdfs into `{}`".format(finalpdf))
+    logger.debug("Merging pdfs into `{}`".format(finalpdf))
     cat(pdfs + ["-o", finalpdf, "--cleanup"])
 
 
@@ -1439,13 +1439,13 @@ def allelefreq(args):
     Plot the allele frequencies of some STRs.
     """
     p = OptionParser(allelefreq.__doc__)
-    p.add_option(
+    p.add_argument(
         "--nopanels",
         default=False,
         action="store_true",
         help="No panel labels A, B, ...",
     )
-    p.add_option("--usereport", help="Use allele frequency in report file")
+    p.add_argument("--usereport", help="Use allele frequency in report file")
     opts, args, iopts = p.set_image_options(args, figsize="9x13")
 
     if len(args) != 1:
@@ -1500,11 +1500,11 @@ def make_fasta(seq, fastafile, id):
 
 
 def add_simulate_options(p):
-    p.add_option("--readlen", default=150, type="int", help="Length of the read")
-    p.add_option(
+    p.add_argument("--readlen", default=150, type=int, help="Length of the read")
+    p.add_argument(
         "--distance",
         default=500,
-        type="int",
+        type=int,
         help="Outer distance between the two ends",
     )
     p.set_depth(depth=20)
@@ -1519,16 +1519,16 @@ def simulate(args):
     `run_dir`.
     """
     p = OptionParser(simulate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--method", choices=("wgsim", "eagle"), default="eagle", help="Read simulator"
     )
-    p.add_option(
+    p.add_argument(
         "--ref",
         default="hg38",
         choices=("hg38", "hg19"),
         help="Reference genome version",
     )
-    p.add_option("--tred", default="HD", help="TRED locus")
+    p.add_argument("--tred", default="HD", help="TRED locus")
     add_simulate_options(p)
     opts, args = p.parse_args(args)
 
@@ -1550,7 +1550,7 @@ def simulate(args):
     tred = repo[opts.tred]
     chr, start, end = tred.chr, tred.repeat_start, tred.repeat_end
 
-    logging.debug("Simulating {}".format(tred))
+    logger.debug("Simulating {}".format(tred))
     fasta = Fasta(ref_fasta)
     seq_left = fasta[chr][start - pad_left : start - 1]
     seq_right = fasta[chr][end : end + pad_right]
@@ -1611,7 +1611,7 @@ def mergebam(args):
     if len(args) == 2:
         idir1, outdir = args
         dir1 = [idir1] if idir1.endswith(".bam") else iglob(idir1, "*.bam")
-        logging.debug("Homozygous mode")
+        logger.debug("Homozygous mode")
         dir2 = [""] * len(dir1)
     elif len(args) == 3:
         idir1, idir2, outdir = args
@@ -1642,7 +1642,7 @@ def batchlobstr(args):
     $ tred.py bamlist --haploid chr4 --workdir tredparse_results
     """
     p = OptionParser(batchlobstr.__doc__)
-    p.add_option(
+    p.add_argument(
         "--haploid", default="chrY,chrM", help="Use haploid model for these chromosomes"
     )
     p.set_cpus()
@@ -1703,7 +1703,7 @@ def evidences(args):
     - Longer allele
     """
     p = OptionParser(evidences.__doc__)
-    p.add_option(
+    p.add_argument(
         "--csv", default="hli.20170328.tred.tsv", help="TRED csv output to plot"
     )
     opts, args, iopts = p.set_image_options(args, format="pdf")
@@ -2044,8 +2044,8 @@ def compare2(args):
     Compare performances of various variant callers on simulated STR datasets.
     """
     p = OptionParser(compare2.__doc__)
-    p.add_option(
-        "--maxinsert", default=300, type="int", help="Maximum number of repeats"
+    p.add_argument(
+        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
     )
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x5")
@@ -2101,8 +2101,8 @@ def power(args):
     This compares the power of various evidence types.
     """
     p = OptionParser(power.__doc__)
-    p.add_option(
-        "--maxinsert", default=300, type="int", help="Maximum number of repeats"
+    p.add_argument(
+        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
     )
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x10", format="png")
@@ -2200,8 +2200,8 @@ def tredparse(args):
     Adds coverage comparisons as panel C and D.
     """
     p = OptionParser(tredparse.__doc__)
-    p.add_option(
-        "--maxinsert", default=300, type="int", help="Maximum number of repeats"
+    p.add_argument(
+        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
     )
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x10")

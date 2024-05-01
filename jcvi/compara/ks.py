@@ -5,33 +5,35 @@
 Calculation of synonymous substitutions (Ks).
 """
 import csv
-import logging
 import os
 import os.path as op
 import sys
+
 from functools import partial
 from itertools import combinations, product
 from math import exp, log, pi, sqrt
 from typing import Optional
 
 import numpy as np
+
 from Bio import AlignIO, SeqIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
 
-from jcvi.apps.base import (
+from ..apps.base import (
     ActionDispatcher,
     OptionParser,
     Popen,
     cleanup,
     getpath,
     iglob,
+    logger,
     mkdir,
     sh,
 )
-from jcvi.formats.base import LineFile, must_open
-from jcvi.graphics.base import AbstractLayout, adjust_spines, markup, plt, savefig
-from jcvi.utils.cbook import gene_name
-from jcvi.utils.table import write_csv
+from ..formats.base import LineFile, must_open
+from ..graphics.base import AbstractLayout, adjust_spines, markup, plt, savefig
+from ..utils.cbook import gene_name
+from ..utils.table import write_csv
 
 CLUSTALW_BIN = partial(getpath, name="CLUSTALW2", warn="warn")
 MUSCLE_BIN = partial(getpath, name="MUSCLE", warn="warn")
@@ -347,7 +349,7 @@ def plot_GC3(GC3, cdsfile, fill="white"):
         fill=fill,
     )
 
-    logging.debug("{0} GC3 values plotted to {1}.pdf".format(len(GC3), numberfile))
+    logger.debug("{0} GC3 values plotted to {1}.pdf".format(len(GC3), numberfile))
 
 
 def gc3(args):
@@ -364,7 +366,7 @@ def gc3(args):
     concatenated or separated.
     """
     p = OptionParser(gc3.__doc__)
-    p.add_option(
+    p.add_argument(
         "--plot", default=False, action="store_true", help="Also plot the GC3 histogram"
     )
     p.set_outfile()
@@ -404,7 +406,7 @@ def gc3(args):
             continue
         writer.writerow(d)
         nlines += 1
-    logging.debug("{0} records written (from {1}).".format(nlines, noriginals))
+    logger.debug("{0} records written (from {1}).".format(nlines, noriginals))
 
 
 def extract_pairs(abed, bbed, groups):
@@ -430,7 +432,7 @@ def extract_pairs(abed, bbed, groups):
             print("\t".join((a, b)), file=fw)
             npairs += 1
 
-    logging.debug("File `{0}` written with {1} pairs.".format(pairsfile, npairs))
+    logger.debug("File `{0}` written with {1} pairs.".format(pairsfile, npairs))
 
 
 def fromgroups(args):
@@ -505,7 +507,7 @@ def prepare(args):
             continue
         a, b = row.split()[:2]
         if a == b:
-            logging.debug("Self pairs found: {0} - {1}. Ignored".format(a, b))
+            logger.debug("Self pairs found: {0} - {1}. Ignored".format(a, b))
             continue
 
         if a not in f:
@@ -549,18 +551,18 @@ def calc(args):
     from jcvi.formats.fasta import translate
 
     p = OptionParser(calc.__doc__)
-    p.add_option(
+    p.add_argument(
         "--longest",
         action="store_true",
         help="Get longest ORF, only works if no pep file, e.g. ESTs",
     )
-    p.add_option(
+    p.add_argument(
         "--msa",
         default="clustalw",
         choices=("clustalw", "muscle"),
         help="software used to align the proteins",
     )
-    p.add_option("--workdir", default=os.getcwd(), help="Work directory")
+    p.add_argument("--workdir", default=os.getcwd(), help="Work directory")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -822,10 +824,10 @@ def subset(args):
     in tab delimited pairsfile/anchorfile.
     """
     p = OptionParser(subset.__doc__)
-    p.add_option(
+    p.add_argument(
         "--noheader", action="store_true", help="don't write ksfile header line"
     )
-    p.add_option(
+    p.add_argument(
         "--block", action="store_true", help="preserve block structure in input"
     )
     p.set_stripnames()
@@ -881,8 +883,8 @@ def subset(args):
         i += 1
     fw.close()
 
-    logging.debug("{0} pairs not found in ksfiles".format(j))
-    logging.debug("{0} ks records written to `{1}`".format(i, outfile))
+    logger.debug("{0} pairs not found in ksfiles".format(j))
+    logger.debug("{0} ks records written to `{1}`".format(i, outfile))
     return outfile
 
 
@@ -941,7 +943,7 @@ class KsFile(LineFile):
                 continue
             self.append(ksline)
 
-        logging.debug(
+        logger.debug(
             "File `{0}` contains a total of {1} gene pairs".format(filename, len(self))
         )
 
@@ -1053,7 +1055,7 @@ def plot_ks_dist(
     (line,) = my_hist(
         ax, data, interval, ks_max, color=color, marker=marker, fill=fill, kde=kde
     )
-    logging.debug("Total {0} pairs after filtering.".format(len(data)))
+    logger.debug("Total {0} pairs after filtering.".format(len(data)))
 
     line_mixture = None
     if fitted:
@@ -1081,21 +1083,25 @@ def plot_ks_dist(
 
 
 def add_plot_options(p):
-    p.add_option("--fit", default=False, action="store_true", help="Plot fitted lines")
-    p.add_option("--kde", default=False, action="store_true", help="Use KDE smoothing")
-    p.add_option("--vmin", default=0.0, type="float", help="Minimum value, inclusive")
-    p.add_option("--vmax", default=3.0, type="float", help="Maximum value, inclusive")
-    p.add_option(
-        "--bins", default=60, type="int", help="Number of bins to plot in the histogram"
+    p.add_argument(
+        "--fit", default=False, action="store_true", help="Plot fitted lines"
     )
-    p.add_option("--legendp", default="upper right", help="Place of the legend")
-    p.add_option(
+    p.add_argument(
+        "--kde", default=False, action="store_true", help="Use KDE smoothing"
+    )
+    p.add_argument("--vmin", default=0.0, type=float, help="Minimum value, inclusive")
+    p.add_argument("--vmax", default=3.0, type=float, help="Maximum value, inclusive")
+    p.add_argument(
+        "--bins", default=60, type=int, help="Number of bins to plot in the histogram"
+    )
+    p.add_argument("--legendp", default="upper right", help="Place of the legend")
+    p.add_argument(
         "--fill",
         default=False,
         action="store_true",
         help="Do not fill the histogram area",
     )
-    p.add_option("--title", default="*Ks* distribution", help="Title of the plot")
+    p.add_argument("--title", default="*Ks* distribution", help="Title of the plot")
 
 
 def report(args):
@@ -1109,16 +1115,16 @@ def report(args):
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(report.__doc__)
-    p.add_option(
+    p.add_argument(
         "--pdf",
         default=False,
         action="store_true",
         help="Generate graphic output for the histogram",
     )
-    p.add_option(
+    p.add_argument(
         "--components",
         default=1,
-        type="int",
+        type=int,
         help="Number of components to decompose peaks",
     )
     add_plot_options(p)

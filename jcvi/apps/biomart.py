@@ -8,13 +8,11 @@ phytozome data sets.  Certain portion of the codes are ported from R package
 """
 import sys
 import urllib
-import logging
 
 from urllib.parse import urljoin
-
 from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, download
+from .base import ActionDispatcher, OptionParser, download, logger
 
 
 class GlobusXMLParser(ElementTree):
@@ -123,7 +121,7 @@ class MartXMLParser(ElementTree):
         for t in self.getiterator("FilterDescription"):
             f = Filter(**t.attrib)
             options = [Option(**x.attrib) for x in t.getiterator("Option")]
-            f.add_options(options)
+            f.add_arguments(options)
             yield f
 
 
@@ -317,7 +315,7 @@ class Filter(MartArgument):
     then use the filter chromosome_name with value `1`
     """
 
-    def add_options(self, options):
+    def add_arguments(self, options):
         self.options = dict((x.displayName, x) for x in options)
 
 
@@ -416,7 +414,7 @@ def bed(args):
 
         print(row, file=fw)
 
-    logging.debug("A total of {0} records written to `{1}`.".format(i + 1, bedfile))
+    logger.debug("A total of %d records written to `%s`.", i + 1, bedfile)
 
 
 if __name__ == "__main__":

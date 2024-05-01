@@ -5,18 +5,17 @@
 Syntenic path assembly.
 """
 import sys
-import logging
 
 from collections import defaultdict
 from itertools import groupby, combinations
 from more_itertools import pairwise
 
-from jcvi.formats.blast import BlastSlow, Blast
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import LineFile, must_open
-from jcvi.utils.range import range_intersect
-from jcvi.algorithms.graph import BiGraph
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..algorithms.graph import BiGraph
+from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..formats.base import LineFile, must_open
+from ..formats.blast import Blast, BlastSlow
+from ..formats.sizes import Sizes
+from ..utils.range import range_intersect
 
 
 class OVLLine:
@@ -60,12 +59,12 @@ class OVL(LineFile):
                 alledges[o.a + "-3`"].append(o)
             elif o.tag == "b->a":
                 alledges[o.a + "-5`"].append(o)
-        logging.debug(
+        logger.debug(
             "Imported {} links. Contained tigs: {}".format(len(self), len(contained))
         )
         self.contained = contained
 
-        logging.debug("Pruning edges to keep the mutual best")
+        logger.debug("Pruning edges to keep the mutual best")
         for k, v in alledges.items():
             bo = max(v, key=lambda x: x.score)
             bo.best = True
@@ -134,14 +133,14 @@ def bed(args):
     from ..compara.base import AnchorFile
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--switch",
         default=False,
         action="store_true",
         help="Switch reference and aligned map elements",
     )
-    p.add_option(
-        "--scale", type="float", help="Scale the aligned map distance by factor"
+    p.add_argument(
+        "--scale", type=float, help="Scale the aligned map distance by factor"
     )
     p.set_beds()
     p.set_outfile()
@@ -230,14 +229,14 @@ def partition(args):
     """
     allowed_format = ("png", "ps")
     p = OptionParser(partition.__doc__)
-    p.add_option("--prefix", help="Add prefix to the name")
-    p.add_option(
+    p.add_argument("--prefix", help="Add prefix to the name")
+    p.add_argument(
         "--namestart",
         default=0,
-        type="int",
+        type=int,
         help="Use a shorter name, starting index",
     )
-    p.add_option(
+    p.add_argument(
         "--format",
         default="png",
         choices=allowed_format,
@@ -299,7 +298,7 @@ def merge(args):
     Merge multiple graphs together and visualize.
     """
     p = OptionParser(merge.__doc__)
-    p.add_option(
+    p.add_argument(
         "--colorlist",
         default="black,red,pink,blue,green",
         help="The color palette",
@@ -341,7 +340,7 @@ def happy(args):
     +-8254707:8254647:-8254690:{[8254694]:[8254713]:[8254531]:[8254797]}:8254802:8254788+
     """
     p = OptionParser(happy.__doc__)
-    p.add_option("--prefix", help="Add prefix to the name")
+    p.add_argument("--prefix", help="Add prefix to the name")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -360,7 +359,7 @@ def happy(args):
             fw = fw2 if is_uncertain else fw1
             print(e, file=fw)
 
-    logging.debug("Edges written to `{0}`".format(",".join((certain, uncertain))))
+    logger.debug("Edges written to `{0}`".format(",".join((certain, uncertain))))
 
 
 def fromblast(args):
@@ -376,16 +375,16 @@ def fromblast(args):
     from jcvi.utils.range import range_distance
 
     p = OptionParser(fromblast.__doc__)
-    p.add_option(
+    p.add_argument(
         "--clique",
         default=False,
         action="store_true",
         help="Populate clique instead of linear path",
     )
-    p.add_option(
+    p.add_argument(
         "--maxdist",
         default=100000,
-        type="int",
+        type=int,
         help="Create edge within certain distance",
     )
     p.set_verbose(help="Print verbose reports to stdout")
@@ -425,7 +424,7 @@ def graph_to_agp(g, blastfile, subjectfasta, exclude=[], verbose=False):
 
     from jcvi.formats.agp import order_to_agp
 
-    logging.debug(str(g))
+    logger.debug(str(g))
     g.write("graph.txt")
     # g.draw("graph.pdf")
 
@@ -441,7 +440,7 @@ def graph_to_agp(g, blastfile, subjectfasta, exclude=[], verbose=False):
 
     npaths = len(paths)
     ntigs = sum(len(x) for x in paths)
-    logging.debug(
+    logger.debug(
         "Graph decomposed to {0} paths with {1} components.".format(npaths, ntigs)
     )
 
@@ -469,14 +468,14 @@ def graph_to_agp(g, blastfile, subjectfasta, exclude=[], verbose=False):
         object = ctg
         order_to_agp(object, ctgorder, sizes.mapping, fwagp)
         nsingletons += 1
-    logging.debug(
+    logger.debug(
         "scaffolded={} excluded={} singletons={}".format(
             nscaffolded, nexcluded, nsingletons
         )
     )
 
     fwagp.close()
-    logging.debug("AGP file written to `{0}`.".format(agpfile))
+    logger.debug("AGP file written to `{0}`.".format(agpfile))
 
 
 def connect(args):
@@ -486,10 +485,10 @@ def connect(args):
     Connect contigs using long reads.
     """
     p = OptionParser(connect.__doc__)
-    p.add_option(
+    p.add_argument(
         "--clip",
         default=2000,
-        type="int",
+        type=int,
         help="Only consider end of contigs",
     )
     opts, args = p.parse_args(args)

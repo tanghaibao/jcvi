@@ -9,8 +9,8 @@ import os.path as op
 import sys
 
 from ..apps.base import (
-    OptionParser,
     ActionDispatcher,
+    OptionParser,
     cleanup,
     datadir,
     download,
@@ -100,11 +100,11 @@ def diginorm(args):
     from jcvi.apps.base import getfilesize
 
     p = OptionParser(diginorm.__doc__)
-    p.add_option(
+    p.add_argument(
         "--single", default=False, action="store_true", help="Single end reads"
     )
-    p.add_option("--tablesize", help="Memory size")
-    p.add_option(
+    p.add_argument("--tablesize", help="Memory size")
+    p.add_argument(
         "--npass",
         default="1",
         choices=("1", "2"),
@@ -309,8 +309,8 @@ def count(args):
     from jcvi.utils.table import loadtable, write_csv
 
     p = OptionParser(count.__doc__)
-    p.add_option("--dir", help="Sub-directory where FASTQC was run")
-    p.add_option(
+    p.add_argument("--dir", help="Sub-directory where FASTQC was run")
+    p.add_argument(
         "--human",
         default=False,
         action="store_true",
@@ -353,9 +353,9 @@ def hetsmooth(args):
                reads_1.fq reads_2.fq
     """
     p = OptionParser(hetsmooth.__doc__)
-    p.add_option("-K", default=23, type="int", help="K-mer size")
-    p.add_option("-L", type="int", help="Bottom threshold, first min")
-    p.add_option("-U", type="int", help="Top threshold, second min")
+    p.add_argument("-K", default=23, type=int, help="K-mer size")
+    p.add_argument("-L", type=int, help="Bottom threshold, first min")
+    p.add_argument("-U", type=int, help="Top threshold, second min")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -389,43 +389,43 @@ def trim(args):
     tv = "0.32"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     p = OptionParser(trim.__doc__)
-    p.add_option(
+    p.add_argument(
         "--path",
         default=op.join("~/bin", TrimJar),
         help="Path to trimmomatic jar file",
     )
     p.set_phred()
-    p.add_option(
+    p.add_argument(
         "--nofrags",
         default=False,
         action="store_true",
         help="Discard frags file in PE mode",
     )
-    p.add_option(
+    p.add_argument(
         "--minqv",
         default=15,
-        type="int",
+        type=int,
         help="Average qv after trimming",
     )
-    p.add_option(
+    p.add_argument(
         "--minlen",
         default=36,
-        type="int",
+        type=int,
         help="Minimum length after trimming",
     )
-    p.add_option(
+    p.add_argument(
         "--adapteronly",
         default=False,
         action="store_true",
         help="Only trim adapters with no qv trimming",
     )
-    p.add_option(
+    p.add_argument(
         "--nogz",
         default=False,
         action="store_true",
         help="Do not write to gzipped files",
     )
-    p.add_option(
+    p.add_argument(
         "--log",
         default=None,
         dest="trimlog",
@@ -583,21 +583,21 @@ def correct(args):
     from jcvi.assembly.base import FastqNamings
 
     p = OptionParser(correct.__doc__ + FastqNamings)
-    p.add_option("--dir", default="data", help="Working directory")
-    p.add_option(
+    p.add_argument("--dir", default="data", help="Working directory")
+    p.add_argument(
         "--fragsdedup",
         default=False,
         action="store_true",
         help="Don't deduplicate the fragment reads",
     )
-    p.add_option("--ploidy", default="2", choices=("1", "2"), help="Ploidy")
-    p.add_option(
+    p.add_argument("--ploidy", default="2", choices=("1", "2"), help="Ploidy")
+    p.add_argument(
         "--haploidify",
         default=False,
         action="store_true",
         help="Set HAPLOIDIFY=True",
     )
-    p.add_option(
+    p.add_argument(
         "--suffix",
         default=False,
         action="store_true",

@@ -10,10 +10,10 @@ Brassica rapa Support a Two-Step Model of Paleohexaploidy. Genetics.
 """
 from more_itertools import pairwise
 
-from jcvi.graphics.base import plt, Rectangle, Polygon, CirclePolygon, savefig
-from jcvi.graphics.glyph import RoundLabel, arrowprops, TextCircle
-from jcvi.graphics.chromosome import Chromosome
-from jcvi.apps.base import OptionParser, ActionDispatcher, fname
+from ..apps.base import ActionDispatcher, OptionParser, fname
+from ..graphics.base import CirclePolygon, Polygon, Rectangle, plt, savefig
+from ..graphics.chromosome import Chromosome
+from ..graphics.glyph import RoundLabel, TextCircle, arrowprops
 
 
 def main():

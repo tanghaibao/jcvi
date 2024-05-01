@@ -7,7 +7,6 @@ Processing fastq files
 import os.path as op
 import sys
 import re
-import logging
 import json
 
 from itertools import islice
@@ -15,10 +14,19 @@ from itertools import islice
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
-from jcvi.formats.fasta import must_open, rc
-from jcvi.formats.base import DictFile
-from jcvi.utils.cbook import percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, which, mkdir, need_update
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    logger,
+    mkdir,
+    need_update,
+    sh,
+    which,
+)
+from ..utils.cbook import percentage
+
+from .base import DictFile
+from .fasta import must_open, rc
 
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
@@ -188,14 +196,14 @@ class FastqHeader(object):
     def format_header(self, dialect=None, tag=None):
         if dialect:
             if self.dialect == dialect:
-                logging.error("Input and output dialect are the same")
+                logger.error("Input and output dialect are the same")
             elif dialect not in allowed_dialect_conversions[self.dialect]:
-                logging.error(
+                logger.error(
                     "Error: Cannot convert from `{0}` to `{1}` dialect".format(
                         self.dialect, dialect
                     )
                 )
-                logging.error(
+                logger.error(
                     "Allowed conversions: {0}".format(
                         json.dumps(allowed_dialect_conversions, indent=4)
                     )
@@ -225,7 +233,7 @@ def pairspf(pp, commonprefix=True):
 
 def iter_fastq(filename, offset=0, key=None):
     if isinstance(filename, str):
-        logging.debug("Read file `{0}`".format(filename))
+        logger.debug("Read file `{0}`".format(filename))
         fh = must_open(filename)
     else:
         fh = filename
@@ -295,7 +303,7 @@ def uniq(args):
             continue
         seen.add(name)
         print(rec, file=fw)
-    logging.debug("Removed duplicate reads: {}".format(percentage(nduplicates, nreads)))
+    logger.debug("Removed duplicate reads: {}".format(percentage(nduplicates, nreads)))
 
 
 def suffix(args):
@@ -321,7 +329,7 @@ def suffix(args):
         if rec.seq.endswith(sf):
             print(rec, file=fw)
             nselected += 1
-    logging.debug(
+    logger.debug(
         "Selected reads with suffix {0}: {1}".format(sf, percentage(nselected, nreads))
     )
 
@@ -356,13 +364,13 @@ def readlen(args):
     """
     p = OptionParser(readlen.__doc__)
     p.set_firstN()
-    p.add_option(
+    p.add_argument(
         "--silent",
         default=False,
         action="store_true",
         help="Do not print read length stats",
     )
-    p.add_option(
+    p.add_argument(
         "--nocheck",
         default=False,
         action="store_true",
@@ -375,7 +383,7 @@ def readlen(args):
 
     (f,) = args
     if (not opts.nocheck) and (not is_fastq(f)):
-        logging.debug("File `{}` does not endswith .fastq or .fq".format(f))
+        logger.debug("File `{}` does not endswith .fastq or .fq".format(f))
         return 0
 
     s = calc_readlen(f, opts.firstN)
@@ -392,7 +400,7 @@ def fasta(args):
     Convert fastq to fasta and qual file.
     """
     p = OptionParser(fasta.__doc__)
-    p.add_option(
+    p.add_argument(
         "--seqtk", default=False, action="store_true", help="Use seqtk to convert"
     )
     p.set_outdir()
@@ -415,7 +423,7 @@ def fasta(args):
 
     pf, sf = pf.rsplit(".", 1)
     if sf not in ("fq", "fastq"):
-        logging.debug("Assumed FASTA: suffix not `fq` or `fastq`")
+        logger.debug("Assumed FASTA: suffix not `fq` or `fastq`")
         return fastqfile, None
 
     fastafile, qualfile = pf + ".fasta", pf + ".qual"
@@ -428,7 +436,7 @@ def fasta(args):
                 # First one creates file, following ones append to it
                 sh(cmd, outfile=outfile, append=i)
         else:
-            logging.debug("Outfile `{0}` already exists.".format(outfile))
+            logger.debug("Outfile `{0}` already exists.".format(outfile))
         return outfile, None
 
     for fastqfile in fastqfiles:
@@ -459,7 +467,7 @@ def first(args):
     fastqfile = fastqfiles[0]
     outfile = opts.outfile
     if not need_update(fastqfiles, outfile):
-        logging.debug("File `{0}` exists. Will not overwrite.".format(outfile))
+        logger.debug("File `{0}` exists. Will not overwrite.".format(outfile))
         return
 
     gz = fastqfile.endswith(".gz")
@@ -496,18 +504,18 @@ def filter(args):
     format (two files) to filter on paired reads.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option(
+    p.add_argument(
         "-q",
         dest="qv",
         default=20,
-        type="int",
+        type=int,
         help="Minimum quality score to keep",
     )
-    p.add_option(
+    p.add_argument(
         "-p",
         dest="pct",
         default=95,
-        type="int",
+        type=int,
         help="Minimum percent of bases that have [-q] quality",
     )
 
@@ -526,7 +534,7 @@ def filter(args):
 
     offset = guessoffset([r1])
     qvchar = chr(offset + qv)
-    logging.debug("Call base qv >= {0} as good.".format(qvchar))
+    logger.debug("Call base qv >= {0} as good.".format(qvchar))
     outfile = r1.rsplit(".", 1)[0] + ".q{0}.paired.fastq".format(qv)
     fw = open(outfile, "w")
 
@@ -598,7 +606,7 @@ def shuffle(args):
     extra = nreads * 2 if tag else 0
     checkShuffleSizes(p1, p2, pairsfastq, extra=extra)
 
-    logging.debug(
+    logger.debug(
         "File `{0}` verified after writing {1} reads.".format(pairsfastq, nreads)
     )
     return pairsfastq
@@ -709,7 +717,7 @@ def format(args):
     """
     p = OptionParser(format.__doc__)
 
-    p.add_option(
+    p.add_argument(
         "--convert",
         default=None,
         choices=[">=1.8", "<1.8", "sra"],
@@ -729,9 +737,9 @@ def format(args):
         h = FastqHeader(rec.header)
         if not dialect:
             dialect = h.dialect
-            logging.debug("Input fastq dialect: `{0}`".format(dialect))
+            logger.debug("Input fastq dialect: `{0}`".format(dialect))
             if opts.convert:
-                logging.debug("Output fastq dialect: `{0}`".format(opts.convert))
+                logger.debug("Output fastq dialect: `{0}`".format(opts.convert))
 
         rec.name = h.format_header(dialect=opts.convert, tag=opts.tag)
 
@@ -784,18 +792,18 @@ def trim(args):
     Wraps `fastx_trimmer` to trim from begin or end of reads.
     """
     p = OptionParser(trim.__doc__)
-    p.add_option(
+    p.add_argument(
         "-f",
         dest="first",
         default=0,
-        type="int",
+        type=int,
         help="First base to keep. Default is 1.",
     )
-    p.add_option(
+    p.add_argument(
         "-l",
         dest="last",
         default=0,
-        type="int",
+        type=int,
         help="Last base to keep. Default is entire read.",
     )
     opts, args = p.parse_args(args)
@@ -861,14 +869,14 @@ def splitread(args):
     Split fastqfile into two read fastqfiles, cut in the middle.
     """
     p = OptionParser(splitread.__doc__)
-    p.add_option(
+    p.add_argument(
         "-n",
         dest="n",
         default=76,
-        type="int",
+        type=int,
         help="Split at N-th base position",
     )
-    p.add_option(
+    p.add_argument(
         "--rc",
         default=False,
         action="store_true",
@@ -893,7 +901,7 @@ def splitread(args):
 
     for name, seq, qual in FastqGeneralIterator(fp):
         if len(seq) < minsize:
-            logging.error("Skipping read {0}, length={1}".format(name, len(seq)))
+            logger.error("Skipping read {0}, length={1}".format(name, len(seq)))
             continue
 
         name = "@" + name
@@ -905,7 +913,7 @@ def splitread(args):
         print(rec1, file=fw1)
         print(rec2, file=fw2)
 
-    logging.debug("Reads split into `{0},{1}`".format(fq1, fq2))
+    logger.debug("Reads split into `{0},{1}`".format(fq1, fq2))
     fw1.close()
     fw2.close()
 
@@ -993,7 +1001,7 @@ def pairinplace(args):
     p = OptionParser(pairinplace.__doc__)
     p.set_rclip()
     p.set_tag()
-    p.add_option("--base", help="Base name for the output files")
+    p.add_argument("--base", help="Base name for the output files")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1039,7 +1047,7 @@ def pairinplace(args):
     if not skipflag:
         print(a, file=fragsfw)
 
-    logging.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
+    logger.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
     return pairs
 
 
@@ -1050,13 +1058,13 @@ def fromsra(args):
     Convert sra file to fastq using the sratoolkit `fastq-dump`
     """
     p = OptionParser(fromsra.__doc__)
-    p.add_option(
+    p.add_argument(
         "--paired",
         default=False,
         action="store_true",
         help="Specify if library layout is paired-end",
     )
-    p.add_option(
+    p.add_argument(
         "--compress",
         default=None,
         choices=["gzip", "bzip2"],
@@ -1076,7 +1084,7 @@ def fromsra(args):
 
     script_path = which("fastq-dump")
     if not script_path:
-        logging.error("Cannot find `fastq-dump` in the PATH")
+        logger.error("Cannot find `fastq-dump` in the PATH")
         sys.exit()
 
     cmd = [script_path]

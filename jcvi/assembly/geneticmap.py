@@ -15,7 +15,7 @@ from typing import Tuple
 import numpy as np
 import seaborn as sns
 
-from ..apps.base import OptionParser, ActionDispatcher, logger, need_update
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update
 from ..algorithms.formula import calc_ldscore
 from ..algorithms.matrix import symmetrize
 from ..formats.base import BaseFile, LineFile, must_open, read_block
@@ -372,7 +372,7 @@ def read_subsampled_matrix(mstmap: str, subsample: int) -> Tuple[np.ndarray, str
         M.tofile(ldmatrix)
     else:
         nmarkers = len(Bed(markerbedfile))
-        M = np.fromfile(ldmatrix, dtype="float").reshape(nmarkers, nmarkers)
+        M = np.fromfile(ldmatrix, dtype=float).reshape(nmarkers, nmarkers)
         logger.debug("LD matrix `%s` exists (%dx%d).", ldmatrix, nmarkers, nmarkers)
 
     return M, markerbedfile, nmarkers
@@ -433,10 +433,10 @@ def heatmap(args):
     Calculate pairwise linkage disequilibrium given MSTmap.
     """
     p = OptionParser(heatmap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--subsample",
         default=1000,
-        type="int",
+        type=int,
         help="Subsample markers to speed up",
     )
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
@@ -469,8 +469,8 @@ def header(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(header.__doc__)
-    p.add_option("--prefix", default="", help="Prepend text to line number")
-    p.add_option("--ids", help="Write ids to file")
+    p.add_argument("--prefix", default="", help="Prepend text to line number")
+    p.add_argument("--ids", help="Write ids to file")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -570,13 +570,13 @@ def bed(args):
     Convert MSTMAP output into bed format.
     """
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--switch",
         default=False,
         action="store_true",
         help="Switch reference and aligned map elements",
     )
-    p.add_option(
+    p.add_argument(
         "--sep",
         default=".",
         help="Separator that is used to delimit scaffold and position in the marker name",
@@ -604,10 +604,10 @@ def fasta(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fasta.__doc__)
-    p.add_option(
+    p.add_argument(
         "--extend",
         default=1000,
-        type="int",
+        type=int,
         help="Extend seq flanking the gaps",
     )
     opts, args = p.parse_args(args)
@@ -673,10 +673,10 @@ def breakpoint(args):
     from more_itertools import pairwise
 
     p = OptionParser(breakpoint.__doc__)
-    p.add_option(
+    p.add_argument(
         "--diff",
         default=0.1,
-        type="float",
+        type=float,
         help="Maximum ratio of differences allowed",
     )
     opts, args = p.parse_args(args)

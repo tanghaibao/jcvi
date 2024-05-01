@@ -7,14 +7,12 @@ Provide coverage QC for assembled sequences:
 2. plot base coverage and mate coverage
 3. plot gaps in the sequence (if any)
 """
-import logging
-
 from collections import defaultdict
 
-from jcvi.formats.base import BaseFile, must_open
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.bed import BedLine, sort
-from jcvi.apps.base import ActionDispatcher, sh, need_update
+from ..apps.base import ActionDispatcher, logger, need_update, sh
+from ..formats.base import BaseFile, must_open
+from ..formats.bed import BedLine, sort
+from ..formats.sizes import Sizes
 
 
 class Coverage(BaseFile):
@@ -111,7 +109,7 @@ def bed_to_bedpe(
         lib, name, smin, smax = libraryline.split()
         assert lib == "library"
         smin, smax = int(smin), int(smax)
-        logging.debug(
+        logger.debug(
             "Happy mates for lib {0} fall between {1} - {2}".format(name, smin, smax)
         )
 
@@ -150,10 +148,10 @@ def bed_to_bedpe(
                 nspan += 1
 
     fw.close()
-    logging.debug("A total of {0} bedpe written to `{1}`.".format(nbedpe, bedpefile))
+    logger.debug("A total of {0} bedpe written to `{1}`.".format(nbedpe, bedpefile))
     if pairsbedfile:
         fwpairs.close()
-        logging.debug(
+        logger.debug(
             "A total of {0} spans written to `{1}`.".format(nspan, pairsbedfile)
         )
 

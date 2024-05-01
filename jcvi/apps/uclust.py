@@ -9,32 +9,35 @@ The VCLUST implementation borrows ideas and code from PyRAD. PyRAD link:
 """
 import os.path as op
 import sys
-import logging
-import numpy as np
-import scipy
-import scipy.stats
-import scipy.optimize
 
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from itertools import groupby
-from more_itertools import grouper
 from subprocess import Popen, PIPE, STDOUT
 from tempfile import mkdtemp
 
-from jcvi.formats.base import BaseFile, FileMerger, must_open, split
-from jcvi.formats.fasta import parse_fasta
-from jcvi.formats.fastq import fasta
-from jcvi.utils.orderedcollections import DefaultOrderedDict
-from jcvi.utils.table import write_csv
-from jcvi.apps.base import (
+import numpy as np
+import scipy
+import scipy.stats
+import scipy.optimize
+
+from more_itertools import grouper
+
+from ..formats.base import BaseFile, FileMerger, must_open, split
+from ..formats.fasta import parse_fasta
+from ..formats.fastq import fasta
+from ..utils.orderedcollections import DefaultOrderedDict
+from ..utils.table import write_csv
+
+from .base import (
     OptionParser,
     ActionDispatcher,
     cleanup,
     datadir,
     iglob,
     listify,
+    logger,
     mkdir,
     need_update,
     sh,
@@ -79,7 +82,7 @@ class ClustFile(BaseFile):
             yield data
             nstacks += 1
             if nstacks % 10000 == 0:
-                logging.debug("{0} stacks parsed".format(nstacks))
+                logger.debug("{0} stacks parsed".format(nstacks))
 
 
 class Clust(list):
@@ -240,17 +243,17 @@ def stats(args):
 
 
 def add_consensus_options(p):
-    p.add_option("--prefix", default="mcluster", help="Output prefix")
-    p.add_option("--minlength", default=30, type="int", help="Min contig length")
-    p.add_option("--mindepth", default=3, type="int", help="Min depth for each stack")
-    p.add_option("--minsamp", default=3, type="int", help="Min number of samples")
+    p.add_argument("--prefix", default="mcluster", help="Output prefix")
+    p.add_argument("--minlength", default=30, type=int, help="Min contig length")
+    p.add_argument("--mindepth", default=3, type=int, help="Min depth for each stack")
+    p.add_argument("--minsamp", default=3, type=int, help="Min number of samples")
 
 
 def find_pctid(consensusfiles):
     pctid = min(
         [int(op.basename(x).split(".")[-2].replace("P", "")) for x in consensusfiles]
     )
-    logging.debug("Set pctid={0}".format(pctid))
+    logger.debug("Set pctid={0}".format(pctid))
     return pctid
 
 
@@ -286,9 +289,9 @@ def mcluster(args):
                 name = ".".join((s, name))
                 print(">{0}\n{1}".format(name, seq), file=fw_cons)
                 nseqs += 1
-            logging.debug("Read `{0}`: {1} seqs".format(cf, nseqs))
+            logger.debug("Read `{0}`: {1} seqs".format(cf, nseqs))
             totalseqs += nseqs
-        logging.debug("Total: {0} seqs".format(totalseqs))
+        logger.debug("Total: {0} seqs".format(totalseqs))
         fw_cons.close()
 
     userfile = pf + ".u"
@@ -411,8 +414,8 @@ def makeloci(clustSfile, store, prefix, minsamp=3, pctid=95):
         )
         locid += 1
 
-    logging.debug("Stacks written to `{0}`".format(locifile))
-    logging.debug(
+    logger.debug("Stacks written to `{0}`".format(locifile))
+    logger.debug(
         "Final consensus sequences written to `{0}` (n={1})".format(
             finalfastafile, locid
         )
@@ -430,7 +433,7 @@ def mconsensus(args):
     Call consensus along the stacks from cross-sample clustering.
     """
     p = OptionParser(mconsensus.__doc__)
-    p.add_option(
+    p.add_argument(
         "--allele_counts",
         default="allele_counts",
         help="Directory to generate allele counts",
@@ -463,7 +466,7 @@ def mconsensus(args):
         print(ac.tostring(taxon=True), file=fw)
     fw.close()
 
-    logging.debug("Populate all taxa and instantiate empty vector if missing")
+    logger.debug("Populate all taxa and instantiate empty vector if missing")
     all_taxa = set([op.basename(x).split(".")[0] for x in consensusfiles])
     taxon_to_ac = defaultdict(list)
     for chrpos, aclist in seen.items():
@@ -476,7 +479,7 @@ def mconsensus(args):
         for tx in missing_taxa:
             taxon_to_ac[tx].append(template)
 
-    logging.debug("Write allele counts for all taxa")
+    logger.debug("Write allele counts for all taxa")
     for tx, aclist in sorted(taxon_to_ac.items()):
         tx_acfile = op.join(acdir, tx + ".allele_counts")
         fw = open(tx_acfile, "w")
@@ -484,7 +487,7 @@ def mconsensus(args):
         for ac in aclist:
             print(ac.tostring(), file=fw)
         fw.close()
-        logging.debug("Written {0} sites in `{1}`".format(len(aclist), tx_acfile))
+        logger.debug("Written {0} sites in `{1}`".format(len(aclist), tx_acfile))
 
 
 def get_seed(data):
@@ -556,8 +559,8 @@ def consensus(args):
     errors according to error rate, calls consensus.
     """
     p = OptionParser(consensus.__doc__)
-    p.add_option(
-        "--ploidy", default=2, type="int", help="Number of haplotypes per locus"
+    p.add_argument(
+        "--ploidy", default=2, type=int, help="Number of haplotypes per locus"
     )
     add_consensus_options(p)
     p.set_verbose()
@@ -588,7 +591,7 @@ def consensus(args):
         fname = first_name.split(";")[0] + ";size={0};".format(total_nreps)
         cons_name, cons_seq, cons_nrep = get_seed(data)
         if len(data) > 1 and cons_name != CONSTAG:
-            logging.debug("Tag {0} not found in cluster {1}".format(CONSTAG, cons_name))
+            logger.debug("Tag {0} not found in cluster {1}".format(CONSTAG, cons_name))
 
         # List for sequence data
         S = [(seq, nrep) for name, seq, nrep in data if nrep]
@@ -632,7 +635,7 @@ def consensus(args):
     for k, v in output:
         print("\n".join((k, v)), file=consens)
     consens.close()
-    logging.debug("Consensus sequences written to `{0}`".format(consensfile))
+    logger.debug("Consensus sequences written to `{0}`".format(consensfile))
 
     binfile = consensfile + ".bin"
     bins = np.array(bins, dtype=np.uint32)
@@ -640,14 +643,14 @@ def consensus(args):
     bins[bins > ulimit] = ulimit
     bins = np.array(bins, dtype=np.uint16)  # Compact size
     bins.tofile(binfile)
-    logging.debug("Allele counts written to `{0}`".format(binfile))
+    logger.debug("Allele counts written to `{0}`".format(binfile))
 
     idxfile = consensfile + ".idx"
     fw = open(idxfile, "w")
     for fname, start, end in indices:
         print("\t".join(str(x) for x in (fname, start, end)), file=fw)
     fw.close()
-    logging.debug("Serializing indices to `{0}`".format(idxfile))
+    logger.debug("Serializing indices to `{0}`".format(idxfile))
 
     return consensfile, binfile, idxfile
 
@@ -796,10 +799,10 @@ def estimateHE(args):
     for d in cons(clustSfile, opts.mindepth):
         D.extend(d)
 
-    logging.debug("Computing base frequencies ...")
+    logger.debug("Computing base frequencies ...")
     P = makeP(D)
     C = makeC(D)
-    logging.debug("Solving log-likelihood function ...")
+    logger.debug("Solving log-likelihood function ...")
     x0 = [0.01, 0.001]  # initital values
     H, E = scipy.optimize.fmin(LL, x0, args=(P, C))
 
@@ -943,7 +946,7 @@ def makestats(clustSfile, statsfile, mindepth):
     hist = [float(i) / sum(ohist) for i in ohist]
     hist = [int(round(i * 30)) for i in hist]
 
-    logging.debug("Sample {0} finished, {1} loci".format(clustSfile, len(depth)))
+    logger.debug("Sample {0} finished, {1} loci".format(clustSfile, len(depth)))
 
     fw = open(statsfile, "w")
     print("# Params: mindepth={0}".format(mindepth), file=fw)

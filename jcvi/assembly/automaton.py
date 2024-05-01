@@ -7,22 +7,22 @@ Automate genome assembly by iterating assembly on a set of files, individually.
 import os
 import os.path as op
 import sys
-import logging
 
 from more_itertools import grouper
 
-from jcvi.formats.base import LineFile, write_file
-from jcvi.formats.fastq import first, pairspf
-from jcvi.apps.base import (
-    OptionParser,
+from ..apps.base import (
     ActionDispatcher,
-    need_update,
-    mkdir,
-    sh,
+    OptionParser,
+    get_abs_path,
     glob,
     iglob,
-    get_abs_path,
+    logger,
+    mkdir,
+    need_update,
+    sh,
 )
+from ..formats.base import LineFile, write_file
+from ..formats.fastq import first, pairspf
 
 
 class Meta(object):
@@ -144,7 +144,7 @@ def contamination(args):
     from jcvi.apps.bowtie import align
 
     p = OptionParser(contamination.__doc__)
-    p.add_option(
+    p.add_argument(
         "--mapped",
         default=False,
         action="store_true",
@@ -235,7 +235,7 @@ def allpaths(args):
     Run automated ALLPATHS on list of dirs.
     """
     p = OptionParser(allpaths.__doc__)
-    p.add_option("--ploidy", default="1", choices=("1", "2"), help="Ploidy")
+    p.add_argument("--ploidy", default="1", choices=("1", "2"), help="Ploidy")
     opts, args = p.parse_args(args)
 
     if len(args) == 0:
@@ -263,10 +263,10 @@ def prepare(args):
     Note that JIRA report can also be a list of FASTQ files.
     """
     p = OptionParser(prepare.__doc__)
-    p.add_option(
+    p.add_argument(
         "--first",
         default=0,
-        type="int",
+        type=int,
         help="Use only first N reads",
     )
     opts, args = p.parse_args(args)
@@ -332,7 +332,7 @@ def assemble_pairs(p, pf, tag, target=["final.contigs.fasta"]):
 def assemble_dir(pf, target, ploidy="1"):
     from jcvi.assembly.allpaths import prepare
 
-    logging.debug("Work on {0}".format(pf))
+    logger.debug("Work on {0}".format(pf))
     asm = [x.replace("final", pf) for x in target]
     if not need_update(pf, asm, warn=True):
         return
@@ -349,7 +349,7 @@ def assemble_dir(pf, target, ploidy="1"):
     for a, t in zip(asm, target):
         sh("cp allpaths/ASSEMBLIES/run/{0} ../{1}".format(t, a))
 
-    logging.debug("Assembly finished: {0}".format(asm))
+    logger.debug("Assembly finished: {0}".format(asm))
     os.chdir(cwd)
 
 
@@ -359,7 +359,7 @@ def correct_pairs(p, pf, tag):
     """
     from jcvi.assembly.preprocess import correct as cr
 
-    logging.debug("Work on {0} ({1})".format(pf, ",".join(p)))
+    logger.debug("Work on {0} ({1})".format(pf, ",".join(p)))
     itag = tag[0]
     cm = ".".join((pf, itag))
     targets = (cm + ".1.corr.fastq", cm + ".2.corr.fastq", pf + ".PE-0.corr.fastq")
@@ -375,7 +375,7 @@ def correct_pairs(p, pf, tag):
     sh("mv {0}.2.corr.fastq ../{1}".format(itag, targets[1]))
     sh("mv frag_reads_corr.corr.fastq ../{0}".format(targets[2]))
 
-    logging.debug("Correction finished: {0}".format(targets))
+    logger.debug("Correction finished: {0}".format(targets))
     os.chdir(cwd)
 
 
@@ -385,7 +385,7 @@ def soap_trios(p, pf, tag, extra):
     """
     from jcvi.assembly.soap import prepare
 
-    logging.debug("Work on {0} ({1})".format(pf, ",".join(p)))
+    logger.debug("Work on {0} ({1})".format(pf, ",".join(p)))
     asm = "{0}.closed.scafSeq".format(pf)
     if not need_update(p, asm, warn=True):
         return
@@ -401,7 +401,7 @@ def soap_trios(p, pf, tag, extra):
     sh("./run.sh")
     sh("cp asm31.closed.scafSeq ../{0}".format(asm))
 
-    logging.debug("Assembly finished: {0}".format(asm))
+    logger.debug("Assembly finished: {0}".format(asm))
     os.chdir(cwd)
 
 

@@ -13,12 +13,11 @@ to keep either the union or the intersection of retain chained alignments from
 both genomes, similar to the SUPERMAP algorithm. This operation is symmetrical.
 """
 import sys
-import logging
 
-from jcvi.apps.base import OptionParser
-from jcvi.formats.blast import BlastLine
-from jcvi.formats.coords import CoordsLine
-from jcvi.utils.range import Range, range_chain
+from ..apps.base import OptionParser, logger
+from ..formats.blast import BlastLine
+from ..formats.coords import CoordsLine
+from ..utils.range import Range, range_chain
 
 
 def BlastOrCoordsLine(filename, filter="ref", dialect="blast", clip=0):
@@ -71,7 +70,7 @@ def BlastOrCoordsLine(filename, filter="ref", dialect="blast", clip=0):
 def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
     # filter by query
     if filter != "ref":
-        logging.debug("filter by query")
+        logger.debug("filter by query")
         ranges = list(
             BlastOrCoordsLine(blast_file, filter="query", dialect=dialect, clip=clip)
         )
@@ -81,7 +80,7 @@ def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
 
     # filter by ref
     if filter != "query":
-        logging.debug("filter by ref")
+        logger.debug("filter by ref")
         ranges = list(
             BlastOrCoordsLine(blast_file, filter="ref", dialect=dialect, clip=clip)
         )
@@ -96,11 +95,11 @@ def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
         selected_idx = query_idx
 
     elif filter == "intersection":
-        logging.debug("perform intersection")
+        logger.debug("perform intersection")
         selected_idx = ref_idx & query_idx
 
     elif filter == "union":
-        logging.debug("perform union")
+        logger.debug("perform union")
         selected_idx = ref_idx | query_idx
 
     assert len(selected_idx) != 0
@@ -126,7 +125,7 @@ def supermap(blast_file, filter="intersection", dialect="blast", clip=0):
         except StopIteration:
             break
 
-    logging.debug("Write output file to `{0}`".format(supermapfile))
+    logger.debug("Write output file to `{0}`".format(supermapfile))
     fw.close()
 
     from jcvi.formats.blast import sort
@@ -147,17 +146,17 @@ if __name__ == "__main__":
 
     filter_choices = ("ref", "query", "intersection", "union")
     dialect_choices = ("blast", "coords")
-    p.add_option(
+    p.add_argument(
         "--filter",
         choices=filter_choices,
         default="intersection",
         help="Available filters",
     )
-    p.add_option("--dialect", choices=dialect_choices, help="Input format")
-    p.add_option(
+    p.add_argument("--dialect", choices=dialect_choices, help="Input format")
+    p.add_argument(
         "--clip",
         default=0,
-        type="int",
+        type=int,
         help="Clip ranges so that to allow minor overlaps",
     )
 
@@ -172,6 +171,6 @@ if __name__ == "__main__":
     if not dialect:
         # guess from the suffix
         dialect = "coords" if blast_file.endswith(".coords") else "blast"
-        logging.debug("dialect is %s" % dialect)
+        logger.debug("dialect is %s" % dialect)
 
     supermap(blast_file, filter=opts.filter, dialect=dialect, clip=opts.clip)

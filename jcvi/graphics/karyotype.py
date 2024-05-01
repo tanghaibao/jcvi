@@ -403,31 +403,31 @@ class Karyotype(object):
 
 def main():
     p = OptionParser(__doc__)
-    p.add_option(
+    p.add_argument(
         "--basepair",
         default=False,
         action="store_true",
         help="Use base pair position instead of gene rank",
     )
-    p.add_option(
+    p.add_argument(
         "--keep-chrlabels",
         default=False,
         action="store_true",
         help="Keep chromosome labels",
     )
-    p.add_option(
+    p.add_argument(
         "--nocircles",
         default=False,
         action="store_true",
         help="Do not plot chromosome circles",
     )
-    p.add_option(
+    p.add_argument(
         "--shadestyle",
         default="curve",
         choices=Shade.Styles,
         help="Style of syntenic wedges",
     )
-    p.add_option(
+    p.add_argument(
         "--chrstyle",
         default="auto",
         choices=Chromosome.Styles,

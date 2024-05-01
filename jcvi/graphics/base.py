@@ -520,7 +520,7 @@ def print_colors(palette, outfile="Palette.png"):
 
 def plot_heatmap(
     ax,
-    M: np.array,
+    M: np.ndarray,
     breaks: List[int],
     groups: List[Tuple[int, int, List[Tuple[int, str]], str]] = [],
     plot_breaks: bool = False,

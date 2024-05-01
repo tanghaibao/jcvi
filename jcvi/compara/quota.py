@@ -16,14 +16,14 @@ The algorithm is described in Tang et al. BMC Bioinformatics 2011.
 programming."
 """
 
-import logging
 import os.path as op
 import sys
 
-from jcvi.algorithms.lpsolve import MIPDataModel
-from jcvi.compara.synteny import _score, check_beds
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser
+from ..algorithms.lpsolve import MIPDataModel
+from ..apps.base import OptionParser, logger
+from ..compara.synteny import _score, check_beds
+from ..formats.base import must_open
+
 from .base import AnchorFile
 
 
@@ -186,7 +186,7 @@ def main(args):
     p = OptionParser(__doc__)
 
     p.set_beds()
-    p.add_option(
+    p.add_argument(
         "--quota",
         default="1:1",
         help="`quota mapping` procedure -- screen blocks to constrain mapping"
@@ -194,17 +194,17 @@ def main(args):
         "put in the format like (#subgenomes expected for genome X):"
         "(#subgenomes expected for genome Y)",
     )
-    p.add_option(
+    p.add_argument(
         "--Nm",
         dest="Nmax",
-        type="int",
+        type=int,
         default=10,
         help="distance cutoff to tolerate two blocks that are "
         "slightly overlapping (cutoff for `quota mapping`) "
         "[default: %default units (gene or bp dist)]",
     )
 
-    p.add_option(
+    p.add_argument(
         "--self",
         dest="self_match",
         action="store_true",
@@ -214,7 +214,7 @@ def main(args):
     )
     p.set_verbose(help="Show verbose solver output")
 
-    p.add_option(
+    p.add_argument(
         "--screen",
         default=False,
         action="store_true",
@@ -235,7 +235,7 @@ def main(args):
             qa, qb = opts.quota.split(":")
             qa, qb = int(qa), int(qb)
         except ValueError:
-            logging.error("quota string should be the form x:x (2:4, 1:3, etc.)")
+            logger.error("quota string should be the form x:x (2:4, 1:3, etc.)")
             sys.exit(1)
 
         if opts.self_match and qa != qb:
@@ -264,14 +264,14 @@ def main(args):
         verbose=opts.verbose,
     )
 
-    logging.debug("Selected %d blocks", len(selected_ids))
+    logger.debug("Selected %d blocks", len(selected_ids))
     prefix = qa_file.rsplit(".", 1)[0]
     suffix = "{}x{}".format(qa, qb)
     outfile = ".".join((prefix, suffix))
     fw = must_open(outfile, "w")
     print(",".join(str(x) for x in selected_ids), file=fw)
     fw.close()
-    logging.debug("Screened blocks ids written to `%s`", outfile)
+    logger.debug("Screened blocks ids written to `%s`", outfile)
 
     if opts.screen:
         from jcvi.compara.synteny import screen

@@ -20,17 +20,16 @@ see supplementary info for sea anemone genome paper, formula::
 Finally a blast.filtered file is created.
 """
 import sys
-import logging
 import os.path as op
 
 from collections import defaultdict
 from itertools import groupby
 
-from jcvi.formats.blast import Blast
-from jcvi.utils.grouper import Grouper
-from jcvi.utils.cbook import gene_name
-from jcvi.compara.synteny import check_beds
-from jcvi.apps.base import OptionParser
+from ..apps.base import OptionParser, logger
+from ..compara.synteny import check_beds
+from ..formats.blast import Blast
+from ..utils.cbook import gene_name
+from ..utils.grouper import Grouper
 
 
 def blastfilter_main(blast_file, p, opts):
@@ -43,7 +42,7 @@ def blastfilter_main(blast_file, p, opts):
 
     fp = open(blast_file)
     total_lines = sum(1 for line in fp if line[0] != "#")
-    logging.debug(
+    logger.debug(
         "Load BLAST file `{}` (total {} lines)".format(blast_file, total_lines)
     )
     bl = Blast(blast_file)
@@ -62,16 +61,16 @@ def blastfilter_main(blast_file, p, opts):
             query, subject = gene_name(query), gene_name(subject)
         if query not in qorder:
             if nwarnings < 100:
-                logging.warning("{} not in {}".format(query, qbed.filename))
+                logger.warning("{} not in {}".format(query, qbed.filename))
             elif nwarnings == 100:
-                logging.warning("too many warnings.. suppressed")
+                logger.warning("too many warnings.. suppressed")
             nwarnings += 1
             continue
         if subject not in sorder:
             if nwarnings < 100:
-                logging.warning("{} not in {}".format(subject, sbed.filename))
+                logger.warning("{} not in {}".format(subject, sbed.filename))
             elif nwarnings == 100:
-                logging.warning("too many warnings.. suppressed")
+                logger.warning("too many warnings.. suppressed")
             nwarnings += 1
             continue
 
@@ -97,22 +96,22 @@ def blastfilter_main(blast_file, p, opts):
 
     if exclude:
         before_filter = len(filtered_blasts)
-        logging.debug("running excluded pairs (--exclude `{}`) ..".format(exclude))
+        logger.debug("running excluded pairs (--exclude `{}`) ..".format(exclude))
         filtered_blasts = list(filter_exclude(filtered_blasts, exclude=exclude))
-        logging.debug(
+        logger.debug(
             "after filter ({}->{}) ..".format(before_filter, len(filtered_blasts))
         )
 
     if cscore:
         before_filter = len(filtered_blasts)
-        logging.debug("running the cscore filter (cscore>=%.2f) .." % cscore)
+        logger.debug("running the cscore filter (cscore>=%.2f) .." % cscore)
         filtered_blasts = list(filter_cscore(filtered_blasts, cscore=cscore))
-        logging.debug(
+        logger.debug(
             "after filter ({}->{}) ..".format(before_filter, len(filtered_blasts))
         )
 
     if tandem_Nmax:
-        logging.debug(
+        logger.debug(
             "running the local dups filter (tandem_Nmax={}) ..".format(tandem_Nmax)
         )
 
@@ -152,7 +151,7 @@ def blastfilter_main(blast_file, p, opts):
         filtered_blasts = list(
             filter_tandem(filtered_blasts, qdups_to_mother, sdups_to_mother)
         )
-        logging.debug(
+        logger.debug(
             "after filter ({}->{}) ..".format(before_filter, len(filtered_blasts))
         )
 
@@ -178,7 +177,7 @@ def write_localdups(tandems, bed, dups_fh=None):
             print("\t".join(accns), file=dups_fh)
             if n:
                 n -= 1
-                logging.debug("write local dups to file {}".format(dups_fh.name))
+                logger.debug("write local dups to file {}".format(dups_fh.name))
 
         for dup in accns[1:]:
             dups_to_mother[dup] = accns[0]
@@ -189,7 +188,7 @@ def write_localdups(tandems, bed, dups_fh=None):
 def write_new_bed(bed, children):
     # generate local dup removed annotation files
     out_name = "%s.nolocaldups%s" % op.splitext(bed.filename)
-    logging.debug("write tandem-filtered bed file %s" % out_name)
+    logger.debug("write tandem-filtered bed file %s" % out_name)
     fh = open(out_name, "w")
     for i, row in enumerate(bed):
         if row["accn"] in children:
@@ -290,28 +289,28 @@ def main(args):
     p = OptionParser(__doc__)
     p.set_beds()
     p.set_stripnames()
-    p.add_option(
+    p.add_argument(
         "--tandems_only",
         dest="tandems_only",
         action="store_true",
         default=False,
         help="only calculate tandems, write .localdup file and exit.",
     )
-    p.add_option(
+    p.add_argument(
         "--tandem_Nmax",
-        type="int",
+        type=int,
         default=10,
         help="merge tandem genes within distance",
     )
-    p.add_option(
+    p.add_argument(
         "--cscore",
-        type="float",
+        type=float,
         default=0.7,
         help="retain hits that have good bitscore. a value of 0.5 means "
         "keep all values that are 50% or greater of the best hit. "
         "higher is more stringent",
     )
-    p.add_option("--exclude", help="Remove anchors from a previous run")
+    p.add_argument("--exclude", help="Remove anchors from a previous run")
 
     opts, args = p.parse_args(args)
 

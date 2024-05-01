@@ -7,15 +7,14 @@ Functions in this script produce figures in various manuscripts.
 
 import os.path as op
 import sys
-import logging
 
 import numpy as np
 
-from jcvi.graphics.base import Polygon, normalize_axes, panel_labels, plt, savefig
-from jcvi.graphics.glyph import GeneGlyph, RoundRect, TextCircle, DoubleSquare, plot_cap
-from jcvi.graphics.karyotype import Karyotype
-from jcvi.graphics.synteny import Synteny, draw_gene_legend
-from jcvi.apps.base import OptionParser, ActionDispatcher, fname
+from ..apps.base import ActionDispatcher, OptionParser, logger, fname
+from ..graphics.base import Polygon, normalize_axes, panel_labels, plt, savefig
+from ..graphics.glyph import DoubleSquare, GeneGlyph, RoundRect, TextCircle, plot_cap
+from ..graphics.karyotype import Karyotype
+from ..graphics.synteny import Synteny, draw_gene_legend
 
 
 def main():
@@ -69,7 +68,7 @@ def waterlilyGOM(args):
     (datafile, csvfile) = args
     outgroup = ["ginkgo"]
 
-    logging.debug("Load tree file `{0}`".format(datafile))
+    logger.debug("Load tree file `%s`", datafile)
     t, hpd = parse_tree(datafile)
 
     pf = datafile.rsplit(".", 1)[0]
@@ -180,7 +179,7 @@ def utricularia(args):
     from jcvi.graphics.synteny import main as synteny_main
 
     p = OptionParser(synteny_main.__doc__)
-    p.add_option("--switch", help="Rename the seqid with two-column file")
+    p.add_argument("--switch", help="Rename the seqid with two-column file")
     opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 3:
@@ -377,7 +376,7 @@ def oropetium(args):
     Build a composite figure that calls graphis.synteny.
     """
     p = OptionParser(oropetium.__doc__)
-    p.add_option("--extra", help="Extra features in BED format")
+    p.add_argument("--extra", help="Extra features in BED format")
     opts, args, iopts = p.set_image_options(args, figsize="9x6")
 
     if len(args) != 4:
@@ -493,8 +492,8 @@ def amborella(args):
     Build a composite figure that calls graphics.karyotype and graphics.synteny.
     """
     p = OptionParser(amborella.__doc__)
-    p.add_option("--tree", help="Display trees on the bottom of the figure")
-    p.add_option("--switch", help="Rename the seqid with two-column file")
+    p.add_argument("--tree", help="Display trees on the bottom of the figure")
+    p.add_argument("--switch", help="Rename the seqid with two-column file")
     opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 5:
@@ -540,8 +539,8 @@ def cotton(args):
     Build a composite figure that calls graphics.karyotype and graphic.synteny.
     """
     p = OptionParser(cotton.__doc__)
-    p.add_option("--depthfile", help="Use depth info in this file")
-    p.add_option("--switch", help="Rename the seqid with two-column file")
+    p.add_argument("--depthfile", help="Use depth info in this file")
+    p.add_argument("--switch", help="Rename the seqid with two-column file")
     opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 5:

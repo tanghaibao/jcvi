@@ -638,7 +638,7 @@ def main():
     p.add_option(
         "--genelabelsize",
         default=0,
-        type="int",
+        type=int,
         help="Show gene labels at this font size, useful for debugging. "
         + "However, plot may appear visually crowded. "
         + "Reasonably good values are 2 to 6 [Default: disabled]",
@@ -646,7 +646,7 @@ def main():
     p.add_option(
         "--genelabelrotation",
         default=25,
-        type="int",
+        type=int,
         help="Rotate gene labels at this angle (anti-clockwise), useful for debugging. "
         + "[Default: 25]",
     )

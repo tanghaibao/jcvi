@@ -168,26 +168,26 @@ def trimUTR(args):
     p.add_option(
         "--trim5",
         default=None,
-        type="str",
+        type=str,
         help="File containing gene list for 5' UTR trimming",
     )
     p.add_option(
         "--trim3",
         default=None,
-        type="str",
+        type=str,
         help="File containing gene list for 3' UTR trimming",
     )
     p.add_option(
         "--trimrange",
         default=None,
-        type="str",
+        type=str,
         help="File containing gene list for UTR trim back"
         + "based on suggested (start, stop) coordinate range",
     )
     p.add_option(
         "--refgff",
         default=None,
-        type="str",
+        type=str,
         help="Reference GFF3 used as fallback to replace UTRs",
     )
     p.set_outfile()

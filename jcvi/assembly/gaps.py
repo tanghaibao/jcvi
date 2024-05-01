@@ -246,7 +246,7 @@ def flanks(args):
     p.add_option(
         "--extend",
         default=2000,
-        type="int",
+        type=int,
         help="Extend seq flanking the gaps",
     )
     opts, args = p.parse_args(args)

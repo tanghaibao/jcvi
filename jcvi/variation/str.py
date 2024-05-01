@@ -618,7 +618,7 @@ def meta(args):
     p.add_option(
         "--cutoff",
         default=0.5,
-        type="float",
+        type=float,
         help="Percent observed required (chrY half cutoff)",
     )
     p.set_cpus()
@@ -1192,11 +1192,11 @@ def trf(args):
     cparams = "1 1 2 80 5 200 2000"
 
     p = OptionParser(trf.__doc__)
-    p.add_option("--mismatch", default=31, type="int", help="Mismatch and gap penalty")
+    p.add_option("--mismatch", default=31, type=int, help="Mismatch and gap penalty")
     p.add_option(
-        "--minscore", default=MINSCORE, type="int", help="Minimum score to report"
+        "--minscore", default=MINSCORE, type=int, help="Minimum score to report"
     )
-    p.add_option("--period", default=6, type="int", help="Maximum period to report")
+    p.add_option("--period", default=6, type=int, help="Maximum period to report")
     p.add_option(
         "--lobstr",
         default=False,

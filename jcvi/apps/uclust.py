@@ -241,9 +241,9 @@ def stats(args):
 
 def add_consensus_options(p):
     p.add_option("--prefix", default="mcluster", help="Output prefix")
-    p.add_option("--minlength", default=30, type="int", help="Min contig length")
-    p.add_option("--mindepth", default=3, type="int", help="Min depth for each stack")
-    p.add_option("--minsamp", default=3, type="int", help="Min number of samples")
+    p.add_option("--minlength", default=30, type=int, help="Min contig length")
+    p.add_option("--mindepth", default=3, type=int, help="Min depth for each stack")
+    p.add_option("--minsamp", default=3, type=int, help="Min number of samples")
 
 
 def find_pctid(consensusfiles):
@@ -557,7 +557,7 @@ def consensus(args):
     """
     p = OptionParser(consensus.__doc__)
     p.add_option(
-        "--ploidy", default=2, type="int", help="Number of haplotypes per locus"
+        "--ploidy", default=2, type=int, help="Number of haplotypes per locus"
     )
     add_consensus_options(p)
     p.set_verbose()

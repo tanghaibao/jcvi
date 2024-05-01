@@ -240,13 +240,13 @@ if __name__ == "__main__":
     p.add_option(
         "--qselect",
         default=0,
-        type="int",
+        type=int,
         help="Minimum size of query contigs to select",
     )
     p.add_option(
         "--sselect",
         default=0,
-        type="int",
+        type=int,
         help="Minimum size of subject contigs to select",
     )
     p.add_option("--qh", help="Path to highlight bed for query")
@@ -272,7 +272,7 @@ if __name__ == "__main__":
     p.add_option(
         "--nmax",
         default=None,
-        type="int",
+        type=int,
         help="Only plot maximum of N dots",
     )
     opts, args, iopts = p.set_image_options(figsize="8x8", style="dark", dpi=150)

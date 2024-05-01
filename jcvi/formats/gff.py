@@ -1171,8 +1171,8 @@ def filter(args):
         "--type", default="mRNA", help="The feature to scan for the attributes"
     )
     g1 = OptionGroup(p, "Filter by identity/coverage attribute values")
-    g1.add_option("--id", default=95, type="float", help="Minimum identity")
-    g1.add_option("--coverage", default=90, type="float", help="Minimum coverage")
+    g1.add_option("--id", default=95, type=float, help="Minimum identity")
+    g1.add_option("--coverage", default=90, type=float, help="Minimum coverage")
     g1.add_option(
         "--nocase",
         default=False,
@@ -1182,12 +1182,12 @@ def filter(args):
     p.add_option_group(g1)
     g2 = OptionGroup(p, "Filter by child feature bp length")
     g2.add_option(
-        "--child_ftype", default=None, type="str", help="Child featuretype to consider"
+        "--child_ftype", default=None, type=str, help="Child featuretype to consider"
     )
     g2.add_option(
         "--child_bp",
         default=None,
-        type="int",
+        type=int,
         help="Filter by total bp of children of chosen ftype",
     )
     p.add_option_group(g2)
@@ -1665,7 +1665,7 @@ def format(args):
     g3.add_option(
         "--process_ftype",
         default=None,
-        type="str",
+        type=str,
         help="Specify feature types to process; "
         "accepts comma-separated list of feature types",
     )
@@ -2066,13 +2066,13 @@ def fixboundaries(args):
     p.add_option(
         "--type",
         default="gene",
-        type="str",
+        type=str,
         help="Feature type for which to adjust boundaries",
     )
     p.add_option(
         "--child_ftype",
         default="mRNA",
-        type="str",
+        type=str,
         help="Child featuretype(s) to use for identifying boundaries",
     )
     p.set_outfile()
@@ -2107,7 +2107,7 @@ def liftover(args):
     "gannotation.asmbl.000095.7" is the 8-th tile on asmbl.000095.
     """
     p = OptionParser(liftover.__doc__)
-    p.add_option("--tilesize", default=50000, type="int", help="The size for each tile")
+    p.add_option("--tilesize", default=50000, type=int, help="The size for each tile")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -2260,7 +2260,7 @@ def uniq(args):
     p = OptionParser(uniq.__doc__)
     p.add_option("--type", default="gene", help="Types of features to non-redundify")
     p.add_option("--mode", default="span", choices=supported_modes, help="Pile mode")
-    p.add_option("--best", default=1, type="int", help="Use best N features")
+    p.add_option("--best", default=1, type=int, help="Use best N features")
     p.add_option(
         "--name",
         default=False,
@@ -2695,7 +2695,7 @@ def extract(args):
     p.add_option("--names", help="Extract features with certain names")
     p.add_option(
         "--types",
-        type="str",
+        type=str,
         default=None,
         help="Extract features of certain feature types",
     )
@@ -2818,7 +2818,7 @@ def note(args):
         default="Parent,Note",
         help="Attribute field to extract, multiple fields allowd with comma",
     )
-    p.add_option("--AED", type="float", help="Only extract lines with AED score <=")
+    p.add_option("--AED", type=float, help="Only extract lines with AED score <=")
     p.add_option(
         "--exoncount",
         default=False,
@@ -2943,7 +2943,7 @@ def splicecov(args):
         for iso in isos:
             if iso in scov[locus].keys():
                 juncs = scov[locus][iso]
-                jstats = SummaryStats(juncs, dtype="int")
+                jstats = SummaryStats(juncs, dtype=int)
                 out.extend(
                     [jstats.size, jstats.mean, jstats.median, jstats.min, jstats.max]
                 )

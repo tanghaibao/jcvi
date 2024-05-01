@@ -500,14 +500,14 @@ def filter(args):
         "-q",
         dest="qv",
         default=20,
-        type="int",
+        type=int,
         help="Minimum quality score to keep",
     )
     p.add_option(
         "-p",
         dest="pct",
         default=95,
-        type="int",
+        type=int,
         help="Minimum percent of bases that have [-q] quality",
     )
 
@@ -788,14 +788,14 @@ def trim(args):
         "-f",
         dest="first",
         default=0,
-        type="int",
+        type=int,
         help="First base to keep. Default is 1.",
     )
     p.add_option(
         "-l",
         dest="last",
         default=0,
-        type="int",
+        type=int,
         help="Last base to keep. Default is entire read.",
     )
     opts, args = p.parse_args(args)
@@ -865,7 +865,7 @@ def splitread(args):
         "-n",
         dest="n",
         default=76,
-        type="int",
+        type=int,
         help="Split at N-th base position",
     )
     p.add_option(

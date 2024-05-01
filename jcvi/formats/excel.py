@@ -171,7 +171,7 @@ def fromcsv(args):
         action="store_true",
         help="Do not treat the first row as header",
     )
-    p.add_option("--rgb", default=-1, type="int", help="Show RGB color box")
+    p.add_option("--rgb", default=-1, type=int, help="Show RGB color box")
     p.set_sep()
     opts, args = p.parse_args(args)
 

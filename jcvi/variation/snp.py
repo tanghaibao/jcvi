@@ -38,7 +38,7 @@ def mappability(args):
     <https://github.com/xuefzhao/Reference.Mappability>
     """
     p = OptionParser(mappability.__doc__)
-    p.add_option("--mer", default=50, type="int", help="User mer size")
+    p.add_option("--mer", default=50, type=int, help="User mer size")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -258,8 +258,8 @@ def freebayes(args):
     Call SNPs using freebayes.
     """
     p = OptionParser(freebayes.__doc__)
-    p.add_option("--mindepth", default=3, type="int", help="Minimum depth")
-    p.add_option("--minqual", default=20, type="int", help="Minimum quality")
+    p.add_option("--mindepth", default=3, type=int, help="Minimum depth")
+    p.add_option("--minqual", default=20, type=int, help="Minimum quality")
     opts, args = p.parse_args(args)
 
     if len(args) < 2:
@@ -283,8 +283,8 @@ def freq(args):
     Call SNP frequencies and generate GFF file.
     """
     p = OptionParser(freq.__doc__)
-    p.add_option("--mindepth", default=3, type="int", help="Minimum depth")
-    p.add_option("--minqual", default=20, type="int", help="Minimum quality")
+    p.add_option("--mindepth", default=3, type=int, help="Minimum depth")
+    p.add_option("--minqual", default=20, type=int, help="Minimum quality")
     p.set_outfile()
     opts, args = p.parse_args(args)
 

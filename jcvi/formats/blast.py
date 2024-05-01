@@ -296,7 +296,7 @@ def filter(args):
     - noself: remove self-self hits
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--score", dest="score", default=0, type="int", help="Score cutoff")
+    p.add_option("--score", dest="score", default=0, type=int, help="Score cutoff")
     p.set_align(pctid=95, hitlen=100, evalue=0.01)
     p.add_option(
         "--noself", default=False, action="store_true", help="Remove self-self hits"
@@ -627,7 +627,7 @@ def annotate(args):
 
     p = OptionParser(annotate.__doc__)
     p.set_align(pctid=94, hitlen=500)
-    p.add_option("--hang", default=500, type="int", help="Maximum overhang length")
+    p.add_option("--hang", default=500, type=int, help="Maximum overhang length")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -668,7 +668,7 @@ def top10(args):
     p.add_option(
         "--top",
         default=10,
-        type="int",
+        type=int,
         help="Top N taxa to extract",
     )
     p.add_option(
@@ -777,7 +777,7 @@ def cscore(args):
     p.add_option(
         "--cutoff",
         default=0.9999,
-        type="float",
+        type=float,
         help="Minimum C-score to report",
     )
     p.add_option(
@@ -943,7 +943,7 @@ def chain(args):
         "--dist",
         dest="dist",
         default=100,
-        type="int",
+        type=int,
         help="extent of flanking regions to search",
     )
 
@@ -1279,7 +1279,7 @@ def bed(args):
     p.add_option(
         "--merge",
         default=None,
-        type="int",
+        type=int,
         help="Merge hits within this distance",
     )
 
@@ -1379,7 +1379,7 @@ def best(args):
     """
     p = OptionParser(best.__doc__)
 
-    p.add_option("-n", default=1, type="int", help="get best N hits")
+    p.add_option("-n", default=1, type=int, help="get best N hits")
     p.add_option(
         "--nosort",
         default=False,

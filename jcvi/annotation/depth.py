@@ -74,7 +74,7 @@ def bed(args):
         "--cutoff",
         dest="cutoff",
         default=10,
-        type="int",
+        type=int,
         help="Minimum read depth to report intervals",
     )
     opts, args = p.parse_args(args)

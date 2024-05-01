@@ -200,7 +200,7 @@ def insertionpairs(args):
     p.add_option(
         "--extend",
         default=10,
-        type="int",
+        type=int,
         help="Allow insertion sites to match up within distance",
     )
     p.set_outfile()
@@ -241,7 +241,7 @@ def insertion(args):
     """
     p = OptionParser(insertion.__doc__)
     p.add_option(
-        "--mindepth", default=6, type="int", help="Minimum depth to call an insertion"
+        "--mindepth", default=6, type=int, help="Minimum depth to call an insertion"
     )
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -277,10 +277,10 @@ def deletion(args):
     """
     p = OptionParser(deletion.__doc__)
     p.add_option(
-        "--mindepth", default=3, type="int", help="Minimum depth to call a deletion"
+        "--mindepth", default=3, type=int, help="Minimum depth to call a deletion"
     )
     p.add_option(
-        "--minspan", default=30, type="int", help="Minimum span to call a deletion"
+        "--minspan", default=30, type=int, help="Minimum span to call a deletion"
     )
     p.add_option(
         "--split",

@@ -443,7 +443,7 @@ def gc(args):
     Plot G+C content distribution.
     """
     p = OptionParser(gc.__doc__)
-    p.add_option("--binsize", default=500, type="int", help="Bin size to use")
+    p.add_option("--binsize", default=500, type=int, help="Bin size to use")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -486,7 +486,7 @@ def trimsplit(args):
 
     p = OptionParser(trimsplit.__doc__)
     p.add_option(
-        "--minlength", default=1000, type="int", help="Min length of contigs to keep"
+        "--minlength", default=1000, type=int, help="Min length of contigs to keep"
     )
     opts, args = p.parse_args(args)
 
@@ -541,7 +541,7 @@ def qual(args):
 
     p = OptionParser(qual.__doc__)
     p.add_option(
-        "--qv", default=31, type="int", help="Dummy qv score for extended bases"
+        "--qv", default=31, type=int, help="Dummy qv score for extended bases"
     )
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -690,7 +690,7 @@ def ispcr(args):
         "-r",
         dest="rclip",
         default=1,
-        type="int",
+        type=int,
         help="pair ID is derived from rstrip N chars",
     )
     opts, args = p.parse_args(args)
@@ -1144,7 +1144,7 @@ def join(args):
     p.add_option(
         "--gapsize",
         default=100,
-        type="int",
+        type=int,
         help="Number of N's in between the sequences",
     )
     p.add_option("--gaptype", default="contig", help="Gap type to use in the AGP file")
@@ -1290,10 +1290,10 @@ def format(args):
         help="Add sequential IDs",
     )
     p.add_option(
-        "--sequentialoffset", default=0, type="int", help="Sequential IDs start at"
+        "--sequentialoffset", default=0, type=int, help="Sequential IDs start at"
     )
     p.add_option(
-        "--pad0", default=0, type="int", help="Pad a few zeros in front of sequential"
+        "--pad0", default=0, type=int, help="Pad a few zeros in front of sequential"
     )
     p.add_option(
         "--gb",
@@ -1305,7 +1305,7 @@ def format(args):
     p.add_option(
         "--index",
         default=0,
-        type="int",
+        type=int,
         help="Extract i-th field after split with --sep",
     )
     p.add_option(
@@ -1341,7 +1341,7 @@ def format(args):
         help="Remove description after identifier",
     )
     p.add_option(
-        "--minlength", default=0, type="int", help="Minimum sequence length to keep"
+        "--minlength", default=0, type=int, help="Minimum sequence length to keep"
     )
     opts, args = p.parse_args(args)
 
@@ -1865,7 +1865,7 @@ def fastq(args):
     from jcvi.formats.fastq import FastqLite
 
     p = OptionParser(fastq.__doc__)
-    p.add_option("--qv", type="int", help="Use generic qv value")
+    p.add_option("--qv", type=int, help="Use generic qv value")
 
     opts, args = p.parse_args(args)
 
@@ -2001,7 +2001,7 @@ def pairinplace(args):
         "-r",
         dest="rclip",
         default=1,
-        type="int",
+        type=int,
         help="pair ID is derived from rstrip N chars",
     )
     opts, args = p.parse_args(args)
@@ -2319,7 +2319,7 @@ def trim(args):
     p.add_option(
         "-c",
         dest="min_length",
-        type="int",
+        type=int,
         default=64,
         help="minimum sequence length after trimming",
     )
@@ -2396,7 +2396,7 @@ def sequin(args):
     TATTAACGATGAATAATAATGAGAAGCCATATAGAATTGGTGATAATGTAAAAAAAGGGGCTCTTATTAC
     """
     p = OptionParser(sequin.__doc__)
-    p.add_option("--unk", default=100, type="int", help="The size for unknown gaps")
+    p.add_option("--unk", default=100, type=int, help="The size for unknown gaps")
     p.add_option("--newid", default=None, help="Use this identifier instead")
     p.add_option(
         "--chromosome", default=None, help="Add [chromosome= ] to FASTA header"
@@ -2491,14 +2491,14 @@ def tidy(args):
         "--gapsize",
         dest="gapsize",
         default=0,
-        type="int",
+        type=int,
         help="Set all gaps to the same size",
     )
     p.add_option(
         "--minlen",
         dest="minlen",
         default=100,
-        type="int",
+        type=int,
         help="Minimum component size",
     )
 

@@ -109,7 +109,7 @@ def pad(args):
     p.add_option(
         "--cutoff",
         default=0.3,
-        type="float",
+        type=float,
         help="The clustering cutoff to call similar",
     )
 
@@ -239,7 +239,7 @@ def cluster(args):
     p = OptionParser(cluster.__doc__)
     p.set_beds()
     p.add_option(
-        "--minsize", default=10, type="int", help="Only segment using blocks >= size"
+        "--minsize", default=10, type=int, help="Only segment using blocks >= size"
     )
     p.add_option(
         "--path", default="~/scratch/bin", help="Path to the CLUSTER 3.0 binary"

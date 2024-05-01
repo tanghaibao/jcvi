@@ -104,7 +104,7 @@ def calculate_A50(ctgsizes, cutoff=0, percent=50):
     Given an array of contig sizes, produce A50, N50, and L50 values
     """
 
-    ctgsizes = np.array(ctgsizes, dtype="int")
+    ctgsizes = np.array(ctgsizes, dtype=int)
     ctgsizes = np.sort(ctgsizes)[::-1]
     ctgsizes = ctgsizes[ctgsizes >= cutoff]
 

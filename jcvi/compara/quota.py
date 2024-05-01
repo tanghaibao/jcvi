@@ -197,7 +197,7 @@ def main(args):
     p.add_option(
         "--Nm",
         dest="Nmax",
-        type="int",
+        type=int,
         default=10,
         help="distance cutoff to tolerate two blocks that are "
         "slightly overlapping (cutoff for `quota mapping`) "

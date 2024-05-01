@@ -44,8 +44,8 @@ def covlen(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(covlen.__doc__)
-    p.add_option("--maxsize", default=1000000, type="int", help="Max contig size")
-    p.add_option("--maxcov", default=100, type="int", help="Max contig size")
+    p.add_option("--maxsize", default=1000000, type=int, help="Max contig size")
+    p.add_option("--maxcov", default=100, type=int, help="Max contig size")
     p.add_option("--color", default="m", help="Color of the data points")
     p.add_option(
         "--kind",
@@ -109,7 +109,7 @@ def coverage(args):
     from jcvi.formats.bed import mates, bedpe
 
     p = OptionParser(coverage.__doc__)
-    p.add_option("--ymax", default=None, type="int", help="Limit ymax")
+    p.add_option("--ymax", default=None, type=int, help="Limit ymax")
     p.add_option(
         "--spans",
         default=False,
@@ -262,7 +262,7 @@ def scaffold(args):
     p = OptionParser(scaffold.__doc__)
     p.add_option(
         "--cutoff",
-        type="int",
+        type=int,
         default=1000000,
         help="Plot scaffolds with size larger than",
     )
@@ -459,14 +459,14 @@ def A50(args):
     p.add_option(
         "--cutoff",
         default=0,
-        type="int",
+        type=int,
         dest="cutoff",
         help="use contigs above certain size",
     )
     p.add_option(
         "--stepsize",
         default=10,
-        type="int",
+        type=int,
         dest="stepsize",
         help="stepsize for the distribution",
     )

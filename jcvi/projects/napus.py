@@ -141,7 +141,7 @@ def cov(args):
         help="Plot the order in reverse",
     )
     p.add_option(
-        "--gauge_step", default=5000000, type="int", help="Step size for the base scale"
+        "--gauge_step", default=5000000, type=int, help="Step size for the base scale"
     )
     p.add_option(
         "--hlsuffix",
@@ -287,7 +287,7 @@ def fig3(args):
     p.add_option(
         "--gauge_step",
         default=10000000,
-        type="int",
+        type=int,
         help="Step size for the base scale",
     )
     opts, args, iopts = p.set_image_options(args, figsize="12x9")
@@ -534,7 +534,7 @@ def fig4(args):
     """
     p = OptionParser(fig4.__doc__)
     p.add_option(
-        "--gauge_step", default=200000, type="int", help="Step size for the base scale"
+        "--gauge_step", default=200000, type=int, help="Step size for the base scale"
     )
     opts, args, iopts = p.set_image_options(args, figsize="9x7")
 

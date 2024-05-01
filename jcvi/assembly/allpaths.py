@@ -232,7 +232,7 @@ def fill(args):
     p.add_option(
         "--stretch",
         default=3,
-        type="int",
+        type=int,
         help="MAX_STRETCH to pass to FillFragments",
     )
     p.set_cpus()

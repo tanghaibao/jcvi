@@ -159,7 +159,7 @@ def minimap(args):
     p = OptionParser(minimap.__doc__)
     p.add_option(
         "--chunks",
-        type="int",
+        type=int,
         default=2000000,
         help="Split ref.fasta into chunks of size in self-scan mode",
     )
@@ -217,7 +217,7 @@ def nucmer(args):
 
     p = OptionParser(nucmer.__doc__)
     p.add_option(
-        "--chunks", type="int", help="Split both query and subject into chunks"
+        "--chunks", type=int, help="Split both query and subject into chunks"
     )
     p.set_params(prog="nucmer", params="-l 100 -c 500")
     p.set_cpus()
@@ -352,8 +352,8 @@ def blast(args):
     task_choices = ("blastn", "blastn-short", "dc-megablast", "megablast", "vecscreen")
     p = OptionParser(blast.__doc__)
     p.set_align(pctid=0, evalue=0.01)
-    p.add_option("--wordsize", type="int", help="Word size")
-    p.add_option("--best", default=1, type="int", help="Only look for best N hits")
+    p.add_option("--wordsize", type=int, help="Word size")
+    p.add_option("--best", default=1, type=int, help="Only look for best N hits")
     p.add_option(
         "--task", default="megablast", choices=task_choices, help="Task of the blastn"
     )
@@ -510,10 +510,10 @@ def last(args, dbtype=None):
     p.add_option(
         "--minlen",
         default=0,
-        type="int",
+        type=int,
         help="Filter alignments by how many bases match",
     )
-    p.add_option("--minid", default=0, type="int", help="Minimum sequence identity")
+    p.add_option("--minid", default=0, type=int, help="Minimum sequence identity")
     p.set_cpus()
     p.set_outdir()
     p.set_params()

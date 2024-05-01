@@ -299,13 +299,13 @@ def main(args):
     )
     p.add_option(
         "--tandem_Nmax",
-        type="int",
+        type=int,
         default=10,
         help="merge tandem genes within distance",
     )
     p.add_option(
         "--cscore",
-        type="float",
+        type=float,
         default=0.7,
         help="retain hits that have good bitscore. a value of 0.5 means "
         "keep all values that are 50% or greater of the best hit. "

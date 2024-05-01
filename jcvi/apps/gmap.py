@@ -141,7 +141,7 @@ def gmap(args):
     p.add_option(
         "--npaths",
         default=0,
-        type="int",
+        type=int,
         help="Maximum number of paths to show."
         " If set to 0, prints two paths if chimera"
         " detected, else one.",

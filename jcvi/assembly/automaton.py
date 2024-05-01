@@ -266,7 +266,7 @@ def prepare(args):
     p.add_option(
         "--first",
         default=0,
-        type="int",
+        type=int,
         help="Use only first N reads",
     )
     opts, args = p.parse_args(args)

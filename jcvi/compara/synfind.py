@@ -254,11 +254,11 @@ if __name__ == "__main__":
 
     params_group = OptionGroup(p, "Synteny parameters")
     params_group.add_option(
-        "--window", type="int", default=40, help="Synteny window size"
+        "--window", type=int, default=40, help="Synteny window size"
     )
     params_group.add_option(
         "--cutoff",
-        type="float",
+        type=float,
         default=0.1,
         help="Minimum number of anchors to call synteny",
     )

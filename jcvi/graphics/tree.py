@@ -560,11 +560,11 @@ def main(args):
         help="Don't reroot the input tree",
     )
     p.add_option(
-        "--rmargin", default=0.2, type="float", help="Set blank rmargin to the right"
+        "--rmargin", default=0.2, type=float, help="Set blank rmargin to the right"
     )
     p.add_option("--gffdir", default=None, help="The directory that contain GFF files")
     p.add_option("--sizes", default=None, help="The FASTA file or the sizes file")
-    p.add_option("--SH", default=None, type="string", help="SH test p-value")
+    p.add_option("--SH", default=None, type=str, help="SH test p-value")
 
     group = p.add_option_group("Node style")
     group.add_option("--leafcolor", default="k", help="Font color for the OTUs")
@@ -575,7 +575,7 @@ def main(args):
     group.add_option(
         "--scutoff",
         default=0,
-        type="int",
+        type=int,
         help="cutoff for displaying node support, 0-100",
     )
     group.add_option(

@@ -819,8 +819,8 @@ def heatmap(args):
     p = OptionParser(heatmap.__doc__)
     p.add_option("--title", help="Title of the heatmap")
     p.add_option("--groups", help="Groups file, see doc")
-    p.add_option("--vmin", default=1, type="int", help="Minimum value in the heatmap")
-    p.add_option("--vmax", default=6, type="int", help="Maximum value in the heatmap")
+    p.add_option("--vmin", default=1, type=int, help="Minimum value in the heatmap")
+    p.add_option("--vmax", default=6, type=int, help="Maximum value in the heatmap")
     p.add_option("--chr", help="Plot this contig/chr only")
     p.add_option(
         "--nobreaks",
@@ -917,7 +917,7 @@ def get_distbins(start=100, bins=2000, ratio=1.01):
     b[0] = 100
     for i in range(1, bins):
         b[i] = b[i - 1] * ratio
-    bins = np.around(b).astype(dtype="int")
+    bins = np.around(b).astype(dtype=int)
     binsizes = np.diff(bins)
     return bins, binsizes
 
@@ -938,7 +938,7 @@ def bam2mat(args):
     p.add_option(
         "--resolution",
         default=500000,
-        type="int",
+        type=int,
         help="Resolution when counting the links",
     )
     p.add_option(
@@ -992,8 +992,8 @@ def bam2mat(args):
 
     print(sorted(seqstarts.items(), key=lambda x: x[-1]))
     logger.debug("Initialize matrix of size %dx%d", total_bins, total_bins)
-    A = np.zeros((total_bins, total_bins), dtype="int")
-    B = np.zeros(bins, dtype="int")
+    A = np.zeros((total_bins, total_bins), dtype=int)
+    B = np.zeros(bins, dtype=int)
 
     # Find the bin ID of each read
     def bin_number(chr, pos):
@@ -1063,10 +1063,10 @@ def simulate(args):
     - Genes are distributed uniformly
     """
     p = OptionParser(simulate.__doc__)
-    p.add_option("--genomesize", default=10000000, type="int", help="Genome size")
-    p.add_option("--genes", default=1000, type="int", help="Number of genes")
-    p.add_option("--contigs", default=100, type="int", help="Number of contigs")
-    p.add_option("--coverage", default=10, type="int", help="Link coverage")
+    p.add_option("--genomesize", default=10000000, type=int, help="Genome size")
+    p.add_option("--genes", default=1000, type=int, help="Number of genes")
+    p.add_option("--contigs", default=100, type=int, help="Number of contigs")
+    p.add_option("--coverage", default=10, type=int, help="Link coverage")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1106,7 +1106,7 @@ def simulate(args):
     LinkStarts = np.sort(np.random.randint(1, GenomeSize, size=Links))
     a, b = 1e-7, 1e-3
     LinkSizes = np.array(
-        np.round_(1 / ((b - a) * np.random.rand(Links) + a), decimals=0), dtype="int"
+        np.round_(1 / ((b - a) * np.random.rand(Links) + a), decimals=0), dtype=int
     )
     LinkEnds = LinkStarts + LinkSizes
 
@@ -1479,7 +1479,7 @@ def movie(args):
     Plot optimization history.
     """
     p = OptionParser(movie.__doc__)
-    p.add_option("--frames", default=500, type="int", help="Only plot every N frames")
+    p.add_option("--frames", default=500, type=int, help="Only plot every N frames")
     p.add_option(
         "--engine",
         default="ffmpeg",

@@ -392,7 +392,7 @@ def bed(args):
         action="store_true",
         help="Print accesssion as single point instead of interval",
     )
-    p.add_option("--scale", type="float", help="Scale the OM distance by factor")
+    p.add_option("--scale", type=float, help="Scale the OM distance by factor")
     p.add_option(
         "--switch",
         default=False,

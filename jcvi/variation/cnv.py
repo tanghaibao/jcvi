@@ -878,17 +878,17 @@ def hmm(args):
     directory.
     """
     p = OptionParser(hmm.__doc__)
-    p.add_option("--mu", default=0.003, type="float", help="Transition probability")
+    p.add_option("--mu", default=0.003, type=float, help="Transition probability")
     p.add_option(
         "--sigma",
         default=0.1,
-        type="float",
+        type=float,
         help="Standard deviation of Gaussian emission distribution",
     )
     p.add_option(
         "--threshold",
         default=1,
-        type="float",
+        type=float,
         help="Standard deviation must be < this in the baseline population",
     )
     opts, args = p.parse_args(args)
@@ -1065,7 +1065,7 @@ def cn(args):
     """
     p = OptionParser(cn.__doc__)
     p.add_option(
-        "--binsize", default=1000, type="int", help="Window size along chromosome"
+        "--binsize", default=1000, type=int, help="Window size along chromosome"
     )
     p.add_option(
         "--cleanup",

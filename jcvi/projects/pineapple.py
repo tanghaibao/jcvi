@@ -71,7 +71,7 @@ def flanking(args):
     Extract flanking genes for given SI loci.
     """
     p = OptionParser(flanking.__doc__)
-    p.add_option("-N", default=50, type="int", help="How many genes on both directions")
+    p.add_option("-N", default=50, type=int, help="How many genes on both directions")
     opts, args = p.parse_args(args)
 
     if len(args) != 4:

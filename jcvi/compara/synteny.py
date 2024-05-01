@@ -417,7 +417,7 @@ def add_options(p, args, dist=10):
     """
     p.set_beds()
     p.add_option(
-        "--dist", default=dist, type="int", help="Extent of flanking regions to search"
+        "--dist", default=dist, type=int, help="Extent of flanking regions to search"
     )
 
     opts, args = p.parse_args(args)
@@ -1246,11 +1246,11 @@ def screen(args):
     p.add_option(
         "--intrabound",
         default=300,
-        type="int",
+        type=int,
         help="Lower bound of intra-chromosomal blocks (only for self comparison)",
     )
-    p.add_option("--minspan", default=0, type="int", help="Only blocks with span >=")
-    p.add_option("--minsize", default=0, type="int", help="Only blocks with anchors >=")
+    p.add_option("--minspan", default=0, type=int, help="Only blocks with span >=")
+    p.add_option("--minsize", default=0, type=int, help="Only blocks with anchors >=")
     p.add_option(
         "--simple", action="store_true", help="Write simple anchorfile with block ends"
     )
@@ -1455,7 +1455,7 @@ def mcscan(args):
     """
     p = OptionParser(mcscan.__doc__)
     p.add_option(
-        "--iter", default=100, type="int", help="Max number of chains to output"
+        "--iter", default=100, type=int, help="Max number of chains to output"
     )
     p.add_option(
         "--ascii",
@@ -1464,7 +1464,7 @@ def mcscan(args):
         help="Output symbols rather than gene names",
     )
     p.add_option(
-        "--Nm", default=10, type="int", help="Clip block ends to allow slight overlaps"
+        "--Nm", default=10, type=int, help="Clip block ends to allow slight overlaps"
     )
     p.add_option(
         "--trackids", action="store_true", help="Track block IDs in separate file"
@@ -1585,7 +1585,7 @@ def depth(args):
     p.add_option(
         "--histogram", default=False, action="store_true", help="Plot histograms in PDF"
     )
-    p.add_option("--xmax", type="int", help="x-axis maximum to display in plot")
+    p.add_option("--xmax", type=int, help="x-axis maximum to display in plot")
     p.add_option("--title", default=None, help="Title to display in plot")
     p.add_option("--quota", help="Force to use this quota, e.g. 1:1, 1:2 ...")
     p.set_beds()
@@ -1724,12 +1724,12 @@ def breakpoint(args):
 
     p = OptionParser(breakpoint.__doc__)
     p.add_option(
-        "--xdist", type="int", default=20, help="xdist (in related genome) cutoff"
+        "--xdist", type=int, default=20, help="xdist (in related genome) cutoff"
     )
     p.add_option(
-        "--ydist", type="int", default=200000, help="ydist (in current genome) cutoff"
+        "--ydist", type=int, default=200000, help="ydist (in current genome) cutoff"
     )
-    p.add_option("-n", type="int", default=5, help="number of markers in a block")
+    p.add_option("-n", type=int, default=5, help="number of markers in a block")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1764,20 +1764,20 @@ def scan(args):
         "-n",
         "--min_size",
         dest="n",
-        type="int",
+        type=int,
         default=4,
         help="minimum number of anchors in a cluster",
     )
     p.add_option(
         "--intrabound",
         default=300,
-        type="int",
+        type=int,
         help="Lower bound of intra-chromosomal blocks (only for self comparison)",
     )
     p.add_option("--liftover", help="Scan BLAST file to find extra anchors")
     p.add_option(
         "--liftover_dist",
-        type="int",
+        type=int,
         help="Distance to extend from liftover. Defaults to half of --dist",
     )
     p.set_stripnames()

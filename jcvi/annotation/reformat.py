@@ -210,8 +210,8 @@ def plot(args):
     from jcvi.graphics.chromosome import ChromosomeMap
 
     p = OptionParser(plot.__doc__)
-    p.add_option("--firstn", type="int", help="Only plot the first N genes")
-    p.add_option("--ymax", type="int", help="Y-axis max value")
+    p.add_option("--firstn", type=int, help="Only plot the first N genes")
+    p.add_option("--ymax", type=int, help="Y-axis max value")
     p.add_option("--log", action="store_true", help="Write plotting data")
     opts, args, iopts = p.set_image_options(args, figsize="6x4")
 
@@ -617,14 +617,14 @@ def annotate(args):
         "--pid",
         dest="pid",
         default=35.0,
-        type="float",
+        type=float,
         help="Percent identity cutoff",
     )
     g1.add_option(
         "--score",
         dest="score",
         default=250.0,
-        type="float",
+        type=float,
         help="Alignment score cutoff",
     )
     p.add_option_group(g1)
@@ -639,7 +639,7 @@ def annotate(args):
         "-f",
         dest="f",
         default=0.5,
-        type="float",
+        type=float,
         help="Minimum overlap fraction (0.0 - 1.0)",
     )
     g2.add_option(
@@ -953,26 +953,26 @@ def rename(args):
         "-a",
         dest="gene_increment",
         default=10,
-        type="int",
+        type=int,
         help="Increment for continuous genes",
     )
     p.add_option(
         "-b",
         dest="gap_increment",
         default=1000,
-        type="int",
+        type=int,
         help="Increment for gaps",
     )
     p.add_option(
         "--pad0",
         default=6,
-        type="int",
+        type=int,
         help="Pad gene identifiers with 0",
     )
     p.add_option(
         "--spad0",
         default=4,
-        type="int",
+        type=int,
         help="Pad gene identifiers on small scaffolds",
     )
     p.add_option("--prefix", default="Bo", help="Genome prefix")
@@ -1078,7 +1078,7 @@ def reindex(args):
 
     p = OptionParser(reindex.__doc__)
     p.add_option(
-        "--scores", type="str", help="read from existing EMBOSS `needle` scores file"
+        "--scores", type=str, help="read from existing EMBOSS `needle` scores file"
     )
     p.set_outfile()
     opts, args = p.parse_args(args)

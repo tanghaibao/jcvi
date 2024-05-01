@@ -276,8 +276,8 @@ def main():
     """
     allowed_format = ("emf", "eps", "pdf", "png", "ps", "raw", "rgba", "svg", "svgz")
     p = OptionParser(main.__doc__)
-    p.add_option("--skip", default=0, type="int", help="skip the first several lines")
-    p.add_option("--col", default=0, type="int", help="Get the n-th column")
+    p.add_option("--skip", default=0, type=int, help="skip the first several lines")
+    p.add_option("--col", default=0, type=int, help="Get the n-th column")
     p.set_histogram()
     p.add_option(
         "--tags",

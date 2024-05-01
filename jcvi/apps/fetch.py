@@ -567,7 +567,7 @@ def entrez(args):
     p.add_option(
         "--retmax",
         default=1000000,
-        type="int",
+        type=int,
         help="how many results to return",
     )
     p.add_option(
@@ -579,7 +579,7 @@ def entrez(args):
     p.add_option(
         "--batchsize",
         default=500,
-        type="int",
+        type=int,
         help="download the results in batch for speed-up",
     )
     p.set_outdir(outdir=None)

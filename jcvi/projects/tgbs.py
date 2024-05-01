@@ -207,8 +207,8 @@ def weblogo(args):
     from rich.progress import Progress
 
     p = OptionParser(weblogo.__doc__)
-    p.add_option("-N", default=10, type="int", help="Count the first and last N bases")
-    p.add_option("--nreads", default=1000000, type="int", help="Parse first N reads")
+    p.add_option("-N", default=10, type=int, help="Count the first and last N bases")
+    p.add_option("--nreads", default=1000000, type=int, help="Parse first N reads")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

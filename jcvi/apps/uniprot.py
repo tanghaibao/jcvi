@@ -118,13 +118,13 @@ def fetch(args):
     p.add_option(
         "--limit",
         default=10,
-        type="int",
+        type=int,
         help="Max number of results to retrieve",
     )
     p.add_option(
         "--offset",
         default=0,
-        type="int",
+        type=int,
         help="Offset of first result, used with --limit",
     )
     p.add_option(

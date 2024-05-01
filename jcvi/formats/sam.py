@@ -903,14 +903,14 @@ def ace(args):
         "--minreadno",
         dest="minreadno",
         default=3,
-        type="int",
+        type=int,
         help="minimum read numbers per contig",
     )
     p.add_option(
         "--minctgsize",
         dest="minctgsize",
         default=100,
-        type="int",
+        type=int,
         help="minimum contig size per contig",
     )
     p.add_option(

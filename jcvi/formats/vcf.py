@@ -499,7 +499,7 @@ def location(args):
     p.add_option(
         "--dist",
         default=100,
-        type="int",
+        type=int,
         help="Distance cutoff to call 5` and 3`",
     )
     opts, args = p.parse_args(args)
@@ -694,19 +694,19 @@ def mstmap(args):
     p.add_option(
         "--freq",
         default=0.2,
-        type="float",
+        type=float,
         help="Allele must be above frequency",
     )
     p.add_option(
         "--mindepth",
         default=3,
-        type="int",
+        type=int,
         help="Only trust genotype calls with depth",
     )
     p.add_option(
         "--missing_threshold",
         default=0.25,
-        type="float",
+        type=float,
         help="Fraction missing must be below",
     )
     p.add_option(

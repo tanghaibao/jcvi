@@ -59,14 +59,14 @@ def main():
     p.add_option(
         "--best",
         default=1,
-        type="int",
+        type=int,
         help="Only look for best N hits",
     )
     p.set_cpus()
     p.add_option(
         "--nprocs",
         default=1,
-        type="int",
+        type=int,
         help="number of BLAST processes to run in parallel. "
         + "split query.fa into `nprocs` chunks, "
         + "each chunk uses -num_threads=`cpus`",

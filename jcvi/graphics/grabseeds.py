@@ -269,7 +269,7 @@ def add_seeds_options(p, args):
     Add options to the OptionParser for seeds() and batchseeds() functions.
     """
     g1 = OptionGroup(p, "Image manipulation")
-    g1.add_option("--rotate", default=0, type="int", help="Rotate degrees clockwise")
+    g1.add_option("--rotate", default=0, type=int, help="Rotate degrees clockwise")
     g1.add_option(
         "--rows", default=":", help="Crop rows e.g. `:800` from first 800 rows"
     )
@@ -291,14 +291,14 @@ def add_seeds_options(p, args):
     g2.add_option(
         "--minsize",
         default=0.05,
-        type="float",
+        type=float,
         help="Min percentage of object to image",
     )
     g2.add_option(
-        "--maxsize", default=50, type="float", help="Max percentage of object to image"
+        "--maxsize", default=50, type=float, help="Max percentage of object to image"
     )
     g2.add_option(
-        "--count", default=100, type="int", help="Report max number of objects"
+        "--count", default=100, type=int, help="Report max number of objects"
     )
     g2.add_option(
         "--watershed",
@@ -319,17 +319,17 @@ def add_seeds_options(p, args):
     g3.add_option(
         "--sigma",
         default=1,
-        type="int",
+        type=int,
         help="Canny edge detection sigma, higher for noisy image",
     )
     g3.add_option(
         "--kernel",
         default=2,
-        type="int",
+        type=int,
         help="Edge closure, higher if the object edges are dull",
     )
     g3.add_option(
-        "--border", default=5, type="int", help="Remove image border of certain pixels"
+        "--border", default=5, type=int, help="Remove image border of certain pixels"
     )
     p.add_option_group(g3)
 

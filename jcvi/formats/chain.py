@@ -222,13 +222,13 @@ def blat(args):
     p.add_option(
         "--minscore",
         default=100,
-        type="int",
+        type=int,
         help="Matches minus mismatches gap penalty",
     )
     p.add_option(
         "--minid",
         default=98,
-        type="int",
+        type=int,
         help="Minimum sequence identity",
     )
     p.set_cpus()

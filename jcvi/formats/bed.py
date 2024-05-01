@@ -511,7 +511,7 @@ def gaps(args):
         + "missing seqids happens to be the seqid of the current feature, "
         + "it will not be reported.",
     )
-    p.add_option("--minsize", default=1000, type="int", help="Minimum gap size")
+    p.add_option("--minsize", default=1000, type=int, help="Minimum gap size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -663,7 +663,7 @@ def tiling(args):
     p.add_option(
         "--overlap",
         default=3000,
-        type="int",
+        type=int,
         help="Minimum amount of overlaps required",
     )
     p.set_verbose()
@@ -884,7 +884,7 @@ def seqids(args):
     Print out all seqids on one line. Useful for graphics.karyotype.
     """
     p = OptionParser(seqids.__doc__)
-    p.add_option("--maxn", default=100, type="int", help="Maximum number of seqids")
+    p.add_option("--maxn", default=100, type=int, help="Maximum number of seqids")
     p.add_option("--prefix", help="Seqids must start with")
     p.add_option("--exclude", default="random", help="Seqids should not contain")
     opts, args = p.parse_args(args)
@@ -994,16 +994,16 @@ def filter(args):
     Filter the bedfile to retain records between certain size range.
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--minsize", default=0, type="int", help="Minimum feature length")
+    p.add_option("--minsize", default=0, type=int, help="Minimum feature length")
     p.add_option(
-        "--maxsize", default=1000000000, type="int", help="Minimum feature length"
+        "--maxsize", default=1000000000, type=int, help="Minimum feature length"
     )
     p.add_option(
         "--minaccn",
-        type="int",
+        type=int,
         help="Minimum value of accn, useful to filter based on coverage",
     )
-    p.add_option("--minscore", type="int", help="Minimum score")
+    p.add_option("--minscore", type=int, help="Minimum score")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1060,7 +1060,7 @@ def mergebydepth(args):
     Similar to mergeBed, but only returns regions beyond certain depth.
     """
     p = OptionParser(mergebydepth.__doc__)
-    p.add_option("--mindepth", default=3, type="int", help="Minimum depth required")
+    p.add_option("--mindepth", default=3, type=int, help="Minimum depth required")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1131,8 +1131,8 @@ def longest(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(longest.__doc__)
-    p.add_option("--maxsize", default=20000, type="int", help="Limit max size")
-    p.add_option("--minsize", default=60, type="int", help="Limit min size")
+    p.add_option("--maxsize", default=20000, type=int, help="Limit max size")
+    p.add_option("--minsize", default=60, type=int, help="Limit min size")
     p.add_option(
         "--precedence", default="Medtr", help="Accessions with prefix take precedence"
     )
@@ -1216,7 +1216,7 @@ def fix(args):
     Fix non-standard bed files. One typical problem is start > end.
     """
     p = OptionParser(fix.__doc__)
-    p.add_option("--minspan", default=0, type="int", help="Enforce minimum span")
+    p.add_option("--minspan", default=0, type=int, help="Enforce minimum span")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -1404,7 +1404,7 @@ def bins(args):
     """
 
     p = OptionParser(bins.__doc__)
-    p.add_option("--binsize", default=100000, type="int", help="Size of the bins")
+    p.add_option("--binsize", default=100000, type=int, help="Size of the bins")
     p.add_option("--subtract", help="Subtract bases from window")
     p.add_option(
         "--mode",
@@ -1454,8 +1454,8 @@ def bins(args):
         nbins, last_bin = get_nbins(chr_len, binsize)
 
         a = np.zeros(nbins)  # values
-        b = np.zeros(nbins, dtype="int")  # bases
-        c = np.zeros(nbins, dtype="int")  # count
+        b = np.zeros(nbins, dtype=int)  # bases
+        c = np.zeros(nbins, dtype=int)  # count
         b[:-1] = binsize
         b[-1] = last_bin
 
@@ -1506,7 +1506,7 @@ def pile(args):
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(pile.__doc__)
-    p.add_option("--minOverlap", default=0, type="int", help="Minimum overlap required")
+    p.add_option("--minOverlap", default=0, type=int, help="Minimum overlap required")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -1863,12 +1863,12 @@ def sample(args):
     p.add_option(
         "--raindrop",
         default=0,
-        type="int",
+        type=int,
         help="Raindrop selection, ignores all other options",
     )
-    p.add_option("--max", default=10, type="int", help="Max depth allowed")
+    p.add_option("--max", default=10, type=int, help="Max depth allowed")
     p.add_option(
-        "--targetsize", type="int", help="Sample bed file to get target base number"
+        "--targetsize", type=int, help="Sample bed file to get target base number"
     )
     p.set_outfile()
     opts, args = p.parse_args(args)
@@ -2098,7 +2098,7 @@ def report_pairs(
 
     # try to infer cutoff as twice the median until convergence
     if cutoff <= 0:
-        dists = np.array([x[0] for x in all_dist], dtype="int")
+        dists = np.array([x[0] for x in all_dist], dtype=int)
         p0 = analyze_dists(dists, cutoff=mpcutoff)
         cutoff = int(2 * p0)  # initial estimate
         cutoff = int(math.ceil(cutoff / bins)) * bins
@@ -2122,7 +2122,7 @@ def report_pairs(
         file=sys.stderr,
     )
 
-    s = SummaryStats(linked_dist, dtype="int")
+    s = SummaryStats(linked_dist, dtype=int)
     num_links = s.size
 
     meandist, stdev = s.mean, s.sd
@@ -2434,14 +2434,14 @@ def flanking(args):
     p.add_option(
         "--chrom",
         default=None,
-        type="string",
+        type=str,
         help="chrom name of the position in query. Make sure it matches bedfile.",
     )
     p.add_option(
-        "--coord", default=None, type="int", help="coordinate of the position in query."
+        "--coord", default=None, type=int, help="coordinate of the position in query."
     )
     p.add_option(
-        "-n", default=10, type="int", help="number of flanking features to get"
+        "-n", default=10, type=int, help="number of flanking features to get"
     )
     p.add_option(
         "--side",
@@ -2450,7 +2450,7 @@ def flanking(args):
         help="which side to get flanking features",
     )
     p.add_option(
-        "--max_d", default=None, type="int", help="features <= max_d away from position"
+        "--max_d", default=None, type=int, help="features <= max_d away from position"
     )
     p.set_outfile()
 

@@ -510,9 +510,9 @@ def omgprepare(args):
     p = OptionParser(omgprepare.__doc__)
     p.add_option("--norbh", action="store_true", help="Disable RBH hits")
     p.add_option(
-        "--pctid", default=0, type="int", help="Percent id cutoff for RBH hits"
+        "--pctid", default=0, type=int, help="Percent id cutoff for RBH hits"
     )
-    p.add_option("--cscore", default=90, type="int", help="C-score cutoff for RBH hits")
+    p.add_option("--cscore", default=90, type=int, help="C-score cutoff for RBH hits")
     p.set_stripnames()
     p.set_beds()
 
@@ -624,15 +624,15 @@ def ortholog(args):
         action="store_true",
         help="Run in full 1x1 mode, including blocks and RBH",
     )
-    p.add_option("--cscore", default=0.7, type="float", help="C-score cutoff")
+    p.add_option("--cscore", default=0.7, type=float, help="C-score cutoff")
     p.add_option(
-        "--dist", default=20, type="int", help="Extent of flanking regions to search"
+        "--dist", default=20, type=int, help="Extent of flanking regions to search"
     )
     p.add_option(
         "-n",
         "--min_size",
         dest="n",
-        type="int",
+        type=int,
         default=4,
         help="minimum number of anchors in a cluster",
     )
@@ -641,7 +641,7 @@ def ortholog(args):
     p.add_option(
         "--self_remove",
         default=98,
-        type="float",
+        type=float,
         help="Remove self hits that are above this percent identity",
     )
     p.add_option(
@@ -652,7 +652,7 @@ def ortholog(args):
     )
     p.add_option(
         "--liftover_dist",
-        type="int",
+        type=int,
         help="Distance to extend from liftover. Defaults to half of --dist",
     )
     p.set_cpus()
@@ -926,13 +926,13 @@ def tandem(args):
     p.add_option(
         "--tandem_Nmax",
         dest="tandem_Nmax",
-        type="int",
+        type=int,
         default=3,
         help="merge tandem genes within distance",
     )
     p.add_option(
         "--percent_overlap",
-        type="int",
+        type=int,
         default=50,
         help="tandem genes have >=x% aligned sequence, x=0-100",
     )
@@ -946,7 +946,7 @@ def tandem(args):
     p.add_option(
         "--strip_gene_name",
         dest="sep",
-        type="string",
+        type=str,
         default=".",
         help="strip alternative splicing. Use None for no stripping.",
     )

@@ -205,7 +205,7 @@ def mosdepth(args):
     sns.set_style("darkgrid")
 
     p = OptionParser(mosdepth.__doc__)
-    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to plot")
+    p.add_option("--maxdepth", default=100, type=int, help="Maximum depth to plot")
     p.add_option(
         "--logscale", default=False, action="store_true", help="Use log-scale on depth"
     )
@@ -501,7 +501,7 @@ def depth(args):
         "--titleinfo",
         help="Comma-separated titles mappings between filename, title",
     )
-    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to show")
+    p.add_option("--maxdepth", default=100, type=int, help="Maximum depth to show")
     p.add_option(
         "--logscale", default=False, action="store_true", help="Use log-scale on depth"
     )
@@ -548,8 +548,8 @@ def add_window_options(p):
     """
     Add options for window plotting.
     """
-    p.add_option("--window", default=500000, type="int", help="Size of window")
-    p.add_option("--shift", default=100000, type="int", help="Size of shift")
+    p.add_option("--window", default=500000, type=int, help="Size of window")
+    p.add_option("--shift", default=100000, type=int, help="Size of shift")
     p.add_option("--subtract", help="Subtract bases from window")
     p.add_option(
         "--nomerge", default=False, action="store_true", help="Do not merge features"
@@ -586,7 +586,7 @@ def linearray(binfile, chr, window, shift):
     mn = binfile.mapping[chr]
     m, _ = zip(*mn)
 
-    m = np.array(m, dtype="float")
+    m = np.array(m, dtype=float)
     w = window // shift
     m = moving_sum(m, window=w)
     return m
@@ -769,7 +769,7 @@ def multilineplot(args):
         help="Specify whether the input is already binned; "
         + "if True, input files are considered to be binfiles",
     )
-    p.add_option("--ymax", type="int", help="Set Y-axis max")
+    p.add_option("--ymax", type=int, help="Set Y-axis max")
     add_window_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
@@ -1058,8 +1058,8 @@ def stackarray(binfile: BinFile, chr: str, window: int, shift: int):
     mn = binfile.mapping[chr]
     m, n = zip(*mn)
 
-    m = np.array(m, dtype="float")
-    n = np.array(n, dtype="float")
+    m = np.array(m, dtype=float)
+    n = np.array(n, dtype=float)
 
     w = window // shift
     m = moving_sum(m, window=w)
@@ -1081,8 +1081,8 @@ def stackplot(
     """
     Plot stackplot on the given axes, using data from binfiles.
     """
-    t = np.arange(nbins, dtype="float") + 0.5
-    m = np.zeros(nbins, dtype="float")
+    t = np.arange(nbins, dtype=float) + 0.5
+    m = np.zeros(nbins, dtype=float)
     zorders = range(10)[::-1]
     for binfile, p, z in zip(binfiles, palette, zorders):
         s = stackarray(binfile, chr, window, shift)
@@ -1172,7 +1172,7 @@ def stack(args):
     sequences along the chromosomes.
     """
     p = OptionParser(stack.__doc__)
-    p.add_option("--top", default=10, type="int", help="Draw the first N chromosomes")
+    p.add_option("--top", default=10, type=int, help="Draw the first N chromosomes")
     p.add_option(
         "--stacks",
         default="Exons,Introns,DNA_transposons,Retrotransposons",

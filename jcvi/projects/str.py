@@ -764,7 +764,7 @@ def mendelian(args):
     Calculate Mendelian errors based on trios and duos.
     """
     p = OptionParser(mendelian.__doc__)
-    p.add_option("--tolerance", default=0, type="int", help="Tolernace for differences")
+    p.add_option("--tolerance", default=0, type=int, help="Tolernace for differences")
     p.set_verbose()
     opts, args = p.parse_args(args)
 
@@ -885,7 +885,7 @@ def mini(args):
     """
     p = OptionParser(mini.__doc__)
     p.add_option(
-        "--pad", default=20000, type="int", help="Add padding to the STR reigons"
+        "--pad", default=20000, type=int, help="Add padding to the STR reigons"
     )
     p.add_option(
         "--treds", default=None, help="Extract specific treds, use comma to separate"
@@ -1500,11 +1500,11 @@ def make_fasta(seq, fastafile, id):
 
 
 def add_simulate_options(p):
-    p.add_option("--readlen", default=150, type="int", help="Length of the read")
+    p.add_option("--readlen", default=150, type=int, help="Length of the read")
     p.add_option(
         "--distance",
         default=500,
-        type="int",
+        type=int,
         help="Outer distance between the two ends",
     )
     p.set_depth(depth=20)
@@ -2045,7 +2045,7 @@ def compare2(args):
     """
     p = OptionParser(compare2.__doc__)
     p.add_option(
-        "--maxinsert", default=300, type="int", help="Maximum number of repeats"
+        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
     )
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x5")
@@ -2102,7 +2102,7 @@ def power(args):
     """
     p = OptionParser(power.__doc__)
     p.add_option(
-        "--maxinsert", default=300, type="int", help="Maximum number of repeats"
+        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
     )
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x10", format="png")
@@ -2201,7 +2201,7 @@ def tredparse(args):
     """
     p = OptionParser(tredparse.__doc__)
     p.add_option(
-        "--maxinsert", default=300, type="int", help="Maximum number of repeats"
+        "--maxinsert", default=300, type=int, help="Maximum number of repeats"
     )
     add_simulate_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="10x10")

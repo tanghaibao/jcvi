@@ -410,27 +410,27 @@ def dotplot_main(args):
     p.add_option(
         "--vmin",
         dest="vmin",
-        type="float",
+        type=float,
         default=0,
         help="Minimum value in the colormap",
     )
     p.add_option(
         "--vmax",
         dest="vmax",
-        type="float",
+        type=float,
         default=2,
         help="Maximum value in the colormap",
     )
     p.add_option(
         "--nmax",
         dest="sample_number",
-        type="int",
+        type=int,
         default=10000,
         help="Maximum number of data points to plot",
     )
     p.add_option(
         "--minfont",
-        type="int",
+        type=int,
         default=4,
         help="Do not render labels with size smaller than",
     )

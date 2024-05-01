@@ -86,8 +86,8 @@ def mitosomatic(args):
     import pandas as pd
 
     p = OptionParser(mitosomatic.__doc__)
-    p.add_option("--minaf", default=0.005, type="float", help="Minimum allele fraction")
-    p.add_option("--maxaf", default=0.1, type="float", help="Maximum allele fraction")
+    p.add_option("--minaf", default=0.005, type=float, help="Minimum allele fraction")
+    p.add_option("--maxaf", default=0.1, type=float, help="Maximum allele fraction")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -206,7 +206,7 @@ def mito(args):
         help="Run Realign => SV calls only",
     )
     p.add_option(
-        "--support", default=1, type="int", help="Minimum number of supporting reads"
+        "--support", default=1, type=int, help="Minimum number of supporting reads"
     )
     p.set_home("speedseq", default="/mnt/software/speedseq/bin")
     p.set_cpus()

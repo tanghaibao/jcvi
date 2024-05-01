@@ -93,7 +93,7 @@ def blast(args):
     p.add_option(
         "--dist",
         default=100,
-        type="int",
+        type=int,
         help="Merge adjacent HSPs separated by",
     )
     p.add_option("--db", help="Use a different database rather than UniVec_Core")

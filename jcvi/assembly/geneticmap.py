@@ -372,7 +372,7 @@ def read_subsampled_matrix(mstmap: str, subsample: int) -> Tuple[np.ndarray, str
         M.tofile(ldmatrix)
     else:
         nmarkers = len(Bed(markerbedfile))
-        M = np.fromfile(ldmatrix, dtype="float").reshape(nmarkers, nmarkers)
+        M = np.fromfile(ldmatrix, dtype=float).reshape(nmarkers, nmarkers)
         logger.debug("LD matrix `%s` exists (%dx%d).", ldmatrix, nmarkers, nmarkers)
 
     return M, markerbedfile, nmarkers
@@ -436,7 +436,7 @@ def heatmap(args):
     p.add_option(
         "--subsample",
         default=1000,
-        type="int",
+        type=int,
         help="Subsample markers to speed up",
     )
     opts, args, iopts = p.set_image_options(args, figsize="8x8")
@@ -607,7 +607,7 @@ def fasta(args):
     p.add_option(
         "--extend",
         default=1000,
-        type="int",
+        type=int,
         help="Extend seq flanking the gaps",
     )
     opts, args = p.parse_args(args)
@@ -676,7 +676,7 @@ def breakpoint(args):
     p.add_option(
         "--diff",
         default=0.1,
-        type="float",
+        type=float,
         help="Maximum ratio of differences allowed",
     )
     opts, args = p.parse_args(args)

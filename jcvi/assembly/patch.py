@@ -86,19 +86,19 @@ def pastegenes(args):
     p.add_option(
         "--cutoff",
         default=90,
-        type="int",
+        type=int,
         help="Coverage cutoff to call gene missing",
     )
     p.add_option(
         "--flank",
         default=2000,
-        type="int",
+        type=int,
         help="Get the seq of size on two ends",
     )
     p.add_option(
         "--maxsize",
         default=50000,
-        type="int",
+        type=int,
         help="Maximum size of patchers to be replaced",
     )
     opts, args = p.parse_args(args)
@@ -203,7 +203,7 @@ def pasteprepare(args):
     p.add_option(
         "--flank",
         default=5000,
-        type="int",
+        type=int,
         help="Get the seq of size on two ends",
     )
     opts, args = p.parse_args(args)
@@ -241,7 +241,7 @@ def paste(args):
     p.add_option(
         "--maxsize",
         default=300000,
-        type="int",
+        type=int,
         help="Maximum size of patchers to be replaced",
     )
     p.add_option("--prefix", help="Prefix of the new object")
@@ -519,7 +519,7 @@ def fill(args):
     p.add_option(
         "--extend",
         default=2000,
-        type="int",
+        type=int,
         help="Extend seq flanking the gaps",
     )
     opts, args = p.parse_args(args)
@@ -733,7 +733,7 @@ def install(args):
     p.add_option(
         "--maxsize",
         default=300000,
-        type="int",
+        type=int,
         help="Maximum size of patchers to be replaced",
     )
     p.add_option("--prefix", help="Prefix of the new object")

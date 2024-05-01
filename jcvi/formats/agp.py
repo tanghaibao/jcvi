@@ -1151,7 +1151,7 @@ def frombed(args):
     p.add_option(
         "--gapsize",
         default=100,
-        type="int",
+        type=int,
         help="Insert gaps of size",
     )
     p.add_option("--evidence", default="map", help="Linkage evidence to add in AGP")

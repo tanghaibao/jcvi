@@ -141,7 +141,7 @@ def bed(args):
         help="Switch reference and aligned map elements",
     )
     p.add_option(
-        "--scale", type="float", help="Scale the aligned map distance by factor"
+        "--scale", type=float, help="Scale the aligned map distance by factor"
     )
     p.set_beds()
     p.set_outfile()
@@ -234,7 +234,7 @@ def partition(args):
     p.add_option(
         "--namestart",
         default=0,
-        type="int",
+        type=int,
         help="Use a shorter name, starting index",
     )
     p.add_option(
@@ -385,7 +385,7 @@ def fromblast(args):
     p.add_option(
         "--maxdist",
         default=100000,
-        type="int",
+        type=int,
         help="Create edge within certain distance",
     )
     p.set_verbose(help="Print verbose reports to stdout")
@@ -489,7 +489,7 @@ def connect(args):
     p.add_option(
         "--clip",
         default=2000,
-        type="int",
+        type=int,
         help="Only consider end of contigs",
     )
     opts, args = p.parse_args(args)

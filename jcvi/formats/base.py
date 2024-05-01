@@ -786,7 +786,7 @@ def group(args):
     p = OptionParser(group.__doc__)
     p.set_sep()
     p.add_option(
-        "--groupby", default=None, type="int", help="Default column to groupby"
+        "--groupby", default=None, type=int, help="Default column to groupby"
     )
     p.add_option(
         "--groupsep", default=",", help="Separator to join the grouped elements"
@@ -1055,7 +1055,7 @@ def subset(args):
     p.add_option(
         "--pivot",
         default=1,
-        type="int",
+        type=int,
         help="1 for using order in file1, 2 for using order in \
                     file2",
     )
@@ -1132,7 +1132,7 @@ def setop(args):
     p.add_option(
         "--column",
         default=0,
-        type="int",
+        type=int,
         help="The column to extract, 0-based, -1 to disable",
     )
     opts, args = p.parse_args(args)

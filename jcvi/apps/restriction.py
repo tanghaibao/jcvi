@@ -128,7 +128,7 @@ def fragment(args):
     p.add_option(
         "--flank",
         default=150,
-        type="int",
+        type=int,
         help="Extract flanking bases of the cut sites",
     )
     p.add_option(

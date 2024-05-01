@@ -113,7 +113,7 @@ def summary(args):
     r = {}  # Report
     for t, tseqs in zip(("Gene", "Exon", "Intron"), (geneseqs, exonseqs, intronseqs)):
         tsizes = [len(x) for x in tseqs]
-        tsummary = SummaryStats(tsizes, dtype="int")
+        tsummary = SummaryStats(tsizes, dtype=int)
         r[t, "Number"] = tsummary.size
         r[t, "Average size (bp)"] = tsummary.mean
         r[t, "Median size (bp)"] = tsummary.median
@@ -290,7 +290,7 @@ def histogram(args):
         "--bins",
         dest="bins",
         default=40,
-        type="int",
+        type=int,
         help="number of bins to plot in the histogram",
     )
     opts, args = p.parse_args(args)

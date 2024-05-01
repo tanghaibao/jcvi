@@ -226,19 +226,19 @@ def tophat(args):
     p.add_option(
         "--intron",
         default=15000,
-        type="int",
+        type=int,
         help="Max intron size",
     )
     p.add_option(
         "--dist",
         default=-50,
-        type="int",
+        type=int,
         help="Mate inner distance",
     )
     p.add_option(
         "--stdev",
         default=50,
-        type="int",
+        type=int,
         help="Mate standard deviation",
     )
     p.set_phred()

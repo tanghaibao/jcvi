@@ -657,7 +657,7 @@ def anneal(args):
     p = OptionParser(anneal.__doc__)
     p.set_align(pctid=GoodPct, hitlen=GoodOverlap)
     p.add_option(
-        "--hang", default=GoodOverhang, type="int", help="Maximum overhang length"
+        "--hang", default=GoodOverhang, type=int, help="Maximum overhang length"
     )
     p.set_outdir(outdir="outdir")
     p.set_cpus()
@@ -759,7 +759,7 @@ def blast(args):
     from jcvi.apps.align import run_megablast
 
     p = OptionParser(blast.__doc__)
-    p.add_option("-n", type="int", default=2, help="Take best N hits")
+    p.add_option("-n", type=int, default=2, help="Take best N hits")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

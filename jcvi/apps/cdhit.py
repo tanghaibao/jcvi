@@ -84,7 +84,7 @@ def filter(args):
     from jcvi.formats.fasta import Fasta, SeqIO
 
     p = OptionParser(filter.__doc__)
-    p.add_option("--minsize", default=2, type="int", help="Minimum cluster size")
+    p.add_option("--minsize", default=2, type=int, help="Minimum cluster size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -136,7 +136,7 @@ def ids(args):
     Get the representative ids from clstr file.
     """
     p = OptionParser(ids.__doc__)
-    p.add_option("--prefix", type="int", help="Find rep id for prefix of len")
+    p.add_option("--prefix", type=int, help="Find rep id for prefix of len")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

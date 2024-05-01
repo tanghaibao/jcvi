@@ -283,7 +283,7 @@ def screen(args):
 
     p = OptionParser(screen.__doc__)
     p.set_align(pctid=95, pctcov=50)
-    p.add_option("--best", default=1, type="int", help="Get the best N hit")
+    p.add_option("--best", default=1, type=int, help="Get the best N hit")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

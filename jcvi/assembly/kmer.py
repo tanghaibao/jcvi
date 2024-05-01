@@ -625,7 +625,7 @@ def entropy(args):
     """
     p = OptionParser(entropy.__doc__)
     p.add_option(
-        "--threshold", default=0, type="int", help="Complexity needs to be above"
+        "--threshold", default=0, type=int, help="Complexity needs to be above"
     )
     opts, args = p.parse_args(args)
 
@@ -693,25 +693,25 @@ def kmcop(args):
     p.add_option(
         "--ci_in",
         default=0,
-        type="int",
+        type=int,
         help="Exclude input kmers with less than ci_in counts",
     )
     p.add_option(
         "--cs",
         default=0,
-        type="int",
+        type=int,
         help="Maximal value of a counter, only used when action is reduce",
     )
     p.add_option(
         "--ci_out",
         default=0,
-        type="int",
+        type=int,
         help="Exclude output kmers with less than ci_out counts",
     )
     p.add_option(
         "--batch",
         default=1,
-        type="int",
+        type=int,
         help="Number of batch, useful to reduce memory usage",
     )
     p.add_option("--exclude", help="Exclude accessions from this list")
@@ -772,12 +772,12 @@ def kmc(args):
     Run kmc3 on Illumina reads.
     """
     p = OptionParser(kmc.__doc__)
-    p.add_option("-k", default=27, type="int", help="Kmer size")
+    p.add_option("-k", default=27, type=int, help="Kmer size")
     p.add_option(
-        "--ci", default=2, type="int", help="Exclude kmers with less than ci counts"
+        "--ci", default=2, type=int, help="Exclude kmers with less than ci counts"
     )
-    p.add_option("--cs", default=0, type="int", help="Maximal value of a counter")
-    p.add_option("--cx", type="int", help="Exclude kmers with more than cx counts")
+    p.add_option("--cs", default=0, type=int, help="Maximal value of a counter")
+    p.add_option("--cx", type=int, help="Exclude kmers with more than cx counts")
     p.add_option(
         "--single",
         default=False,
@@ -791,7 +791,7 @@ def kmc(args):
         help="Input is FASTA instead of FASTQ",
     )
     p.add_option(
-        "--mem", default=48, type="int", help="Max amount of RAM in GB (`kmc -m`)"
+        "--mem", default=48, type=int, help="Max amount of RAM in GB (`kmc -m`)"
     )
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -838,7 +838,7 @@ def meryl(args):
     Run meryl on Illumina reads.
     """
     p = OptionParser(meryl.__doc__)
-    p.add_option("-k", default=19, type="int", help="Kmer size")
+    p.add_option("-k", default=19, type=int, help="Kmer size")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -879,8 +879,8 @@ def model(args):
     from scipy.stats import binom, poisson
 
     p = OptionParser(model.__doc__)
-    p.add_option("-k", default=23, type="int", help="Kmer size")
-    p.add_option("--cov", default=50, type="int", help="Expected coverage")
+    p.add_option("-k", default=23, type=int, help="Kmer size")
+    p.add_option("--cov", default=50, type=int, help="Expected coverage")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -1010,7 +1010,7 @@ def bincount(args):
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(bincount.__doc__)
-    p.add_option("-K", default=23, type="int", help="K-mer size")
+    p.add_option("-K", default=23, type=int, help="K-mer size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -1073,7 +1073,7 @@ def dump(args):
     Convert FASTA sequences to list of K-mers.
     """
     p = OptionParser(dump.__doc__)
-    p.add_option("-K", default=23, type="int", help="K-mer size")
+    p.add_option("-K", default=23, type=int, help="K-mer size")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -1100,11 +1100,11 @@ def jellyfish(args):
     from jcvi.utils.cbook import human_size
 
     p = OptionParser(jellyfish.__doc__)
-    p.add_option("-K", default=23, type="int", help="K-mer size")
+    p.add_option("-K", default=23, type=int, help="K-mer size")
     p.add_option(
         "--coverage",
         default=40,
-        type="int",
+        type=int,
         help="Expected sequence coverage",
     )
     p.add_option("--prefix", default="jf", help="Database prefix")
@@ -1171,10 +1171,10 @@ def multihistogram(args):
     on Star et al.'s method (Atlantic Cod genome paper).
     """
     p = OptionParser(multihistogram.__doc__)
-    p.add_option("--kmin", default=15, type="int", help="Minimum K-mer size, inclusive")
-    p.add_option("--kmax", default=30, type="int", help="Maximum K-mer size, inclusive")
-    p.add_option("--vmin", default=2, type="int", help="Minimum value, inclusive")
-    p.add_option("--vmax", default=100, type="int", help="Maximum value, inclusive")
+    p.add_option("--kmin", default=15, type=int, help="Minimum K-mer size, inclusive")
+    p.add_option("--kmax", default=30, type=int, help="Maximum K-mer size, inclusive")
+    p.add_option("--vmin", default=2, type=int, help="Minimum value, inclusive")
+    p.add_option("--vmax", default=100, type=int, help="Maximum value, inclusive")
     opts, args, iopts = p.set_image_options(args, figsize="10x5", dpi=300)
 
     if len(args) < 1:
@@ -1353,14 +1353,14 @@ def histogram(args):
         "--vmin",
         dest="vmin",
         default=2,
-        type="int",
+        type=int,
         help="minimum value, inclusive",
     )
     p.add_option(
         "--vmax",
         dest="vmax",
         default=200,
-        type="int",
+        type=int,
         help="maximum value, inclusive",
     )
     p.add_option(
@@ -1373,11 +1373,11 @@ def histogram(args):
     p.add_option(
         "--maxiter",
         default=100,
-        type="int",
+        type=int,
         help="Max iterations for optimization. Only used with --method nbinom",
     )
     p.add_option(
-        "--coverage", default=0, type="int", help="Kmer coverage [default: auto]"
+        "--coverage", default=0, type=int, help="Kmer coverage [default: auto]"
     )
     p.add_option(
         "--nopeaks",

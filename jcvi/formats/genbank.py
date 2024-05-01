@@ -338,7 +338,7 @@ def preparegb(p, args):
     p.add_option(
         "--simple",
         default=None,
-        type="string",
+        type=str,
         help="GenBank accession IDs comma separated "
         "(for lots of IDs please use --id instead).",
     )
@@ -470,14 +470,14 @@ def getquals(args):
     p.add_option(
         "--types",
         default="gene,mRNA,CDS",
-        type="str",
+        type=str,
         dest="quals_ftypes",
         help="Feature types from which to extract qualifiers",
     )
     p.add_option(
         "--ignore",
         default="locus_tag,product,codon_start,translation",
-        type="str",
+        type=str,
         dest="quals_ignore",
         help="Qualifiers to exclude from parsing",
     )

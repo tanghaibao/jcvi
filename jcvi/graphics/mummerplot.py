@@ -36,7 +36,7 @@ def main(args):
     p.add_option(
         "--refcov",
         default=0.01,
-        type="float",
+        type=float,
         help="Minimum reference coverage",
     )
     p.add_option(

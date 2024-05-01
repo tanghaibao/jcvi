@@ -353,9 +353,9 @@ def hetsmooth(args):
                reads_1.fq reads_2.fq
     """
     p = OptionParser(hetsmooth.__doc__)
-    p.add_option("-K", default=23, type="int", help="K-mer size")
-    p.add_option("-L", type="int", help="Bottom threshold, first min")
-    p.add_option("-U", type="int", help="Top threshold, second min")
+    p.add_option("-K", default=23, type=int, help="K-mer size")
+    p.add_option("-L", type=int, help="Bottom threshold, first min")
+    p.add_option("-U", type=int, help="Top threshold, second min")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -404,13 +404,13 @@ def trim(args):
     p.add_option(
         "--minqv",
         default=15,
-        type="int",
+        type=int,
         help="Average qv after trimming",
     )
     p.add_option(
         "--minlen",
         default=36,
-        type="int",
+        type=int,
         help="Minimum length after trimming",
     )
     p.add_option(

@@ -488,7 +488,7 @@ class OptionParser(ArgumentParser):
     ):
         if pctid is not None:
             self.add_argument(
-                "--pctid", default=pctid, type="float", help="Sequence percent identity"
+                "--pctid", default=pctid, type=float, help="Sequence percent identity"
             )
         if hitlen is not None:
             self.add_argument(
@@ -503,7 +503,7 @@ class OptionParser(ArgumentParser):
             )
         if evalue is not None:
             self.add_argument(
-                "--evalue", default=evalue, type="float", help="E-value cutoff"
+                "--evalue", default=evalue, type=float, help="E-value cutoff"
             )
         if compreh_pctid is not None:
             self.add_argument(
@@ -667,7 +667,7 @@ class OptionParser(ArgumentParser):
         )
         group.add_argument(
             "--genomenames",
-            type="string",
+            type=str,
             default=None,
             help="genome names for labeling axes in the form of qname_sname, "
             'eg. "*Vitis vinifera*_*Oryza sativa*"',
@@ -682,7 +682,7 @@ class OptionParser(ArgumentParser):
         )
 
     def set_depth(self, depth=50):
-        self.add_argument("--depth", default=depth, type="float", help="Desired depth")
+        self.add_argument("--depth", default=depth, type=float, help="Desired depth")
 
     def set_rclip(self, rclip=0):
         self.add_argument(
@@ -835,7 +835,7 @@ class OptionParser(ArgumentParser):
         topts.add_argument(
             "--max_memory",
             default="128G",
-            type="str",
+            type=str,
             help="Jellyfish memory allocation",
         )
         topts.add_argument(
@@ -853,7 +853,7 @@ class OptionParser(ArgumentParser):
         topts.add_argument(
             "--grid_conf_file",
             default="JCVI_SGE.0689.conf",
-            type="str",
+            type=str,
             help="HpcGridRunner config file for supported compute farms",
         )
         topts.add_argument(
@@ -866,7 +866,7 @@ class OptionParser(ArgumentParser):
         ggopts.add_argument(
             "--bam",
             default=None,
-            type="str",
+            type=str,
             help="provide coord-sorted bam file as starting point",
         )
         ggopts.add_argument(
@@ -895,7 +895,7 @@ class OptionParser(ArgumentParser):
             self.add_argument(
                 "--fl_accs",
                 default=None,
-                type="str",
+                type=str,
                 help="File containing list of FL-cDNA accessions",
             )
             self.set_cpus()
@@ -909,14 +909,14 @@ class OptionParser(ArgumentParser):
             self.add_argument(
                 "--prefix",
                 default="compreh_init_build",
-                type="str",
+                type=str,
                 help="Prefix for compreh_trans output file names",
             )
         elif action == "compare":
             self.add_argument(
                 "--annots_gff3",
                 default=None,
-                type="str",
+                type=str,
                 help="Reference annotation to load and compare against",
             )
             genetic_code = [

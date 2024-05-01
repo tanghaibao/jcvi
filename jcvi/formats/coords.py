@@ -392,7 +392,7 @@ def coverage(args):
         "-c",
         dest="cutoff",
         default=0.5,
-        type="float",
+        type=float,
         help="only report query with coverage greater than",
     )
 
@@ -437,7 +437,7 @@ def annotate(args):
     p.add_option(
         "--maxhang",
         default=100,
-        type="int",
+        type=int,
         help="Max hang to call dovetail overlap",
     )
     p.add_option(
@@ -579,7 +579,7 @@ def bed(args):
         "--cutoff",
         dest="cutoff",
         default=0,
-        type="float",
+        type=float,
         help="get all the alignments with quality above threshold",
     )
 

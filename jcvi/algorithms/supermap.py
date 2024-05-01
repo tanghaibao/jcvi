@@ -157,7 +157,7 @@ if __name__ == "__main__":
     p.add_option(
         "--clip",
         default=0,
-        type="int",
+        type=int,
         help="Clip ranges so that to allow minor overlaps",
     )
 

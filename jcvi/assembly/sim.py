@@ -32,10 +32,10 @@ def add_sim_options(p):
     p.add_option(
         "--distance",
         default=500,
-        type="int",
+        type=int,
         help="Outer distance between the two ends",
     )
-    p.add_option("--readlen", default=150, type="int", help="Length of the read")
+    p.add_option("--readlen", default=150, type=int, help="Length of the read")
     p.set_depth(depth=10)
     p.set_outfile(outfile=None)
 
@@ -161,7 +161,7 @@ def wgsim(args):
     p.add_option(
         "--erate",
         default=0.01,
-        type="float",
+        type=float,
         help="Base error rate of the read",
     )
     p.add_option(
@@ -172,7 +172,7 @@ def wgsim(args):
     )
     p.add_option(
         "--genomesize",
-        type="int",
+        type=int,
         help="Genome size in Mb [default: estimate from data]",
     )
     add_sim_options(p)

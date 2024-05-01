@@ -159,7 +159,7 @@ def segment(args):
     p.add_option(
         "--chain",
         default=1,
-        type="int",
+        type=int,
         help="Allow next N genes to be chained",
     )
     opts, args = p.parse_args(args)
@@ -354,7 +354,7 @@ def gaps(args):
     from jcvi.utils.cbook import percentage
 
     p = OptionParser(gaps.__doc__)
-    p.add_option("--bdist", default=0, type="int", help="Base pair distance")
+    p.add_option("--bdist", default=0, type=int, help="Base pair distance")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -678,11 +678,11 @@ def loss(args):
         action="store_true",
         help="Genomic BLAST is in bed format",
     )
-    p.add_option("--gdist", default=20, type="int", help="Gene distance")
+    p.add_option("--gdist", default=20, type=int, help="Gene distance")
     p.add_option(
         "--bdist",
         default=20000,
-        type="int",
+        type=int,
         help="Base pair distance",
     )
     p.set_beds()

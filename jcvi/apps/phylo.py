@@ -1092,7 +1092,7 @@ def draw(args):
     )
     p.add_option(
         "--combine",
-        type="string",
+        type=str,
         default="1x1",
         help="combine multiple trees into one plot in nrowxncol",
     )
@@ -1114,7 +1114,7 @@ def draw(args):
     p.add_option(
         "--scutoff",
         default=50,
-        type="int",
+        type=int,
         help="cutoff for displaying node support, 0-100",
     )
     p.add_option(

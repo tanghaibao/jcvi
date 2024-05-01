@@ -1083,10 +1083,10 @@ def plot_ks_dist(
 def add_plot_options(p):
     p.add_option("--fit", default=False, action="store_true", help="Plot fitted lines")
     p.add_option("--kde", default=False, action="store_true", help="Use KDE smoothing")
-    p.add_option("--vmin", default=0.0, type="float", help="Minimum value, inclusive")
-    p.add_option("--vmax", default=3.0, type="float", help="Maximum value, inclusive")
+    p.add_option("--vmin", default=0.0, type=float, help="Minimum value, inclusive")
+    p.add_option("--vmax", default=3.0, type=float, help="Maximum value, inclusive")
     p.add_option(
-        "--bins", default=60, type="int", help="Number of bins to plot in the histogram"
+        "--bins", default=60, type=int, help="Number of bins to plot in the histogram"
     )
     p.add_option("--legendp", default="upper right", help="Place of the legend")
     p.add_option(
@@ -1118,7 +1118,7 @@ def report(args):
     p.add_option(
         "--components",
         default=1,
-        type="int",
+        type=int,
         help="Number of components to decompose peaks",
     )
     add_plot_options(p)

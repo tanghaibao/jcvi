@@ -26,6 +26,7 @@ from ..apps.base import (
     ActionDispatcher,
     OptionParser,
     getfilesize,
+    get_logger,
     logger,
     mkdir,
     popen,
@@ -35,7 +36,7 @@ from ..apps.grid import MakeManager
 from ..utils.aws import glob_s3, push_to_s3, sync_from_s3
 from ..utils.cbook import percentage
 
-logging.getLogger("matplotlib").setLevel(logging.WARNING)
+get_logger("matplotlib", logging.WARNING)
 
 autosomes = [f"chr{x}" for x in range(1, 23)]
 sexsomes = ["chrX", "chrY"]

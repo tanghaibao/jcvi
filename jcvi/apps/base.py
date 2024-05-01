@@ -42,32 +42,17 @@ JCVIHELP = f"JCVI utility libraries {version} [{__copyright__}]\n"
 TextCollection = Union[str, List[str], Tuple[str, ...]]
 
 
-def debug(level=logging.DEBUG):
-    """
-    Turn on the debugging
-    """
-    logging.basicConfig(
-        level=level,
-        format="%(message)s",
-        datefmt="[%X]",
-        handlers=[RichHandler(console=Console(stderr=True))],
-    )
-
-
-debug()
-
-
 def get_logger(name: str, level: int = logging.DEBUG):
     """
     Return a logger with a default ColoredFormatter.
     """
-    logger = logging.getLogger(name)
-    if logger.hasHandlers():
-        logger.handlers.clear()
-    logger.addHandler(RichHandler(console=Console(stderr=True)))
-    logger.propagate = False
-    logger.setLevel(level)
-    return logger
+    log = logging.getLogger(name)
+    if log.hasHandlers():
+        log.handlers.clear()
+    log.addHandler(RichHandler(console=Console(stderr=True)))
+    log.propagate = False
+    log.setLevel(level)
+    return log
 
 
 logger = get_logger("jcvi")

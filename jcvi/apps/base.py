@@ -230,14 +230,14 @@ class OptionParser(ArgumentParser):
             "-t",
             dest="threaded",
             default=None,
-            type="int",
+            type=int,
             help="Append '-pe threaded N'",
         )
         if array:
             group.add_argument(
                 "-c",
                 dest="concurrency",
-                type="int",
+                type=int,
                 help="Append task concurrency limit '-tc N'",
             )
         group.add_argument(
@@ -335,7 +335,7 @@ class OptionParser(ArgumentParser):
         self.add_argument(
             "--cpus",
             default=cpus,
-            type="int",
+            type=int,
             help="Number of CPUs to use, 0=unlimited",
         )
 
@@ -367,7 +367,7 @@ class OptionParser(ArgumentParser):
             self.add_argument(
                 "--password", default=password, help="Password to connect to database"
             )
-        self.add_argument("--port", type="int", help="Specify port number")
+        self.add_argument("--port", type=int, help="Specify port number")
 
     def set_aws_opts(self, store="hli-mv-data-science/htang"):
         from jcvi.utils.aws import s3ify
@@ -431,15 +431,15 @@ class OptionParser(ArgumentParser):
 
     def set_histogram(self, vmin=0, vmax=None, bins=20, xlabel="value", title=None):
         self.add_argument(
-            "--vmin", default=vmin, type="int", help="Minimum value, inclusive"
+            "--vmin", default=vmin, type=int, help="Minimum value, inclusive"
         )
         self.add_argument(
-            "--vmax", default=vmax, type="int", help="Maximum value, inclusive"
+            "--vmax", default=vmax, type=int, help="Maximum value, inclusive"
         )
         self.add_argument(
             "--bins",
             default=bins,
-            type="int",
+            type=int,
             help="Number of bins to plot in the histogram",
         )
         self.add_argument("--xlabel", default=xlabel, help="Label on the X-axis")
@@ -472,7 +472,7 @@ class OptionParser(ArgumentParser):
 
     def set_mingap(self, default=100):
         self.add_argument(
-            "--mingap", default=default, type="int", help="Minimum size of gaps"
+            "--mingap", default=default, type=int, help="Minimum size of gaps"
         )
 
     def set_align(
@@ -492,13 +492,13 @@ class OptionParser(ArgumentParser):
             )
         if hitlen is not None:
             self.add_argument(
-                "--hitlen", default=hitlen, type="int", help="Minimum overlap length"
+                "--hitlen", default=hitlen, type=int, help="Minimum overlap length"
             )
         if pctcov is not None:
             self.add_argument(
                 "--pctcov",
                 default=pctcov,
-                type="int",
+                type=int,
                 help="Percentage coverage cutoff",
             )
         if evalue is not None:
@@ -509,7 +509,7 @@ class OptionParser(ArgumentParser):
             self.add_argument(
                 "--compreh_pctid",
                 default=compreh_pctid,
-                type="int",
+                type=int,
                 help="Sequence percent identity cutoff used to "
                 + "build PASA comprehensive transcriptome",
             )
@@ -517,7 +517,7 @@ class OptionParser(ArgumentParser):
             self.add_argument(
                 "--compreh_pctcov",
                 default=compreh_pctcov,
-                type="int",
+                type=int,
                 help="Percent coverage cutoff used to "
                 + "build PASA comprehensive transcriptome",
             )
@@ -525,14 +525,14 @@ class OptionParser(ArgumentParser):
             self.add_argument(
                 "--intron",
                 default=intron,
-                type="int",
+                type=int,
                 help="Maximum intron length used for mapping",
             )
         if bpsplice is not None:
             self.add_argument(
                 "--bpsplice",
                 default=bpsplice,
-                type="int",
+                type=int,
                 help="Number of bp of perfect splice boundary",
             )
 
@@ -584,7 +584,7 @@ class OptionParser(ArgumentParser):
         group.add_argument(
             "--dpi",
             default=dpi,
-            type="int",
+            type=int,
             help="Physical dot density (dots per inch)",
         )
         group.add_argument(
@@ -610,11 +610,11 @@ class OptionParser(ArgumentParser):
             "--notex", default=False, action="store_true", help="Do not use tex"
         )
         # https://github.com/tanghaibao/jcvi/issues/515#issuecomment-1327305211
-        if not group.has_option("--seed"):
+        if args is None or not "--seed" in args:
             group.add_argument(
                 "--seed",
                 default=seed,
-                type="int",
+                type=int,
                 help="Random seed when assigning colors (supported only for some plots)",
             )
 
@@ -688,7 +688,7 @@ class OptionParser(ArgumentParser):
         self.add_argument(
             "--rclip",
             default=rclip,
-            type="int",
+            type=int,
             help="Pair ID is derived from rstrip N chars",
         )
 
@@ -702,7 +702,7 @@ class OptionParser(ArgumentParser):
         self.add_argument(
             "--cutoff",
             default=cutoff,
-            type="int",
+            type=int,
             help="Distance to call valid links between mates",
         )
 
@@ -728,15 +728,15 @@ class OptionParser(ArgumentParser):
             help="Do not reverse complement, expect innie reads",
         )
         self.add_argument(
-            "--minlen", default=2000, type="int", help="Minimum insert size"
+            "--minlen", default=2000, type=int, help="Minimum insert size"
         )
         self.add_argument(
-            "--maxlen", default=8000, type="int", help="Maximum insert size"
+            "--maxlen", default=8000, type=int, help="Maximum insert size"
         )
         self.add_argument(
             "--dup",
             default=10,
-            type="int",
+            type=int,
             help="Filter duplicates with coordinates within this distance",
         )
 
@@ -762,7 +762,7 @@ class OptionParser(ArgumentParser):
             "--pairsfile", default=None, help="Write valid pairs to pairsfile"
         )
         self.add_argument(
-            "--nrows", default=200000, type="int", help="Only use the first n lines"
+            "--nrows", default=200000, type=int, help="Only use the first n lines"
         )
         self.set_mates()
         self.add_argument(
@@ -772,7 +772,7 @@ class OptionParser(ArgumentParser):
             help="Print PDF instead ASCII histogram",
         )
         self.add_argument(
-            "--bins", default=20, type="int", help="Number of bins in the histogram"
+            "--bins", default=20, type=int, help="Number of bins in the histogram"
         )
         self.add_argument(
             "--distmode",
@@ -789,7 +789,7 @@ class OptionParser(ArgumentParser):
 
     def set_firstN(self, firstN=100000):
         self.add_argument(
-            "--firstN", default=firstN, type="int", help="Use only the first N reads"
+            "--firstN", default=firstN, type=int, help="Use only the first N reads"
         )
 
     def set_tag(self, tag=False, specify_tag=False):
@@ -822,7 +822,7 @@ class OptionParser(ArgumentParser):
         self.add_argument(
             "--size",
             default=size,
-            type="int",
+            type=int,
             help="Insert mean size, stdev assumed to be 20% around mean",
         )
 
@@ -841,13 +841,13 @@ class OptionParser(ArgumentParser):
         topts.add_argument(
             "--min_contig_length",
             default=90,
-            type="int",
+            type=int,
             help="Minimum assembled contig length to report",
         )
         topts.add_argument(
             "--bflyGCThreads",
             default=None,
-            type="int",
+            type=int,
             help="Threads for garbage collection",
         )
         topts.add_argument(
@@ -872,7 +872,7 @@ class OptionParser(ArgumentParser):
         ggopts.add_argument(
             "--max_intron",
             default=15000,
-            type="int",
+            type=int,
             help="maximum allowed intron length",
         )
 
@@ -935,55 +935,55 @@ class OptionParser(ArgumentParser):
             self.add_argument(
                 "--pctovl",
                 default=50,
-                type="int",
+                type=int,
                 help="Minimum pct overlap between gene and FL assembly",
             )
             self.add_argument(
                 "--pct_coding",
                 default=50,
-                type="int",
+                type=int,
                 help="Minimum pct of cDNA sequence to be protein coding",
             )
             self.add_argument(
                 "--orf_size",
                 default=0,
-                type="int",
+                type=int,
                 help="Minimum size of ORF encoded protein",
             )
             self.add_argument(
-                "--utr_exons", default=2, type="int", help="Maximum number of UTR exons"
+                "--utr_exons", default=2, type=int, help="Maximum number of UTR exons"
             )
             self.add_argument(
                 "--pctlen_FL",
                 default=70,
-                type="int",
+                type=int,
                 help="Minimum protein length for comparisons involving "
                 + "FL assemblies",
             )
             self.add_argument(
                 "--pctlen_nonFL",
                 default=70,
-                type="int",
+                type=int,
                 help="Minimum protein length for comparisons involving "
                 + "non-FL assemblies",
             )
             self.add_argument(
                 "--pctid_prot",
                 default=70,
-                type="int",
+                type=int,
                 help="Minimum pctid allowed for protein pairwise comparison",
             )
             self.add_argument(
                 "--pct_aln",
                 default=70,
-                type="int",
+                type=int,
                 help="Minimum pct of shorter protein length aligning to "
                 + "update protein or isoform",
             )
             self.add_argument(
                 "--pctovl_gene",
                 default=80,
-                type="int",
+                type=int,
                 help="Minimum pct overlap among genome span of the ORF of "
                 + "each overlapping gene to allow merging",
             )
@@ -1002,7 +1002,7 @@ class OptionParser(ArgumentParser):
 
     def set_annot_reformat_opts(self):
         self.add_argument(
-            "--pad0", default=6, type="int", help="Pad gene identifiers with 0"
+            "--pad0", default=6, type=int, help="Pad gene identifiers with 0"
         )
         self.add_argument("--prefix", default="Medtr", help="Genome prefix")
         self.add_argument(
@@ -1965,12 +1965,12 @@ def notify(args):
         help="Specify API used to send the push notification",
     )
     g1.add_argument(
-        "--priority", default=0, type="int", help="Message priority (-1 <= p <= 2)"
+        "--priority", default=0, type=int, help="Message priority (-1 <= p <= 2)"
     )
     g1.add_argument(
         "--timestamp",
         default=None,
-        type="int",
+        type=int,
         dest="timestamp",
         help="Message timestamp in unix format",
     )
@@ -2111,7 +2111,7 @@ def waitpid(args):
     p.add_argument(
         "--interval",
         default=120,
-        type="int",
+        type=int,
         help="Specify PID polling interval in seconds",
     )
     p.add_argument("--message", help="Specify notification message")

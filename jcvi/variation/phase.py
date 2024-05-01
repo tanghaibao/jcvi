@@ -5,7 +5,6 @@
 Read-based phasing.
 """
 import sys
-import logging
 
 try:
     import vcf
@@ -13,7 +12,7 @@ except ImportError:
     pass
 import pysam
 
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser, logger
 
 
 class CPRA:
@@ -100,10 +99,8 @@ def prepare(args):
             continue
         variants.append(v)
 
-    logging.debug(
-        "A total of {} bi-allelic SNVs imported from `{}`".format(
-            len(variants), vcffile
-        )
+    logger.debug(
+        "A total of %d bi-allelic SNVs imported from `%s`", len(variants), vcffile
     )
 
     bamfile = pysam.AlignmentFile(bamfile, "rb")

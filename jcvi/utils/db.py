@@ -5,13 +5,12 @@
 Connect to databases (Sybase, MySQL and PostgreSQL database backends)
 """
 import os.path as op
-import sys
-import logging
 import re
+import sys
 
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, getusername
-from jcvi.utils.cbook import AutoVivification
+from ..apps.base import ActionDispatcher, OptionParser, getusername, logger, sh
+from ..formats.base import must_open
+from ..utils.cbook import AutoVivification
 
 
 # set up valid database connection params
@@ -299,10 +298,8 @@ def query(args):
     else:
         for qry in qrys:
             if re.search(r"{\d+}", qry):
-                logging.error(
-                    "Query `{0}` contains placeholders, no datafile(s) specified".format(
-                        qry
-                    )
+                logger.error(
+                    "Query `%s` contains placeholders, no datafile(s) specified", qry
                 )
                 sys.exit()
             queries.add(qry)

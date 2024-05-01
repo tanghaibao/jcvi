@@ -10,34 +10,34 @@ import os.path as op
 import json
 import sys
 
+from math import log, ceil
+from collections import Counter, defaultdict
+from multiprocessing import Pool
+
+import numpy as np
+import pandas as pd
+import pyfasta
+
 try:
     import vcf
 except ImportError:
     pass
 
-import logging
-import pyfasta
-import numpy as np
-import pandas as pd
-
-from math import log, ceil
-from collections import Counter, defaultdict
-from multiprocessing import Pool
-
-from jcvi.utils.cbook import percentage, uniqify
-from jcvi.formats.base import timestamp
-from jcvi.formats.bed import natsorted
-from jcvi.apps.grid import MakeManager
-from jcvi.formats.base import LineFile, must_open
-from jcvi.utils.aws import push_to_s3, pull_from_s3, check_exists_s3, ls_s3
-from jcvi.apps.base import (
-    OptionParser,
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
+    datafile,
+    logger,
     mkdir,
     need_update,
-    datafile,
     sh,
 )
+from ..apps.grid import MakeManager
+from ..formats.base import LineFile, must_open
+from ..formats.base import timestamp
+from ..formats.bed import natsorted
+from ..utils.aws import check_exists_s3, ls_s3, pull_from_s3, push_to_s3
+from ..utils.cbook import percentage, uniqify
 
 
 REF = "hg38"
@@ -291,7 +291,7 @@ class LobSTRvcf(dict):
         if columnidsfile:
             fp = open(columnidsfile)
             self.columns = [x.strip() for x in fp]
-            logging.debug(
+            logger.debug(
                 "A total of {} markers imported from `{}`".format(
                     len(self.columns), columnidsfile
                 )
@@ -299,7 +299,7 @@ class LobSTRvcf(dict):
 
     def parse(self, filename, filtered=True, cleanup=False):
         self.samplekey = op.basename(filename).split(".")[0]
-        logging.debug("Parse `{}` (filtered={})".format(filename, filtered))
+        logger.debug("Parse `{}` (filtered={})".format(filename, filtered))
         fp = must_open(filename)
         reader = vcf.Reader(fp)
         for record in reader:
@@ -426,17 +426,17 @@ def treds(args):
 
     metafile = "TREDs_{}_SEARCH.meta.tsv".format(timestamp())
     tf.to_csv(metafile, sep="\t", index=False)
-    logging.debug("File `{}` written.".format(metafile))
+    logger.debug("File `{}` written.".format(metafile))
     if opts.csv:
         metacsvfile = metafile.rsplit(".", 1)[0] + ".csv"
         tf.to_csv(metacsvfile, index=False)
-        logging.debug("File `{}` written.".format(metacsvfile))
+        logger.debug("File `{}` written.".format(metacsvfile))
 
     pp = df[tags]
     pp.columns = final_columns
     datafile = "TREDs_{}_SEARCH.data.tsv".format(timestamp())
     pp.to_csv(datafile, sep="\t", index=False)
-    logging.debug("File `{}` written.".format(datafile))
+    logger.debug("File `{}` written.".format(datafile))
 
     mask([datafile, metafile])
 
@@ -513,12 +513,12 @@ def run_filter(arg):
         if vcffile.startswith("s3://"):
             if not check_exists_s3(filteredvcf, warn=True):
                 write_filtered(vcffile, lhome, store=store)
-                logging.debug("{} written and uploaded.".format(filteredvcf))
+                logger.debug("{} written and uploaded.".format(filteredvcf))
         else:
             if need_update(vcffile, filteredvcf):
                 write_filtered(vcffile, lhome, store=None)
     except Exception as e:
-        logging.debug("Thread failed! Error: {}".format(e))
+        logger.debug("Thread failed! Error: {}".format(e))
 
 
 def filtervcf(args):
@@ -576,7 +576,7 @@ def write_meta(af_file, gene_map, blacklist, filename="meta.tsv"):
             file=fw,
         )
     fw.close()
-    logging.debug("Write meta file to `{}`".format(filename))
+    logger.debug("Write meta file to `{}`".format(filename))
 
 
 def read_treds(tredsfile=datafile("TREDs.meta.csv")):
@@ -587,7 +587,7 @@ def read_treds(tredsfile=datafile("TREDs.meta.csv")):
         df = pd.read_csv(tredsfile, sep="\t")
         treds = set(df["abbreviation"])
 
-    logging.debug("Loaded {} treds from `{}`".format(len(treds), tredsfile))
+    logger.debug("Loaded {} treds from `{}`".format(len(treds), tredsfile))
     return treds, df
 
 
@@ -644,7 +644,7 @@ def meta(args):
             print("\t".join((locus, af, remove)), file=fw)
         fw.close()
 
-    logging.debug("Load gene intersections from `{}`".format(wobed))
+    logger.debug("Load gene intersections from `{}`".format(wobed))
     fp = open(wobed)
     gene_map = defaultdict(set)
     for row in fp:
@@ -659,7 +659,7 @@ def meta(args):
 
     metafile = "STRs_{}_SEARCH.meta.tsv".format(timestamp())
     write_meta(af_file, gene_map, TREDS, filename=metafile)
-    logging.debug("File `{}` written.".format(metafile))
+    logger.debug("File `{}` written.".format(metafile))
 
 
 def alleles_to_counts(a):
@@ -818,7 +818,7 @@ def data(args):
     fw = open(filteredstrids, "w")
     print("\n".join(final_columns), file=fw)
     fw.close()
-    logging.debug(
+    logger.debug(
         "Dropped {} columns; Retained {} columns (`{}`)".format(
             len(remove), len(final_columns), filteredstrids
         )
@@ -832,7 +832,7 @@ def data(args):
     if need_update(databin, filtered_bin):
         m = df.as_matrix()
         m.tofile(filtered_bin)
-        logging.debug("Filtered binary matrix written to `{}`".format(filtered_bin))
+        logger.debug("Filtered binary matrix written to `{}`".format(filtered_bin))
 
     # Write data output
     filtered_tsv = "{}.data.tsv".format(pf)
@@ -883,7 +883,7 @@ def mask(args):
     if mode == "TREDs" or need_update(databin, maskfile):
         cpus = min(8, len(run_args))
         write_mask(cpus, samples, final_columns, run_args, filename=maskfile)
-        logging.debug("File `{}` written.".format(maskfile))
+        logger.debug("File `{}` written.".format(maskfile))
 
 
 def counts_filter(countsd, nalleles, seqid, cutoff=0.5):
@@ -975,12 +975,12 @@ def run_compile(arg):
         if filename.startswith("s3://"):
             if not check_exists_s3(csvfile, warn=True):
                 write_csv_ev(filename, filtered, cleanup, store=store)
-                logging.debug("{} written and uploaded.".format(csvfile))
+                logger.debug("{} written and uploaded.".format(csvfile))
         else:
             if need_update(filename, csvfile):
                 write_csv_ev(filename, filtered, cleanup, store=None)
     except Exception as e:
-        logging.debug("Thread failed! Error: {}".format(e))
+        logger.debug("Thread failed! Error: {}".format(e))
 
 
 def compilevcf(args):
@@ -1026,7 +1026,7 @@ def compilevcf(args):
         for db in dbs:
             ids.extend(STRFile(opts.lobstr_home, db=db).ids)
         uids = uniqify(ids)
-        logging.debug("Combined: {} Unique: {}".format(len(ids), len(uids)))
+        logger.debug("Combined: {} Unique: {}".format(len(ids), len(uids)))
 
         fw = open(stridsfile, "w")
         print("\n".join(uids), file=fw)
@@ -1312,7 +1312,7 @@ def batchlobstr(args):
             )
         )
     fp.close()
-    logging.debug("Total skipped: {0}".format(percentage(skipped, total)))
+    logger.debug("Total skipped: {0}".format(percentage(skipped, total)))
 
 
 def lobstr(args):
@@ -1374,18 +1374,18 @@ def lobstr(args):
         gzfile = pf + ".{0}.vcf.gz".format(lbindices[-1])
         remotegzfile = "{0}/{1}".format(store, gzfile)
         if check_exists_s3(remotegzfile):
-            logging.debug(
+            logger.debug(
                 "Object `{0}` exists. Computation skipped.".format(remotegzfile)
             )
             return
         localbamfile = pf + ".bam"
         localbaifile = localbamfile + ".bai"
         if op.exists(localbamfile):
-            logging.debug("BAM file already downloaded.")
+            logger.debug("BAM file already downloaded.")
         else:
             pull_from_s3(bamfile, localbamfile)
         if op.exists(localbaifile):
-            logging.debug("BAM index file already downloaded.")
+            logger.debug("BAM index file already downloaded.")
         else:
             remotebaifile = bamfile + ".bai"
             if check_exists_s3(remotebaifile):
@@ -1395,7 +1395,7 @@ def lobstr(args):
                 if check_exists_s3(remotebaifile):
                     pull_from_s3(remotebaifile, localbaifile)
                 else:
-                    logging.debug("BAM index cannot be found in S3!")
+                    logger.debug("BAM index cannot be found in S3!")
                     sh("samtools index {0}".format(localbamfile))
         bamfile = localbamfile
 
@@ -1544,7 +1544,7 @@ def lobstrindex(args):
             print(r, file=newbed)
             retained += 1
         newbed.close()
-        logging.debug("Retained: {0}".format(percentage(retained, total)))
+        logger.debug("Retained: {0}".format(percentage(retained, total)))
     else:
         newbedfile = trfbed
 

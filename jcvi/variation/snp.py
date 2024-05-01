@@ -5,12 +5,11 @@
 Analyze SNPs in re-sequencing panels.
 """
 import sys
-import logging
 
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.base import is_number, write_file
-from jcvi.apps.grid import MakeManager
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
+from ..apps.grid import MakeManager
+from ..formats.base import is_number, write_file
+from ..formats.fasta import Fasta
 
 
 def main():
@@ -362,10 +361,8 @@ def frommaf(args):
         )
         nsnps += 1
         if nsnps % 50000 == 0:
-            logging.debug("SNPs parsed: {0}".format(percentage(nsnps, total)))
-    logging.debug(
-        "A total of {0} SNPs validated and written to `{1}`.".format(nsnps, snpfile)
-    )
+            logger.debug("SNPs parsed: %s", percentage(nsnps, total))
+    logger.debug("A total of %d SNPs validated and written to `%s`.", nsnps, snpfile)
 
 
 if __name__ == "__main__":

@@ -4,21 +4,21 @@ parses tabular BLAST -m8 (-format 6 in BLAST+) format
 
 import os.path as op
 import sys
-import logging
 
 from itertools import groupby
 from collections import defaultdict
 
-from jcvi.formats.base import LineFile, BaseFile, must_open
-from jcvi.formats.bed import Bed
-from jcvi.formats.sizes import Sizes
-from jcvi.utils.grouper import Grouper
-from jcvi.utils.orderedcollections import OrderedDict
-from jcvi.utils.range import range_distance
-from jcvi.utils.cbook import percentage
-from jcvi.assembly.base import calculate_A50
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
+from ..apps.base import ActionDispatcher, OptionParser, logger, popen, sh
+from ..assembly.base import calculate_A50
 from ..compara.base import AnchorFile
+from ..utils.cbook import percentage
+from ..utils.grouper import Grouper
+from ..utils.orderedcollections import OrderedDict
+from ..utils.range import range_distance
+
+from .base import LineFile, BaseFile, must_open
+from .bed import Bed
+from .sizes import Sizes
 
 
 try:
@@ -26,7 +26,7 @@ try:
 except:
     from .pyblast import BlastLine
 
-    logging.error("Fall back to Python implementation of BlastLine")
+    logger.error("Fall back to Python implementation of BlastLine")
 
 
 class BlastSlow(LineFile):
@@ -220,7 +220,7 @@ def get_stats(blastfile, strict=False):
     from jcvi.utils.range import range_union, range_span
     from .pyblast import BlastLine
 
-    logging.debug("Report stats on `%s`" % blastfile)
+    logger.debug("Report stats on `%s`" % blastfile)
     fp = open(blastfile)
     ref_ivs = []
     qry_ivs = []
@@ -430,11 +430,11 @@ def gaps(args):
 
     (blastfile,) = args
     blast = BlastSlow(blastfile)
-    logging.debug("A total of {} records imported".format(len(blast)))
+    logger.debug("A total of {} records imported".format(len(blast)))
 
     query_gaps = list(collect_gaps(blast))
     subject_gaps = list(collect_gaps(blast, use_subject=True))
-    logging.debug(
+    logger.debug(
         "Query gaps: {}  Subject gaps: {}".format(len(query_gaps), len(subject_gaps))
     )
 
@@ -509,7 +509,7 @@ def score(args):
             continue
         scores[query] += b.score
 
-    logging.debug("A total of {0} ids loaded.".format(len(ids)))
+    logger.debug("A total of {0} ids loaded.".format(len(ids)))
 
     f = Fasta(fastafile)
     for s in f.iterkeys_ordered():
@@ -609,7 +609,7 @@ def completeness(args):
     if idsfile:
         fw = open(idsfile, "w")
         print("\n".join(valid), file=fw)
-        logging.debug(
+        logger.debug(
             "A total of {0} ids (cov > {1} %) written to `{2}`.".format(
                 len(valid), cutoff, idsfile
             )
@@ -638,7 +638,7 @@ def annotate(args):
     asizes = Sizes(afasta).mapping
     bsizes = Sizes(bfasta).mapping
     cutoff = Cutoff(opts.pctid, opts.hitlen, opts.hang)
-    logging.debug(str(cutoff))
+    logger.debug(str(cutoff))
     for row in fp:
         b = BlastLine(row)
         asize = asizes[b.query]
@@ -806,7 +806,7 @@ def cscore(args):
     (blastfile,) = args
 
     blast = Blast(blastfile)
-    logging.debug("Register best scores ..")
+    logger.debug("Register best scores ..")
     best_score = defaultdict(float)
     for b in blast:
         query, subject = b.query, b.subject
@@ -957,9 +957,9 @@ def chain(args):
     assert dist > 0
 
     blast = BlastSlow(blastfile)
-    logging.debug("A total of {} records imported".format(len(blast)))
+    logger.debug("A total of {} records imported".format(len(blast)))
     chained_hsps = chain_HSPs(blast, xdist=dist, ydist=dist)
-    logging.debug("A total of {} records after chaining".format(len(chained_hsps)))
+    logger.debug("A total of {} records after chaining".format(len(chained_hsps)))
 
     for b in chained_hsps:
         print(b)
@@ -1211,7 +1211,7 @@ def covfilter(args):
         fw = must_open(filename, "w")
         for id in valid:
             print(id, file=fw)
-        logging.debug(
+        logger.debug(
             "Queries beyond cutoffs {0} written to `{1}`.".format(
                 cutoff_message, filename
             )
@@ -1306,7 +1306,7 @@ def bed(args):
         if negative:
             print(b.swapped.bedline, file=fw)
 
-    logging.debug("File written to `%s`.", bedfile)
+    logger.debug("File written to `%s`.", bedfile)
     fw.close()
     bed_sort([bedfile, "-i"])
     if opts.merge:
@@ -1368,7 +1368,7 @@ def anchors(args):
             print(rec, file=fw)
             seen.add(pp)
         total += 1
-    logging.info("Found %s", percentage(found, total))
+    logger.info("Found %s", percentage(found, total))
 
 
 def best(args):
@@ -1418,7 +1418,7 @@ def best(args):
             sargs += ["--refscore"]
         sort(sargs)
     else:
-        logging.debug("Assuming sorted BLAST")
+        logger.debug("Assuming sorted BLAST")
 
     if not opts.subject:
         bestblastfile = blastfile + ".best"
@@ -1536,7 +1536,7 @@ def subset(args):
                 b.subject = so[s][1].seqid + "_" + "{0:05d}".format(so[s][0])
             print(b, file=fw)
     fw.close()
-    logging.debug("Subset blastfile written to `{0}`".format(outfile))
+    logger.debug("Subset blastfile written to `{0}`".format(outfile))
 
 
 if __name__ == "__main__":

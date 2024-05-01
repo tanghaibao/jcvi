@@ -4,12 +4,13 @@
 """
 Classes to handle the .psl files
 """
-import sys
 import math
 import re
+import sys
 
-from jcvi.formats.base import LineFile, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser
+
+from .base import LineFile, must_open
 
 
 class PslLine(object):

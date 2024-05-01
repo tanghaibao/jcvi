@@ -9,9 +9,10 @@ import sys
 from collections import defaultdict
 from urllib.parse import quote, unquote
 
+from ..annotation.reformat import atg_name
 from ..apps.base import (
-    OptionParser,
     ActionDispatcher,
+    OptionParser,
     cleanup,
     flatten,
     logger,
@@ -20,10 +21,9 @@ from ..apps.base import (
     parse_multi_values,
     sh,
 )
-from ..annotation.reformat import atg_name
 from ..utils.cbook import AutoVivification
-from ..utils.range import Range, range_minmax
 from ..utils.orderedcollections import DefaultOrderedDict, OrderedDict, parse_qs
+from ..utils.range import Range, range_minmax
 
 from .base import DictFile, LineFile, must_open, is_number
 from .bed import Bed, BedLine, natsorted

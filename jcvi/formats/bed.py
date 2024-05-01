@@ -18,22 +18,22 @@ from more_itertools import pairwise
 from natsort import natsorted, natsort_key
 
 from ..apps.base import (
-    OptionParser,
     ActionDispatcher,
+    OptionParser,
     cleanup,
     logger,
     need_update,
     popen,
     sh,
 )
-from ..utils.cbook import SummaryStats, thousands, percentage
+from ..utils.cbook import SummaryStats, percentage, thousands
 from ..utils.grouper import Grouper
 from ..utils.range import (
     Range,
-    range_union,
     range_chain,
     range_distance,
     range_intersect,
+    range_union,
 )
 
 from .base import DictFile, LineFile, get_number, is_number, must_open

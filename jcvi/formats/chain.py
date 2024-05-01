@@ -24,10 +24,10 @@ alignment size of the last block.
 
 import os.path as op
 import sys
-import logging
 
-from jcvi.formats.base import BaseFile, read_block
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, which
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh, which
+
+from .base import BaseFile, read_block
 
 
 class ChainLine(object):
@@ -201,7 +201,7 @@ def fromagp(args):
         print(file=fw)
 
     fw.close()
-    logging.debug("File written to `%s`.", chainfile)
+    logger.debug("File written to `%s`.", chainfile)
 
 
 def faToTwoBit(fastafile):

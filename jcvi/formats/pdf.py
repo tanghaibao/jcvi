@@ -4,17 +4,17 @@
 """
 Manipulate PDF files, using PyPDF2 library.
 """
-import os
 import sys
-import logging
 import traceback
 
 from natsort import natsorted
 
 from PyPDF2 import PdfFileMerger, parse_filename_page_ranges
 from PyPDF2.pagerange import PAGE_RANGE_HELP
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, cleanup
+
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
+
+from .base import must_open
 
 
 def main():
@@ -91,7 +91,7 @@ def cat(args):
     fw.close()
 
     if opts.cleanup:
-        logging.debug("Cleaning up {} files".format(len(args)))
+        logger.debug("Cleaning up %d files", len(args))
         cleanup(args)
 
 

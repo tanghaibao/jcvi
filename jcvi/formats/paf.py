@@ -9,10 +9,10 @@
 #
 
 import sys
-import logging
 
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser, logger
+
+from .base import must_open
 
 
 class PAFLine:
@@ -112,7 +112,7 @@ def bed(args):
             else:
                 print(b.sbedline, file=fw)
 
-    logging.debug("File written to `%s`.", bedfile)
+    logger.debug("File written to `%s`.", bedfile)
     sort_bed([bedfile, "-i"])
     return bedfile
 

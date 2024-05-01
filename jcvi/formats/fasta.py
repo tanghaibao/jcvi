@@ -2,25 +2,23 @@
 Wrapper for biopython Fasta, add option to parse sequence headers
 """
 
-import re
-import sys
-import os.path as op
-import shutil
-import logging
-import string
 import hashlib
-
-from random import choice
+import os.path as op
+import re
+import shutil
+import string
+import sys
 
 from itertools import groupby, zip_longest
-from more_itertools import grouper, pairwise
+from random import choice
 
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from Bio.SeqUtils.CheckSum import seguid
+from more_itertools import grouper, pairwise
 
-from ..apps.base import OptionParser, ActionDispatcher, cleanup, need_update
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, need_update
 from ..utils.cbook import percentage
 from ..utils.console import printf
 from ..utils.table import write_csv
@@ -118,14 +116,14 @@ class Fasta(BaseFile, dict):
             msg = "start ({0}) must > 0 of `{1}`. Reset to 1".format(
                 start + 1, fasta.id
             )
-            logging.error(msg)
+            logger.error(msg)
             start = 0
 
         if stop > len(fasta):
             msg = "stop ({0}) must be <= length of `{1}` ({2}). Reset to {2}.".format(
                 stop, fasta.id, len(fasta)
             )
-            logging.error(msg)
+            logger.error(msg)
             stop = len(fasta)
 
         seq = fasta.seq[start:stop]
@@ -522,12 +520,12 @@ def trimsplit(args):
 
     # Reporting
     if removed:
-        logging.debug(
+        logger.debug(
             "Total bases removed: {0}".format(percentage(sum(removed), ntotal))
         )
         print(SummaryStats(removed), file=sys.stderr)
     if Ns:
-        logging.debug("Total Ns removed: {0}".format(percentage(sum(Ns), ntotal)))
+        logger.debug("Total Ns removed: {0}".format(percentage(sum(Ns), ntotal)))
         print(SummaryStats(Ns), file=sys.stderr)
 
 
@@ -559,7 +557,7 @@ def qual(args):
         print(" ".join([qvchar] * slen), file=fw)
         total += 1
     fw.close()
-    logging.debug("Written {0} records in `{1}`.".format(total, opts.outfile))
+    logger.debug("Written {0} records in `{1}`.".format(total, opts.outfile))
 
 
 def info(args):
@@ -625,7 +623,7 @@ def fromtab(args):
         nseq += 1
     fw.close()
 
-    logging.debug("A total of {0} sequences written to `{1}`.".format(nseq, fastafile))
+    logger.debug("A total of {0} sequences written to `{1}`.".format(nseq, fastafile))
 
 
 def longestorf(args):
@@ -669,7 +667,7 @@ def longestorf(args):
     if idsfile:
         fwids.close()
 
-    logging.debug(
+    logger.debug(
         "Longest ORFs written to `{0}` ({1}).".format(
             orffile, percentage(after, before)
         )
@@ -716,7 +714,7 @@ def ispcr(args):
         npairs += 1
 
     fw.close()
-    logging.debug("A total of {0} pairs written to `{1}`.".format(npairs, ispcrfile))
+    logger.debug("A total of {0} pairs written to `{1}`.".format(npairs, ispcrfile))
 
 
 def parse_fasta(infile, upper=False):
@@ -758,7 +756,7 @@ def iter_canonical_fasta(fastafile):
         totalbad += badcounts
         yield header, seq
 
-    logging.debug("Total bad char: {0}".format(totalbad))
+    logger.debug("Total bad char: {0}".format(totalbad))
 
 
 def fancyprint(fw, seq, width=60, chunk=10):
@@ -906,7 +904,7 @@ def translate(args):
 
         labels = []
         if "*" in pep.rstrip("*"):
-            logging.error("{0} cannot translate".format(name))
+            logger.error("{0} cannot translate".format(name))
             cannot_translate += 1
             labels.append("cannot_translate")
 
@@ -962,7 +960,7 @@ def translate(args):
 
     fw.close()
 
-    logging.debug(
+    logger.debug(
         "Total records: {}, Unique records (strip_names={}): {}".format(
             grand_total, strip_names, len(seen)
         )
@@ -1109,7 +1107,7 @@ def sort(args):
     if opts.sizes:
         # Sort by decreasing size
         sortlist = sorted(f.itersizes(), key=lambda x: (-x[1], x[0]))
-        logging.debug(
+        logger.debug(
             "Sort by size: max: {0}, min: {1}".format(sortlist[0], sortlist[-1])
         )
         sortlist = [x for x, s in sortlist]
@@ -1120,7 +1118,7 @@ def sort(args):
         rec = f[key]
         SeqIO.write([rec], fw, "fasta")
 
-    logging.debug("Sorted file written to `{0}`.".format(sortedfastafile))
+    logger.debug("Sorted file written to `{0}`.".format(sortedfastafile))
     fw.close()
 
     return sortedfastafile
@@ -1179,7 +1177,7 @@ def join(args):
     if oo:
         seen = o.contigs
         # The leftover contigs not in the oo file
-        logging.debug(
+        logger.debug(
             "A total of {0} contigs ({1} in `{2}`)".format(len(sizes), len(seen), oo)
         )
 
@@ -1263,7 +1261,7 @@ def summary(args):
 
     write_csv(header, data, sep=" ", filename=opts.outfile, thousands=True)
     if idsfile:
-        logging.debug(
+        logger.debug(
             "A total of {0} ids >= 50% N's written to {1}.".format(nids, idsfile.name)
         )
         idsfile.close()
@@ -1412,7 +1410,7 @@ def format(args):
             if origid in mapping:
                 rec.id = mapping[origid]
             else:
-                logging.error(
+                logger.error(
                     "{0} not found in `{1}`. ID unchanged.".format(origid, mapfile)
                 )
         if prefix:
@@ -1435,11 +1433,11 @@ def format(args):
         SeqIO.write(rec, fw, "fasta")
 
     if idsfile:
-        logging.debug("Conversion table written to `{0}`.".format(idsfile.name))
+        logger.debug("Conversion table written to `{0}`.".format(idsfile.name))
         idsfile.close()
 
     if nremoved:
-        logging.debug(
+        logger.debug(
             "Removed {} sequences with length < {}".format(nremoved, minlength)
         )
 
@@ -1459,7 +1457,7 @@ def print_first_difference(
         report_match=report_match,
     )
     if rc and not plus_match:
-        logging.debug("trying reverse complement of %s" % brec.id)
+        logger.debug("trying reverse complement of %s" % brec.id)
         brec.seq = brec.seq.reverse_complement()
         minus_match = _print_first_difference(
             arec,
@@ -1611,7 +1609,7 @@ def diff(args):
             report_match=not opts.quiet,
         )
         if not fd:
-            logging.error("Two sets of sequences differ at `{0}`".format(arec.id))
+            logger.error("Two sets of sequences differ at `{0}`".format(arec.id))
             problem_ids.append(
                 "\t".join(str(x) for x in (arec.id, asize, bsize, abs(asize - bsize)))
             )
@@ -1713,7 +1711,7 @@ def identical(args):
         pf = fastafile.rsplit(".", 1)[0]
         files.append(pf)
 
-        logging.debug("Hashing individual elements of {0}".format(fastafile))
+        logger.debug("Hashing individual elements of {0}".format(fastafile))
         for name, rec in f.iteritems_ordered():
             seq = re.sub(" ", "", str(rec.seq))
             hashed = hash_fasta(
@@ -1756,7 +1754,7 @@ def identical(args):
 
     fw.close()
     if opts.output_uniq:
-        logging.debug("Uniq sequences written to `{0}`".format(uniqfile))
+        logger.debug("Uniq sequences written to `{0}`".format(uniqfile))
         uniqfw.close()
 
 
@@ -1772,10 +1770,10 @@ def get_qual(fastafile, suffix=QUALSUFFIX, check=True):
 
     if check:
         if op.exists(qualfile1):
-            logging.debug("qual file `{0}` found".format(qualfile1))
+            logger.debug("qual file `{0}` found".format(qualfile1))
             return qualfile1
         elif op.exists(qualfile2):
-            logging.debug("qual file `{0}` found".format(qualfile2))
+            logger.debug("qual file `{0}` found".format(qualfile2))
             return qualfile2
         else:
             return None
@@ -1854,7 +1852,7 @@ def some(args):
         if qualfile:
             SeqIO.write([rec], outqualhandle, "qual")
 
-    logging.debug("A total of %d records written to `%s`" % (len(recs), outfastafile))
+    logger.debug("A total of %d records written to `%s`" % (len(recs), outfastafile))
 
 
 def fastq(args):
@@ -1881,7 +1879,7 @@ def fastq(args):
 
     if opts.qv is not None:
         qv = chr(ord("!") + opts.qv)
-        logging.debug("QV char '{0}' ({1})".format(qv, opts.qv))
+        logger.debug("QV char '{0}' ({1})".format(qv, opts.qv))
     else:
         qv = None
 
@@ -1899,7 +1897,7 @@ def fastq(args):
             num_records += 1
 
     fastqhandle.close()
-    logging.debug("A total of %d records written to `%s`" % (num_records, fastqfile))
+    logger.debug("A total of %d records written to `%s`" % (num_records, fastqfile))
 
 
 def pair(args):
@@ -1985,9 +1983,9 @@ def pair(args):
                 recqual.description = ""
                 SeqIO.write([recqual], qualfw, "qual")
 
-    logging.debug("sequences written to `%s` and `%s`" % (pairsfile, fragsfile))
+    logger.debug("sequences written to `%s` and `%s`" % (pairsfile, fragsfile))
     if opts.matepairs:
-        logging.debug("mates written to `%s`" % matepairsfile)
+        logger.debug("mates written to `%s`" % matepairsfile)
 
 
 def pairinplace(args):
@@ -2046,7 +2044,7 @@ def pairinplace(args):
     if not skipflag:
         SeqIO.write([a], fragsfw, "fasta")
 
-    logging.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
+    logger.debug("Reads paired into `%s` and `%s`" % (pairs, frags))
 
 
 def extract(args):
@@ -2097,7 +2095,7 @@ def extract(args):
             try:
                 rec = f[accn]
             except:
-                logging.error("{0} not found in {1}".format(accn, fastafile))
+                logger.error("{0} not found in {1}".format(accn, fastafile))
                 continue
             SeqIO.write([rec], fw, "fasta")
         return fw.name
@@ -2124,7 +2122,7 @@ def extract(args):
         try:
             start, stop = int(start), int(stop)
         except ValueError as e:
-            logging.error(e)
+            logger.error(e)
             sys.exit(p.print_help())
 
         feature["start"] = start
@@ -2170,7 +2168,7 @@ def extract(args):
         try:
             seq = f.sequence(feature, asstring=False)
         except AssertionError as e:
-            logging.error(e)
+            logger.error(e)
             return
 
         newid = opts.newname or query
@@ -2188,7 +2186,7 @@ def _uniq_rec(fastafile, seq=False):
     for rec in SeqIO.parse(fastafile, "fasta"):
         name = str(rec.seq) if seq else rec.id
         if name in seen:
-            logging.debug("ignore {0}".format(rec.id))
+            logger.debug("ignore {0}".format(rec.id))
             continue
         seen.add(name)
         yield rec
@@ -2272,7 +2270,7 @@ def modify_qual(rec):
 
 
 def make_qual(fastafile, score=OKQUAL):
-    logging.warning("assume qual ({0})".format(score))
+    logger.warning("assume qual ({0})".format(score))
     qualfile = fastafile.rsplit(".", 1)[0] + ".qual"
     fw = open(qualfile, "w")
     fasta = Fasta(fastafile, lazy=True)
@@ -2335,7 +2333,7 @@ def trim(args):
     qualfile = get_qual(fastafile)
     newqualfile = get_qual(newfastafile, check=False)
 
-    logging.debug(
+    logger.debug(
         "Trim bad sequence from fasta file `%s` to `%s`" % (fastafile, newfastafile)
     )
 
@@ -2440,7 +2438,7 @@ def sequin(args):
     print(fastaheader, file=fw)
     print(seq, file=fw)
     fw.close()
-    logging.debug(
+    logger.debug(
         "Sequin FASTA written to `{0}` (gaps: {1} unknowns, {2} knowns).".format(
             outputfasta, unknowns, knowns
         )
@@ -2457,7 +2455,7 @@ def remove_small_components(rec, minlen):
         seqlen = len(seq)
         if not gap and seqlen < minlen:
             seq = seqlen * "N"  # Mask small components
-            logging.debug("Discard component ({0}) in {1}".format(seqlen, rec.name))
+            logger.debug("Discard component ({0}) in {1}".format(seqlen, rec.name))
             removed += seqlen
         newseq.append(seq)
     rec.seq = Seq("".join(newseq))
@@ -2527,17 +2525,17 @@ def tidy(args):
             normalized += normalize_gaps(rec, gapsize)
 
         if len(rec) == 0:
-            logging.debug("Drop seq {0}".format(rec.id))
+            logger.debug("Drop seq {0}".format(rec.id))
             continue
         SeqIO.write([rec], fw, "fasta")
 
     # Print statistics
     if removed:
-        logging.debug("Total discarded bases: {0}".format(removed))
+        logger.debug("Total discarded bases: {0}".format(removed))
     if normalized:
-        logging.debug("Gaps normalized: {0}".format(normalized))
+        logger.debug("Gaps normalized: {0}".format(normalized))
 
-    logging.debug("Tidy FASTA written to `{0}`.".format(tidyfastafile))
+    logger.debug("Tidy FASTA written to `{0}`.".format(tidyfastafile))
     fw.close()
 
     return tidyfastafile
@@ -2585,7 +2583,7 @@ def write_gaps_bed(inputfasta, prefix, mingap, cpus):
         print("\t".join(str(x) for x in (b, gapname, b.span)), file=fw)
 
     shutil.move(nbedfile, bedfile)
-    logging.debug("Write gap (>={0}bp) locations to `{1}`.".format(mingap, bedfile))
+    logger.debug("Write gap (>={0}bp) locations to `{1}`.".format(mingap, bedfile))
 
 
 def gaps(args):
@@ -2628,11 +2626,11 @@ def gaps(args):
 
             maskedagpfile = mask([sizesagpfile, bedfile, "--splitobject"])
             shutil.move(maskedagpfile, oagpfile)
-            logging.debug("AGP file written to `{0}`.".format(oagpfile))
+            logger.debug("AGP file written to `{0}`.".format(oagpfile))
 
             maskedagpfile = mask([sizesagpfile, bedfile, "--splitcomponent"])
             shutil.move(maskedagpfile, cagpfile)
-            logging.debug("AGP file written to `{0}`.".format(cagpfile))
+            logger.debug("AGP file written to `{0}`.".format(cagpfile))
 
             build([oagpfile, inputfasta, splitfile])
             cleanup(sizesagpfile)

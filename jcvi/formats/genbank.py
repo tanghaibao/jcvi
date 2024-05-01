@@ -7,16 +7,16 @@ https://github.com/biopython/biopython/blob/master/Bio/SeqIO/InsdcIO.py
 """
 import os.path as op
 import sys
-import logging
 
 from collections import defaultdict
 
 from Bio import SeqIO
 
-from jcvi.formats.base import BaseFile, get_number, must_open
-from jcvi.formats.gff import GffLine
-from jcvi.apps.fetch import entrez
-from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, glob, mkdir, sh
+from ..apps.fetch import entrez
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, glob, logger, mkdir, sh
+
+from .base import BaseFile, get_number, must_open
+from .gff import GffLine
 
 
 MT = "mol_type"
@@ -51,12 +51,12 @@ class MultiGenBank(BaseFile):
                 nfeats += 1
             nrecs += 1
 
-        logging.debug(
+        logger.debug(
             "A total of {0} records written to `{1}`.".format(nrecs, fastafile)
         )
         fasta_fw.close()
 
-        logging.debug(
+        logger.debug(
             "A total of {0} features written to `{1}`.".format(nfeats, gfffile)
         )
         gff_fw.close()
@@ -188,7 +188,7 @@ class GenBank(dict):
             ]
         )
 
-        logging.debug("GenBank records written to {0}.".format(gbdir))
+        logger.debug("GenBank records written to {0}.".format(gbdir))
         return gbdir
 
     @classmethod
@@ -397,9 +397,9 @@ def tofasta(args):
     )
 
     if opts.individual:
-        logging.debug("Output written dir {0}".format(prefix))
+        logger.debug("Output written dir {0}".format(prefix))
     else:
-        logging.debug("Output written to {0}.fasta".format(prefix))
+        logger.debug("Output written to {0}.fasta".format(prefix))
 
 
 def getgenes(args):
@@ -426,15 +426,15 @@ def getgenes(args):
     )
 
     if opts.individual:
-        logging.debug("Output written dir {0}".format(prefix))
+        logger.debug("Output written dir {0}".format(prefix))
     elif opts.nopep:
-        logging.debug(
+        logger.debug(
             "Output written to {0}.bed, {0}.cds".format(
                 prefix,
             )
         )
     else:
-        logging.debug(
+        logger.debug(
             "Output written to {0}.bed, {0}.cds, {0}.pep".format(
                 prefix,
             )

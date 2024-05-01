@@ -6,12 +6,12 @@ Parse html pages.
 """
 import os.path as op
 import sys
-import logging
 
-from BeautifulSoup import BeautifulSoup
 from urllib.parse import urljoin
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, download
+from BeautifulSoup import BeautifulSoup
+
+from ..apps.base import ActionDispatcher, OptionParser, download, logger
 
 
 def main():
@@ -151,7 +151,7 @@ def table(args):
                 row.append(cell)
             writer.writerow(row)
             nrows += 1
-        logging.debug("Table with {0} rows written to `{1}`.".format(nrows, csvfile))
+        logger.debug("Table with %d rows written to `%s`.", nrows, csvfile)
 
 
 if __name__ == "__main__":

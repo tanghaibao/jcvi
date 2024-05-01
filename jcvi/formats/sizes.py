@@ -3,18 +3,18 @@
 
 import os.path as op
 import sys
-import logging
 
 import numpy as np
 
-from jcvi.formats.base import LineFile
-from jcvi.apps.base import (
-    OptionParser,
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
     cleanup,
     get_abs_path,
+    logger,
     need_update,
 )
+from .base import LineFile
 
 
 class Sizes(LineFile):
@@ -280,7 +280,7 @@ def agp(args):
 
     o.write_AGP(fw)
     fw.close()
-    logging.debug("AGP file written to `{0}`.".format(agpfile))
+    logger.debug("AGP file written to `%s`.", agpfile)
 
     return agpfile
 

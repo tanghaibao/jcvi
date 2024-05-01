@@ -7,15 +7,15 @@
 Convert the result from Eisen's CLUSTER program: data.gtr and data.cdt into NEWICK format
 """
 
-import sys
 import csv
-import logging
+import sys
 
 from collections import namedtuple
 from itertools import groupby
 
-from jcvi.apps.base import OptionParser
-from jcvi.formats.base import BaseFile
+from ..apps.base import OptionParser, logger
+
+from .base import BaseFile
 
 
 GTRLine = namedtuple("GTRLine", "parent left_child right_child dist")
@@ -72,7 +72,7 @@ class CDT(BaseFile):
     def print_newick(self, nwk_file):
 
         self.gtr_tree.write(format=5, outfile=nwk_file)
-        logging.debug("Newick tree written to `{0}`".format(nwk_file))
+        logger.debug("Newick tree written to `%s`", nwk_file)
 
     def iter_partitions(self, cutoff=0.3, gtr=True):
         from jcvi.utils.grouper import Grouper

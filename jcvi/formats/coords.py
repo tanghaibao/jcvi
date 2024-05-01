@@ -5,17 +5,24 @@
 parses JCVI software NUCMER (http://mummer.sourceforge.net/manual/)
 output - mostly as *.coords file.
 """
-import sys
-import logging
 import os.path as op
+import sys
 
-from math import exp
 from itertools import groupby
+from math import exp
 
-from jcvi.formats.base import LineFile, must_open
-from jcvi.formats.blast import AlignStats
-from jcvi.assembly.base import calculate_A50
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, need_update, get_abs_path
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    get_abs_path,
+    logger,
+    need_update,
+    sh,
+)
+from ..assembly.base import calculate_A50
+
+from .base import LineFile, must_open
+from .blast import AlignStats
 
 
 Overlap_types = ("none", "a ~ b", "b ~ a", "a in b", "b in a")
@@ -245,7 +252,7 @@ def get_stats(coordsfile):
 
     from jcvi.utils.range import range_union
 
-    logging.debug("Report stats on `%s`" % coordsfile)
+    logger.debug("Report stats on `%s`", coordsfile)
     coords = Coords(coordsfile)
     ref_ivs = []
     qry_ivs = []

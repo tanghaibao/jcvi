@@ -16,7 +16,7 @@ from ..assembly.kmer import draw_ks_histogram
 from ..compara.pedigree import Pedigree, calculate_inbreeding
 from ..graphics.base import cm, load_image, normalize_axes, panel_labels, plt, savefig
 from ..graphics.chromosome import draw_chromosomes
-from ..graphics.landscape import draw_multi_depth, draw_heatmaps, draw_stacks
+from ..graphics.landscape import draw_heatmaps, draw_multi_depth, draw_stacks
 
 
 def diversity(args):

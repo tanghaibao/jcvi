@@ -24,11 +24,13 @@ IV	IRX7,GUX2
 
 import sys
 
-import numpy as np
 from itertools import groupby
 
-from jcvi.graphics.base import mpl, plt, savefig
-from jcvi.apps.base import OptionParser
+import numpy as np
+
+from ..apps.base import OptionParser
+
+from .base import mpl, plt, savefig
 
 
 def parse_csv(csvfile, vmin=0, groups=False):

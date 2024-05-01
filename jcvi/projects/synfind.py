@@ -6,20 +6,18 @@ SynFind analyses and visualization.
 """
 import os.path as op
 import sys
-import logging
 
-from copy import deepcopy
 from collections import defaultdict
+from copy import deepcopy
 from itertools import groupby
 
-from jcvi.formats.base import get_number, must_open
-from jcvi.utils.cbook import SummaryStats, gene_name, percentage
-from jcvi.utils.grouper import Grouper
-from jcvi.formats.blast import BlastLine
-from jcvi.formats.bed import Bed
-from jcvi.formats.gff import Gff, load
-from jcvi.apps.grid import MakeManager
-from jcvi.graphics.base import (
+from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir, symlink
+from ..apps.grid import MakeManager
+from ..formats.base import get_number, must_open
+from ..formats.bed import Bed
+from ..formats.blast import BlastLine
+from ..formats.gff import Gff, load
+from ..graphics.base import (
     FancyArrow,
     plt,
     savefig,
@@ -28,8 +26,9 @@ from jcvi.graphics.base import (
     normalize_axes,
     latex,
 )
-from jcvi.graphics.glyph import CartoonRegion, RoundRect
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir, symlink
+from ..graphics.glyph import CartoonRegion, RoundRect
+from ..utils.cbook import SummaryStats, gene_name, percentage
+from ..utils.grouper import Grouper
 
 
 def main():
@@ -113,7 +112,7 @@ def synfind(args):
             continue
         print(b, file=fw)
     fw.close()
-    logging.debug("Filtered LAST file written to `{0}`".format(filteredlast))
+    logger.debug("Filtered LAST file written to `{0}`".format(filteredlast))
 
     allbed = "all.bed"
     fw = open(allbed, "w")
@@ -124,7 +123,7 @@ def synfind(args):
             b.seqid = prefix + b.seqid
             print(b, file=fw)
     fw.close()
-    logging.debug("Bed file written to `{0}`".format(allbed))
+    logger.debug("Bed file written to `{0}`".format(allbed))
 
 
 def yeasttruth(args):
@@ -154,8 +153,8 @@ def yeasttruth(args):
                 aliases[a] = g.accn
                 if is_pivot:
                     pivot[a] = g.accn
-    logging.debug("Aliases imported: {0}".format(len(aliases)))
-    logging.debug("Pivot imported: {0}".format(len(pivot)))
+    logger.debug("Aliases imported: {0}".format(len(aliases)))
+    logger.debug("Pivot imported: {0}".format(len(pivot)))
     fw = open("yeast.aliases", "w")
     for k, v in sorted(aliases.items()):
         print("\t".join((k, v)), file=fw)
@@ -292,8 +291,8 @@ def calc_sensitivity_specificity(a, truth, tag, fw):
     common = a & truth
     sensitivity = len(common) * 100.0 / len(truth)
     specificity = len(common) * 100.0 / len(a)
-    logging.debug("{0}: {1} pairs".format(tag, len(a)))
-    logging.debug(
+    logger.debug("{0}: {1} pairs".format(tag, len(a)))
+    logger.debug(
         "{0}: Sensitivity={1:.1f}% Purity={2:.1f}%".format(
             tag, sensitivity, specificity
         )
@@ -334,7 +333,7 @@ def benchmark(args):
         a, b = row.strip().split("\t")[:2]
         pivots.add(a)
         truth.add(tuple(sorted((a, b))))
-    logging.debug("Truth: {0} pairs".format(len(truth)))
+    logger.debug("Truth: {0} pairs".format(len(truth)))
 
     fp = open(synfind)
     benchmarkfile = pf + ".benchmark"
@@ -448,7 +447,7 @@ def cyntenator(args):
         order = Bed(bedfile).order
         if subject in order:
             db = op.basename(bedfile).split(".")[0][:20]
-            logging.debug("Found db: {0}".format(db))
+            logger.debug("Found db: {0}".format(db))
         txtfile = write_txt(bedfile)
         txtfiles.append(txtfile)
 
@@ -492,9 +491,7 @@ def iadhore(args):
     for a, b in seen:
         print("\t".join((a, b)), file=fw)
     fw.close()
-    logging.debug(
-        "A total of {0} pairs written to `{1}`".format(len(seen), blast_table)
-    )
+    logger.debug("A total of {0} pairs written to `{1}`".format(len(seen), blast_table))
 
     fw = open("config.txt", "w")
     for bedfile in bedfiles:
@@ -573,7 +570,7 @@ def make_gff(bed, prefix, fw):
         seqid = prefix + b.seqid
         print("\t".join(str(x) for x in (seqid, b.accn, b.start, b.end)), file=fw)
         nfeats += 1
-    logging.debug("A total of {0} features converted to `{1}`".format(nfeats, fw.name))
+    logger.debug("A total of {0} features converted to `{1}`".format(nfeats, fw.name))
 
 
 def mcscanx(args):
@@ -679,8 +676,8 @@ def grass(args):
         if corr_jaccard > 99:
             corr_perfect_matches += 1
 
-    logging.debug("Perfect matches: {0}".format(perfect_matches))
-    logging.debug("Perfect matches (corrected): {0}".format(corr_perfect_matches))
+    logger.debug("Perfect matches: {0}".format(perfect_matches))
+    logger.debug("Perfect matches (corrected): {0}".format(corr_perfect_matches))
     print("Jaccards:", SummaryStats(jaccards))
     print("Corrected Jaccards:", SummaryStats(corr_jaccards))
 
@@ -731,7 +728,7 @@ def ecoli(args):
     for i, b in enumerate(bed):
         accn = b.accn
         if accn not in store:
-            logging.warning("missing {0}".format(accn))
+            logger.warning("missing {0}".format(accn))
             continue
         tags.append((store[accn], accn))
 
@@ -751,7 +748,7 @@ def ecoli(args):
     fw = must_open(opts.outfile, "w")
     for a, t in zip((II, II_large), ("", ">=4 ")):
         nmissing = sum(len(x) for x in a)
-        logging.debug(
+        logger.debug(
             "A total of {0} {1}-specific {2}islands found with {3} genes.".format(
                 len(a), qorg, t, nmissing
             )

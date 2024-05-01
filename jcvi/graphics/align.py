@@ -14,14 +14,16 @@ Illustrate three different types of alignments.
 import sys
 
 from bisect import bisect
-from more_itertools import pairwise
 from random import choice, randint
 
-from jcvi.utils.range import range_overlap
-from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
-from jcvi.graphics.glyph import BaseGlyph, GeneGlyph
-from jcvi.graphics.base import FancyArrow, Rectangle, plt, savefig, normalize_axes
-from jcvi.apps.base import OptionParser
+from more_itertools import pairwise
+
+from ..apps.base import OptionParser
+from ..utils.range import range_overlap
+
+from .base import FancyArrow, Rectangle, plt, savefig, normalize_axes
+from .chromosome import Chromosome, HorizontalChromosome
+from .glyph import BaseGlyph, GeneGlyph
 
 
 class BaseAlign(object):

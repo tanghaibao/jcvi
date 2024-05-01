@@ -8,22 +8,24 @@ Gradient gene features
 import os.path as op
 import sys
 
-import numpy as np
 from random import choice, shuffle, random, randint
 
-from jcvi.apps.base import OptionParser, ActionDispatcher
-from jcvi.graphics.base import (
-    plt,
-    Rectangle,
+import numpy as np
+
+from ..apps.base import OptionParser, ActionDispatcher
+from ..utils.grouper import Grouper
+
+from .base import (
     CirclePolygon,
     Ellipse,
     FancyArrowPatch,
     Polygon,
+    Rectangle,
+    get_map,
+    plt,
     savefig,
     set3,
-    get_map,
 )
-from jcvi.utils.grouper import Grouper
 
 
 tstep = 0.05

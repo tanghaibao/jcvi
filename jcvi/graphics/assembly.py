@@ -5,18 +5,18 @@
 Assembly QC plots, including general statistics, base and mate coverages, and
 scaffolding consistencies.
 """
-import sys
-import logging
 import os.path as op
+import sys
 
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.bed import Bed, BedLine
-from jcvi.formats.sizes import Sizes
-from jcvi.assembly.base import calculate_A50
-from jcvi.assembly.coverage import Coverage
-from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, savefig
-from jcvi.utils.cbook import thousands
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update
+from ..assembly.base import calculate_A50
+from ..assembly.coverage import Coverage
+from ..formats.bed import Bed, BedLine
+from ..formats.fasta import Fasta
+from ..formats.sizes import Sizes
+from ..utils.cbook import thousands
+
+from .base import plt, Rectangle, set_human_base_axis, savefig
 
 
 def main():
@@ -74,7 +74,7 @@ def covlen(args):
     x, y = zip(*data)
     x = np.array(x)
     y = np.array(y)
-    logging.debug("X size {0}, Y size {1}".format(x.size, y.size))
+    logger.debug("X size {0}, Y size {1}".format(x.size, y.size))
 
     df = pd.DataFrame()
     xlab, ylab = "Length", "Coverage of depth (X)"
@@ -285,7 +285,7 @@ def scaffold(args):
     for scaffoldID, scafsize in scafsizes.iter_sizes():
         if scafsize < opts.cutoff:
             continue
-        logging.debug("Loading {0} (size={1})".format(scaffoldID, thousands(scafsize)))
+        logger.debug("Loading {0} (size={1})".format(scaffoldID, thousands(scafsize)))
 
         tmpname = scaffoldID + ".sizes"
         tmp = open(tmpname, "w")
@@ -497,10 +497,10 @@ def A50(args):
             cmean = int(round(cmean))
             statsrows.append((fastafile, l50, n50, cmin, cmax, cmean, csum, counts))
 
-            logging.debug("`{0}` ctgsizes: {1}".format(fastafile, ctgsizes))
+            logger.debug("`{0}` ctgsizes: {1}".format(fastafile, ctgsizes))
 
             tag = "{0} (L50={1})".format(op.basename(fastafile).rsplit(".", 1)[0], l50)
-            logging.debug(tag)
+            logger.debug(tag)
 
             for i, s in zip(range(0, len(a50), stepsize), a50[::stepsize]):
                 print("\t".join((str(i), str(s / 1000000.0), tag)), file=fw)

@@ -7,17 +7,17 @@ Use R ggplot2 library to plot histogram, also contains an ASCII histogram (use
 """
 import os.path as op
 import sys
-import logging
-
-import numpy as np
 
 from math import log, ceil
 from collections import defaultdict
 
-from jcvi.formats.base import DictFile
-from jcvi.graphics.base import asciiplot, quickplot
-from jcvi.apps.r import RTemplate
-from jcvi.apps.base import OptionParser
+import numpy as np
+
+from ..apps.base import OptionParser, logger
+from ..apps.r import RTemplate
+from ..formats.base import DictFile
+
+from .base import asciiplot, quickplot
 
 
 histogram_header = """
@@ -161,7 +161,7 @@ def stem_leaf_plot(data, vmin, vmax, bins, digit=1, title=None):
 def texthistogram(numberfiles, vmin, vmax, title=None, bins=20, skip=0, col=0, base=0):
 
     for nf in numberfiles:
-        logging.debug("Import `{0}`.".format(nf))
+        logger.debug("Import `%s`.", nf)
         data, vmin, vmax = get_data(nf, vmin, vmax, skip=skip, col=col)
         if base:
             loghistogram(data, base=base, title=title)

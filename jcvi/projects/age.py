@@ -4,19 +4,19 @@
 """
 Scripts related to age prediction model.
 """
-import logging
 import json
 import os
 import os.path as op
 import sys
 
-import pandas as pd
 import numpy as np
+import pandas as pd
+import seaborn as sns
 
 from jinja2 import Template
-from jcvi.graphics.base import panel_labels, plt, savefig
-import seaborn as sns
-from jcvi.apps.base import OptionParser, ActionDispatcher, iglob
+
+from ..apps.base import ActionDispatcher, OptionParser, iglob, logger
+from ..graphics.base import panel_labels, plt, savefig
 
 
 def main():
@@ -156,7 +156,7 @@ def traits(args):
     template = Template(traits_template)
     fw = open("report.html", "w")
     print(template.render(samples=samples), file=fw)
-    logging.debug("Report written to `{}`".format(fw.name))
+    logger.debug("Report written to `{}`".format(fw.name))
     fw.close()
 
 
@@ -694,7 +694,7 @@ def heritability(args):
     sameGenderDZ = list(filter_same_gender(DZ, gender))
 
     composite(df, sameGenderMZ, sameGenderDZ, size=(iopts.w, iopts.h))
-    logging.getLogger().setLevel(logging.CRITICAL)
+    logger.getLogger().setLevel(logger.CRITICAL)
     savefig("heritability.pdf")
 
 

@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import logging
 import sys
 
 from collections import defaultdict
@@ -9,10 +8,11 @@ from itertools import groupby
 
 from ete3 import Tree
 
-from jcvi.apps.base import OptionParser, glob
-from jcvi.formats.base import LineFile
-from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import (
+from ..apps.base import OptionParser, glob, logger
+from ..formats.base import LineFile
+from ..formats.sizes import Sizes
+
+from .base import (
     FancyBboxPatch,
     Rectangle,
     linear_shade,
@@ -22,7 +22,7 @@ from jcvi.graphics.base import (
     savefig,
     set3_n,
 )
-from jcvi.graphics.glyph import ExonGlyph, TextCircle, get_setups
+from .glyph import ExonGlyph, TextCircle, get_setups
 
 
 class LeafInfoLine:
@@ -641,7 +641,7 @@ def main(args):
         (Os10g0534700:0.06592,Sb01g030630:0.04824)-1.0:0.07886):0.09389);"""
         )
     else:
-        logging.debug("Load tree file `{0}`".format(datafile))
+        logger.debug("Load tree file `%s`", datafile)
         t, hpd = parse_tree(datafile)
 
     pf = datafile.rsplit(".", 1)[0]

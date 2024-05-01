@@ -7,15 +7,14 @@ Functions in this script produce figures in various manuscripts.
 
 import os.path as op
 import sys
-import logging
 
 import numpy as np
 
-from jcvi.graphics.base import Polygon, normalize_axes, panel_labels, plt, savefig
-from jcvi.graphics.glyph import GeneGlyph, RoundRect, TextCircle, DoubleSquare, plot_cap
-from jcvi.graphics.karyotype import Karyotype
-from jcvi.graphics.synteny import Synteny, draw_gene_legend
-from jcvi.apps.base import OptionParser, ActionDispatcher, fname
+from ..apps.base import ActionDispatcher, OptionParser, logger, fname
+from ..graphics.base import Polygon, normalize_axes, panel_labels, plt, savefig
+from ..graphics.glyph import DoubleSquare, GeneGlyph, RoundRect, TextCircle, plot_cap
+from ..graphics.karyotype import Karyotype
+from ..graphics.synteny import Synteny, draw_gene_legend
 
 
 def main():
@@ -69,7 +68,7 @@ def waterlilyGOM(args):
     (datafile, csvfile) = args
     outgroup = ["ginkgo"]
 
-    logging.debug("Load tree file `{0}`".format(datafile))
+    logger.debug("Load tree file `%s`", datafile)
     t, hpd = parse_tree(datafile)
 
     pf = datafile.rsplit(".", 1)[0]

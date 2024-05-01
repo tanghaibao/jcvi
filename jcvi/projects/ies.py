@@ -6,17 +6,16 @@ Locate IES sequences within MIC genome of tetrahymena.
 """
 import os.path as op
 import sys
-import logging
 
 from collections import Counter
 from itertools import groupby
 
-from jcvi.algorithms.formula import outlier_cutoff
-from jcvi.formats.bed import Bed, sort, depth, some, mergeBed
-from jcvi.formats.base import must_open
-from jcvi.utils.range import Range, range_interleave, range_chain
-from jcvi.utils.cbook import percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from ..algorithms.formula import outlier_cutoff
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
+from ..formats.base import must_open
+from ..formats.bed import Bed, depth, mergeBed, some, sort
+from ..utils.cbook import percentage
+from ..utils.range import Range, range_interleave, range_chain
 
 
 class EndPoint(object):
@@ -320,7 +319,7 @@ def deletion(args):
     if need_update(sortedbedfile, ibedfile):
         bed = Bed(sortedbedfile, sorted=False)
         fw = open(ibedfile, "w")
-        logging.debug("Write deletions to `{0}`.".format(ibedfile))
+        logger.debug("Write deletions to `{0}`.".format(ibedfile))
         for accn, bb in groupby(bed, key=lambda x: x.accn):
             bb = list(bb)
             branges = [(x.seqid, x.start, x.end) for x in bb]
@@ -339,7 +338,7 @@ def deletion(args):
     if need_update(ibedfile, countbedfile):
         bed = Bed(ibedfile)
         fw = open(countbedfile, "w")
-        logging.debug("Write counts to `{0}`.".format(countbedfile))
+        logger.debug("Write counts to `{0}`.".format(countbedfile))
         registry = Counter((x.seqid, x.start, x.end) for x in bed)
         ies_id = 1
         for (seqid, start, end), count in registry.items():
@@ -359,13 +358,11 @@ def deletion(args):
     validbedfile = pf + ".valid.bed"
     if need_update(depthbedfile, validbedfile):
         fw = open(validbedfile, "w")
-        logging.debug("Filter valid deletions to `{0}`.".format(validbedfile))
+        logger.debug("Filter valid deletions to `{0}`.".format(validbedfile))
         bed = Bed(depthbedfile)
         all_scores = [float(b.score) for b in bed]
         lb, ub = outlier_cutoff(all_scores)
-        logging.debug(
-            "Bounds for depths: LB={:.2f} (ignored)  UB={:.2f}".format(lb, ub)
-        )
+        logger.debug("Bounds for depths: LB={:.2f} (ignored)  UB={:.2f}".format(lb, ub))
         for b in bed:
             if float(b.score) > ub:
                 continue
@@ -379,7 +376,7 @@ def deletion(args):
         fw = open(flanksbedfile, "w")
         bed = Bed(validbedfile)
         flank = 100
-        logging.debug("Write deletion flanks to `{0}`.".format(flanksbedfile))
+        logger.debug("Write deletion flanks to `{0}`.".format(flanksbedfile))
         for b in bed:
             start, end = b.start, b.end
             b.start, b.end = start, min(start + flank - 1, end)
@@ -406,13 +403,13 @@ def deletion(args):
     if need_update(selectedbedfile, iesbedfile):
         bed = Bed(selectedbedfile)
         fw = open(iesbedfile, "w")
-        logging.debug("Write IES to `{0}`.".format(iesbedfile))
+        logger.debug("Write IES to `{0}`.".format(iesbedfile))
         branges = [
             Range(x.seqid, x.start, x.end, int(x.accn.rsplit("r")[-1]), i)
             for i, x in enumerate(bed)
         ]
         iranges, iscore = range_chain(branges)
-        logging.debug("Best chain score: {} ({} IES)".format(iscore, len(iranges)))
+        logger.debug("Best chain score: {} ({} IES)".format(iscore, len(iranges)))
         ies_id = 1
         for seqid, start, end, score, id in iranges:
             ies_name = "IES-{0:05d}-r{1}".format(ies_id, score)

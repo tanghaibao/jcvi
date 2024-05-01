@@ -14,17 +14,18 @@ whether you are BLASTing raw sequences or makers, you need to place --sizes or
 
 import os.path as op
 import sys
-import logging
-import numpy as np
 
 from random import sample
 
-from jcvi.formats.base import is_number
-from jcvi.formats.blast import BlastLine
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.bed import Bed, BedLine
-from jcvi.apps.base import OptionParser
-from jcvi.graphics.base import plt, Rectangle, set_human_base_axis, savefig
+import numpy as np
+
+from ..apps.base import OptionParser, logger
+from ..formats.base import is_number
+from ..formats.bed import Bed, BedLine
+from ..formats.blast import BlastLine
+from ..formats.sizes import Sizes
+
+from .base import Rectangle, plt, savefig, set_human_base_axis
 
 
 DotStyles = ("line", "circle", "dot")
@@ -100,10 +101,10 @@ def blastplot(
             data = sample(data, sampleN)
 
     if not data:
-        return logging.error("no blast data imported")
+        return logger.error("no blast data imported")
 
     xsize, ysize = qsizes.totalsize, ssizes.totalsize
-    logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
+    logger.debug("xsize=%d ysize=%d" % (xsize, ysize))
 
     if style == "line":
         for a, b in data:
@@ -125,7 +126,7 @@ def blastplot(
     ignore_size_x = ignore_size_y = 0
 
     # plot the chromosome breaks
-    logging.debug("xbreaks={0} ybreaks={1}".format(len(qsizes), len(ssizes)))
+    logger.debug("xbreaks={0} ybreaks={1}".format(len(qsizes), len(ssizes)))
     for seqid, beg, end in qsizes.get_breaks():
         ignore = abs(end - beg) < ignore_size_x
         if ignore:

@@ -7,12 +7,10 @@
 # Created by Haibao Tang on 12/02/19
 # Copyright © 2019 Haibao Tang. All rights reserved.
 #
-import logging
 import os.path as op
 import sys
 
 from collections import Counter, defaultdict
-from glob import glob
 from itertools import combinations, groupby, product
 from random import random, sample
 from typing import Dict
@@ -22,10 +20,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import pandas as pd
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
-from jcvi.graphics.base import adjust_spines, markup, normalize_axes, savefig
-from jcvi.utils.validator import validate_in_choices
+from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir
 from ..formats.blast import Blast
+from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
+from ..utils.validator import validate_in_choices
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
@@ -328,7 +326,7 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     shift = 0.5  # used to offset bars a bit to avoid cluttering
     if overlaps:
         for overlap in overlaps:
-            logging.debug(f"Modify bar offsets at {overlap} due to SS and SO overlaps")
+            logger.debug(f"Modify bar offsets at {overlap} due to SS and SO overlaps")
             SS_counter[overlap - shift] = SS_counter[overlap]
             del SS_counter[overlap]
             SO_counter[overlap + shift] = SO_counter[overlap]
@@ -340,7 +338,7 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
         # Has data at the range end, but no adjacent data points (i.e. isolated bar)
         if value in d and (value - 1 in d or value + 1 in d):
             return
-        logging.debug(f"Modify bar offsets at {value} due to end of range ends")
+        logger.debug(f"Modify bar offsets at {value} due to end of range ends")
         d[value - shift if value else value + shift] = d[80]
         del d[value]
 
@@ -431,7 +429,7 @@ def simulate(args):
 
     (mode,) = args
     validate_in_choices(mode, ["2n+n", "nx2+n"], "Mode")
-    logging.info(f"Transmission: {mode}")
+    logger.info(f"Transmission: {mode}")
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))

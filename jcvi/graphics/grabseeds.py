@@ -29,15 +29,6 @@ from skimage.segmentation import clear_border, watershed
 from wand.image import Image
 from webcolors import rgb_to_hex, normalize_integer_triplet
 
-from .base import (
-    Rectangle,
-    latex,
-    load_image,
-    normalize_axes,
-    plt,
-    savefig,
-    set_helvetica_axis,
-)
 from ..algorithms.formula import get_kmeans, reject_outliers
 from ..apps.base import (
     ActionDispatcher,
@@ -50,6 +41,17 @@ from ..apps.base import (
 from ..formats.base import must_open
 from ..formats.pdf import cat
 from ..utils.webcolors import closest_color
+
+from .base import (
+    Rectangle,
+    latex,
+    load_image,
+    normalize_axes,
+    plt,
+    savefig,
+    set_helvetica_axis,
+)
+
 
 np.seterr(all="ignore")
 

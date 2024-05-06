@@ -17,9 +17,18 @@ from ..apps.base import (
     need_update,
     sh,
 )
+from ..apps.align import last as last_main, diamond_blastp_main, blast_main
+from ..compara.blastfilter import main as blastfilter_main
+from ..compara.quota import main as quota_main
+from ..compara.synteny import scan, mcscan, liftover
 from ..formats.base import must_open, BaseFile
 from ..formats.bed import Bed
-from ..formats.blast import BlastLine
+from ..formats.blast import (
+    BlastLine,
+    cscore,
+    filter as blast_filter,
+    filtered_blastfile_name,
+)
 from ..formats.fasta import Fasta
 from ..utils.cbook import gene_name
 from ..utils.grouper import Grouper
@@ -603,13 +612,6 @@ def ortholog(args):
     such predictions. Extra orthologs will be recruited from reciprocal best
     match (RBH).
     """
-    from jcvi.apps.align import last as last_main
-    from jcvi.apps.align import diamond_blastp_main, blast_main
-    from jcvi.compara.blastfilter import main as blastfilter_main
-    from jcvi.compara.quota import main as quota_main
-    from jcvi.compara.synteny import scan, mcscan, liftover
-    from jcvi.formats.blast import cscore, filter, filtered_blastfile_name
-
     p = OptionParser(ortholog.__doc__)
     p.add_argument(
         "--dbtype",
@@ -669,7 +671,6 @@ def ortholog(args):
         action="store_true",
         help="Ignore this pair of ortholog identification instead of throwing an error when performing many pairs of cataloging.",
     )
-
     p.add_argument(
         "--align_soft",
         default="last",
@@ -713,7 +714,7 @@ def ortholog(args):
     if a == b:
         lastself = filtered_blastfile_name(last, self_remove, 0, inverse=True)
         if need_update(last, lastself, warn=True):
-            filter(
+            blast_filter(
                 [last, "--hitlen=0", f"--pctid={self_remove}", "--inverse", "--noself"]
             )
         last = lastself

@@ -658,6 +658,7 @@ class OptionParser(ArgumentParser):
                 "|".join(set1)
             ),
         )
+        return group
 
     def set_depth(self, depth=50):
         self.add_argument("--depth", default=depth, type=float, help="Desired depth")

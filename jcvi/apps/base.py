@@ -271,7 +271,7 @@ class OptionParser(ArgumentParser):
             + " (these WILL NOT be validated)",
         )
 
-    def set_outfile(self, outfile="stdout"):
+    def set_outfile(self, outfile: Optional[str] = "stdout"):
         """
         Add --outfile options to print out to filename.
         """

@@ -226,7 +226,7 @@ def cov(args):
     # Synteny panel
     seqidsfile = make_seqids(chrs)
     klayout = make_layout(chrs, chr_sum_sizes, ratio, template_cov)
-    Karyotype(fig, root, seqidsfile, klayout, gap=gap, generank=False, sizes=sizes)
+    Karyotype(root, seqidsfile, klayout, gap=gap, generank=False, sizes=sizes)
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
@@ -312,7 +312,6 @@ def fig3(args):
     height = 0.07
     r = height / 4
     K = Karyotype(
-        fig,
         root,
         seqidsfile,
         klayout,
@@ -698,9 +697,9 @@ def ploidy(args):
     seqidsfile, klayout = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
-    Karyotype(fig, root, seqidsfile, klayout)
+    Karyotype(root, seqidsfile, klayout)
 
     fc = "darkslategrey"
     radius = 0.012

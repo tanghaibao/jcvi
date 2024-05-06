@@ -14,9 +14,74 @@ from ..assembly.geneticmap import draw_geneticmap_heatmap
 from ..assembly.hic import draw_hic_heatmap
 from ..assembly.kmer import draw_ks_histogram
 from ..compara.pedigree import Pedigree, calculate_inbreeding
-from ..graphics.base import cm, load_image, normalize_axes, panel_labels, plt, savefig
+from ..compara.synteny import check_beds
+from ..graphics.base import (
+    cm,
+    load_image,
+    normalize_axes,
+    panel_labels,
+    plt,
+    savefig,
+    set1,
+)
 from ..graphics.chromosome import draw_chromosomes
+from ..graphics.dotplot import dotplot
+from ..graphics.karyotype import Karyotype
 from ..graphics.landscape import draw_heatmaps, draw_multi_depth, draw_stacks
+
+
+def synteny(args):
+    """
+    %prog synteny grape.peach.anchors seqids layout
+
+    Plot synteny composite figure, including:
+    A. Synteny dotplot
+    B. Karyotype plot
+    """
+    p = OptionParser(synteny.__doc__)
+    p.set_beds()
+    opts, args, iopts = p.set_image_options(args, figsize="14x7")
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    anchorfile, seqidsfile, layoutfile = args
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes((0, 0, 1, 1))
+
+    ax1_root = fig.add_axes((0, 0, 0.5, 1))
+    ax1_canvas = fig.add_axes((0.05, 0.1, 0.4, 0.8))  # the dot plot
+    ax2_root = fig.add_axes((0.5, 0, 0.5, 1))
+
+    # Panel A
+    logger.info("Plotting synteny dotplot")
+    qbed, sbed, _, _, is_self = check_beds(anchorfile, p, opts)
+    dotplot(
+        anchorfile,
+        qbed,
+        sbed,
+        fig,
+        ax1_root,
+        ax1_canvas,
+        is_self=is_self,
+        chrlw=0.5,
+        sepcolor=set1[3],
+    )
+
+    # Panel B
+    logger.info("Plotting karyotype plot")
+    Karyotype(ax2_root, seqidsfile, layoutfile)
+
+    labels = (
+        (0.02, 0.95, "A"),
+        (0.52, 0.95, "B"),
+    )
+    panel_labels(root, labels)
+    normalize_axes(root, ax1_root, ax2_root)
+
+    image_name = "synteny.pdf"
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def diversity(args):
@@ -252,6 +317,7 @@ def genomebuild(args):
 def main():
 
     actions = (
+        ("synteny", "Plot synteny composite figure"),
         ("diversity", "Plot diversity composite figure"),
         ("genomebuild", "Plot genome build composite figure"),
         ("landscape", "Plot landscape composite figure"),

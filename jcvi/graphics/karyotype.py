@@ -28,7 +28,15 @@ from ..apps.base import OptionParser, logger
 from ..compara.synteny import SimpleFile
 from ..formats.bed import Bed
 
-from .base import AbstractLayout, markup, mpl, plt, savefig, update_figname
+from .base import (
+    AbstractLayout,
+    markup,
+    mpl,
+    normalize_axes,
+    plt,
+    savefig,
+    update_figname,
+)
 from .chromosome import Chromosome, HorizontalChromosome
 from .glyph import TextCircle
 from .synteny import Shade, ymid_offset
@@ -330,7 +338,6 @@ class ShadeManager(object):
 class Karyotype(object):
     def __init__(
         self,
-        fig,
         root,
         seqidsfile,
         layoutfile,
@@ -442,10 +449,9 @@ def main():
     seqidsfile, layoutfile = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     Karyotype(
-        fig,
         root,
         seqidsfile,
         layoutfile,
@@ -456,10 +462,7 @@ def main():
         generank=(not opts.basepair),
         seed=iopts.seed,
     )
-
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
     image_name = update_figname(opts.outfile, iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

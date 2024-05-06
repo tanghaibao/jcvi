@@ -21,7 +21,7 @@ from ..apps.align import last as last_main, diamond_blastp_main, blast_main
 from ..compara.blastfilter import main as blastfilter_main
 from ..compara.quota import main as quota_main
 from ..compara.synteny import scan, mcscan, liftover
-from ..formats.base import must_open, BaseFile
+from ..formats.base import BaseFile, DictFile, must_open
 from ..formats.bed import Bed
 from ..formats.blast import (
     BlastLine,
@@ -274,8 +274,6 @@ def sort_layout(thread, listfile, column=0):
     contents against threadbed, then for contents not in threadbed, insert to
     the nearest neighbor.
     """
-    from jcvi.formats.base import DictFile
-
     outfile = listfile.rsplit(".", 1)[0] + ".sorted.list"
     threadorder = thread.order
     fw = open(outfile, "w")
@@ -513,9 +511,6 @@ def omgprepare(args):
 
     Prepare to run Sankoff's OMG algorithm to get orthologs.
     """
-    from jcvi.formats.blast import cscore
-    from jcvi.formats.base import DictFile
-
     p = OptionParser(omgprepare.__doc__)
     p.add_argument("--norbh", action="store_true", help="Disable RBH hits")
     p.add_argument(
@@ -577,8 +572,6 @@ def omgprepare(args):
 
 
 def make_ortholog(blocksfile, rbhfile, orthofile):
-    from jcvi.formats.base import DictFile
-
     # Generate mapping both ways
     adict = DictFile(rbhfile)
     bdict = DictFile(rbhfile, keypos=1, valuepos=0)

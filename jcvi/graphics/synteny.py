@@ -591,13 +591,13 @@ class Synteny(object):
 
 def draw_gene_legend(
     ax,
-    x1,
-    x2,
-    ytop,
-    d=0.04,
-    text=False,
-    repeat=False,
-    glyphstyle="box",
+    x1: float,
+    x2: float,
+    ytop: float,
+    d: float = 0.04,
+    text: bool = False,
+    repeat: bool = False,
+    glyphstyle: str = "box",
 ):
     """
     Draw a legend for gene glyphs.

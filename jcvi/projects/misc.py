@@ -682,7 +682,7 @@ def epoch(args):
     p.parse_args(args)
 
     fig = plt.figure(1, (6, 4))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     # Separators
     linestyle = dict(lw=2, color="b", alpha=0.2, zorder=2)

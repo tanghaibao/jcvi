@@ -23,12 +23,13 @@ from ..graphics.base import (
     plt,
     savefig,
     set1,
+    setup_theme,
 )
 from ..graphics.chromosome import draw_chromosomes
 from ..graphics.dotplot import dotplot
 from ..graphics.karyotype import Karyotype
 from ..graphics.landscape import draw_heatmaps, draw_multi_depth, draw_stacks
-from ..graphics.synteny import Synteny
+from ..graphics.synteny import Synteny, draw_gene_legend
 
 
 def synteny(args):
@@ -42,6 +43,7 @@ def synteny(args):
     p = OptionParser(synteny.__doc__)
     p.set_beds()
     opts, args, iopts = p.set_image_options(args, figsize="14x7")
+    setup_theme(style="dark")
 
     if len(args) != 6:
         sys.exit(not p.print_help())
@@ -78,6 +80,7 @@ def synteny(args):
     # Panel C
     logger.info("Plotting synteny blocks")
     Synteny(fig, ax3_root, datafile, bedfile, blockslayoutfile, pad=0.1, vpad=0.03)
+    draw_gene_legend(root, 0.69, 0.8, 0.34)
 
     labels = ((0.02, 0.95, "A"), (0.52, 0.95, "B"), (0.52, 0.45, "C"))
     panel_labels(root, labels)
@@ -218,6 +221,8 @@ def landscape(args):
         shift,
         top=5,
     )
+
+    # Panel C
     draw_heatmaps(
         fig,
         ax3_root,
@@ -234,10 +239,7 @@ def landscape(args):
     ax2_root.set_axis_off()
     ax3_root.set_axis_off()
 
-    labels = (
-        (0.02, 0.95, "A"),
-        (0.42, 0.95, "B"),
-    )
+    labels = ((0.02, 0.95, "A"), (0.42, 0.95, "B"), (0.42, 0.48, "C"))
     panel_labels(root, labels)
     normalize_axes(root, ax1_root)
 

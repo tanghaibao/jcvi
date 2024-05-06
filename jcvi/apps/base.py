@@ -271,7 +271,7 @@ class OptionParser(ArgumentParser):
             + " (these WILL NOT be validated)",
         )
 
-    def set_outfile(self, outfile="stdout"):
+    def set_outfile(self, outfile: Optional[str] = "stdout"):
         """
         Add --outfile options to print out to filename.
         """
@@ -658,6 +658,7 @@ class OptionParser(ArgumentParser):
                 "|".join(set1)
             ),
         )
+        return group
 
     def set_depth(self, depth=50):
         self.add_argument("--depth", default=depth, type=float, help="Desired depth")

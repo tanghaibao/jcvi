@@ -444,7 +444,7 @@ class Synteny(object):
         scalebar: bool = False,
         shadestyle: str = "curve",
         glyphstyle: str = "arrow",
-        glyphcolor: BasePalette = OrientationPalette(),
+        glyphcolor: str = "orientation",
         seed: Optional[int] = None,
         prune_features=True,
     ):
@@ -591,13 +591,13 @@ class Synteny(object):
 
 def draw_gene_legend(
     ax,
-    x1,
-    x2,
-    ytop,
-    d=0.04,
-    text=False,
-    repeat=False,
-    glyphstyle="box",
+    x1: float,
+    x2: float,
+    ytop: float,
+    d: float = 0.04,
+    text: bool = False,
+    repeat: bool = False,
+    glyphstyle: str = "box",
 ):
     """
     Draw a legend for gene glyphs.
@@ -647,8 +647,7 @@ def main():
         "--genelabelrotation",
         default=25,
         type=int,
-        help="Rotate gene labels at this angle (anti-clockwise), useful for debugging. "
-        + "[Default: 25]",
+        help="Rotate gene labels at this angle (anti-clockwise), useful for debugging.",
     )
     p.add_argument(
         "--scalebar",
@@ -683,7 +682,7 @@ def main():
         "--noprune",
         default=False,
         action="store_true",
-        help="If set, do not exclude small features from annotation track (<1% of region)",
+        help="If set, do not exclude small features from annotation track (<1%% of region)",
     )
     opts, args, iopts = p.set_image_options(figsize="8x7")
 
@@ -698,7 +697,7 @@ def main():
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
     Synteny(
         fig,
         root,

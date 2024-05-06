@@ -30,7 +30,9 @@ import os.path as op
 import string
 import sys
 
+from copy import deepcopy
 from random import sample
+from typing import Optional
 
 from ..apps.base import OptionParser, logger, need_update
 from ..compara.base import AnchorFile
@@ -221,44 +223,51 @@ def plot_breaks_and_labels(
     return xlim, ylim
 
 
-def downsample(data, sample_number=10000):
+def downsample(data, sample_number: int = 10000):
+    """
+    Downsample the data to a manageable size for plotting.
+    """
     npairs = len(data)
     # Only show random subset
     if npairs > sample_number:
         logger.debug(
-            "Showing a random subset of {0} data points (total {1}) "
-            "for clarity.".format(sample_number, npairs)
+            "Showing a random subset of %d data points (total %d) for clarity.",
+            sample_number,
+            npairs,
         )
         data = sample(data, sample_number)
     return data
 
 
 def dotplot(
-    anchorfile,
+    anchorfile: str,
     qbed,
     sbed,
     fig,
     root,
     ax,
-    vmin=0,
-    vmax=1,
-    is_self=False,
-    synteny=False,
-    cmap_text=None,
+    vmin: float = 0,
+    vmax: float = 1,
+    is_self: bool = False,
+    synteny: bool = False,
+    cmap_text: Optional[str] = None,
     cmap="copper",
     genomenames=None,
-    sample_number=10000,
-    minfont=5,
-    palette=None,
-    chrlw=0.1,
-    title=None,
-    sep=True,
-    sepcolor="g",
-    stdpf=True,
-    chpf=True,
+    sample_number: int = 10000,
+    minfont: int = 5,
+    palette: Optional[Palette] = None,
+    chrlw: float = 0.1,
+    title: Optional[str] = None,
+    sep: bool = True,
+    sepcolor: str = "g",
+    stdpf: bool = True,
+    chpf: bool = True,
     usetex: bool = True,
 ):
-    fp = open(anchorfile)
+    """
+    Draw a dotplot from an anchor file.
+    """
+    fp = open(anchorfile, encoding="utf-8")
     # add genome names
     if genomenames:
         gx, gy = genomenames.split("_")
@@ -274,7 +283,7 @@ def dotplot(
 
     data = []
     if cmap_text:
-        logger.debug("Capping values within [{0:.1f}, {1:.1f}]".format(vmin, vmax))
+        logger.debug("Capping values within [%.1f, %.1f]", vmin, vmax)
 
     block_id = 0
     block_color = "k"
@@ -337,7 +346,7 @@ def dotplot(
         draw_cmap(root, cmap_text, vmin, vmax, cmap=cmap)
 
     xsize, ysize = len(qbed), len(sbed)
-    logger.debug("xsize=%d ysize=%d" % (xsize, ysize))
+    logger.debug("xsize=%d ysize=%d", xsize, ysize)
     qbreaks = qbed.get_breaks()
     sbreaks = sbed.get_breaks()
     xlim, _ = plot_breaks_and_labels(
@@ -374,19 +383,18 @@ def dotplot(
             xstart += 0.1
 
     if title is None:
-        title = "Inter-genomic comparison: {0} vs {1}".format(gx, gy)
+        title = f"Inter-genomic comparison: {gx} vs {gy}"
         if is_self:
-            title = "Intra-genomic comparison within {0}".format(gx)
-            npairs /= 2
-        title += " ({0} gene pairs)".format(thousands(npairs))
+            title = f"Intra-genomic comparison within {gx}"
+            npairs //= 2
+        title += f" ({thousands(npairs)} gene pairs)"
     root.set_title(title, x=0.5, y=0.96, color="k")
     if title:
-        logger.debug("Dot plot title: {}".format(title))
+        logger.debug("Dot plot title: %s", title)
     normalize_axes(root)
 
 
 def subset_bed(bed, seqids):
-    from copy import deepcopy
 
     newbed = deepcopy(bed)
     del newbed[:]
@@ -473,7 +481,7 @@ def dotplot_main(args):
 
     cmaptext = opts.cmaptext
     if anchorfile.endswith(".ks"):
-        from jcvi.apps.ks import KsFile
+        from ..compara.ks import KsFile
 
         logger.debug("Anchors contain Ks values")
         cmaptext = cmaptext or "*Ks* values"
@@ -492,8 +500,8 @@ def dotplot_main(args):
 
         for pair in ac.iter_pairs():
             q, s = pair[:2]
-            qi, q = qorder[q]
-            si, s = sorder[s]
+            _, q = qorder[q]
+            _, s = sorder[s]
             qseqids.add(q.seqid)
             sseqids.add(s.seqid)
 
@@ -504,8 +512,8 @@ def dotplot_main(args):
             sbed = subset_bed(sbed, sseqids)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])  # the dot plot
+    root = fig.add_axes((0, 0, 1, 1))  # the whole canvas
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))  # the dot plot
 
     dotplot(
         anchorfile,

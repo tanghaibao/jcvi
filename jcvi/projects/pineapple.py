@@ -308,9 +308,9 @@ def ploidy(args):
     seqidsfile, klayout, datafile, bedfile, slayout = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
-    Karyotype(fig, root, seqidsfile, klayout)
+    Karyotype(root, seqidsfile, klayout)
     Synteny(fig, root, datafile, bedfile, slayout, switch=opts.switch)
 
     # legend showing the orientation of the genes

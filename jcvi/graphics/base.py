@@ -6,13 +6,6 @@ import os.path as op
 from os import remove
 
 import sys
-import logging
-
-from ..apps.base import get_logger
-
-get_logger("matplotlib", logging.WARNING)
-get_logger("numexpr", logging.WARNING)
-get_logger("PIL", logging.INFO)
 
 from functools import partial
 from typing import Optional, List, Tuple, Union

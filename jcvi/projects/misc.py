@@ -155,9 +155,9 @@ def pomegranate(args):
     seqidsfile, klayout, datafile, bedfile, slayout = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
-    Karyotype(fig, root, seqidsfile, klayout)
+    Karyotype(root, seqidsfile, klayout)
     Synteny(fig, root, datafile, bedfile, slayout)
 
     # legend showing the orientation of the genes
@@ -276,9 +276,9 @@ def birch(args):
 
     seqids, layout = args
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
-    K = Karyotype(fig, root, seqids, layout)
+    K = Karyotype(root, seqids, layout)
     L = K.layout
 
     xs = 0.79
@@ -504,9 +504,9 @@ def amborella(args):
     tree = opts.tree
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
-    Karyotype(fig, root, seqidsfile, klayout)
+    Karyotype(root, seqidsfile, klayout)
     Synteny(fig, root, datafile, bedfile, slayout, switch=switch, tree=tree)
 
     # legend showing the orientation of the genes
@@ -551,9 +551,9 @@ def cotton(args):
     depthfile = opts.depthfile
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
-    kt = Karyotype(fig, root, seqidsfile, klayout)
+    kt = Karyotype(root, seqidsfile, klayout)
     Synteny(fig, root, datafile, bedfile, slayout, switch=switch)
 
     light = "lightslategrey"
@@ -682,7 +682,7 @@ def epoch(args):
     p.parse_args(args)
 
     fig = plt.figure(1, (6, 4))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     # Separators
     linestyle = dict(lw=2, color="b", alpha=0.2, zorder=2)

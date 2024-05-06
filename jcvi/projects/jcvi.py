@@ -28,11 +28,12 @@ from ..graphics.chromosome import draw_chromosomes
 from ..graphics.dotplot import dotplot
 from ..graphics.karyotype import Karyotype
 from ..graphics.landscape import draw_heatmaps, draw_multi_depth, draw_stacks
+from ..graphics.synteny import Synteny
 
 
 def synteny(args):
     """
-    %prog synteny grape.peach.anchors seqids layout
+    %prog synteny grape.peach.anchors seqids layout blocks grape_peach.bed blocks.layout
 
     Plot synteny composite figure, including:
     A. Synteny dotplot
@@ -42,17 +43,18 @@ def synteny(args):
     p.set_beds()
     opts, args, iopts = p.set_image_options(args, figsize="14x7")
 
-    if len(args) != 3:
+    if len(args) != 6:
         sys.exit(not p.print_help())
 
-    anchorfile, seqidsfile, layoutfile = args
+    anchorfile, seqidsfile, layoutfile, datafile, bedfile, blockslayoutfile = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
 
     ax1_root = fig.add_axes((0, 0, 0.5, 1))
     ax1_canvas = fig.add_axes((0.05, 0.1, 0.4, 0.8))  # the dot plot
-    ax2_root = fig.add_axes((0.5, 0, 0.5, 1))
+    ax2_root = fig.add_axes((0.5, 0.5, 0.5, 0.5))
+    ax3_root = fig.add_axes((0.5, 0, 0.5, 0.5))
 
     # Panel A
     logger.info("Plotting synteny dotplot")
@@ -73,12 +75,13 @@ def synteny(args):
     logger.info("Plotting karyotype plot")
     Karyotype(ax2_root, seqidsfile, layoutfile)
 
-    labels = (
-        (0.02, 0.95, "A"),
-        (0.52, 0.95, "B"),
-    )
+    # Panel C
+    logger.info("Plotting synteny blocks")
+    Synteny(fig, ax3_root, datafile, bedfile, blockslayoutfile)
+
+    labels = ((0.02, 0.95, "A"), (0.52, 0.95, "B"), (0.52, 0.45, "C"))
     panel_labels(root, labels)
-    normalize_axes(root, ax1_root, ax2_root)
+    normalize_axes(root, ax1_root, ax2_root, ax3_root)
 
     image_name = "synteny.pdf"
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

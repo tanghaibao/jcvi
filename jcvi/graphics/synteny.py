@@ -698,7 +698,7 @@ def main():
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
     Synteny(
         fig,
         root,

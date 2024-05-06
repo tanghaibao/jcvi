@@ -753,7 +753,7 @@ def ortholog(args):
                     logger.debug("Ignoring this error and continuing...")
                     return
                 else:
-                    raise ValueError(e)
+                    raise ValueError(e) from e
         if quota:
             quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])
         if need_update(anchors, pdf, warn=True) and not opts.no_dotplot:

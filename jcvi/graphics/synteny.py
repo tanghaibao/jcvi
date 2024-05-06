@@ -647,8 +647,7 @@ def main():
         "--genelabelrotation",
         default=25,
         type=int,
-        help="Rotate gene labels at this angle (anti-clockwise), useful for debugging. "
-        + "[Default: 25]",
+        help="Rotate gene labels at this angle (anti-clockwise), useful for debugging.",
     )
     p.add_argument(
         "--scalebar",
@@ -683,7 +682,7 @@ def main():
         "--noprune",
         default=False,
         action="store_true",
-        help="If set, do not exclude small features from annotation track (<1% of region)",
+        help="If set, do not exclude small features from annotation track (<1%% of region)",
     )
     opts, args, iopts = p.set_image_options(figsize="8x7")
 

@@ -444,7 +444,7 @@ class Synteny(object):
         scalebar: bool = False,
         shadestyle: str = "curve",
         glyphstyle: str = "arrow",
-        glyphcolor: BasePalette = OrientationPalette(),
+        glyphcolor: str = "orientation",
         seed: Optional[int] = None,
         prune_features=True,
     ):

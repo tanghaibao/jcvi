@@ -77,7 +77,7 @@ def synteny(args):
 
     # Panel C
     logger.info("Plotting synteny blocks")
-    Synteny(fig, ax3_root, datafile, bedfile, blockslayoutfile)
+    Synteny(fig, ax3_root, datafile, bedfile, blockslayoutfile, pad=0.1, vpad=0.03)
 
     labels = ((0.02, 0.95, "A"), (0.52, 0.95, "B"), (0.52, 0.45, "C"))
     panel_labels(root, labels)

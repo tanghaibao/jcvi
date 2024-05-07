@@ -9,9 +9,20 @@ import os.path as op
 import sys
 
 import numpy as np
+import pandas as pd
+
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 
 from ..apps.base import ActionDispatcher, OptionParser, fname, logger
-from ..graphics.base import Polygon, normalize_axes, panel_labels, plt, savefig
+from ..graphics.base import (
+    Polygon,
+    normalize_axes,
+    panel_labels,
+    plt,
+    savefig,
+    set_helvetica_axis,
+)
 from ..graphics.glyph import DoubleSquare, GeneGlyph, RoundRect, TextCircle, plot_cap
 from ..graphics.karyotype import Karyotype
 from ..graphics.synteny import Synteny, draw_gene_legend
@@ -39,9 +50,64 @@ def main():
             "waterlilyGOM",
             "waterlily phylogeny and related infographics (requires data)",
         ),
+        ("grabseeds", "GRABSEEDS PCA plot"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def rgb_to_hex(r: float, g: float, b: float):
+    """
+    Convert RGB to hex.
+    """
+    r, g, b = int(round(r)), int(round(g)), int(round(b))
+    return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def grabseeds(args):
+    """
+    %prog FINAL_DATA_FOR_ANOVA_HERITABILITY_ANALYSIS_SEED_COLOR_SHAPE_SIZE.csv
+
+    Plot the PCA plot from GRABSEEDS.
+    """
+    p = OptionParser(grabseeds.__doc__)
+    _, args, iopts = p.set_image_options(args, figsize="8x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (csvfile,) = args
+    df = pd.read_csv(csvfile).dropna()
+    features = [
+        x
+        for x in df.columns
+        if x.startswith("Avg")
+        if x not in ("AvgOfL", "AvgOfa", "AvgOfb")
+    ]
+    x = df.loc[:, features].values
+    x = StandardScaler().fit_transform(x)
+    pca = PCA(n_components=2)
+    principal_components = pca.fit_transform(x)
+    logger.info("Explained variance: %s", pca.explained_variance_ratio_)
+    pc1_var, pc2_var = pca.explained_variance_ratio_
+
+    pc_df = pd.DataFrame(data=principal_components, columns=["PC1", "PC2"])
+    final_df = pd.concat([pc_df, df[features]], axis=1).dropna()
+    final_df["Color"] = final_df.apply(
+        lambda x: rgb_to_hex(x["AvgOfRed"], x["AvgOfGreen"], x["AvgOfGreen"]), axis=1
+    )
+    final_df["ScatterSize"] = final_df["AvgOfArea"] / 500
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_xlabel(f"Principal Component 1 ({pc1_var * 100:.0f}\%)", fontsize=15)
+    ax.set_ylabel(f"Principal Component 2 ({pc2_var * 100:.0f}\%)", fontsize=15)
+    ax.set_title("Sorghum kernels, PCA Plot", fontsize=20)
+    ax.scatter("PC1", "PC2", s="ScatterSize", c="Color", data=final_df)
+    set_helvetica_axis(ax)
+
+    image_name = "grabseeds_pca." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def waterlilyGOM(args):
@@ -50,17 +116,17 @@ def waterlilyGOM(args):
 
     Customized figure to plot phylogeny and related infographics.
     """
-    from jcvi.graphics.tree import (
+    from ..graphics.tree import (
         LeafInfoFile,
         WGDInfoFile,
         draw_tree,
         parse_tree,
         draw_wgd_xy,
     )
-    from jcvi.graphics.table import CsvTable, draw_table
+    from ..graphics.table import CsvTable, draw_table
 
     p = OptionParser(waterlilyGOM.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="12x9")
+    _, args, iopts = p.set_image_options(args, figsize="12x9")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -176,7 +242,7 @@ def pomegranate(args):
 
 
 def utricularia(args):
-    from jcvi.graphics.synteny import main as synteny_main
+    from ..graphics.synteny import main as synteny_main
 
     p = OptionParser(synteny_main.__doc__)
     p.add_argument("--switch", help="Rename the seqid with two-column file")
@@ -327,7 +393,7 @@ def mtdotplots(args):
     Plot Mt3.5 and Mt4.0 side-by-side. This is essentially combined from two
     graphics.dotplot() function calls as panel A and B.
     """
-    from jcvi.graphics.dotplot import check_beds, dotplot
+    from ..graphics.dotplot import check_beds, dotplot
 
     p = OptionParser(mtdotplots.__doc__)
     p.set_beds()

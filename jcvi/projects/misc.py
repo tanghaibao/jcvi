@@ -71,7 +71,7 @@ def grabseeds(args):
     Plot the PCA plot from GRABSEEDS.
     """
     p = OptionParser(grabseeds.__doc__)
-    _, args, iopts = p.set_image_options(args, figsize="8x8")
+    _, args, iopts = p.set_image_options(args, figsize="8x6")
 
     if len(args) != 1:
         sys.exit(not p.print_help())

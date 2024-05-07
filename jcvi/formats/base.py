@@ -1,13 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+import fileinput
+import math
 import os
 import os.path as op
-import math
 import sys
 
 from collections import OrderedDict
 from itertools import cycle, groupby, islice
+from typing import IO, Union
+
 
 from Bio import SeqIO
 from ..apps.base import (
@@ -343,7 +346,7 @@ def must_open(
     checkexists: bool = False,
     skipcheck: bool = False,
     oappend: bool = False,
-):
+) -> Union[IO, fileinput.FileInput]:
     """
     Accepts filename and returns filehandle.
 
@@ -355,8 +358,6 @@ def must_open(
         if filename[0].endswith((".gz", ".bz2")):
             filename = " ".join(filename)  # allow opening multiple gz/bz2 files
         else:
-            import fileinput
-
             return fileinput.input(filename)
 
     if filename.startswith("s3://"):

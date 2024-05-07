@@ -5,7 +5,6 @@
 Manipulate PDF files, using PyPDF2 library.
 """
 import sys
-import traceback
 
 from natsort import natsorted
 
@@ -57,7 +56,6 @@ def cat(args):
         help="Remove individual pdfs after merging",
     )
     p.set_outfile()
-    p.set_verbose(help="Show page ranges as they are being read")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -67,31 +65,33 @@ def cat(args):
     if outfile in args:
         args.remove(outfile)
 
-    if not opts.nosort:
+    should_sort = not opts.nosort
+    if not all(x.endswith(".pdf") for x in args):
+        should_sort = False
+        logger.debug("Not sorting filenames because non-pdf args")
+
+    if should_sort:
         args = natsorted(args)
 
     filename_page_ranges = parse_filename_page_ranges(args)
-    verbose = opts.verbose
-    fw = must_open(outfile, "wb")
-
+    nfiles = len(filename_page_ranges)
     merger = PdfFileMerger()
-    in_fs = {}
-    try:
-        for filename, page_range in filename_page_ranges:
-            if verbose:
-                print(filename, page_range, file=sys.stderr)
-            if filename not in in_fs:
-                in_fs[filename] = open(filename, "rb")
-            merger.append(in_fs[filename], pages=page_range)
-    except:
-        print(traceback.format_exc(), file=sys.stderr)
-        print("Error while reading " + filename, file=sys.stderr)
-        sys.exit(1)
-    merger.write(fw)
-    fw.close()
+    with must_open(outfile, "wb") as fw:
+        in_fs = {}
+        try:
+            for filename, page_range in filename_page_ranges:
+                logger.debug("%s: %s", filename, page_range)
+                if filename not in in_fs:
+                    in_fs[filename] = open(filename, "rb")
+                merger.append(in_fs[filename], pages=page_range)
+        except Exception as e:
+            logger.error("Error while reading %s: %s", filename, e)
+            sys.exit(1)
+        merger.write(fw)
+        logger.info("Extracted %d files into `%s`", nfiles, outfile)
 
     if opts.cleanup:
-        logger.debug("Cleaning up %d files", len(args))
+        logger.debug("Cleaning up %d files", nfiles)
         cleanup(args)
 
 

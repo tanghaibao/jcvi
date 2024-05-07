@@ -9,6 +9,7 @@ import os.path as op
 import sys
 
 import numpy as np
+import pandas as pd
 
 from ..apps.base import ActionDispatcher, OptionParser, fname, logger
 from ..graphics.base import Polygon, normalize_axes, panel_labels, plt, savefig
@@ -39,9 +40,63 @@ def main():
             "waterlilyGOM",
             "waterlily phylogeny and related infographics (requires data)",
         ),
+        ("grabseeds", "GRABSEEDS PCA plot"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def grabseeds(args):
+    """
+    %prog FINAL_DATA_FOR_ANOVA_HERITABILITY_ANALYSIS_SEED_COLOR_SHAPE_SIZE.csv
+
+    Plot the PCA plot from GRABSEEDS.
+    """
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+
+    p = OptionParser(grabseeds.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="10x10")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (csvfile,) = args
+    df = pd.read_csv(csvfile)
+    df = df.dropna()
+
+    features = [
+        x
+        for x in df.columns
+        if x.startswith("Avg")
+        if x not in ("AvgOfL", "AvgOfa", "AvgOfb")
+    ]
+    x = df.loc[:, features].values
+    x = StandardScaler().fit_transform(x)
+    pca = PCA(n_components=2)
+    principalComponents = pca.fit_transform(x)
+    pc_df = pd.DataFrame(data=principalComponents, columns=["PC1", "PC2"])
+    final_df = pd.concat([pc_df, df[features]], axis=1)
+    final_df = final_df.dropna()
+
+    def hex(r: float, g: float, b: float):
+        r, g, b = int(round(r)), int(round(g)), int(round(b))
+        return "#{:02x}{:02x}{:02x}".format(r, g, b)
+
+    final_df["Color"] = final_df.apply(
+        lambda x: hex(x["AvgOfRed"], x["AvgOfGreen"], x["AvgOfGreen"]), axis=1
+    )
+    final_df["ScatterSize"] = final_df["AvgOfArea"] / 100
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    ax = fig.add_subplot(1, 1, 1)
+    ax.set_xlabel("Principal Component 1", fontsize=15)
+    ax.set_ylabel("Principal Component 2", fontsize=15)
+    ax.set_title("PCA Plot", fontsize=20)
+    ax.scatter("PC1", "PC2", s="ScatterSize", c="Color", data=final_df)
+
+    image_name = "grabseeds_pca." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
 def waterlilyGOM(args):

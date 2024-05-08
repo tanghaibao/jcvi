@@ -22,7 +22,7 @@ e, 0, 1, athaliana.grape.4x1.simple
 
 import sys
 
-from typing import Optional
+from typing import List, Optional
 
 from ..apps.base import OptionParser, logger
 from ..compara.synteny import SimpleFile
@@ -408,7 +408,7 @@ class Karyotype(object):
         self.layout = layout
 
 
-def main():
+def main(args: List[str]):
     p = OptionParser(__doc__)
     p.add_argument(
         "--basepair",
@@ -441,7 +441,7 @@ def main():
         help="Style of chromosome labels",
     )
     p.set_outfile("karyotype.pdf")
-    opts, args, iopts = p.set_image_options(figsize="8x7")
+    opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -467,6 +467,8 @@ def main():
     image_name = update_figname(opts.outfile, iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
+    return image_name
+
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

@@ -18,9 +18,11 @@ For "va" (vertical alignment), accepted values are: top|bottom|center|""(empty)
 """
 
 import sys
-from typing import Optional
+
+from typing import List, Optional
 
 import numpy as np
+
 from matplotlib import transforms
 from matplotlib.path import Path
 
@@ -626,7 +628,7 @@ def draw_gene_legend(
         ax.text(xr, ytop + d / 2, "repeat", ha="center")
 
 
-def main():
+def main(args: List[str]):
     p = OptionParser(__doc__)
     p.add_argument("--switch", help="Rename the seqid with two-column file")
     p.add_argument("--tree", help="Display trees on the bottom of the figure")
@@ -684,7 +686,7 @@ def main():
         action="store_true",
         help="If set, do not exclude small features from annotation track (<1%% of region)",
     )
-    opts, args, iopts = p.set_image_options(figsize="8x7")
+    opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -728,6 +730,8 @@ def main():
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
+    return image_name
+
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

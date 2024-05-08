@@ -158,7 +158,7 @@ def ensembl(args):
 
     valid_species = [x for x in ls_ftp(fasta_url) if "." not in x]
     doc = "\n".join((ensembl.__doc__, tile(valid_species)))
-    p.set_usage(doc)
+    p.usage = doc
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -273,7 +273,7 @@ def phytozome(args):
             downloader=downloader,
         )
         g = GlobusXMLParser(directory_listing)
-    except:
+    except Exception as _:
         logger.error("Error downloading directory listing ... cleaning up")
         cleanup(directory_listing, cookies)
         sys.exit(1)
@@ -281,7 +281,7 @@ def phytozome(args):
     genomes = g.get_genomes()
     valid_species = genomes.keys()
     species_tile = tile(valid_species)
-    p.set_usage("\n".join((phytozome.__doc__, species_tile)))
+    p.usage = "\n".join((phytozome.__doc__, species_tile))
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -383,7 +383,7 @@ def phytozome9(args):
     valid_species = [x for x in ls_ftp(url) if "." not in x]
 
     doc = "\n".join((phytozome9.__doc__, tile(valid_species)))
-    p.set_usage(doc)
+    p.usage = doc
 
     if len(args) != 1:
         sys.exit(not p.print_help())

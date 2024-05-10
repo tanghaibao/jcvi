@@ -21,7 +21,7 @@ jobs:
           cache: 'pip'
 
       - name: Install BEDTools (Linux)
-        run: sudo apt-get install bedtools freetype imagemagick
+        run: sudo apt-get install bedtools imagemagick
         if: matrix.os == 'ubuntu-latest'
 
       - name: Install BEDTools (macOS)

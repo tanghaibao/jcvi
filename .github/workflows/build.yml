@@ -21,11 +21,11 @@ jobs:
           cache: 'pip'
 
       - name: Install BEDTools (Linux)
-        run: sudo apt-get install bedtools
+        run: sudo apt-get install bedtools libmagickwand-dev
         if: matrix.os == 'ubuntu-latest'
 
       - name: Install BEDTools (macOS)
-        run: brew install bedtools
+        run: brew install bedtools freetype imagemagick
         if: matrix.os == 'macos-13'
 
       - name: Install dependencies

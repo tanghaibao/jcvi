@@ -8,12 +8,14 @@ import sys
 
 from natsort import natsorted
 
-from PyPDF2 import PdfFileMerger, parse_filename_page_ranges
-from PyPDF2.pagerange import PAGE_RANGE_HELP
+from pypdf import PdfMerger, parse_filename_page_ranges
+from pypdf.pagerange import PageRange
 
 from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
 
 from .base import must_open
+
+PAGE_RANGE_HELP = PageRange.__init__.__doc__
 
 
 def main():
@@ -75,7 +77,7 @@ def cat(args):
 
     filename_page_ranges = parse_filename_page_ranges(args)
     nfiles = len(filename_page_ranges)
-    merger = PdfFileMerger()
+    merger = PdfMerger()
     with must_open(outfile, "wb") as fw:
         in_fs = {}
         try:

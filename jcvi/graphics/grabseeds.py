@@ -618,7 +618,7 @@ def seeds(args):
     ff = opts.filter
     calib = opts.calibrate
     outdir = opts.outdir
-    if outdir != ".":
+    if outdir and outdir != ".":
         mkdir(outdir)
     if calib:
         calib = json.load(must_open(calib))

@@ -1,6 +1,7 @@
+import os
 import os.path as op
 
-from jcvi.apps.base import cleanup
+from jcvi.apps.base import cleanup, mkdir
 from jcvi.assembly.allmaps import path
 
 
@@ -35,11 +36,15 @@ def test_liftover():
 
 
 def test_path():
+    testdir = "chr23"
+    cleanup(testdir)
     bedfile = datafile("inputs/JM-2.bed")
     fastafile = datafile("inputs/scaffolds.fasta.gz")
     weightsfile = datafile("inputs/weights.txt")
     output_image = "chr23.pdf"
-    cleanup(output_image)
+    cwd = os.getcwd()
+    mkdir(testdir)
+    os.chdir(testdir)
     path(
         [
             bedfile,
@@ -49,3 +54,5 @@ def test_path():
         ]
     )
     assert op.exists(output_image)
+    os.chdir(cwd)
+    cleanup(testdir)

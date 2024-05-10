@@ -1,4 +1,8 @@
+import os
 import os.path as op
+
+from jcvi.apps.base import cleanup, mkdir
+from jcvi.assembly.allmaps import path
 
 
 def datafile(path: str) -> str:
@@ -29,3 +33,26 @@ def test_liftover():
     liftover(chainfile, bedfile, liftedbedfile, unmapfile="unmapped", cstyle="l")
     compare_line_by_line(liftedbedfile, expected)
     cleanup(liftedbedfile, "unmapped")
+
+
+def test_path():
+    testdir = "chr23"
+    cleanup(testdir)
+    bedfile = datafile("inputs/JM-2.bed")
+    fastafile = datafile("inputs/scaffolds.fasta.gz")
+    weightsfile = datafile("inputs/weights.txt")
+    output_image = "chr23.pdf"
+    cwd = os.getcwd()
+    mkdir(testdir)
+    os.chdir(testdir)
+    path(
+        [
+            bedfile,
+            fastafile,
+            "-w",
+            weightsfile,
+        ]
+    )
+    assert op.exists(output_image)
+    os.chdir(cwd)
+    cleanup(testdir)

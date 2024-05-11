@@ -3,9 +3,10 @@
 
 import copy
 import os.path as op
-from os import remove
-
+import re
 import sys
+
+from os import remove
 
 from functools import partial
 from typing import Optional, List, Tuple, Union
@@ -408,11 +409,14 @@ def fontprop(ax, name, size=12):
     return prop
 
 
-def markup(s):
+def markup(s: str):
+    """
+    Change the string to latex format, and italicize the text between *.
+    """
+    if not rcParams["text.usetex"]:
+        return s
     if "$" in s:
         return s
-    import re
-
     s = latex(s)
     s = re.sub(r"\*(.*)\*", r"\\textit{\1}", s)
     return s

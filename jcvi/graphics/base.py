@@ -708,7 +708,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
         ax.text(x, ymin - 0.005, "%.1f" % v, ha="center", va="top", size=10)
 
 
-def write_messages(ax, messages, ypad=0.04):
+def write_messages(ax, messages: List[str], ypad: float=0.04):
     """
     Write text on canvas, usually on the top right corner.
     """
@@ -716,7 +716,7 @@ def write_messages(ax, messages, ypad=0.04):
     axt = ax.transAxes
     yy = 0.95
     for msg in messages:
-        ax.text(0.95, yy, msg, color=tc, transform=axt, ha="right")
+        ax.text(0.95, yy, markup(msg), color=tc, transform=axt, ha="right")
         yy -= ypad
 
 

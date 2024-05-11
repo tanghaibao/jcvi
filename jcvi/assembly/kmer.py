@@ -260,7 +260,7 @@ class KmerSpectrum(BaseFile):
         print(ll, rr, GG, file=sys.stderr)
 
         # Ready for genome summary
-        m = "\n==> Kmer (K={0}) Spectrum Analysis\n".format(K)
+        m = f"\n==> Kmer (K={K}) Spectrum Analysis\n"
 
         genome_size = int(round(self.totalKmers / ll))
         inferred_genome_size = 0
@@ -270,7 +270,7 @@ class KmerSpectrum(BaseFile):
             inferred_genome_size += g * mid * (end - start + 1)
         inferred_genome_size = int(round(inferred_genome_size))
         genome_size = max(genome_size, inferred_genome_size)
-        m += "Genome size estimate = {0}\n".format(thousands(genome_size))
+        m += f"Genome size estimate = {thousands(genome_size)}\n"
         copy_series = []
         copy_messages = []
         for i, g in enumerate(GG):
@@ -279,7 +279,7 @@ class KmerSpectrum(BaseFile):
             copy_num = start if start == end else "{}-{}".format(start, end)
             g_copies = int(round(g * mid * (end - start + 1)))
             copy_series.append((mid, copy_num, g_copies, g))
-            copy_message = f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} percent)"
+            copy_message = f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} %)"
             copy_messages.append(copy_message)
             m += copy_message + "\n"
 
@@ -287,7 +287,7 @@ class KmerSpectrum(BaseFile):
             g_copies = genome_size - inferred_genome_size
             copy_num = "{}+".format(end + 1)
             copy_series.append((end + 1, copy_num, g_copies, g_copies / (end + 1)))
-            m += f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} percent)\n"
+            m += f"CN {copy_num}: {g_copies / 1e6:.1f} Mb ({ g_copies * 100 / genome_size:.1f} %)\n"
 
         # Determine ploidy
         def determine_ploidy(copy_series, threshold=0.15):
@@ -302,7 +302,7 @@ class KmerSpectrum(BaseFile):
 
         ploidy = determine_ploidy(copy_series)
         self.ploidy = ploidy
-        self.ploidy_message = "Ploidy: {}".format(ploidy)
+        self.ploidy_message = f"Ploidy: {ploidy}"
         m += self.ploidy_message + "\n"
         self.copy_messages = copy_messages[:ploidy]
 
@@ -317,7 +317,7 @@ class KmerSpectrum(BaseFile):
             return 1 - unique / genome_size
 
         repeats = calc_repeats(copy_series, ploidy, genome_size)
-        self.repetitive = "Repeats: {:.1f} percent".format(repeats * 100)
+        self.repetitive = f"Repeats: {repeats * 100:.1f} %"
         m += self.repetitive + "\n"
 
         # SNP rate
@@ -336,7 +336,7 @@ class KmerSpectrum(BaseFile):
             return 1 - (1 - L / genome_size) ** (1 / K)
 
         snp_rate = calc_snp_rate(copy_series, ploidy, genome_size, K)
-        self.snprate = "SNP rate: {:.2f} percent".format(snp_rate * 100)
+        self.snprate = f"SNP rate: {snp_rate * 100:.2f} %"
         m += self.snprate + "\n"
         print(m, file=sys.stderr)
 
@@ -475,22 +475,18 @@ class KmerSpectrum(BaseFile):
         GR = int(_genome_size_repetitive)
         coverage = int(_coverage)
 
-        m = "Kmer (K={0}) Spectrum Analysis\n".format(K)
-        m += "Genome size estimate = {0}\n".format(thousands(G))
-        m += "Genome size estimate CN = 1 = {0} ({1})\n".format(
-            thousands(G1), percentage(G1, G)
-        )
-        m += "Genome size estimate CN > 1 = {0} ({1})\n".format(
-            thousands(GR), percentage(GR, G)
-        )
-        m += "Coverage estimate: {0} x\n".format(coverage)
-        self.repetitive = "Repeats: {0} percent".format(GR * 100 // G)
+        m = f"Kmer (K={K}) Spectrum Analysis\n"
+        m += f"Genome size estimate = {thousands(G)}\n"
+        m += f"Genome size estimate CN = 1 = {thousands(G1)} ({percentage(G1, G)})\n"
+        m += f"Genome size estimate CN > 1 = {thousands(GR)} ({percentage(GR, G)})\n"
+        m += f"Coverage estimate: {coverage} x\n"
+        self.repetitive = f"Repeats: {GR * 100 // G} %"
 
         if ploidy == 2:
             d_SNP = int(_d_SNP)
-            self.snprate = "SNP rate ~= 1/{0}".format(d_SNP)
+            self.snprate = f"SNP rate ~= 1/{d_SNP}"
         else:
-            self.snprate = "SNP rate not computed (Ploidy = {0})".format(ploidy)
+            self.snprate = f"SNP rate not computed (Ploidy = {ploidy})"
         m += self.snprate + "\n"
 
         self.genomesize = int(round(self.totalKmers * 1.0 / self.max2))

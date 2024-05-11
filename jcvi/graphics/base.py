@@ -413,6 +413,8 @@ def markup(s: str):
     """
     Change the string to latex format, and italicize the text between *.
     """
+    if not rcParams["text.usetex"]:
+        return s
     if "$" in s:
         return s
     s = latex(s)

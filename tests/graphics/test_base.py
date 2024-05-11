@@ -3,6 +3,8 @@
 
 import pytest
 
+from jcvi.graphics.base import latex, markup, rc
+
 
 @pytest.mark.parametrize(
     "s,expected",
@@ -24,13 +26,19 @@ def test_shorten(s, expected):
 @pytest.mark.parametrize(
     "s,expected",
     [
-        ("grape_grape vs peach_peach", "grape\_grape vs peach\_peach"),
+        ("grape_grape vs peach_peach", r"grape\_grape vs peach\_peach"),
     ],
 )
 def test_latex(s, expected):
-    from jcvi.graphics.base import latex
-
     assert latex(s) == expected, "Expect {}".format(expected)
+
+
+def test_markup():
+    rc("text", usetex=True)
+    s = "Prupe_1G289800.1"
+    assert markup(s) == r"Prupe\_1G289800.1"
+    rc("text", usetex=False)
+    assert markup(s) == s
 
 
 @pytest.mark.parametrize(

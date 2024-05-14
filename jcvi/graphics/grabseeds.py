@@ -10,10 +10,15 @@ import string
 import sys
 
 from collections import Counter
+from datetime import date
 from math import cos, pi, sin
 from typing import Any, List, Optional, Tuple
 
 import numpy as np
+
+from ..apps.base import setup_magick_home
+
+setup_magick_home()
 
 from PIL.Image import open as iopen
 from pyefd import elliptic_fourier_descriptors
@@ -22,7 +27,7 @@ from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
 from skimage.feature import canny, peak_local_max
-from skimage.filters import roberts, sobel
+from skimage.filters import roberts, sobel, threshold_otsu
 from skimage.measure import find_contours, regionprops, label
 from skimage.morphology import disk, closing
 from skimage.segmentation import clear_border, watershed
@@ -87,7 +92,7 @@ class Seed(object):
         self.circularity = 4 * pi * props.area / props.perimeter**2
         self.rgb = rgb
         self.colorname = closest_color(rgb)
-        self.datetime = exif.get("exif:DateTimeOriginal", "none")
+        self.datetime = exif.get("exif:DateTimeOriginal", date.today())
         self.rgbtag = triplet_to_rgb(rgb)
         self.pixeltag = f"length={self.length} width={self.width} area={self.area}"
         self.hashtag = " ".join((self.rgbtag, self.colorname))
@@ -308,7 +313,7 @@ def add_seeds_options(p, args):
     )
 
     g3 = p.add_argument_group("De-noise")
-    valid_filters = ("canny", "roberts", "sobel")
+    valid_filters = ("canny", "roberts", "sobel", "otsu")
     g3.add_argument(
         "--filter",
         default="canny",
@@ -649,6 +654,9 @@ def seeds(args):
         edges = roberts(img_gray)
     elif ff == "sobel":
         edges = sobel(img_gray)
+    elif ff == "otsu":
+        thresh = threshold_otsu(img_gray)
+        edges = img_gray > thresh
     edges = clear_border(edges, buffer_size=opts.border)
     selem = disk(kernel)
     closed = closing(edges, selem) if kernel else edges

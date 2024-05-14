@@ -15,6 +15,10 @@ from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
+from ..apps.base import setup_magick_home
+
+setup_magick_home()
+
 from PIL.Image import open as iopen
 from pyefd import elliptic_fourier_descriptors
 from pytesseract import image_to_string

@@ -7,6 +7,7 @@ import fnmatch
 import logging
 import os
 import os.path as op
+import platform
 import shutil
 import signal
 import sys
@@ -1206,13 +1207,30 @@ def Popen(cmd, stdin=None, stdout=PIPE, debug=False, shell="/bin/bash"):
     return proc
 
 
-def is_macOS():
+def get_system_processor() -> Tuple[str, str]:
     """
-    Check if current OS is macOS, this impacts mostly plotting code.
+    Get the system and processor information.
     """
-    import platform
+    return platform.system(), platform.processor()
 
-    return platform.system() == "Darwin"
+
+def is_macOS_arm() -> bool:
+    """
+    Check if the system is macOS on ARM.
+    """
+    system, processor = get_system_processor()
+    return system == "Darwin" and "arm" in processor
+
+
+def setup_magick_home():
+    """
+    Set MAGICK_HOME for ImageMagick.
+    """
+    if "MAGICK_HOME" not in os.environ:
+        if is_macOS_arm():
+            magick_home = "/opt/homebrew/opt/imagemagick"
+        os.environ["MAGICK_HOME"] = magick_home
+        logger.info("Set MAGICK_HOME to `%s`", magick_home)
 
 
 def popen(cmd, debug=True, shell="/bin/bash"):

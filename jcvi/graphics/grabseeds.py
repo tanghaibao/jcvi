@@ -725,9 +725,6 @@ def seeds(args):
         contour = find_contours(labels == props.label, 0.5)[0]
         efds = efd_feature(contour)
         y0, x0 = props.centroid
-        # perimeter = props.perimeter
-        # area = props.area
-        # print(perimeter, area)
         orientation = props.orientation
         major, minor = props.major_axis_length, props.minor_axis_length
         major_dx = sin(orientation) * major / 2

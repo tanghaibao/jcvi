@@ -1229,8 +1229,10 @@ def setup_magick_home():
     if "MAGICK_HOME" not in os.environ:
         if is_macOS_arm():
             magick_home = "/opt/homebrew/opt/imagemagick"
-        os.environ["MAGICK_HOME"] = magick_home
-        logger.info("Set MAGICK_HOME to `%s`", magick_home)
+            if op.isdir(magick_home):
+                os.environ["MAGICK_HOME"] = magick_home
+        else:
+            logger.error("MAGICK_HOME not set")
 
 
 def popen(cmd, debug=True, shell="/bin/bash"):

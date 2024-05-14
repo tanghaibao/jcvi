@@ -27,7 +27,7 @@ from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
 from skimage.feature import canny, peak_local_max
-from skimage.filters import roberts, sobel
+from skimage.filters import roberts, sobel, threshold_otsu
 from skimage.measure import find_contours, regionprops, label
 from skimage.morphology import disk, closing
 from skimage.segmentation import clear_border, watershed
@@ -313,7 +313,7 @@ def add_seeds_options(p, args):
     )
 
     g3 = p.add_argument_group("De-noise")
-    valid_filters = ("canny", "roberts", "sobel")
+    valid_filters = ("canny", "roberts", "sobel", "otsu")
     g3.add_argument(
         "--filter",
         default="canny",
@@ -654,6 +654,9 @@ def seeds(args):
         edges = roberts(img_gray)
     elif ff == "sobel":
         edges = sobel(img_gray)
+    elif ff == "otsu":
+        thresh = threshold_otsu(img_gray)
+        edges = img_gray > thresh
     edges = clear_border(edges, buffer_size=opts.border)
     selem = disk(kernel)
     closed = closing(edges, selem) if kernel else edges
@@ -722,6 +725,9 @@ def seeds(args):
         contour = find_contours(labels == props.label, 0.5)[0]
         efds = efd_feature(contour)
         y0, x0 = props.centroid
+        # perimeter = props.perimeter
+        # area = props.area
+        # print(perimeter, area)
         orientation = props.orientation
         major, minor = props.major_axis_length, props.minor_axis_length
         major_dx = sin(orientation) * major / 2

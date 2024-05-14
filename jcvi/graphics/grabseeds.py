@@ -10,6 +10,7 @@ import string
 import sys
 
 from collections import Counter
+from datetime import date
 from math import cos, pi, sin
 from typing import Any, List, Optional, Tuple
 
@@ -91,7 +92,7 @@ class Seed(object):
         self.circularity = 4 * pi * props.area / props.perimeter**2
         self.rgb = rgb
         self.colorname = closest_color(rgb)
-        self.datetime = exif.get("exif:DateTimeOriginal", "none")
+        self.datetime = exif.get("exif:DateTimeOriginal", date.today())
         self.rgbtag = triplet_to_rgb(rgb)
         self.pixeltag = f"length={self.length} width={self.width} area={self.area}"
         self.hashtag = " ".join((self.rgbtag, self.colorname))

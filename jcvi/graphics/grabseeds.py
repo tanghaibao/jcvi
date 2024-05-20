@@ -202,7 +202,6 @@ def deduplicate_masks(masks: List[dict], threshold=0.5):
             for retained_mask in retained_masks
         ):
             retained_masks.append(mask)
-    logger.info("Retained %d masks out of %d", len(retained_masks), len(masks))
     return retained_masks
 
 

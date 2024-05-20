@@ -345,12 +345,12 @@ def add_seeds_options(p, args):
     g2 = p.add_argument_group("Object recognition")
     g2.add_argument(
         "--minsize",
-        default=0.5,
+        default=0.2,
         type=float,
         help="Min percentage of object to image",
     )
     g2.add_argument(
-        "--maxsize", default=50, type=float, help="Max percentage of object to image"
+        "--maxsize", default=20, type=float, help="Max percentage of object to image"
     )
     g2.add_argument(
         "--count", default=100, type=int, help="Report max number of objects"
@@ -750,7 +750,7 @@ def seeds(args):
 
     # Object size filtering
     logger.debug(
-        "Find objects with pixels between %d (%d%%) and %d (%d%%)",
+        "Find objects with pixels between %d (%.2f%%) and %d (%d%%)",
         min_size,
         opts.minsize,
         max_size,

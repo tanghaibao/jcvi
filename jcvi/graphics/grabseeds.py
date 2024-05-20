@@ -732,7 +732,6 @@ def seeds(args):
         for i, mask in enumerate(deduplicated_masks):
             labels[mask["segmentation"]] = i + 1
         labels = clear_border(labels)
-        closed = None
     else:
         edges = clear_border(edges, buffer_size=opts.border)
         selem = disk(kernel)
@@ -767,7 +766,7 @@ def seeds(args):
     if opts.watershed:
         params += ", watershed"
     ax2.set_title(f"Edge detection\n({params})")
-    if closed:
+    if ff != "sam":
         closed = gray2rgb(closed)
     ax2_img = labels
     if opts.edges:

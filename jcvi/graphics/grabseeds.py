@@ -722,9 +722,16 @@ def seeds(args):
             mask for mask in masks if min_size <= mask["area"] <= max_size
         ]
         deduplicated_masks = deduplicate_masks(filtered_masks)
+        logger.info(
+            "SAM: %d (raw) → %d (size filtered) → %d (deduplicated)",
+            len(masks),
+            len(filtered_masks),
+            len(deduplicated_masks),
+        )
         labels = np.zeros(img_gray.shape, dtype=int)
         for i, mask in enumerate(deduplicated_masks):
             labels[mask["segmentation"]] = i + 1
+        labels = clear_border(labels)
         closed = None
     else:
         edges = clear_border(edges, buffer_size=opts.border)

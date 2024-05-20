@@ -346,7 +346,7 @@ def add_seeds_options(p, args):
     g2 = p.add_argument_group("Object recognition")
     g2.add_argument(
         "--minsize",
-        default=0.05,
+        default=0.5,
         type=float,
         help="Min percentage of object to image",
     )

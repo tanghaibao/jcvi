@@ -705,7 +705,7 @@ def seeds(args):
     min_size = int(round(canvas_size * opts.minsize / 100))
     max_size = int(round(canvas_size * opts.maxsize / 100))
 
-    logger.debug("Running %s edge detection ...", ff)
+    logger.debug("Running %s edge detection …", ff)
     if ff == "canny":
         edges = canny(img_gray, sigma=opts.sigma)
     elif ff == "otsu":

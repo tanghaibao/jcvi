@@ -85,7 +85,7 @@ Functions that make text formatting easier.
 
 class Registry(defaultdict):
     def __init__(self, *args, **kwargs):
-        super(Registry, self).__init__(list, *args, **kwargs)
+        super().__init__(list, *args, **kwargs)
 
     def iter_tag(self, tag):
         for key, ts in self.items():

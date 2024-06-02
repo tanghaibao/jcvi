@@ -29,7 +29,7 @@ from .bed import Bed
 
 class Fasta(BaseFile, dict):
     def __init__(self, filename, index=False, key_function=None, lazy=False):
-        super(Fasta, self).__init__(filename)
+        super().__init__(filename)
         self.key_function = key_function
 
         if lazy:  # do not incur the overhead

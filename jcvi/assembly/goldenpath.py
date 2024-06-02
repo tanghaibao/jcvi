@@ -357,7 +357,7 @@ class Certificate(BaseFile):
 
     def __init__(self, filename):
 
-        super(Certificate, self).__init__(filename)
+        super().__init__(filename)
 
         fp = open(filename)
         self.lines = [CertificateLine(x) for x in fp.readlines()]

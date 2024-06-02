@@ -47,7 +47,7 @@ number_of_individual {3}
 
 class BinMap(BaseFile, dict):
     def __init__(self, filename):
-        super(BinMap, self).__init__(filename)
+        super().__init__(filename)
 
         fp = open(filename)
         for header, seq in read_block(fp, "group "):
@@ -111,7 +111,7 @@ class MSTMapLine(object):
 
 class MSTMap(LineFile):
     def __init__(self, filename):
-        super(MSTMap, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         startidx = 1
         for row in fp:

@@ -71,7 +71,7 @@ class Layout(AbstractLayout):
     def __init__(
         self, filename, delimiter=",", generank=False, seed: Optional[int] = None
     ):
-        super(Layout, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         self.edges = []
         for row in fp:

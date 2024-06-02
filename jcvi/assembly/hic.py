@@ -84,7 +84,7 @@ class ContigOrdering(LineFile):
     """
 
     def __init__(self, filename):
-        super(ContigOrdering, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         for row in fp:
             if row[0] == "#":

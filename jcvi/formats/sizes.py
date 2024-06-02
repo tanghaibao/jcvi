@@ -44,7 +44,7 @@ class Sizes(LineFile):
 
         assert filename.endswith(".sizes")
 
-        super(Sizes, self).__init__(filename)
+        super().__init__(filename)
         self.fp = open(filename)
         self.filename = filename
 

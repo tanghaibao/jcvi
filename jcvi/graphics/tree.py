@@ -37,7 +37,7 @@ class LeafInfoLine:
 
 class LeafInfoFile(LineFile):
     def __init__(self, filename, delimiter=","):
-        super(LeafInfoFile, self).__init__(filename)
+        super().__init__(filename)
         self.cache = {}
         with open(filename) as fp:
             for row in fp:
@@ -59,7 +59,7 @@ class WGDInfoLine:
 
 class WGDInfoFile(LineFile):
     def __init__(self, filename, delimiter=","):
-        super(WGDInfoFile, self).__init__(filename)
+        super().__init__(filename)
         self.cache = defaultdict(list)
         with open(filename) as fp:
             for row in fp:

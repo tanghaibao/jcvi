@@ -63,7 +63,7 @@ class F4ALayoutLine(object):
 
 class F4ALayout(LineFile):
     def __init__(self, filename, delimiter=","):
-        super(F4ALayout, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         self.edges = []
         for row in fp:

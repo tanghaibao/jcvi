@@ -515,7 +515,7 @@ class Map(list):
         remove_outliers=False,
         function=(lambda x: x.rank),
     ):
-        super(Map, self).__init__()
+        super().__init__()
         bed = Bed(filename)
         for b in bed:
             self.append(Marker(b))
@@ -635,7 +635,7 @@ class MapSummary(object):
 
 class Weights(DictFile):
     def __init__(self, filename, mapnames, cast=int):
-        super(Weights, self).__init__(filename, cast=cast)
+        super().__init__(filename, cast=cast)
         self.maps = [x.split()[0] for x in must_open(filename)]
         self.update_maps(mapnames)
         pivot_weight, o, pivot = self.get_pivot(mapnames)

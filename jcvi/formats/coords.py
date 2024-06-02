@@ -192,7 +192,7 @@ class Coords(LineFile):
                 fromdelta([filename])
             filename = coordsfile
 
-        super(Coords, self).__init__(filename)
+        super().__init__(filename)
 
         fp = open(filename)
         if header:

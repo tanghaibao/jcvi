@@ -74,7 +74,7 @@ class BaseAlign(object):
 
 class PairwiseAlign(BaseAlign):
     def __init__(self, fig, xywh, xpad=0.15, ypad=0.15):
-        super(PairwiseAlign, self).__init__(fig, xywh, xpad, ypad)
+        super().__init__(fig, xywh, xpad, ypad)
 
     def draw(self, width=0.03):
         HorizontalChromosome(
@@ -107,7 +107,7 @@ class PairwiseAlign(BaseAlign):
 
 class ReadAlign(BaseAlign):
     def __init__(self, fig, xywh, xpad=0.05, ypad=0.2, readlen=6, gap=3):
-        super(ReadAlign, self).__init__(fig, xywh, xpad, ypad)
+        super().__init__(fig, xywh, xpad, ypad)
         self.readlen = readlen
         self.gap = gap
         self.reads = []
@@ -214,7 +214,7 @@ class ReadAlign(BaseAlign):
 
 class OpticalMapAlign(BaseAlign):
     def __init__(self, fig, xywh, xpad=0.05, ypad=0.3):
-        super(OpticalMapAlign, self).__init__(fig, xywh, xpad, ypad)
+        super().__init__(fig, xywh, xpad, ypad)
         om = self.from_silico()
         self.om1 = OpticalMapTrack(self.sax, om)
         self.om2 = OpticalMapTrack(self.sax, om, ystart=-3, color="orange")
@@ -263,7 +263,7 @@ class OpticalMapAlign(BaseAlign):
 class OpticalMapTrack(BaseGlyph):
     def __init__(self, ax, sizes, ystart=0, color="darkslategrey", height=1, wiggle=3):
 
-        super(OpticalMapTrack, self).__init__(ax)
+        super().__init__(ax)
         self.ax = ax
         self.sizes = sizes[:]
         self.ystart = ystart

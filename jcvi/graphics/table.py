@@ -24,7 +24,7 @@ from .base import (
 
 class CsvTable(list):
     def __init__(self, csvfile="table.csv"):
-        super(CsvTable, self).__init__()
+        super().__init__()
         with open(csvfile) as csvfile:
             reader = csv.reader(csvfile, skipinitialspace=True)
             self.header = [markup(x) for x in next(reader)]

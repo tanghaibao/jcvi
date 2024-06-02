@@ -39,7 +39,7 @@ AWS_CREDS_PATH = "%s/.aws/credentials" % (op.expanduser("~"),)
 
 class InstanceSkeleton(BaseFile):
     def __init__(self, filename=datafile("instance.json")):
-        super(InstanceSkeleton, self).__init__(filename)
+        super().__init__(filename)
         self.spec = json.load(open(filename))
 
     @property

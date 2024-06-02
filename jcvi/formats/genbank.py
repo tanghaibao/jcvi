@@ -29,7 +29,7 @@ class MultiGenBank(BaseFile):
     """
 
     def __init__(self, filename, source="JCVI"):
-        super(MultiGenBank, self).__init__(filename)
+        super().__init__(filename)
         assert op.exists(filename)
 
         pf = filename.rsplit(".", 1)[0]

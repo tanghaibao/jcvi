@@ -286,7 +286,7 @@ class AGPLine(object):
 
 class AGP(LineFile):
     def __init__(self, filename, nogaps=False, validate=True, sorted=True):
-        super(AGP, self).__init__(filename)
+        super().__init__(filename)
 
         fp = must_open(filename)
         self.header = []
@@ -653,7 +653,7 @@ class TPFLine(object):
 
 class TPF(LineFile):
     def __init__(self, filename):
-        super(TPF, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         for row in fp:
             if row[0] == "#":
@@ -693,7 +693,7 @@ class OOLine(object):
 
 class OO(LineFile):
     def __init__(self, filename=None, ctgsizes=None):
-        super(OO, self).__init__(filename)
+        super().__init__(filename)
 
         if filename is None:
             return

@@ -70,7 +70,7 @@ class BinLine:
 
 class BinFile(LineFile):
     def __init__(self, filename):
-        super(BinFile, self).__init__(filename)
+        super().__init__(filename)
         self.mapping = defaultdict(list)
 
         fp = open(filename, encoding="utf-8")
@@ -95,7 +95,7 @@ class ChrInfoLine:
 
 class ChrInfoFile(BaseFile, OrderedDict):
     def __init__(self, filename, delimiter=","):
-        super(ChrInfoFile, self).__init__(filename)
+        super().__init__(filename)
         with open(filename, encoding="utf-8") as fp:
             for row in fp:
                 if row[0] == "#":
@@ -116,7 +116,7 @@ class TitleInfoLine:
 
 class TitleInfoFile(BaseFile, OrderedDict):
     def __init__(self, filename, delimiter=","):
-        super(TitleInfoFile, self).__init__(filename)
+        super().__init__(filename)
         with open(filename, encoding="utf-8") as fp:
             for row in fp:
                 if row[0] == "#":

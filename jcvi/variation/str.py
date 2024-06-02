@@ -91,7 +91,7 @@ DYS635 DYS643 GATA-H4
 
 class TREDsRepo(dict):
     def __init__(self, ref=REF):
-        super(TREDsRepo, self).__init__()
+        super().__init__()
         self.ref = ref
         df = pd.read_csv(REPO, index_col=0)
         self.names = []
@@ -269,7 +269,7 @@ class STRLine(object):
 class STRFile(LineFile):
     def __init__(self, lobstr_home, db="hg38"):
         filename = op.join(lobstr_home, "{0}/index.info".format(db))
-        super(STRFile, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         for row in fp:
             self.append(STRLine(row))
@@ -285,7 +285,7 @@ class STRFile(LineFile):
 
 class LobSTRvcf(dict):
     def __init__(self, columnidsfile="STR.ids"):
-        super(LobSTRvcf, self).__init__()
+        super().__init__()
         self.samplekey = None
         self.evidence = {}  # name: (supporting reads, stutter reads)
         if columnidsfile:

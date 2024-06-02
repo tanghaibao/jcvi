@@ -73,16 +73,16 @@ class Queue(Queue):
     """
 
     def __init__(self, *args, **kwargs):
-        super(Queue, self).__init__(*args, **kwargs, ctx=get_context())
+        super().__init__(*args, **kwargs, ctx=get_context())
         self.size = SharedCounter(0)
 
     def put(self, *args, **kwargs):
         self.size.increment(1)
-        super(Queue, self).put(*args, **kwargs)
+        super().put(*args, **kwargs)
 
     def get(self, *args, **kwargs):
         self.size.increment(-1)
-        return super(Queue, self).get(*args, **kwargs)
+        return super().get(*args, **kwargs)
 
     def qsize(self):
         """Reliable implementation of multiprocessing.Queue.qsize()"""

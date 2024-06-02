@@ -66,7 +66,7 @@ getsize = lambda name: (
 
 class ClustFile(BaseFile):
     def __init__(self, filename):
-        super(ClustFile, self).__init__(filename)
+        super().__init__(filename)
 
     def __iter__(self):
         nstacks = 0
@@ -87,7 +87,7 @@ class ClustFile(BaseFile):
 
 class Clust(list):
     def __init__(self):
-        super(Clust, self).__init__(self)
+        super().__init__(self)
 
     def __str__(self):
         s = []
@@ -98,7 +98,7 @@ class Clust(list):
 
 class ClustStore(BaseFile):
     def __init__(self, consensfile):
-        super(ClustStore, self).__init__(consensfile)
+        super().__init__(consensfile)
         binfile = consensfile + ".bin"
         idxfile = consensfile + ".idx"
         self.bin = np.fromfile(binfile, dtype=np.uint16)
@@ -180,7 +180,7 @@ class ClustStores(dict):
     """
 
     def __init__(self, consensfiles):
-        super(ClustStores, self).__init__(self)
+        super().__init__(self)
         for cs in consensfiles:
             name = op.basename(cs).split(".")[0]
             self[name] = ClustStore(cs)

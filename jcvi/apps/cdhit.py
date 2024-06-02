@@ -35,7 +35,7 @@ class ClstrLine(object):
 
 class ClstrFile(LineFile):
     def __init__(self, filename):
-        super(ClstrFile, self).__init__(filename)
+        super().__init__(filename)
         assert filename.endswith(".clstr")
 
         fp = open(filename)

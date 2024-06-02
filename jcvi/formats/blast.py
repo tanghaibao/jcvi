@@ -35,7 +35,7 @@ class BlastSlow(LineFile):
     """
 
     def __init__(self, filename, sorted=False):
-        super(BlastSlow, self).__init__(filename)
+        super().__init__(filename)
         fp = must_open(filename)
         for row in fp:
             self.append(BlastLine(row))
@@ -75,7 +75,7 @@ class Blast(BaseFile):
     """
 
     def __init__(self, filename):
-        super(Blast, self).__init__(filename)
+        super().__init__(filename)
         self.fp = must_open(filename)
 
     def __iter__(self):
@@ -141,7 +141,7 @@ class BlastLineByConversion(BlastLine):
 
     def __init__(self, sline, mode="1" * 12):
         if int(mode, 2) == 4095:
-            super(BlastLineByConversion, self).__init__(sline)
+            super().__init__(sline)
         elif 3072 <= int(mode, 2) < 4095:
             args = sline.split("\t")
             atoms = args[:2]
@@ -159,7 +159,7 @@ class BlastLineByConversion(BlastLine):
                     else:
                         atoms.append("-1")
             sline = "\t".join(atoms)
-            super(BlastLineByConversion, self).__init__(sline)
+            super().__init__(sline)
         else:
             m = "mode can only contain 0 or 1 \n"
             m += "first two fields (query, subject) cannot be empty"

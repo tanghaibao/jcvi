@@ -64,7 +64,7 @@ class ContigLine(object):
 
 class ContigFile(BaseFile):
     def __init__(self, filename):
-        super(ContigFile, self).__init__(filename)
+        super().__init__(filename)
         self.fp = open(filename)
 
     def iter_records(self):

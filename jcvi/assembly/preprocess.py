@@ -26,7 +26,7 @@ from ..utils.cbook import depends, human_size
 
 class FastQCdata(BaseFile, dict):
     def __init__(self, filename, human=False):
-        super(FastQCdata, self).__init__(filename)
+        super().__init__(filename)
         if not op.exists(filename):
             logger.debug("File `%s` not found.", filename)
             # Sample_RF37-1/RF37-1_GATCAG_L008_R2_fastqc =>

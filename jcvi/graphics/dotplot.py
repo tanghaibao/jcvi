@@ -61,7 +61,7 @@ class Palette(dict):
             palettedict (Dict, optional): Get the mapping from a dict. Defaults to None.
             palettefile (str, optional): Get the mapping from a two-column file. Defaults to None.
         """
-        super(Palette, self).__init__()
+        super().__init__()
         if palettedict is not None:
             self.update(palettedict)
         if palettefile is None:

@@ -143,7 +143,7 @@ class BedLine(object):
 
 class Bed(LineFile):
     def __init__(self, filename=None, key=None, sorted=True, juncs=False, include=None):
-        super(Bed, self).__init__(filename)
+        super().__init__(filename)
 
         # the sorting key provides some flexibility in ordering the features
         # for example, user might not like the lexico-order of seqid

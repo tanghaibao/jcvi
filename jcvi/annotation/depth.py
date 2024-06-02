@@ -25,7 +25,7 @@ class BinFile(BaseFile):
     """
 
     def __init__(self, binfile, dtype=np.uint8):
-        super(BinFile, self).__init__(binfile)
+        super().__init__(binfile)
         assert op.exists(
             binfile
         ), "Binary file `{0}` not found. Rerun depth.count().".format(binfile)

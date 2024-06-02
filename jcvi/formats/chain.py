@@ -52,7 +52,7 @@ class ChainLine(object):
 
 class Chain(BaseFile):
     def __init__(self, filename):
-        super(Chain, self).__init__(filename)
+        super().__init__(filename)
         self.chains = list(self.iter_chain())
 
         self.ungapped = sum(x.ungapped for x in self.chains)

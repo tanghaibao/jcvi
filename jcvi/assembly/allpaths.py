@@ -29,7 +29,7 @@ from .base import FastqNamings, Library
 
 class PairsFile(BaseFile):
     def __init__(self, filename):
-        super(PairsFile, self).__init__(filename)
+        super().__init__(filename)
 
         fp = open(filename, "rb")
         (binwrite,) = unpack("8s", fp.read(8))

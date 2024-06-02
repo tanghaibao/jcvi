@@ -44,7 +44,7 @@ class DelLine(object):
 
 class Delly(BaseFile):
     def __init__(self, filename):
-        super(Delly, self).__init__(filename)
+        super().__init__(filename)
 
     def __iter__(self):
         fp = must_open(self.filename)

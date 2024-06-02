@@ -28,7 +28,7 @@ class BlockFile(BaseFile):
     """Parse .blocks file which is the mcscan output with multiple columns as 'tracks'"""
 
     def __init__(self, filename, defaultcolor="#fb8072", header=False):
-        super(BlockFile, self).__init__(filename)
+        super().__init__(filename)
         fp = must_open(filename)
         hd = next(fp).rstrip().split("\t")
         ncols = len(hd)

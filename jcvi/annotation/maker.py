@@ -59,7 +59,7 @@ class CTLine(object):
 
 class CTLFile(LineFile):
     def __init__(self, filename):
-        super(CTLFile, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         for row in fp:
             self.append(CTLine(row))
@@ -90,7 +90,7 @@ class CTLFile(LineFile):
 
 class DatastoreIndexFile(BaseFile):
     def __init__(self, filename):
-        super(DatastoreIndexFile, self).__init__(filename)
+        super().__init__(filename)
         scaffold_status = {}
         failed = []
 

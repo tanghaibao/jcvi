@@ -42,7 +42,7 @@ class LineFile(BaseFile, list):
     """
 
     def __init__(self, filename, comment=None, load=False):
-        super(LineFile, self).__init__(filename)
+        super().__init__(filename)
 
         if load:
             fp = must_open(filename)
@@ -117,7 +117,7 @@ class DictFile(BaseFile, OrderedDict):
 
 class SetFile(BaseFile, set):
     def __init__(self, filename, column=-1, delimiter=None):
-        super(SetFile, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         for row in fp:
             if not row.strip():

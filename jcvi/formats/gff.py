@@ -325,7 +325,7 @@ class Gff(LineFile):
         make_gff_store=False,
         compute_signature=False,
     ):
-        super(Gff, self).__init__(filename)
+        super().__init__(filename)
         self.make_gff_store = make_gff_store
         self.gff3 = True
         if self.make_gff_store:

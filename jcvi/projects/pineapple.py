@@ -31,7 +31,7 @@ class RegionsLine(object):
 
 class RegionsFile(LineFile):
     def __init__(self, filename):
-        super(RegionsFile, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         next(fp)
         for row in fp:

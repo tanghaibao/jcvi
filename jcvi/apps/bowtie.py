@@ -40,7 +40,7 @@ class BowtieLogFile(BaseFile):
 
     def __init__(self, filename):
 
-        super(BowtieLogFile, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         self.total = int(first_tag(fp))
         self.unpaired = int(first_tag(fp))

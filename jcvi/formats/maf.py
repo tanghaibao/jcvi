@@ -18,7 +18,7 @@ from .base import BaseFile
 
 class Maf(BaseFile, dict):
     def __init__(self, filename, index=False):
-        super(Maf, self).__init__(filename)
+        super().__init__(filename)
 
         indexfile = filename + ".idx"
         if index:

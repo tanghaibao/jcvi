@@ -23,7 +23,7 @@ GTRLine = namedtuple("GTRLine", "parent left_child right_child dist")
 
 class CDT(BaseFile):
     def __init__(self, filename):
-        super(CDT, self).__init__(filename)
+        super().__init__(filename)
 
         pf = filename.rsplit(".", 1)[0]
         self.gtrfile = pf + ".gtr"

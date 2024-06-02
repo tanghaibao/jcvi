@@ -48,7 +48,7 @@ KMERYL, KSOAP, KALLPATHS = range(3)
 
 class KmerSpectrum(BaseFile):
     def __init__(self, histfile):
-        super(KmerSpectrum, self).__init__(histfile)
+        super().__init__(histfile)
         self.load_data(histfile)
 
     def load_data(self, histfile):

@@ -34,7 +34,7 @@ class Coverage(BaseFile):
 
         filename = coveragefile
         assert filename.endswith(".coverage")
-        super(Coverage, self).__init__(filename)
+        super().__init__(filename)
 
     def get_plot_data(self, ctg, bins=None):
         import numpy as np

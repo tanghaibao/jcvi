@@ -7,7 +7,7 @@ from ..utils.range import Range
 
 class AnchorFile(BaseFile):
     def __init__(self, filename, minsize=0):
-        super(AnchorFile, self).__init__(filename)
+        super().__init__(filename)
         self.blocks = list(self.iter_blocks(minsize=minsize))
 
     def iter_blocks(self, minsize=0):

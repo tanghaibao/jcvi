@@ -254,10 +254,7 @@ class PslLine(object):
 
 class Psl(LineFile):
     def __init__(self, filename=None):
-        super(Psl, self).__init__(filename)
-
-        import re
-
+        super().__init__(filename)
         self.mCounts = {}  # dict to hold match counts
         if not filename:
             return

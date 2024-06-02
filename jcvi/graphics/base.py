@@ -129,7 +129,7 @@ class AbstractLayout(LineFile):
     """
 
     def __init__(self, filename):
-        super(AbstractLayout, self).__init__(filename)
+        super().__init__(filename)
 
     def assign_array(self, attrib, array):
         assert len(array) == len(self)
@@ -708,7 +708,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
         ax.text(x, ymin - 0.005, "%.1f" % v, ha="center", va="top", size=10)
 
 
-def write_messages(ax, messages: List[str], ypad: float=0.04):
+def write_messages(ax, messages: List[str], ypad: float = 0.04):
     """
     Write text on canvas, usually on the top right corner.
     """

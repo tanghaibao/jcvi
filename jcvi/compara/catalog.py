@@ -39,7 +39,7 @@ from .synteny import check_beds
 
 class OMGFile(BaseFile):
     def __init__(self, filename):
-        super(OMGFile, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         inblock = False
         components = []

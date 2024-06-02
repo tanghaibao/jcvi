@@ -60,7 +60,7 @@ class Chromosome(BaseGlyph):
         alternating shades. Use a list of starting locations to segment.
         """
         y1, y2 = sorted((y1, y2))
-        super(Chromosome, self).__init__(ax)
+        super().__init__(ax)
         pts, r = self.get_pts(x, y1, y2, width)
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
         if patch:
@@ -112,7 +112,7 @@ class HorizontalChromosome(BaseGlyph):
         assert style in Chromosome.Styles, f"Unknown style `{style}`"
 
         x1, x2 = sorted((x1, x2))
-        super(HorizontalChromosome, self).__init__(ax)
+        super().__init__(ax)
         pts, r = self.get_pts(x1, x2, y, height, style=style)
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder + 1))
 
@@ -235,7 +235,7 @@ class GeneticMap(BaseGlyph):
     def __init__(
         self, ax, x, y1, y2, markers, unit="cM", tip=0.008, fc="k", flip=False
     ):
-        super(GeneticMap, self).__init__(ax)
+        super().__init__(ax)
         # tip = length of the ticks
         y1, y2 = sorted((y1, y2))
         ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
@@ -285,7 +285,7 @@ class Gauge(BaseGlyph):
             extra (float): offset for the unit label
             fc (str): face color of the glyph
         """
-        super(Gauge, self).__init__(ax)
+        super().__init__(ax)
         ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
         r = y2 - y1
         yy = y2

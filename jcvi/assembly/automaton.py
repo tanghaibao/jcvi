@@ -73,7 +73,7 @@ class Meta(object):
 
 class MetaFile(LineFile):
     def __init__(self, filename):
-        super(MetaFile, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         for row in fp:
             genome, tag, fastq = row.split()

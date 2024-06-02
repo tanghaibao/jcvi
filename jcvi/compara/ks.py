@@ -159,7 +159,7 @@ class LayoutLine(object):
 
 class Layout(AbstractLayout):
     def __init__(self, filename, delimiter=",", seed: Optional[int] = None):
-        super(Layout, self).__init__(filename)
+        super().__init__(filename)
         if not op.exists(filename):
             ksfiles = iglob(".", "*.ks")
             header = "Ks file|ncomponents|label|color|marker".split("|")
@@ -934,7 +934,7 @@ class KsLine:
 
 class KsFile(LineFile):
     def __init__(self, filename, strip_names=False):
-        super(KsFile, self).__init__(filename)
+        super().__init__(filename)
 
         fp = open(filename)
         for row in fp:

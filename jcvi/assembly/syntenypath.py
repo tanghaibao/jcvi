@@ -44,7 +44,7 @@ class OVLLine:
 
 class OVL(LineFile):
     def __init__(self, filename):
-        super(OVL, self).__init__(filename)
+        super().__init__(filename)
         fp = must_open(filename)
         contained = set()
         alledges = defaultdict(list)

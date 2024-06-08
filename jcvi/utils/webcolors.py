@@ -12,7 +12,8 @@ import logging
 import numpy as np
 
 from skimage.color import rgb2lab, deltaE_cmc
-from webcolors import CSS3_HEX_TO_NAMES, hex_to_rgb
+from webcolors._definitions import _CSS3_NAMES_TO_HEX
+from webcolors import hex_to_rgb
 
 
 def color_diff(rgb1, rgb2):
@@ -38,8 +39,8 @@ def closest_color(requested_color):
     """
     logging.disable(logging.DEBUG)
     colors = []
-    for key, name in CSS3_HEX_TO_NAMES.items():
-        diff = color_diff(hex_to_rgb(key), requested_color)
+    for name, hex in _CSS3_NAMES_TO_HEX.items():
+        diff = color_diff(hex_to_rgb(hex), requested_color)
         colors.append((diff, name))
     logging.disable(logging.NOTSET)
     _, min_color = min(colors)

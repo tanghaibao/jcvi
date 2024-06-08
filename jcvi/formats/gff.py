@@ -2829,9 +2829,9 @@ def note(args):
     if type:
         type = type.split(",")
 
-    g = make_index(gffile)
     exoncounts = {}
     if opts.exoncount:
+        g = make_index(gffile)
         for feat in g.features_of_type("mRNA"):
             nexons = 0
             for c in g.children(feat.id, 1):
@@ -2851,7 +2851,7 @@ def note(args):
         if AED is not None and float(g.attributes["_AED"][0]) > AED:
             continue
         keyval = [g.accn] + [
-            ",".join(g.attributes[x]) for x in attrib if x in g.attributes
+            ",".join(g.attributes.get(x, ["nan"])) for x in attrib
         ]
         if exoncounts:
             nexons = exoncounts.get(g.accn, 0)

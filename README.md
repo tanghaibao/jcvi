@@ -1,4 +1,4 @@
-# JCVI utility libraries
+# JCVI: A Versatile Toolkit for Comparative Genomics Analysis
 
 [![Latest PyPI version](https://img.shields.io/pypi/v/jcvi.svg)](https://pypi.python.org/pypi/jcvi)
 [![bioconda](https://img.shields.io/badge/install%20with-bioconda-brightgreen.svg?style=flat)](http://bioconda.github.io/recipes/jcvi/README.html?highlight=jcvi)

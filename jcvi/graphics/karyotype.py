@@ -359,9 +359,9 @@ class Karyotype(object):
         fp = open(seqidsfile)
         # Strip the reverse orientation tag for e.g. chr3-
         di = lambda x: x[:-1] if x[-1] == "-" else x
-        for i, row in enumerate(fp):
-            if row[0] == "#":
-                continue
+        # Comments can cause layout and seqids to be out of sync
+        # https://github.com/tanghaibao/jcvi/issues/676
+        for i, row in enumerate(_ for _ in fp if not _.startswith("#")):
             t = layout[i]
             # There can be comments in seqids file:
             # https://github.com/tanghaibao/jcvi/issues/335

@@ -149,14 +149,22 @@ class Genome:
         )
         return Genome.make(name, f1_chromosomes)
 
-    def mate_2nplusn(self, name: str, other_genome: "Genome", verbose: bool = True):
+    def mate_2nplusn_FDR(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
-                f"Crossing '{self.name}' x '{other_genome.name}' (2n+n)",
+                f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_FDR)",
                 file=sys.stderr,
             )
         f1_chromosomes = sorted(self.chromosomes + other_genome.gamete.chromosomes)
         return Genome.make(name, f1_chromosomes)
+
+    def mate_2nplusn_SDR(self, name: str, other_genome: "Genome", verbose: bool = True):
+        if verbose:
+            print(
+                f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_SDR)",
+                file=sys.stderr,
+            )
+        raise NotImplementedError("2n+n_SDR not yet supported")
 
     def __str__(self):
         return self.name + ": " + ",".join(self.chromosomes)
@@ -247,7 +255,9 @@ def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
     if mode == CrossMode.nx2plusn:
         SO_SS_F1 = SO.mate_nx2plusn("SOxSS F1", SS, verbose=verbose)
     elif mode == CrossMode.twoplusnFDR:
-        SO_SS_F1 = SO.mate_2nplusn("SOxSS F1", SS, verbose=verbose)
+        SO_SS_F1 = SO.mate_2nplusn_FDR("SOxSS F1", SS, verbose=verbose)
+    elif mode == CrossMode.twoplusnSDR:
+        SO_SS_F1 = SO.mate_2nplusn_SDR("SOxSS F1", SS, verbose=verbose)
     if verbose:
         SO_SS_F1.print_summary()
     return SO_SS_F1
@@ -283,7 +293,9 @@ def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False)
         if mode == CrossMode.nx2plusn:
             SS_SO_BC1 = SO.mate_nx2plusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
         elif mode == CrossMode.twoplusnFDR:
-            SS_SO_BC1 = SO.mate_2nplusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
+            SS_SO_BC1 = SO.mate_2nplusn_FDR("SSxSO BC1", SS_SO_F1, verbose=verbose)
+        elif mode == CrossMode.twoplusnSDR:
+            SS_SO_BC1 = SO.mate_2nplusn_SDR("SSxSO BC1", SS_SO_F1, verbose=verbose)
     # BC2
     if n >= 2:
         SS_SO_BC2_nplusn = SO.mate_nplusn("SSxSO BC2", SS_SO_BC1, verbose=verbose)
@@ -421,7 +433,7 @@ def simulate(args):
 
     Run simulation on female restitution. There are two modes:
     - 2n+n_FDR: merger between a somatic and a germline
-    - 2n+n_SDR: merger between a recombined germline and a germline
+    - 2n+n_SDR: merger between a recombined germline and a germline (not yet supported)
     - nx2+n: merger between a doubled germline and a germline
 
     These two modes would impact the sequence diversity in the progeny

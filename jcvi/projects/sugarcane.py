@@ -7,10 +7,15 @@
 # Created by Haibao Tang on 12/02/19
 # Copyright © 2019 Haibao Tang. All rights reserved.
 #
+"""
+Simulate sugarcane genomes and analyze the diversity in the progeny genomes.
+"""
+
 import os.path as op
 import sys
 
 from collections import Counter, defaultdict
+from enum import Enum
 from itertools import combinations, groupby, product
 from random import random, sample
 from typing import Dict
@@ -23,10 +28,21 @@ import pandas as pd
 from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir
 from ..formats.blast import Blast
 from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
-from ..utils.validator import validate_in_choices
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
+
+
+class CrossMode(Enum):
+    """
+    How the F1 is generated.
+    """
+
+    nplusn = "n+n"
+    nx2plusn = "nx2+n"
+    twoplusnFDR = "2n+n_FDR"
+    twoplusnSDR = "2n+n_SDR"
+
 
 # Computed using prepare(), corrected with real sizes
 ChrSizes = {
@@ -101,7 +117,7 @@ class Genome:
             return x.split("_", 1)[0]
 
         # Randomly assign the rest, singleton chromosomes
-        for group, chromosomes in groupby(singleton_chromosomes, key=prefix):
+        for _, chromosomes in groupby(singleton_chromosomes, key=prefix):
             chromosomes = list(chromosomes)
             halfn = len(chromosomes) // 2
             # Odd number, e.g. 5, equal chance to be 2 or 3
@@ -186,27 +202,27 @@ class GenomeSummary:
         self.percent_SS_data = [100 - x for x in percent_SO_data]
 
     def _summary(self, a, tag, precision=0):
-        mean, min, max = (
+        mean, mn, mx = (
             round(np.mean(a), precision),
             round(np.min(a), precision),
             round(np.max(a), precision),
         )
         s = f"*{tag}* chr: {mean:.0f}"
-        if min == mean and max == mean:
+        if mn == mean and mx == mean:
             return s
-        return s + f" ({min:.0f}-{max:.0f})"
+        return s + f" ({mn:.0f}-{mx:.0f})"
 
     def _percent_summary(self, a, tag, precision=1):
-        mean, min, max = (
+        mean, mn, mx = (
             round(np.mean(a), precision),
             round(np.min(a), precision),
             round(np.max(a), precision),
         )
         s = f"*{tag}*%: {mean:.1f}%"
         print(s)
-        if min == mean and max == mean:
+        if mn == mean and mx == mean:
             return s
-        return s + f" ({min:.1f}-{max:.1f}%)"
+        return s + f" ({mn:.1f}-{mx:.1f}%)"
 
     @property
     def percent_SO_summary(self):
@@ -304,8 +320,8 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     SO_data = []
     SS_data = []
     percent_SO_data = []
-    for sample in samples:
-        summary = sample.summary
+    for s in samples:
+        summary = s.summary
         try:
             _, _, group_unique, _, _ = [x for x in summary if x[0] == "SO"][0]
         except:
@@ -326,7 +342,7 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     shift = 0.5  # used to offset bars a bit to avoid cluttering
     if overlaps:
         for overlap in overlaps:
-            logger.debug(f"Modify bar offsets at {overlap} due to SS and SO overlaps")
+            logger.debug("Modify bar offsets at %s due to SS and SO overlaps", overlap)
             SS_counter[overlap - shift] = SS_counter[overlap]
             del SS_counter[overlap]
             SO_counter[overlap + shift] = SO_counter[overlap]
@@ -338,7 +354,7 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
         # Has data at the range end, but no adjacent data points (i.e. isolated bar)
         if value in d and (value - 1 in d or value + 1 in d):
             return
-        logger.debug(f"Modify bar offsets at {value} due to end of range ends")
+        logger.debug("Modify bar offsets at %d due to end of range ends", value)
         d[value - shift if value else value + shift] = d[80]
         del d[value]
 
@@ -383,7 +399,7 @@ def write_chromosomes(genomes: list[Genome], filename: str):
         filename (str): File path to write to.
     """
     print(f"Write chromosomes to `{filename}`", file=sys.stderr)
-    with open(filename, "w") as fw:
+    with open(filename, "w", encoding="utf-8") as fw:
         for genome in genomes:
             print(genome, file=fw)
 
@@ -396,16 +412,17 @@ def write_SO_percent(summary: GenomeSummary, filename: str):
         filename (str): File path to write to.
     """
     print(f"Write SO percent to `{filename}`", file=sys.stderr)
-    with open(filename, "w") as fw:
+    with open(filename, "w", encoding="utf-8") as fw:
         print("\n".join(str(x) for x in sorted(summary.percent_SO_data)), file=fw)
 
 
 def simulate(args):
     """
-    %prog simulate [2n+n|nx2+n]
+    %prog simulate [2n+n_FDR|2n+n_SDR|nx2+n]
 
     Run simulation on female restitution. There are two modes:
-    - 2n+n: merger between a somatic and a germline
+    - 2n+n_FDR: merger between a somatic and a germline
+    - 2n+n_SDR: merger between a recombined germline and a germline
     - nx2+n: merger between a doubled germline and a germline
 
     These two modes would impact the sequence diversity in the progeny
@@ -428,8 +445,8 @@ def simulate(args):
         sys.exit(not p.print_help())
 
     (mode,) = args
-    validate_in_choices(mode, ["2n+n", "nx2+n"], "Mode")
-    logger.info(f"Transmission: {mode}")
+    mode = CrossMode(mode)
+    logger.info("Transmission: %s", mode)
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -548,10 +565,8 @@ def _get_sizes(filename, prefix_length, tag, target_size=None):
         tag (str): Prepend `tag-` to the seqid.
         target_size (int): Expected genome size. Defaults to None.
     """
-    from collections import defaultdict
-
     sizes_list = defaultdict(list)
-    with open(filename) as fp:
+    with open(filename, encoding="utf-8") as fp:
         for row in fp:
             if not row.startswith("Chr"):
                 continue

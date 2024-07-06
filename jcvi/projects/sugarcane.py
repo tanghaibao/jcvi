@@ -244,11 +244,10 @@ class GenomeSummary:
 
 
 def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
-    SO_SS_F1 = (
-        SO.mate_nx2plusn("SOxSS F1", SS, verbose=verbose)
-        if mode == "nx2+n"
-        else SO.mate_2nplusn("SOxSS F1", SS, verbose=verbose)
-    )
+    if mode == CrossMode.nx2plusn:
+        SO_SS_F1 = SO.mate_nx2plusn("SOxSS F1", SS, verbose=verbose)
+    elif mode == CrossMode.twoplusnFDR:
+        SO_SS_F1 = SO.mate_2nplusn("SOxSS F1", SS, verbose=verbose)
     if verbose:
         SO_SS_F1.print_summary()
     return SO_SS_F1
@@ -281,12 +280,10 @@ def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False)
     )
     # BC1
     if n >= 1:
-        SS_SO_BC1 = (
-            # Expecting one more round of female restitution in BC1
-            SO.mate_nx2plusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
-            if mode == "nx2+n"
-            else SO.mate_2nplusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
-        )
+        if mode == CrossMode.nx2plusn:
+            SS_SO_BC1 = SO.mate_nx2plusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
+        elif mode == CrossMode.twoplusnFDR:
+            SS_SO_BC1 = SO.mate_2nplusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
     # BC2
     if n >= 2:
         SS_SO_BC2_nplusn = SO.mate_nplusn("SSxSO BC2", SS_SO_BC1, verbose=verbose)
@@ -531,7 +528,12 @@ def simulate(args):
     normalize_axes(root)
 
     # Title
-    mode_title = r"$n_1\times2 + n_2$" if mode == "nx2+n" else r"$2n + n$"
+    if mode == CrossMode.nx2plusn:
+        mode_title = r"$n_1\times2 + n_2$"
+    elif mode == CrossMode.twoplusnFDR:
+        mode_title = r"$2n + n$ (FDR)"
+    elif mode == CrossMode.twoplusnSDR:
+        mode_title = r"$2n + n$ (SDR)"
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)

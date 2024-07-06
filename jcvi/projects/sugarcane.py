@@ -18,7 +18,7 @@ from collections import Counter, defaultdict
 from enum import Enum
 from itertools import combinations, groupby, product
 from random import random, sample
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import matplotlib.pyplot as plt
@@ -69,7 +69,9 @@ ChrSizes = {
 
 # Simulate genome composition
 class Genome:
-    def __init__(self, name, prefix, ploidy, haploid_chromosome_count):
+    def __init__(
+        self, name: str, prefix: str, ploidy: int, haploid_chromosome_count: int
+    ):
         """
         Simulate a genome with given ploidy and haploid_chromosome_count. Example:
 
@@ -88,7 +90,7 @@ class Genome:
         return len(self.chromosomes)
 
     @classmethod
-    def make(cls, name, chromosomes):
+    def make(cls, name: str, chromosomes: List[str]):
         genome = Genome(name, "", 0, 0)
         genome.chromosomes = chromosomes
         return genome
@@ -126,7 +128,7 @@ class Genome:
             gamete_chromosomes += sorted(sample(chromosomes, halfn))
         return Genome.make(self.name + " gamete", gamete_chromosomes)
 
-    def mate_nplusn(self, name, other_genome, verbose=True):
+    def mate_nplusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
                 f"Crossing '{self.name}' x '{other_genome.name}' (n+n)", file=sys.stderr
@@ -136,7 +138,7 @@ class Genome:
         )
         return Genome.make(name, f1_chromosomes)
 
-    def mate_nx2plusn(self, name, other_genome, verbose=True):
+    def mate_nx2plusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
                 f"Crossing '{self.name}' x '{other_genome.name}' (2xn+n)",
@@ -147,7 +149,7 @@ class Genome:
         )
         return Genome.make(name, f1_chromosomes)
 
-    def mate_2nplusn(self, name, other_genome, verbose=True):
+    def mate_2nplusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
                 f"Crossing '{self.name}' x '{other_genome.name}' (2n+n)",
@@ -241,7 +243,7 @@ class GenomeSummary:
         return self._summary(self.SS_data, "Ss")
 
 
-def simulate_F1(SO, SS, mode="nx2+n", verbose=False):
+def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
     SO_SS_F1 = (
         SO.mate_nx2plusn("SOxSS F1", SS, verbose=verbose)
         if mode == "nx2+n"
@@ -252,7 +254,7 @@ def simulate_F1(SO, SS, mode="nx2+n", verbose=False):
     return SO_SS_F1
 
 
-def simulate_F2(SO, SS, mode="nx2+n", verbose=False):
+def simulate_F2(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
     SO_SS_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SO_SS_F2_nplusn = SO_SS_F1.mate_nplusn("SOxSS F2", SO_SS_F1, verbose=verbose)
     if verbose:
@@ -260,7 +262,7 @@ def simulate_F2(SO, SS, mode="nx2+n", verbose=False):
     return SO_SS_F2_nplusn
 
 
-def simulate_F1intercross(SO, SS, mode="nx2+n", verbose=False):
+def simulate_F1intercross(SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
     SO_SS_F1_1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SO_SS_F1_2 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SO_SS_F1intercross_nplusn = SO_SS_F1_1.mate_nplusn(
@@ -269,7 +271,7 @@ def simulate_F1intercross(SO, SS, mode="nx2+n", verbose=False):
     return SO_SS_F1intercross_nplusn
 
 
-def simulate_BCn(n, SO, SS, mode="nx2+n", verbose=False):
+def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
     SS_SO_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SS_SO_BC1, SS_SO_BC2_nplusn, SS_SO_BC3_nplusn, SS_SO_BC4_nplusn = (
         None,

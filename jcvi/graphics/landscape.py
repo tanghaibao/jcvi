@@ -1062,6 +1062,10 @@ def stackarray(binfile: BinFile, chr: str, window: int, shift: int):
     n = np.array(n, dtype=float)
 
     w = window // shift
+    nw = m.shape[0]
+    if nw < w:
+        logger.info("%s length < window, using %d bins instead of %d", chr, nw, w)
+        w = nw
     m = moving_sum(m, window=w)
     n = moving_sum(n, window=w)
     m /= n
@@ -1215,6 +1219,7 @@ def stack(args):
     pf = fastafile.rsplit(".", 1)[0]
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    return image_name
 
 
 if __name__ == "__main__":

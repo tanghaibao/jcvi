@@ -36,4 +36,8 @@ def test_main():
         ["seqids_with_comments", "layout", "-o", "karyotype_with_comments.pdf"]
     )
     assert op.exists(image_name)
+    cleanup("karyotype_with_empty_lines.pdf")
+    image_name = karyotype_main(
+        ["seqids_with_empty_lines", "layout", "-o", "karyotype_with_empty_lines.pdf"]
+    )
     os.chdir(cwd)

@@ -21,6 +21,9 @@ from ..apps.lastz import blastz_score_to_ncbi_expectation, blastz_score_to_ncbi_
 from .base import BaseFile, logger
 
 
+FLANK = 60
+
+
 class Maf(BaseFile, dict):
     def __init__(self, filename, index=False):
         super().__init__(filename)
@@ -119,10 +122,12 @@ def breakpoints(args):
     logger.info("Total alignments: %d", len(filtered_msa))
 
     final = []
+    # Load the sequences
+    ar = next(SeqIO.parse(a_fasta, "fasta"))
+    br = next(SeqIO.parse(b_fasta, "fasta"))
     for bp in bps:
         i = bisect(filtered_msa, (bp,))
         _, arec, brec = filtered_msa[i]
-        logger.info("Breakpoint at %d")
         logger.info("%s", arec)
         logger.info("%s", brec)
         assert len(arec) == len(brec)
@@ -130,15 +135,16 @@ def breakpoints(args):
         midpoint = len(arec) // 2
         aseq = arec.seq[:midpoint]
         astart = arec.annotations["start"] + len(aseq) - aseq.count("-")
+        logger.info("%s|%s", aseq[-FLANK:], arec.seq[midpoint:][:FLANK])
         bseq = brec.seq[:midpoint]
         bstart = brec.annotations["start"] + len(bseq) - bseq.count("-")
+        logger.info("%s|%s", bseq[-FLANK:], brec.seq[midpoint:][:FLANK])
         bpt = Breakpoint(arec.id, astart, brec.id, bstart)
+        logger.info("-" * FLANK * 2 + ">")
+        logger.info("%s|%s", ar.seq[:astart][-FLANK:], br.seq[bstart:][:FLANK])
         final.append(bpt)
 
     logger.info("Breakpoints found: %s", final)
-    # Load the sequences
-    ar = next(SeqIO.parse(a_fasta, "fasta"))
-    br = next(SeqIO.parse(b_fasta, "fasta"))
     if len(final) == 2:
         bp1, bp2 = final[:2]
         # ====-------=======

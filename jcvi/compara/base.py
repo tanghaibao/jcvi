@@ -1,4 +1,5 @@
 from collections import defaultdict
+from typing import Dict, Tuple
 
 from ..apps.base import logger
 from ..formats.base import BaseFile, read_block, must_open
@@ -48,29 +49,46 @@ class AnchorFile(BaseFile):
             ranges.append(r)
         return ranges, block_pairs
 
-    def print_to_file(self, filename="stdout", accepted=None):
-        fw = must_open(filename, "w")
-        blocks = self.blocks
+    def filter_blocks(self, accepted: Dict[Tuple[str, str], str]):
+        new_blocks = []
         nremoved = 0
         ncorrected = 0
-        for block in blocks:
-            print("###", file=fw)
+        nblocks_removed = 0
+        for block in self.blocks:
+            new_block = []
             for line in block:
                 a, b, score = line
                 pair = (a, b)
-                if accepted:
-                    if pair not in accepted:
-                        nremoved += 1
-                        continue
-                    av = accepted[pair]
-                    if score != av and score != av + "L":
-                        score = av
-                        ncorrected += 1
+                if pair not in accepted:
+                    nremoved += 1
+                    continue
+                av = accepted[pair]
+                if score != av and score != av + "L":
+                    score = av
+                    ncorrected += 1
+                new_block.append((a, b, score))
+            if new_block:
+                new_blocks.append(new_block)
+            else:
+                nblocks_removed += 1
+
+        logger.debug("Removed %d existing anchors", nremoved)
+        if nblocks_removed:
+            logger.debug("Removed %d empty blocks", nblocks_removed)
+        logger.debug("Corrected scores for %d anchors", ncorrected)
+        return new_blocks
+
+    def print_to_file(self, filename="stdout", accepted=None):
+        fw = must_open(filename, "w")
+        if accepted:
+            self.blocks = self.filter_blocks(accepted)
+        for block in self.blocks:
+            print("###", file=fw)
+            for line in block:
+                a, b, score = line
                 print("\t".join((a, b, score)), file=fw)
         fw.close()
 
-        logger.debug("Removed %d existing anchors", nremoved)
-        logger.debug("Corrected scores for %d anchors", ncorrected)
         logger.debug("Anchors written to `%s`", filename)
 
     def blast(self, blastfile=None, outfile=None):

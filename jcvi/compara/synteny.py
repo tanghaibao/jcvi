@@ -1869,7 +1869,7 @@ def liftover(args):
             ac.blocks[block_id].append((query, subject, str(score) + "L"))
             lifted += 1
 
-    logger.debug("{} new pairs found (dist={}).".format(lifted, dist))
+    logger.debug("%d new pairs found (dist=%d).", lifted, dist)
     newanchorfile = anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
     ac.print_to_file(filename=newanchorfile, accepted=accepted)
     summary([newanchorfile])

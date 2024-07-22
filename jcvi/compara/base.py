@@ -50,6 +50,10 @@ class AnchorFile(BaseFile):
         return ranges, block_pairs
 
     def filter_blocks(self, accepted: Dict[Tuple[str, str], str]):
+        """
+        Filter the blocks based on the accepted pairs. This is used to update
+        the anchors so that they match the info in the LAST file.
+        """
         new_blocks = []
         nremoved = 0
         ncorrected = 0
@@ -76,12 +80,14 @@ class AnchorFile(BaseFile):
         if nblocks_removed:
             logger.debug("Removed %d empty blocks", nblocks_removed)
         logger.debug("Corrected scores for %d anchors", ncorrected)
-        return new_blocks
+        self.blocks = new_blocks
 
-    def print_to_file(self, filename="stdout", accepted=None):
+    def print_to_file(self, filename="stdout"):
+        """
+        Print the anchors to a file, optionally filtering them based on the
+        accepted pairs.
+        """
         fw = must_open(filename, "w")
-        if accepted:
-            self.blocks = self.filter_blocks(accepted)
         for block in self.blocks:
             print("###", file=fw)
             for line in block:

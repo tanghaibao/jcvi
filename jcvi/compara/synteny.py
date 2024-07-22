@@ -1871,7 +1871,9 @@ def liftover(args):
 
     logger.debug("%d new pairs found (dist=%d).", lifted, dist)
     newanchorfile = anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
-    ac.print_to_file(filename=newanchorfile, accepted=accepted)
+    if accepted:
+        ac.filter_blocks(accepted)
+    ac.print_to_file(filename=newanchorfile)
     summary([newanchorfile])
 
     return newanchorfile

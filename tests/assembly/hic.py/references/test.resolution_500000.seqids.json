@@ -3004,16 +3004,12 @@
     ],
     "resolution": 500000,
     "sizes": {
-        "An_chr4": 38,
         "Cv_chr4": 37,
-        "Ky_chr4": 38,
         "Le_chr4": 39
     },
     "starts": {
-        "An_chr4": 0,
-        "Cv_chr4": 38,
-        "Ky_chr4": 75,
-        "Le_chr4": 113
+        "Cv_chr4": 0,
+        "Le_chr4": 37
     },
-    "total_bins": 152
+    "total_bins": 76
 }

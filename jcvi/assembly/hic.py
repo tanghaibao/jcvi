@@ -945,7 +945,6 @@ def bam2mat(args):
     )
     p.add_argument(
         "--seqids",
-        default=None,
         help="Use a given seqids file, a single line with seqids joined by comma",
     )
     opts, args = p.parse_args(args)
@@ -959,9 +958,10 @@ def bam2mat(args):
     pf += f".resolution_{N}"
     bins = 1500  # Distance distribution bins
     minsize = 100  # Record distance if it is at least minsize
+    seqids = opts.seqids
     seqids = (
-        open(opts.seqids).readline().strip().split(",")
-        if op.exists(opts.seqids)
+        open(seqids).readline().strip().split(",")
+        if seqids and op.exists(seqids)
         else None
     )
 

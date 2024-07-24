@@ -1,0 +1,13 @@
+bam2mat:
+  action: bam2mat
+  opts:
+  args: __DIR__/inputs/test.bam
+  outputs: [__DIR__/inputs/test.resolution_500000.json]
+  references: [references/test.resolution_500000.json]
+
+bam2mat_seqids:
+  action: bam2mat
+  opts: --seqids=__DIR__/inputs/seqids
+  args: __DIR__/inputs/test.bam
+  outputs: [__DIR__/inputs/test.resolution_500000.json]
+  references: [references/test.resolution_500000.seqids.json]

@@ -155,9 +155,10 @@ class Bed(LineFile):
 
         for line in must_open(filename):
             if (
-                line[0] == "#"
-                or (juncs and line.startswith("track name"))
-                or line.strip() == ""
+                line.strip() == ""
+                or line[0] == "#"
+                or line.startswith("browser ")
+                or line.startswith("track name")
             ):
                 continue
             b = BedLine(line)

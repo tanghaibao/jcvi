@@ -560,6 +560,7 @@ def depth(args):
         action="store_true",
         help="Calculate genome coverage",
     )
+    p.set_outfile("depth.pdf")
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
     if len(args) < 1:
@@ -594,10 +595,7 @@ def depth(args):
         calculate_coverage=opts.calculate_coverage,
     )
 
-    if npanels > 1:
-        pf = op.commonprefix(bedfiles)
-    pf = pf or "depth"
-    image_name = pf + "." + iopts.format
+    image_name = opts.outfile
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

@@ -20,7 +20,7 @@ from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..formats.base import BaseFile, DictFile, LineFile, must_open
 from ..formats.bed import Bed, bins, get_nbins
 from ..formats.sizes import Sizes
-from ..utils.cbook import autoscale, human_size
+from ..utils.cbook import autoscale, human_size, percentage
 
 from .base import (
     CirclePolygon,
@@ -52,6 +52,9 @@ Registration = {
     "Introns": "Genes (introns)",
     "Exons": "Genes (exons)",
 }
+
+# Consider a depth of 5 as minimum covered depth
+MIN_COVERED_DEPTH = 5
 
 
 class BinLine:
@@ -282,6 +285,7 @@ def draw_depth(
     subtitle: Optional[str] = None,
     median_line: bool = True,
     draw_seqids: bool = True,
+    calculate_coverage: bool = False,
 ):
     """Draw depth plot on the given axes, using data from bed
 
@@ -318,6 +322,8 @@ def draw_depth(
     # Extract plotting data
     data = []
     data_by_seqid = defaultdict(list)
+    total_bp = 0
+    covered_bp = 0
     for b in bed:
         seqid = b.seqid
         if seqid not in starts:
@@ -328,6 +334,10 @@ def draw_depth(
         c = chrinfo[seqid].color if seqid in chrinfo else "k"
         data.append((x, y, c))
         data_by_seqid[seqid].append(y)
+        if y >= MIN_COVERED_DEPTH:
+            covered_bp += b.end - b.start
+        total_bp += b.end - b.start
+    logger.debug("Coverage: %s", percentage(covered_bp, total_bp))
 
     x, y, c = zip(*data)
     ax.scatter(
@@ -424,6 +434,17 @@ def draw_depth(
             va="center",
             size=15,
         )
+    if calculate_coverage:
+        cov_pct = percentage(covered_bp, total_bp, mode=None)
+        root.text(
+            0.95,
+            0.25,
+            f"Coverage: {cov_pct}",
+            color="darkslategray",
+            ha="center",
+            va="center",
+            size=15,
+        )
 
     ax.set_xticks([])
     ax.set_xlim(0, xsize)
@@ -447,6 +468,7 @@ def draw_multi_depth(
     maxdepth: int,
     logscale: bool,
     median_line: bool = True,
+    calculate_coverage: bool = False,
 ):
     """
     Draw multiple depth plots on the same canvas.
@@ -483,6 +505,7 @@ def draw_multi_depth(
             subtitle=subtitle,
             median_line=median_line,
             draw_seqids=draw_seqids,
+            calculate_coverage=calculate_coverage,
         )
         ypos -= yinterval
 
@@ -531,6 +554,12 @@ def depth(args):
         action="store_true",
         help="Do not plot median depth line",
     )
+    p.add_argument(
+        "--calculate-coverage",
+        default=False,
+        action="store_true",
+        help="Calculate genome coverage",
+    )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
     if len(args) < 1:
@@ -562,6 +591,7 @@ def depth(args):
         opts.maxdepth,
         opts.logscale,
         median_line=not opts.no_median_line,
+        calculate_coverage=opts.calculate_coverage,
     )
 
     if npanels > 1:

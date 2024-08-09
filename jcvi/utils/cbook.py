@@ -8,6 +8,7 @@ import re
 import sys
 
 from collections import defaultdict
+from typing import Optional
 
 from ..apps.base import logger
 
@@ -181,7 +182,7 @@ def enumerate_reversed(sequence):
         yield index, sequence[index]
 
 
-def percentage(a, b, precision=1, mode=0):
+def percentage(a, b, precision=1, mode: Optional[int] = 0):
     """
     >>> percentage(100, 200)
     '100 of 200 (50.0%)'

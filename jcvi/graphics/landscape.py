@@ -463,7 +463,7 @@ def draw_multi_depth(
         bed = Bed(bedfile)
 
         if ypos > 0.001:
-            root.plot((0.02, 0.98), (ypos, ypos), "-", lw=2, color="lightslategray")
+            root.plot((0.02, 0.98), (ypos, ypos), "-", lw=2, color="lightgray")
 
         title = titleinfo.get(bedfile, pf.split("_", 1)[0])
         subtitle = None

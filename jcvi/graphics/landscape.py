@@ -280,6 +280,7 @@ def draw_depth(
     logscale: bool = False,
     title: Optional[str] = None,
     subtitle: Optional[str] = None,
+    median_line: bool = True,
 ):
     """Draw depth plot on the given axes, using data from bed
 
@@ -302,6 +303,7 @@ def draw_depth(
     ends = {}
     label_positions = []
     start = 0
+    end = 0
     for seqid in seqids:
         if seqid not in sizes:
             continue
@@ -345,14 +347,15 @@ def draw_depth(
         seqid_end = ends[seqid]
         seqid_median = np.median(values)
         medians[seqid] = seqid_median
-        ax.plot(
-            (seqid_start, seqid_end),
-            (seqid_median, seqid_median),
-            "-",
-            lw=4,
-            color=c,
-            alpha=0.5,
-        )
+        if median_line:
+            ax.plot(
+                (seqid_start, seqid_end),
+                (seqid_median, seqid_median),
+                "-",
+                lw=4,
+                color=c,
+                alpha=0.5,
+            )
 
     # Vertical lines for all the breaks
     for pos in starts.values():
@@ -364,22 +367,30 @@ def draw_depth(
 
     median_depth_y = 0.88
     chr_label_y = 0.08
+    rotation = 20 if len(label_positions) > 10 else 0
     for seqid, position in label_positions:
         xpos = 0.1 + position * 0.8 / xsize
         c = chrinfo[seqid].color if seqid in chrinfo else defaultcolor
         newseqid = chrinfo[seqid].new_name if seqid in chrinfo else seqid
         root.text(
-            xpos, chr_label_y, newseqid, color=c, ha="center", va="center", rotation=20
-        )
-        seqid_median = medians[seqid]
-        root.text(
             xpos,
-            median_depth_y,
-            str(int(seqid_median)),
+            chr_label_y,
+            newseqid,
             color=c,
             ha="center",
             va="center",
+            rotation=rotation,
         )
+        seqid_median = medians[seqid]
+        if median_line:
+            root.text(
+                xpos,
+                median_depth_y,
+                str(int(seqid_median)),
+                color=c,
+                ha="center",
+                va="center",
+            )
 
     # Add an arrow to the right of the plot, indicating these are median depths
     root.text(
@@ -432,6 +443,7 @@ def draw_multi_depth(
     titleinfo_file: str,
     maxdepth: int,
     logscale: bool,
+    median_line: bool = True,
 ):
     """
     Draw multiple depth plots on the same canvas.
@@ -463,6 +475,7 @@ def draw_multi_depth(
             logscale=logscale,
             title=title,
             subtitle=subtitle,
+            median_line=median_line,
         )
         ypos -= yinterval
 
@@ -505,6 +518,12 @@ def depth(args):
     p.add_argument(
         "--logscale", default=False, action="store_true", help="Use log-scale on depth"
     )
+    p.add_argument(
+        "--no-median-line",
+        default=False,
+        action="store_true",
+        help="Do not plot median depth line",
+    )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
     if len(args) < 1:
@@ -535,6 +554,7 @@ def depth(args):
         opts.titleinfo,
         opts.maxdepth,
         opts.logscale,
+        median_line=not opts.no_median_line,
     )
 
     if npanels > 1:

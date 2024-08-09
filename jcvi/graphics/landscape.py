@@ -281,6 +281,7 @@ def draw_depth(
     title: Optional[str] = None,
     subtitle: Optional[str] = None,
     median_line: bool = True,
+    draw_seqids: bool = True,
 ):
     """Draw depth plot on the given axes, using data from bed
 
@@ -372,15 +373,16 @@ def draw_depth(
         xpos = 0.1 + position * 0.8 / xsize
         c = chrinfo[seqid].color if seqid in chrinfo else defaultcolor
         newseqid = chrinfo[seqid].new_name if seqid in chrinfo else seqid
-        root.text(
-            xpos,
-            chr_label_y,
-            newseqid,
-            color=c,
-            ha="center",
-            va="center",
-            rotation=rotation,
-        )
+        if draw_seqids:
+            root.text(
+                xpos,
+                chr_label_y,
+                newseqid,
+                color=c,
+                ha="center",
+                va="center",
+                rotation=rotation,
+            )
         seqid_median = medians[seqid]
         if median_line:
             root.text(
@@ -393,13 +395,14 @@ def draw_depth(
             )
 
     # Add an arrow to the right of the plot, indicating these are median depths
-    root.text(
-        0.91,
-        0.88,
-        r"$\leftarrow$median",
-        color="lightslategray",
-        va="center",
-    )
+    if median_line:
+        root.text(
+            0.91,
+            0.88,
+            r"$\leftarrow$median",
+            color="lightslategray",
+            va="center",
+        )
 
     if title:
         root.text(
@@ -453,7 +456,9 @@ def draw_multi_depth(
     npanels = len(bedfiles)
     yinterval = 1.0 / npanels
     ypos = 1 - yinterval
-    for bedfile, panel_root, panel_ax in zip(bedfiles, panel_roots, panel_axes):
+    for i, (bedfile, panel_root, panel_ax) in enumerate(
+        zip(bedfiles, panel_roots, panel_axes)
+    ):
         pf = op.basename(bedfile).split(".", 1)[0]
         bed = Bed(bedfile)
 
@@ -466,6 +471,7 @@ def draw_multi_depth(
             subtitle = title.subtitle
             title = title.title
 
+        draw_seqids = i in (0, npanels - 1)
         draw_depth(
             panel_root,
             panel_ax,
@@ -476,6 +482,7 @@ def draw_multi_depth(
             title=title,
             subtitle=subtitle,
             median_line=median_line,
+            draw_seqids=draw_seqids,
         )
         ypos -= yinterval
 

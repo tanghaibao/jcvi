@@ -337,7 +337,7 @@ def draw_depth(
         if y >= MIN_COVERED_DEPTH:
             covered_bp += b.end - b.start
         total_bp += b.end - b.start
-    logger.debug("cov: %s", percentage(covered_bp, total_bp))
+    logger.debug("cov: %s", percentage(covered_bp, total_bp, precision=0))
 
     x, y, c = zip(*data)
     ax.scatter(
@@ -435,11 +435,11 @@ def draw_depth(
             size=15,
         )
     if calculate_coverage:
-        cov_pct = percentage(covered_bp, total_bp, mode=None)
+        cov_pct = percentage(covered_bp, total_bp, precision=0, mode=None)
         root.text(
             0.95,
             0.25,
-            f"Coverage: {cov_pct}",
+            latex(f"cov: {cov_pct}"),
             color="darkslategray",
             ha="center",
             va="center",

@@ -337,7 +337,7 @@ def draw_depth(
         if y >= MIN_COVERED_DEPTH:
             covered_bp += b.end - b.start
         total_bp += b.end - b.start
-    logger.debug("Coverage: %s", percentage(covered_bp, total_bp))
+    logger.debug("cov: %s", percentage(covered_bp, total_bp))
 
     x, y, c = zip(*data)
     ax.scatter(

@@ -11,16 +11,17 @@ import os.path as op
 import sys
 
 from collections import Counter, OrderedDict, defaultdict
-from typing import List, Optional
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
+import seaborn as sns
 
 from ..algorithms.matrix import moving_sum
 from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..formats.base import BaseFile, DictFile, LineFile, must_open
 from ..formats.bed import Bed, bins, get_nbins
 from ..formats.sizes import Sizes
-from ..utils.cbook import autoscale, human_size
+from ..utils.cbook import autoscale, human_size, percentage
 
 from .base import (
     CirclePolygon,
@@ -52,6 +53,9 @@ Registration = {
     "Introns": "Genes (introns)",
     "Exons": "Genes (exons)",
 }
+
+# Consider a depth of 5 as minimum covered depth
+MIN_COVERED_DEPTH = 5
 
 
 class BinLine:
@@ -200,8 +204,6 @@ def mosdepth(args):
     Plot depth vs. coverage per chromosome. Inspired by mosdepth plot. See also:
     https://github.com/brentp/mosdepth
     """
-    import seaborn as sns
-
     sns.set_style("darkgrid")
 
     p = OptionParser(mosdepth.__doc__)
@@ -280,6 +282,10 @@ def draw_depth(
     logscale: bool = False,
     title: Optional[str] = None,
     subtitle: Optional[str] = None,
+    median_line: bool = True,
+    draw_seqids: bool = True,
+    calculate_coverage: bool = False,
+    roi: Optional[List[Tuple[str, int]]] = None,
 ):
     """Draw depth plot on the given axes, using data from bed
 
@@ -302,6 +308,7 @@ def draw_depth(
     ends = {}
     label_positions = []
     start = 0
+    end = 0
     for seqid in seqids:
         if seqid not in sizes:
             continue
@@ -315,6 +322,8 @@ def draw_depth(
     # Extract plotting data
     data = []
     data_by_seqid = defaultdict(list)
+    total_bp = 0
+    covered_bp = 0
     for b in bed:
         seqid = b.seqid
         if seqid not in starts:
@@ -325,6 +334,10 @@ def draw_depth(
         c = chrinfo[seqid].color if seqid in chrinfo else "k"
         data.append((x, y, c))
         data_by_seqid[seqid].append(y)
+        if y >= MIN_COVERED_DEPTH:
+            covered_bp += b.end - b.start
+        total_bp += b.end - b.start
+    logger.debug("cov: %s", percentage(covered_bp, total_bp, precision=0))
 
     x, y, c = zip(*data)
     ax.scatter(
@@ -345,14 +358,15 @@ def draw_depth(
         seqid_end = ends[seqid]
         seqid_median = np.median(values)
         medians[seqid] = seqid_median
-        ax.plot(
-            (seqid_start, seqid_end),
-            (seqid_median, seqid_median),
-            "-",
-            lw=4,
-            color=c,
-            alpha=0.5,
-        )
+        if median_line:
+            ax.plot(
+                (seqid_start, seqid_end),
+                (seqid_median, seqid_median),
+                "-",
+                lw=4,
+                color=c,
+                alpha=0.5,
+            )
 
     # Vertical lines for all the breaks
     for pos in starts.values():
@@ -364,31 +378,51 @@ def draw_depth(
 
     median_depth_y = 0.88
     chr_label_y = 0.08
+    rotation = 20 if len(label_positions) > 10 else 0
     for seqid, position in label_positions:
         xpos = 0.1 + position * 0.8 / xsize
         c = chrinfo[seqid].color if seqid in chrinfo else defaultcolor
         newseqid = chrinfo[seqid].new_name if seqid in chrinfo else seqid
-        root.text(
-            xpos, chr_label_y, newseqid, color=c, ha="center", va="center", rotation=20
-        )
+        if draw_seqids:
+            root.text(
+                xpos,
+                chr_label_y,
+                newseqid,
+                color=c,
+                ha="center",
+                va="center",
+                rotation=rotation,
+            )
         seqid_median = medians[seqid]
-        root.text(
-            xpos,
-            median_depth_y,
-            str(int(seqid_median)),
-            color=c,
-            ha="center",
-            va="center",
-        )
+        if median_line:
+            root.text(
+                xpos,
+                median_depth_y,
+                str(int(seqid_median)),
+                color=c,
+                ha="center",
+                va="center",
+            )
+
+    # Plot the regions of interest
+    if roi:
+        for chrom, pos, name in roi:
+            if chrom not in starts:
+                continue
+            x = starts[chrom] + pos
+            # TODO: Remove this special case
+            color = {"II": "tomato", "low qual": "g"}.get(name, "gray")
+            ax.plot((x, x), (0, maxdepth), "-", lw=2, color=color)
 
     # Add an arrow to the right of the plot, indicating these are median depths
-    root.text(
-        0.91,
-        0.88,
-        r"$\leftarrow$median",
-        color="lightslategray",
-        va="center",
-    )
+    if median_line:
+        root.text(
+            0.91,
+            0.88,
+            r"$\leftarrow$median",
+            color="lightslategray",
+            va="center",
+        )
 
     if title:
         root.text(
@@ -410,6 +444,17 @@ def draw_depth(
             va="center",
             size=15,
         )
+    if calculate_coverage:
+        cov_pct = percentage(covered_bp, total_bp, precision=0, mode=None)
+        root.text(
+            0.95,
+            0.25,
+            latex(f"cov: {cov_pct}"),
+            color="darkslategray",
+            ha="center",
+            va="center",
+            size=15,
+        )
 
     ax.set_xticks([])
     ax.set_xlim(0, xsize)
@@ -423,6 +468,22 @@ def draw_depth(
     normalize_axes(root)
 
 
+def read_roi(roi_file: str) -> Dict[str, List[str]]:
+    """
+    Read the regions of interest file, and return a dict of filename => regions.
+    """
+    roi = defaultdict(list)
+    with open(roi_file, encoding="utf-8") as fp:
+        for row in fp:
+            filename, region, name = row.strip().split(",")[:3]
+            chrom, start_end = region.split(":", 1)
+            start, end = start_end.split("-")
+            region = (chrom, (int(start) + int(end)) // 2, name)
+            roi[filename].append(region)
+    logger.info("Read %d regions of interest", len(roi))
+    return roi
+
+
 def draw_multi_depth(
     root,
     panel_roots,
@@ -432,6 +493,9 @@ def draw_multi_depth(
     titleinfo_file: str,
     maxdepth: int,
     logscale: bool,
+    median_line: bool = True,
+    calculate_coverage: bool = False,
+    roi: Optional[str] = None,
 ):
     """
     Draw multiple depth plots on the same canvas.
@@ -441,12 +505,15 @@ def draw_multi_depth(
     npanels = len(bedfiles)
     yinterval = 1.0 / npanels
     ypos = 1 - yinterval
-    for bedfile, panel_root, panel_ax in zip(bedfiles, panel_roots, panel_axes):
+    roi = read_roi(roi) if roi else {}
+    for i, (bedfile, panel_root, panel_ax) in enumerate(
+        zip(bedfiles, panel_roots, panel_axes)
+    ):
         pf = op.basename(bedfile).split(".", 1)[0]
         bed = Bed(bedfile)
 
         if ypos > 0.001:
-            root.plot((0.02, 0.98), (ypos, ypos), "-", lw=2, color="lightslategray")
+            root.plot((0.02, 0.98), (ypos, ypos), "-", lw=2, color="lightgray")
 
         title = titleinfo.get(bedfile, pf.split("_", 1)[0])
         subtitle = None
@@ -454,6 +521,7 @@ def draw_multi_depth(
             subtitle = title.subtitle
             title = title.title
 
+        draw_seqids = i in (0, npanels - 1)
         draw_depth(
             panel_root,
             panel_ax,
@@ -463,6 +531,10 @@ def draw_multi_depth(
             logscale=logscale,
             title=title,
             subtitle=subtitle,
+            median_line=median_line,
+            draw_seqids=draw_seqids,
+            calculate_coverage=calculate_coverage,
+            roi=roi.get(bedfile),
         )
         ypos -= yinterval
 
@@ -505,6 +577,23 @@ def depth(args):
     p.add_argument(
         "--logscale", default=False, action="store_true", help="Use log-scale on depth"
     )
+    p.add_argument(
+        "--no-median-line",
+        default=False,
+        action="store_true",
+        help="Do not plot median depth line",
+    )
+    p.add_argument(
+        "--calculate-coverage",
+        default=False,
+        action="store_true",
+        help="Calculate genome coverage",
+    )
+    p.add_argument(
+        "--roi",
+        help="File that contains regions of interest, format: filename, chr:start-end",
+    )
+    p.set_outfile("depth.pdf")
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
     if len(args) < 1:
@@ -535,13 +624,14 @@ def depth(args):
         opts.titleinfo,
         opts.maxdepth,
         opts.logscale,
+        median_line=not opts.no_median_line,
+        calculate_coverage=opts.calculate_coverage,
+        roi=opts.roi,
     )
 
-    if npanels > 1:
-        pf = op.commonprefix(bedfiles)
-    pf = pf or "depth"
-    image_name = pf + "." + iopts.format
+    image_name = opts.outfile
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    return image_name
 
 
 def add_window_options(p):

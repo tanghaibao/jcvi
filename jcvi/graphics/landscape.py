@@ -411,7 +411,7 @@ def draw_depth(
                 continue
             x = starts[chrom] + pos
             # TODO: Remove this special case
-            color = "tomato" if name == "II" else "gray"
+            color = {"II": "tomato", "low qual": "g"}.get(name, "gray")
             ax.plot((x, x), (0, maxdepth), "-", lw=2, color=color)
 
     # Add an arrow to the right of the plot, indicating these are median depths

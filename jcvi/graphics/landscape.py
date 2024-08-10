@@ -473,11 +473,12 @@ def read_roi(roi_file: str) -> Dict[str, List[str]]:
     roi = defaultdict(list)
     with open(roi_file, encoding="utf-8") as fp:
         for row in fp:
-            filename, region = row.strip().split(",")
+            filename, region = row.strip().split(",")[:2]
             chrom, start_end = region.split(":", 1)
             start, end = start_end.split("-")
             region = (chrom, (int(start) + int(end)) // 2)
             roi[filename].append(region)
+    logger.info("Read %d regions of interest", len(roi))
     return roi
 
 

@@ -11,9 +11,10 @@ import os.path as op
 import sys
 
 from collections import Counter, OrderedDict, defaultdict
-from typing import List, Optional
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
+import seaborn as sns
 
 from ..algorithms.matrix import moving_sum
 from ..apps.base import ActionDispatcher, OptionParser, logger
@@ -203,8 +204,6 @@ def mosdepth(args):
     Plot depth vs. coverage per chromosome. Inspired by mosdepth plot. See also:
     https://github.com/brentp/mosdepth
     """
-    import seaborn as sns
-
     sns.set_style("darkgrid")
 
     p = OptionParser(mosdepth.__doc__)
@@ -286,6 +285,7 @@ def draw_depth(
     median_line: bool = True,
     draw_seqids: bool = True,
     calculate_coverage: bool = False,
+    roi: Optional[List[Tuple[str, int]]] = None,
 ):
     """Draw depth plot on the given axes, using data from bed
 
@@ -404,6 +404,14 @@ def draw_depth(
                 va="center",
             )
 
+    # Plot the regions of interest
+    if roi:
+        for chrom, pos in roi:
+            if chrom not in starts:
+                continue
+            x = starts[chrom] + pos
+            ax.plot((x, x), (0, maxdepth), "-", lw=2, color="gray")
+
     # Add an arrow to the right of the plot, indicating these are median depths
     if median_line:
         root.text(
@@ -458,6 +466,21 @@ def draw_depth(
     normalize_axes(root)
 
 
+def read_roi(roi_file: str) -> Dict[str, List[str]]:
+    """
+    Read the regions of interest file, and return a dict of filename => regions.
+    """
+    roi = defaultdict(list)
+    with open(roi_file, encoding="utf-8") as fp:
+        for row in fp:
+            filename, region = row.strip().split(",")
+            chrom, start_end = region.split(":", 1)
+            start, end = start_end.split("-")
+            region = (chrom, (int(start) + int(end)) // 2)
+            roi[filename].append(region)
+    return roi
+
+
 def draw_multi_depth(
     root,
     panel_roots,
@@ -469,6 +492,7 @@ def draw_multi_depth(
     logscale: bool,
     median_line: bool = True,
     calculate_coverage: bool = False,
+    roi: Optional[str] = None,
 ):
     """
     Draw multiple depth plots on the same canvas.
@@ -478,6 +502,7 @@ def draw_multi_depth(
     npanels = len(bedfiles)
     yinterval = 1.0 / npanels
     ypos = 1 - yinterval
+    roi = read_roi(roi) if roi else {}
     for i, (bedfile, panel_root, panel_ax) in enumerate(
         zip(bedfiles, panel_roots, panel_axes)
     ):
@@ -506,6 +531,7 @@ def draw_multi_depth(
             median_line=median_line,
             draw_seqids=draw_seqids,
             calculate_coverage=calculate_coverage,
+            roi=roi.get(bedfile),
         )
         ypos -= yinterval
 
@@ -560,6 +586,10 @@ def depth(args):
         action="store_true",
         help="Calculate genome coverage",
     )
+    p.add_argument(
+        "--roi",
+        help="File that contains regions of interest, format: filename, chr:start-end",
+    )
     p.set_outfile("depth.pdf")
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
@@ -593,6 +623,7 @@ def depth(args):
         opts.logscale,
         median_line=not opts.no_median_line,
         calculate_coverage=opts.calculate_coverage,
+        roi=opts.roi,
     )
 
     image_name = opts.outfile

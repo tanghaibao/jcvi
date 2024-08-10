@@ -597,6 +597,7 @@ def depth(args):
 
     image_name = opts.outfile
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    return image_name
 
 
 def add_window_options(p):

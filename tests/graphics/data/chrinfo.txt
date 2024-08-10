@@ -1,0 +1,12 @@
+chr01A, #c51b7d, 1A
+chr01B, #4d9221, 1B
+chr02A, #c51b7d, 2A
+chr02B, #4d9221, 2B
+chr03A, #c51b7d, 3A
+chr03B, #4d9221, 3B
+chr04A, #c51b7d, 4A
+chr04B, #4d9221, 4B
+chr05A, #c51b7d, 5A
+chr05B, #4d9221, 5B
+chr06A, #c51b7d, 6A
+chr06B, #4d9221, 6B

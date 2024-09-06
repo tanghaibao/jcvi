@@ -19,6 +19,8 @@ from jcvi.graphics.karyotype import main as karyotype_main, make_circle_name
         ("chr01", {}, "1"),
         ("Ttru_Chr1", {}, "1"),
         ("pseudochromosome_1", {}, "1"),
+        ("chrZ", {}, "Z"),
+        ("ChrX", {"ChrX"}, "X-"),
     ],
 )
 def test_make_circle_name(sid, rev, expected):

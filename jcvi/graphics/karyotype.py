@@ -121,6 +121,7 @@ def make_circle_name(sid, rev):
 
     in_reverse = sid in rev
     sid = sid.rsplit("_", 1)[-1]
+    sid = sid.replace("chr", "").replace("Chr", "")
     si = re.findall(r"\d+", sid)
     if si:
         si = str(int(si[0]))

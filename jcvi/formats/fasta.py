@@ -1223,7 +1223,7 @@ def summary(args):
     p.add_argument(
         "--suffix", default="Mb", help="make the base pair counts human readable"
     )
-    p.add_argument("--ids", help="write the ids that have >= 50% N's")
+    p.add_argument("--ids", help="write the ids that have >= 50%% N's")
     p.set_outfile()
 
     opts, args = p.parse_args(args)
@@ -1239,7 +1239,7 @@ def summary(args):
 
     data = []
     for fastafile in args:
-        for rec in SeqIO.parse(fastafile, "fasta"):
+        for rec in SeqIO.parse(must_open(fastafile), "fasta"):
             seqlen = len(rec)
             nns = rec.seq.count("n") + rec.seq.count("N")
             reals = seqlen - nns
@@ -2183,7 +2183,7 @@ def _uniq_rec(fastafile, seq=False):
     Returns unique records
     """
     seen = set()
-    for rec in SeqIO.parse(fastafile, "fasta"):
+    for rec in SeqIO.parse(must_open(fastafile), "fasta"):
         name = str(rec.seq) if seq else rec.id
         if name in seen:
             logger.debug("ignore {0}".format(rec.id))

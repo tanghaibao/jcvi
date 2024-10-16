@@ -172,7 +172,6 @@ class Shade(object):
         bx1, by1 = b1
         bx2, by2 = b2
         if ax1 is None or ax2 is None or bx1 is None or bx2 is None:
-            logger.warning("Shade: None found in coordinates, skipping")
             return
         M, C4, L, CP = Path.MOVETO, Path.CURVE4, Path.LINETO, Path.CLOSEPOLY
         if style == "curve":

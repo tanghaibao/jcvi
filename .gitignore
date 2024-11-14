@@ -1,9 +1,18 @@
-# Created by http://www.gitignore.io
+# Mac stuff
+.DS_Store
+
+# Versioning
+jcvi/version.py
+
+# Ignore Cython generated C files
+jcvi/assembly/chic.c
+jcvi/formats/cblast.c
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+*$py.class
 
 # C extensions
 *.so
@@ -14,12 +23,15 @@ env/
 build/
 develop-eggs/
 dist/
+downloads/
 eggs/
+.eggs/
 lib/
 lib64/
 parts/
 sdist/
 var/
+wheels/
 *.egg-info/
 .installed.cfg
 *.egg
@@ -32,9 +44,12 @@ pip-delete-this-directory.txt
 htmlcov/
 .tox/
 .coverage
+.coverage.*
 .cache
 nosetests.xml
 coverage.xml
+*.cover
+.hypothesis/
 
 # Translations
 *.mo

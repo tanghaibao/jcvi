@@ -24,7 +24,6 @@ The input lp_data is assumed in .lp format, see below
 >>> print GLPKSolver(lp_data).results
 [0, 1]
 """
-import logging
 import os.path as op
 
 from dataclasses import dataclass
@@ -33,10 +32,11 @@ from more_itertools import pairwise
 
 import networkx as nx
 
-from jcvi.utils.cbook import fill
-from jcvi.formats.base import flexible_cast
-from jcvi.apps.base import cleanup, mkdir, sh
-from jcvi.algorithms.tsp import populate_edge_weights, node_to_edge
+from ..apps.base import cleanup, logger, mkdir, sh
+from ..formats.base import flexible_cast
+from ..utils.cbook import fill
+
+from .tsp import populate_edge_weights, node_to_edge
 
 
 Work_dir = "lpsolve_work"
@@ -132,7 +132,7 @@ class MIPDataModel:
 
     def log(self):
         """Log the size of the MIP instance"""
-        logging.info(
+        logger.info(
             "Number of variables (%d), number of constraints (%d)",
             self.num_vars,
             self.num_constraints,
@@ -158,13 +158,13 @@ class MIPDataModel:
             solver, x = self.create_solver()
             status = solver.Solve()
             if status == pywraplp.Solver.OPTIMAL:
-                logging.info("Objective value = %d", solver.Objective().Value())
+                logger.info("Objective value = %d", solver.Objective().Value())
                 filtered_list = [
                     j for j in range(self.num_vars) if x[j].solution_value() == 1
                 ]
-                logging.info("Problem solved in %d milliseconds", solver.wall_time())
-                logging.info("Problem solved in %d iterations", solver.iterations())
-                logging.info(
+                logger.info("Problem solved in %d milliseconds", solver.wall_time())
+                logger.info("Problem solved in %d iterations", solver.iterations())
+                logger.info(
                     "Problem solved in %d branch-and-bound nodes", solver.nodes()
                 )
 
@@ -173,7 +173,7 @@ class MIPDataModel:
             lp_data = self.format_lp()
             filtered_list = SCIPSolver(lp_data, work_dir, verbose=verbose).results
             if not filtered_list:
-                logging.error("SCIP fails... trying GLPK")
+                logger.error("SCIP fails... trying GLPK")
                 filtered_list = GLPKSolver(lp_data, work_dir, verbose=verbose).results
 
         return filtered_list
@@ -195,7 +195,7 @@ class AbstractMIPSolver(object):
         mkdir(work_dir)
 
         lpfile = op.join(work_dir, "data.lp")  # problem instance
-        logging.debug("write MIP instance to `{0}`".format(lpfile))
+        logger.debug("Write MIP instance to `%s`", lpfile)
 
         fw = open(lpfile, "w")
         fw.write(lp_data)
@@ -208,7 +208,7 @@ class AbstractMIPSolver(object):
             self.results = self.parse_output(outfile)
 
         if self.results:
-            logging.debug("optimized objective value ({0})".format(self.obj_val))
+            logger.debug("Optimized objective value (%s)", self.obj_val)
 
     def run(self, lp_data):
         raise NotImplementedError
@@ -240,9 +240,8 @@ class GLPKSolver(AbstractMIPSolver):
         retcode = sh(cmd, outfile=outf)
 
         if retcode == 127:
-            logging.error(
-                "You need to install program `glpsol` "
-                + "[http://www.gnu.org/software/glpk/]"
+            logger.error(
+                "You need to install program `glpsol` [http://www.gnu.org/software/glpk/]"
             )
             return -1, None
 
@@ -314,9 +313,7 @@ class SCIPSolver(AbstractMIPSolver):
         retcode = sh(cmd, outfile=outf)
 
         if retcode == 127:
-            logging.error(
-                "You need to install program `scip` " + "[http://scip.zib.de/]"
-            )
+            logger.error("You need to install program `scip` [http://scip.zib.de/]")
             return -1, None
 
         return retcode, outfile
@@ -780,7 +777,7 @@ def min_feedback_arc_set(edges, remove=False, maxcycles=20000):
         ncycles += 1
         if ncycles == maxcycles:
             break
-    logging.debug("A total of {0} cycles found.".format(ncycles))
+    logger.debug("A total of %d cycles found.", ncycles)
 
     L.constraints = constraints
     L.add_vars(nedges)

@@ -21,17 +21,25 @@ e, 0, 1, athaliana.grape.4x1.simple
 
 
 import sys
-import logging
 
-from typing import Optional
+from typing import List, Optional
 
-from jcvi.apps.base import OptionParser
-from jcvi.compara.synteny import SimpleFile
-from jcvi.formats.bed import Bed
-from jcvi.graphics.chromosome import Chromosome, HorizontalChromosome
-from jcvi.graphics.glyph import TextCircle
-from jcvi.graphics.synteny import Shade, ymid_offset
-from jcvi.graphics.base import AbstractLayout, markup, mpl, plt, savefig, update_figname
+from ..apps.base import OptionParser, logger
+from ..compara.synteny import SimpleFile
+from ..formats.bed import Bed
+
+from .base import (
+    AbstractLayout,
+    markup,
+    mpl,
+    normalize_axes,
+    plt,
+    savefig,
+    update_figname,
+)
+from .chromosome import Chromosome, HorizontalChromosome
+from .glyph import TextCircle
+from .synteny import Shade, ymid_offset
 
 
 class LayoutLine(object):
@@ -63,7 +71,7 @@ class Layout(AbstractLayout):
     def __init__(
         self, filename, delimiter=",", generank=False, seed: Optional[int] = None
     ):
-        super(Layout, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         self.edges = []
         for row in fp:
@@ -113,6 +121,7 @@ def make_circle_name(sid, rev):
 
     in_reverse = sid in rev
     sid = sid.rsplit("_", 1)[-1]
+    sid = sid.replace("chr", "").replace("Chr", "")
     si = re.findall(r"\d+", sid)
     if si:
         si = str(int(si[0]))
@@ -330,7 +339,6 @@ class ShadeManager(object):
 class Karyotype(object):
     def __init__(
         self,
-        fig,
         root,
         seqidsfile,
         layoutfile,
@@ -352,9 +360,10 @@ class Karyotype(object):
         fp = open(seqidsfile)
         # Strip the reverse orientation tag for e.g. chr3-
         di = lambda x: x[:-1] if x[-1] == "-" else x
-        for i, row in enumerate(fp):
-            if row[0] == "#":
-                continue
+        # Comments can cause layout and seqids to be out of sync
+        # https://github.com/tanghaibao/jcvi/issues/676
+        for i, row in enumerate(_ for _ in fp if not _.startswith("#") and _.strip()):
+            logger.info("Processing `%s` (track %d)", row.strip(), i)
             t = layout[i]
             # There can be comments in seqids file:
             # https://github.com/tanghaibao/jcvi/issues/335
@@ -377,7 +386,7 @@ class Karyotype(object):
             # validate if all seqids are non-empty
             for k, v in sz.items():
                 if v == 0:
-                    logging.error("Size of `%s` is empty. Please check", k)
+                    logger.error("Size of `%s` is empty. Please check", k)
             t.sizes = sz
 
         tracks = []
@@ -401,40 +410,40 @@ class Karyotype(object):
         self.layout = layout
 
 
-def main():
+def main(args: List[str]):
     p = OptionParser(__doc__)
-    p.add_option(
+    p.add_argument(
         "--basepair",
         default=False,
         action="store_true",
         help="Use base pair position instead of gene rank",
     )
-    p.add_option(
+    p.add_argument(
         "--keep-chrlabels",
         default=False,
         action="store_true",
         help="Keep chromosome labels",
     )
-    p.add_option(
+    p.add_argument(
         "--nocircles",
         default=False,
         action="store_true",
         help="Do not plot chromosome circles",
     )
-    p.add_option(
+    p.add_argument(
         "--shadestyle",
         default="curve",
         choices=Shade.Styles,
         help="Style of syntenic wedges",
     )
-    p.add_option(
+    p.add_argument(
         "--chrstyle",
         default="auto",
         choices=Chromosome.Styles,
         help="Style of chromosome labels",
     )
     p.set_outfile("karyotype.pdf")
-    opts, args, iopts = p.set_image_options(figsize="8x7")
+    opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -442,10 +451,9 @@ def main():
     seqidsfile, layoutfile = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     Karyotype(
-        fig,
         root,
         seqidsfile,
         layoutfile,
@@ -456,14 +464,13 @@ def main():
         generank=(not opts.basepair),
         seed=iopts.seed,
     )
-
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
     image_name = update_figname(opts.outfile, iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
+    return image_name
+
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

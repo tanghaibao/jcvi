@@ -7,21 +7,42 @@
 # Created by Haibao Tang on 12/02/19
 # Copyright © 2019 Haibao Tang. All rights reserved.
 #
-import logging
+"""
+Simulate sugarcane genomes and analyze the diversity in the progeny genomes.
+"""
+
 import os.path as op
 import sys
+
+from collections import Counter, defaultdict
+from enum import Enum
+from itertools import combinations, groupby, product
 from random import random, sample
-from itertools import groupby
-from collections import Counter
+from typing import Dict, List
+
 import numpy as np
 import matplotlib.pyplot as plt
+import seaborn as sns
+import pandas as pd
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, mkdir
-from jcvi.graphics.base import adjust_spines, markup, normalize_axes, savefig
-from jcvi.utils.validator import validate_in_choices
+from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir
+from ..formats.blast import Blast
+from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
+
+
+class CrossMode(Enum):
+    """
+    How the F1 is generated.
+    """
+
+    nplusn = "n+n"
+    nx2plusn = "nx2+n"
+    twoplusnFDR = "2n+n_FDR"
+    twoplusnSDR = "2n+n_SDR"
+
 
 # Computed using prepare(), corrected with real sizes
 ChrSizes = {
@@ -48,7 +69,9 @@ ChrSizes = {
 
 # Simulate genome composition
 class Genome:
-    def __init__(self, name, prefix, ploidy, haploid_chromosome_count):
+    def __init__(
+        self, name: str, prefix: str, ploidy: int, haploid_chromosome_count: int
+    ):
         """
         Simulate a genome with given ploidy and haploid_chromosome_count. Example:
 
@@ -67,7 +90,7 @@ class Genome:
         return len(self.chromosomes)
 
     @classmethod
-    def make(cls, name, chromosomes):
+    def make(cls, name: str, chromosomes: List[str]):
         genome = Genome(name, "", 0, 0)
         genome.chromosomes = chromosomes
         return genome
@@ -96,7 +119,7 @@ class Genome:
             return x.split("_", 1)[0]
 
         # Randomly assign the rest, singleton chromosomes
-        for group, chromosomes in groupby(singleton_chromosomes, key=prefix):
+        for _, chromosomes in groupby(singleton_chromosomes, key=prefix):
             chromosomes = list(chromosomes)
             halfn = len(chromosomes) // 2
             # Odd number, e.g. 5, equal chance to be 2 or 3
@@ -105,7 +128,7 @@ class Genome:
             gamete_chromosomes += sorted(sample(chromosomes, halfn))
         return Genome.make(self.name + " gamete", gamete_chromosomes)
 
-    def mate_nplusn(self, name, other_genome, verbose=True):
+    def mate_nplusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
                 f"Crossing '{self.name}' x '{other_genome.name}' (n+n)", file=sys.stderr
@@ -115,7 +138,7 @@ class Genome:
         )
         return Genome.make(name, f1_chromosomes)
 
-    def mate_nx2plusn(self, name, other_genome, verbose=True):
+    def mate_nx2plusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
                 f"Crossing '{self.name}' x '{other_genome.name}' (2xn+n)",
@@ -126,14 +149,22 @@ class Genome:
         )
         return Genome.make(name, f1_chromosomes)
 
-    def mate_2nplusn(self, name, other_genome, verbose=True):
+    def mate_2nplusn_FDR(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
-                f"Crossing '{self.name}' x '{other_genome.name}' (2n+n)",
+                f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_FDR)",
                 file=sys.stderr,
             )
         f1_chromosomes = sorted(self.chromosomes + other_genome.gamete.chromosomes)
         return Genome.make(name, f1_chromosomes)
+
+    def mate_2nplusn_SDR(self, name: str, other_genome: "Genome", verbose: bool = True):
+        if verbose:
+            print(
+                f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_SDR)",
+                file=sys.stderr,
+            )
+        raise NotImplementedError("2n+n_SDR not yet supported")
 
     def __str__(self):
         return self.name + ": " + ",".join(self.chromosomes)
@@ -181,27 +212,27 @@ class GenomeSummary:
         self.percent_SS_data = [100 - x for x in percent_SO_data]
 
     def _summary(self, a, tag, precision=0):
-        mean, min, max = (
+        mean, mn, mx = (
             round(np.mean(a), precision),
             round(np.min(a), precision),
             round(np.max(a), precision),
         )
         s = f"*{tag}* chr: {mean:.0f}"
-        if min == mean and max == mean:
+        if mn == mean and mx == mean:
             return s
-        return s + f" ({min:.0f}-{max:.0f})"
+        return s + f" ({mn:.0f}-{mx:.0f})"
 
     def _percent_summary(self, a, tag, precision=1):
-        mean, min, max = (
+        mean, mn, mx = (
             round(np.mean(a), precision),
             round(np.min(a), precision),
             round(np.max(a), precision),
         )
         s = f"*{tag}*%: {mean:.1f}%"
         print(s)
-        if min == mean and max == mean:
+        if mn == mean and mx == mean:
             return s
-        return s + f" ({min:.1f}-{max:.1f}%)"
+        return s + f" ({mn:.1f}-{mx:.1f}%)"
 
     @property
     def percent_SO_summary(self):
@@ -220,18 +251,19 @@ class GenomeSummary:
         return self._summary(self.SS_data, "Ss")
 
 
-def simulate_F1(SO, SS, mode="nx2+n", verbose=False):
-    SO_SS_F1 = (
-        SO.mate_nx2plusn("SOxSS F1", SS, verbose=verbose)
-        if mode == "nx2+n"
-        else SO.mate_2nplusn("SOxSS F1", SS, verbose=verbose)
-    )
+def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
+    if mode == CrossMode.nx2plusn:
+        SO_SS_F1 = SO.mate_nx2plusn("SOxSS F1", SS, verbose=verbose)
+    elif mode == CrossMode.twoplusnFDR:
+        SO_SS_F1 = SO.mate_2nplusn_FDR("SOxSS F1", SS, verbose=verbose)
+    elif mode == CrossMode.twoplusnSDR:
+        SO_SS_F1 = SO.mate_2nplusn_SDR("SOxSS F1", SS, verbose=verbose)
     if verbose:
         SO_SS_F1.print_summary()
     return SO_SS_F1
 
 
-def simulate_F2(SO, SS, mode="nx2+n", verbose=False):
+def simulate_F2(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
     SO_SS_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SO_SS_F2_nplusn = SO_SS_F1.mate_nplusn("SOxSS F2", SO_SS_F1, verbose=verbose)
     if verbose:
@@ -239,7 +271,7 @@ def simulate_F2(SO, SS, mode="nx2+n", verbose=False):
     return SO_SS_F2_nplusn
 
 
-def simulate_F1intercross(SO, SS, mode="nx2+n", verbose=False):
+def simulate_F1intercross(SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
     SO_SS_F1_1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SO_SS_F1_2 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SO_SS_F1intercross_nplusn = SO_SS_F1_1.mate_nplusn(
@@ -248,7 +280,7 @@ def simulate_F1intercross(SO, SS, mode="nx2+n", verbose=False):
     return SO_SS_F1intercross_nplusn
 
 
-def simulate_BCn(n, SO, SS, mode="nx2+n", verbose=False):
+def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
     SS_SO_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SS_SO_BC1, SS_SO_BC2_nplusn, SS_SO_BC3_nplusn, SS_SO_BC4_nplusn = (
         None,
@@ -258,12 +290,12 @@ def simulate_BCn(n, SO, SS, mode="nx2+n", verbose=False):
     )
     # BC1
     if n >= 1:
-        SS_SO_BC1 = (
-            # Expecting one more round of female restitution in BC1
-            SO.mate_nx2plusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
-            if mode == "nx2+n"
-            else SO.mate_2nplusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
-        )
+        if mode == CrossMode.nx2plusn:
+            SS_SO_BC1 = SO.mate_nx2plusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
+        elif mode == CrossMode.twoplusnFDR:
+            SS_SO_BC1 = SO.mate_2nplusn_FDR("SSxSO BC1", SS_SO_F1, verbose=verbose)
+        elif mode == CrossMode.twoplusnSDR:
+            SS_SO_BC1 = SO.mate_2nplusn_SDR("SSxSO BC1", SS_SO_F1, verbose=verbose)
     # BC2
     if n >= 2:
         SS_SO_BC2_nplusn = SO.mate_nplusn("SSxSO BC2", SS_SO_BC1, verbose=verbose)
@@ -299,8 +331,8 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     SO_data = []
     SS_data = []
     percent_SO_data = []
-    for sample in samples:
-        summary = sample.summary
+    for s in samples:
+        summary = s.summary
         try:
             _, _, group_unique, _, _ = [x for x in summary if x[0] == "SO"][0]
         except:
@@ -321,7 +353,7 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     shift = 0.5  # used to offset bars a bit to avoid cluttering
     if overlaps:
         for overlap in overlaps:
-            logging.debug(f"Modify bar offsets at {overlap} due to SS and SO overlaps")
+            logger.debug("Modify bar offsets at %s due to SS and SO overlaps", overlap)
             SS_counter[overlap - shift] = SS_counter[overlap]
             del SS_counter[overlap]
             SO_counter[overlap + shift] = SO_counter[overlap]
@@ -333,7 +365,7 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
         # Has data at the range end, but no adjacent data points (i.e. isolated bar)
         if value in d and (value - 1 in d or value + 1 in d):
             return
-        logging.debug(f"Modify bar offsets at {value} due to end of range ends")
+        logger.debug("Modify bar offsets at %d due to end of range ends", value)
         d[value - shift if value else value + shift] = d[80]
         del d[value]
 
@@ -378,7 +410,7 @@ def write_chromosomes(genomes: list[Genome], filename: str):
         filename (str): File path to write to.
     """
     print(f"Write chromosomes to `{filename}`", file=sys.stderr)
-    with open(filename, "w") as fw:
+    with open(filename, "w", encoding="utf-8") as fw:
         for genome in genomes:
             print(genome, file=fw)
 
@@ -391,16 +423,17 @@ def write_SO_percent(summary: GenomeSummary, filename: str):
         filename (str): File path to write to.
     """
     print(f"Write SO percent to `{filename}`", file=sys.stderr)
-    with open(filename, "w") as fw:
+    with open(filename, "w", encoding="utf-8") as fw:
         print("\n".join(str(x) for x in sorted(summary.percent_SO_data)), file=fw)
 
 
 def simulate(args):
     """
-    %prog simulate [2n+n|nx2+n]
+    %prog simulate [2n+n_FDR|2n+n_SDR|nx2+n]
 
     Run simulation on female restitution. There are two modes:
-    - 2n+n: merger between a somatic and a germline
+    - 2n+n_FDR: merger between a somatic and a germline
+    - 2n+n_SDR: merger between a recombined germline and a germline (not yet supported)
     - nx2+n: merger between a doubled germline and a germline
 
     These two modes would impact the sequence diversity in the progeny
@@ -408,25 +441,23 @@ def simulate(args):
     understand the mode and the spread of such diversity in the hybrid
     progenies.
     """
-    import seaborn as sns
-
     sns.set_style("darkgrid")
 
     p = OptionParser(simulate.__doc__)
-    p.add_option(
+    p.add_argument(
         "--verbose",
         default=False,
         action="store_true",
         help="Verbose logging during simulation",
     )
-    p.add_option("-N", default=10000, type="int", help="Number of simulated samples")
+    p.add_argument("-N", default=10000, type=int, help="Number of simulated samples")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (mode,) = args
-    validate_in_choices(mode, ["2n+n", "nx2+n"], "Mode")
-    logging.info(f"Transmission: {mode}")
+    mode = CrossMode(mode)
+    logger.info("Transmission: %s", mode)
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -509,7 +540,12 @@ def simulate(args):
     normalize_axes(root)
 
     # Title
-    mode_title = r"$n_1\times2 + n_2$" if mode == "nx2+n" else r"$2n + n$"
+    if mode == CrossMode.nx2plusn:
+        mode_title = r"$n_1\times2 + n_2$"
+    elif mode == CrossMode.twoplusnFDR:
+        mode_title = r"$2n + n$ (FDR)"
+    elif mode == CrossMode.twoplusnSDR:
+        mode_title = r"$2n + n$ (SDR)"
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)
@@ -545,10 +581,8 @@ def _get_sizes(filename, prefix_length, tag, target_size=None):
         tag (str): Prepend `tag-` to the seqid.
         target_size (int): Expected genome size. Defaults to None.
     """
-    from collections import defaultdict
-
     sizes_list = defaultdict(list)
-    with open(filename) as fp:
+    with open(filename, encoding="utf-8") as fp:
         for row in fp:
             if not row.startswith("Chr"):
                 continue
@@ -583,7 +617,7 @@ def prepare(args):
     Calculate lengths from real sugarcane data.
     """
     p = OptionParser(prepare.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
     if len(args) != 2:
         sys.exit(not p.print_help())
 
@@ -594,11 +628,176 @@ def prepare(args):
     print(sizes)
 
 
+def get_genome_wide_pct(summary: str) -> Dict[tuple, list]:
+    """Collect genome-wide ungapped percent identity.
+    Specifically, from file `SS_SR_SO.summary.txt`.
+
+    Args:
+        summary (str): File that contains per chromosome pct identity info,
+        collected via `formats.blast.summary()`.
+
+    Returns:
+        Dict[tuple, list]: Genome pair to list of pct identities.
+    """
+    COLUMNS = "filename, identicals, qry_gapless, qry_gapless_pct, ref_gapless, ref_gapless_pct, qryspan, pct_qryspan, refspan, pct_refspan".split(
+        ", "
+    )
+    df = pd.read_csv(summary, sep="\t", names=COLUMNS)
+    data_by_genomes = defaultdict(list)
+    for _, row in df.iterrows():
+        filename = row["filename"]
+        # e.g. SO_Chr01A.SO_Chr01B.1-1.blast
+        chr1, chr2 = filename.split(".")[:2]
+        genome1, chr1 = chr1.split("_")
+        genome2, chr2 = chr2.split("_")
+        chr1, chr2 = chr1[:5], chr2[:5]
+        if (  # Special casing for SS certain chromosomes that are non-collinear with SO/SR
+            genome1 != "SS"
+            and genome2 == "SS"
+            and chr2 not in ("Chr01", "Chr03", "Chr04")
+        ):
+            continue
+        qry_gapless_pct, ref_gapless_pct = (
+            row["qry_gapless_pct"],
+            row["ref_gapless_pct"],
+        )
+        data_by_genomes[(genome1, genome2)] += [qry_gapless_pct, ref_gapless_pct]
+    return data_by_genomes
+
+
+def get_anchors_pct(filename: str, min_pct: int = 94) -> list:
+    """Collect CDS-wide ungapped percent identity.
+
+    Args:
+        filename (str): Input file name, which is a LAST file.
+
+    Returns:
+        list: List of pct identities from this LAST file.
+    """
+    blast = Blast(filename)
+    pct = []
+    for c in blast:
+        if c.pctid < min_pct:
+            continue
+        identicals = c.hitlen - c.nmismatch - c.ngaps
+        qstart, qstop = c.qstart, c.qstop
+        sstart, sstop = c.sstart, c.sstop
+        qrycovered = qstop - qstart + 1
+        refcovered = sstop - sstart + 1
+        pct.append(identicals * 100 / qrycovered)
+        pct.append(identicals * 100 / refcovered)
+    return pct
+
+
+def divergence(args):
+    """
+    %prog divergence SS_SR_SO.summary.txt
+
+    Plot divergence between and within SS/SR/SO genomes.
+    """
+    sns.set_style("white")
+
+    p = OptionParser(divergence.__doc__)
+    p.add_argument("--title", default="Gapless", help="Plot title")
+    p.add_argument(
+        "--xmin",
+        default=94,
+        type=int,
+        help="Minimum percent identity in the histogram",
+    )
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (summary,) = args
+    data_by_genomes = get_genome_wide_pct(summary)
+    # Print summary statistics
+    print("Genome-wide ungapped percent identity:")
+    for (genome1, genome2), pct in sorted(data_by_genomes.items()):
+        print(genome1, genome2, np.mean(pct), np.std(pct))
+
+    # Plotting genome-wide divergence
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    SPECIES_CONFIG = {
+        "SS": {"label": "S. spontaneum", "pos": (0.5, 0.67)},
+        "SR": {"label": "S. robustum", "pos": (0.2, 0.3)},
+        "SO": {"label": "S. officinarum", "pos": (0.8, 0.3)},
+    }
+    # Get median for each genome pair
+    medians = {}
+    for g1, g2 in product(SPECIES_CONFIG.keys(), repeat=2):
+        g1, g2 = sorted((g1, g2))
+        d = data_by_genomes[(g1, g2)]
+        medians[(g1, g2)] = np.median(d)
+    for g, config in SPECIES_CONFIG.items():
+        x, y = config["pos"]
+        text = f'*{config["label"]}*' + f"\n{medians[(g, g)]:.1f} %"
+        text = markup(text)
+        root.text(x, y, text, color="darkslategray", ha="center", va="center")
+
+    # Connect lines
+    PAD, YPAD = 0.09, 0.045
+    for g1, g2 in combinations(SPECIES_CONFIG.keys(), 2):
+        g1, g2 = sorted((g1, g2))
+        x1, y1 = SPECIES_CONFIG[g1]["pos"]
+        x2, y2 = SPECIES_CONFIG[g2]["pos"]
+        x1, x2 = (x1 + PAD, x2 - PAD) if x1 < x2 else (x1 - PAD, x2 + PAD)
+        if y1 != y2:
+            y1, y2 = (y1 + YPAD, y2 - YPAD) if y1 < y2 else (y1 - YPAD, y2 + YPAD)
+        xmid, ymid = (x1 + x2) / 2, (y1 + y2) / 2
+        text = f"{medians[(g1, g2)]:.1f} %"
+        text = markup(text)
+        root.text(xmid, ymid, text, ha="center", va="center", backgroundcolor="w")
+        root.plot([x1, x2], [y1, y2], "-", lw=4, color="darkslategray")
+
+    # Pct identity histograms
+    PCT_CONFIG = {
+        ("SS", "SS"): {"pos": (0.5, 0.82)},
+        ("SR", "SR"): {"pos": (0.1, 0.2)},
+        ("SO", "SO"): {"pos": (0.9, 0.2)},
+        ("SR", "SS"): {"pos": (0.3 - PAD, 0.55)},
+        ("SO", "SS"): {"pos": (0.7 + PAD, 0.55)},
+        ("SO", "SR"): {"pos": (0.5, 0.18)},
+    }
+    HIST_WIDTH = 0.15
+    xmin = opts.xmin
+    for genome_pair, config in PCT_CONFIG.items():
+        x, y = config["pos"]
+        ax = fig.add_axes(
+            [x - HIST_WIDTH / 2, y - HIST_WIDTH / 2, HIST_WIDTH, HIST_WIDTH]
+        )
+        d = data_by_genomes[genome_pair]
+        binwidth = (100 - xmin) / 20
+        sns.histplot(d, ax=ax, binwidth=binwidth, kde=False)
+        ax.set_xlim(xmin, 100)
+        ax.get_yaxis().set_visible(False)
+        ax.set_xticks([xmin, 100])
+        adjust_spines(ax, ["bottom"], outward=True)
+        ax.spines["bottom"].set_color("lightslategray")
+
+    title = opts.title
+    italic_title = markup(f"*{title}*")
+    root.text(
+        0.5,
+        0.95,
+        f"{italic_title} identities between and within SS/SR/SO genomes",
+        size=14,
+        ha="center",
+        va="center",
+    )
+    normalize_axes(root)
+    image_name = f"SO_SR_SS.{title}." + iopts.format
+    savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+
+
 def main():
 
     actions = (
         ("prepare", "Calculate lengths from real sugarcane data"),
         ("simulate", "Run simulation on female restitution"),
+        # Plotting scripts to illustrate divergence between and within genomes
+        ("divergence", "Plot divergence between and within SS/SR/SO genomes"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())

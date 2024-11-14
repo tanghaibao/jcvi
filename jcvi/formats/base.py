@@ -1,24 +1,27 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+import fileinput
+import math
 import os
 import os.path as op
-import math
 import sys
-import logging
 
 from collections import OrderedDict
-from itertools import groupby, islice, cycle
+from itertools import cycle, groupby, islice
+from typing import IO, Union
+
 
 from Bio import SeqIO
-from jcvi.apps.base import (
+from ..apps.base import (
     OptionParser,
     ActionDispatcher,
     cleanup,
-    sh,
-    need_update,
+    logger,
     mkdir,
+    need_update,
     popen,
+    sh,
 )
 
 
@@ -28,10 +31,9 @@ FastqExt = ("fastq", "fq")
 
 class BaseFile(object):
     def __init__(self, filename):
-
         self.filename = filename
         if filename:
-            logging.debug("Load file `{0}`".format(filename))
+            logger.debug("Load file `%s`", filename)
 
 
 class LineFile(BaseFile, list):
@@ -40,15 +42,12 @@ class LineFile(BaseFile, list):
     """
 
     def __init__(self, filename, comment=None, load=False):
-
-        super(LineFile, self).__init__(filename)
+        super().__init__(filename)
 
         if load:
             fp = must_open(filename)
             self.lines = [l.strip() for l in fp if l[0] != comment]
-            logging.debug(
-                "Load {0} lines from `{1}`.".format(len(self.lines), filename)
-            )
+            logger.debug("Load %d lines from `%s`", len(self.lines), filename)
 
 
 class DictFile(BaseFile, OrderedDict):
@@ -66,7 +65,6 @@ class DictFile(BaseFile, OrderedDict):
         keycast=None,
         cast=None,
     ):
-
         BaseFile.__init__(self, filename)
         OrderedDict.__init__(self)
         self.keypos = keypos
@@ -84,7 +82,7 @@ class DictFile(BaseFile, OrderedDict):
 
                 msg = "Must contain >= {0} columns.  {1}.\n".format(ncols, action)
                 msg += "  --> Line {0}: {1}".format(lineno + 1, row)
-                logging.error(msg)
+                logger.error(msg)
                 if strict:
                     sys.exit(1)
                 else:
@@ -100,7 +98,7 @@ class DictFile(BaseFile, OrderedDict):
 
         assert thiscols, "File empty"
         self.ncols = thiscols
-        logging.debug("Imported {0} records from `{1}`.".format(len(self), filename))
+        logger.debug("Imported %d records from `%s`", len(self), filename)
 
     @classmethod
     def num_columns(cls, filename, delimiter=None):
@@ -119,7 +117,7 @@ class DictFile(BaseFile, OrderedDict):
 
 class SetFile(BaseFile, set):
     def __init__(self, filename, column=-1, delimiter=None):
-        super(SetFile, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         for row in fp:
             if not row.strip():
@@ -136,7 +134,6 @@ class FileMerger(object):
     """
 
     def __init__(self, filelist, outfile):
-
         self.filelist = filelist
         self.outfile = outfile
         self.ingz = filelist[0].endswith(".gz")
@@ -166,7 +163,7 @@ class FileSplitter(object):
         self.mode = mode
 
         format = format or self._guess_format(filename)
-        logging.debug("format is %s" % format)
+        logger.debug("format is %s", format)
 
         if format in ("fasta", "fastq"):
             self.klass = "seqio"
@@ -179,7 +176,6 @@ class FileSplitter(object):
         mkdir(outputdir)
 
     def _open(self, filename):
-
         if self.klass == "seqio":
             handle = SeqIO.parse(open(filename), self.format)
         elif self.klass == "clust":
@@ -260,16 +256,14 @@ class FileSplitter(object):
         """
         mode = self.mode
         assert mode in ("batch", "cycle", "optimal")
-        logging.debug("set split mode=%s" % mode)
+        logger.debug("set split mode=%s", mode)
 
         self.names = self.__class__.get_names(self.filename, N)
         if self.outputdir:
             self.names = [op.join(self.outputdir, x) for x in self.names]
 
         if not need_update(self.filename, self.names) and not force:
-            logging.error(
-                "file %s already existed, skip file splitting" % self.names[0]
-            )
+            logger.error("file %s already existed, skip file splitting", self.names[0])
             return
 
         filehandles = [open(x, "w") for x in self.names]
@@ -277,7 +271,7 @@ class FileSplitter(object):
         if mode == "batch":
             for batch, fw in zip(self._batch_iterator(N), filehandles):
                 count = self.write(fw, batch)
-                logging.debug("write %d records to %s" % (count, fw.name))
+                logger.debug("write %d records to %s", count, fw.name)
 
         elif mode == "cycle":
             handle = self._open(self.filename)
@@ -346,7 +340,13 @@ def timestamp():
     return "{0}{1:02d}{2:02d}".format(dt.now().year, dt.now().month, dt.now().day)
 
 
-def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=False):
+def must_open(
+    filename: str,
+    mode: str = "r",
+    checkexists: bool = False,
+    skipcheck: bool = False,
+    oappend: bool = False,
+) -> Union[IO, fileinput.FileInput]:
     """
     Accepts filename and returns filehandle.
 
@@ -358,8 +358,6 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=Fa
         if filename[0].endswith((".gz", ".bz2")):
             filename = " ".join(filename)  # allow opening multiple gz/bz2 files
         else:
-            import fileinput
-
             return fileinput.input(filename)
 
     if filename.startswith("s3://"):
@@ -394,7 +392,7 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=Fa
 
     elif filename.endswith(".bz2"):
         if "r" in mode:
-            cmd = "bzcat {0}".format(filename)
+            cmd = f"bzcat {filename}"
             fp = popen(cmd, debug=False)
         elif "w" in mode:
             import bz2
@@ -415,7 +413,7 @@ def must_open(filename, mode="r", checkexists=False, skipcheck=False, oappend=Fa
                 else:
                     fp = open(filename, "w")
             else:
-                logging.debug("File `{0}` already exists. Skipped.".format(filename))
+                logger.debug("File `%s` already exists. Skipped.", filename)
                 return None
         else:
             fp = open(filename, mode)
@@ -462,7 +460,7 @@ def write_file(filename, contents, meta=None, skipcheck=False, append=False, tee
 
     fileop = "appended" if append else "written"
     message = "{0} {1} to `{2}`.".format(meta, fileop, filename)
-    logging.debug(message.capitalize())
+    logger.debug(message.capitalize())
     if meta == "run script" and not append:
         sh("chmod u+x {0}".format(filename))
 
@@ -542,7 +540,6 @@ def flexible_cast(s):
 
 
 def main():
-
     actions = (
         ("pairwise", "convert a list of IDs into all pairs"),
         ("split", "split large file into N chunks"),
@@ -574,7 +571,7 @@ def seqids(args):
     A03,A02,A01
     """
     p = OptionParser(seqids.__doc__)
-    p.add_option("--pad0", default=0, help="How many zeros to pad")
+    p.add_argument("--pad0", default=0, help="How many zeros to pad")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -706,7 +703,7 @@ def flatten(args):
 
     p = OptionParser(flatten.__doc__)
     p.set_sep(sep=",")
-    p.add_option(
+    p.add_argument(
         "--zipflatten",
         default=None,
         dest="zipsep",
@@ -745,7 +742,7 @@ def unflatten(args):
     Given a list of ids, one per line, unflatten the list onto a single line with sep.
     """
     p = OptionParser(unflatten.__doc__)
-    p.add_option("--sep", default=",", help="Separator when joining ids")
+    p.add_argument("--sep", default=",", help="Separator when joining ids")
     p.set_outfile()
     opts, args = p.parse_args(args)
 
@@ -789,13 +786,13 @@ def group(args):
 
     p = OptionParser(group.__doc__)
     p.set_sep()
-    p.add_option(
-        "--groupby", default=None, type="int", help="Default column to groupby"
+    p.add_argument(
+        "--groupby", default=None, type=int, help="Default column to groupby"
     )
-    p.add_option(
+    p.add_argument(
         "--groupsep", default=",", help="Separator to join the grouped elements"
     )
-    p.add_option(
+    p.add_argument(
         "--nouniq",
         default=False,
         action="store_true",
@@ -821,7 +818,7 @@ def group(args):
             if len(cols) < len(atoms):
                 cols = [x for x in range(len(atoms))]
             if groupby not in cols:
-                logging.error("groupby col index `{0}` is out of range".format(groupby))
+                logger.error("groupby col index `%s` is out of range", groupby)
                 sys.exit()
 
             key = atoms[groupby]
@@ -902,14 +899,16 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     mode_choices = ("batch", "cycle", "optimal")
-    p.add_option("--all", default=False, action="store_true", help="split all records")
-    p.add_option(
+    p.add_argument(
+        "--all", default=False, action="store_true", help="split all records"
+    )
+    p.add_argument(
         "--mode",
         default="optimal",
         choices=mode_choices,
         help="Mode when splitting records",
     )
-    p.add_option(
+    p.add_argument(
         "--format", choices=("fasta", "fastq", "txt", "clust"), help="input file format"
     )
 
@@ -922,13 +921,13 @@ def split(args):
     fs = FileSplitter(filename, outputdir=outdir, format=opts.format, mode=opts.mode)
 
     if opts.all:
-        logging.debug("option -all override N")
+        logger.debug("option -all override N")
         N = fs.num_records
     else:
         N = min(fs.num_records, int(N))
         assert N > 0, "N must be > 0"
 
-    logging.debug("split file into %d chunks" % N)
+    logger.debug("split file into %d chunks", N)
     fs.split(N)
 
     return fs
@@ -947,21 +946,21 @@ def join(args):
       in each file.
     """
     p = OptionParser(join.__doc__)
-    p.add_option(
+    p.add_argument(
         "--column", default="0", help="0-based column id, multiple values allowed"
     )
     p.set_sep(multiple=True)
-    p.add_option(
+    p.add_argument(
         "--noheader", default=False, action="store_true", help="Do not print header"
     )
-    p.add_option("--na", default="na", help="Value for unjoined data")
-    p.add_option(
+    p.add_argument("--na", default="na", help="Value for unjoined data")
+    p.add_argument(
         "--compact",
         default=False,
         action="store_true",
         help="Do not repeat pivotal columns in output",
     )
-    p.add_option(
+    p.add_argument(
         "--keysep",
         default=",",
         help="specify separator joining multiple elements in the key column"
@@ -1052,14 +1051,14 @@ def subset(args):
     """
 
     p = OptionParser(subset.__doc__)
-    p.add_option(
+    p.add_argument(
         "--column", default="0", help="0-based column id, multiple values allowed"
     )
     p.set_sep(multiple=True)
-    p.add_option(
+    p.add_argument(
         "--pivot",
         default=1,
-        type="int",
+        type=int,
         help="1 for using order in file1, 2 for using order in \
                     file2",
     )
@@ -1133,10 +1132,10 @@ def setop(args):
     from natsort import natsorted
 
     p = OptionParser(setop.__doc__)
-    p.add_option(
+    p.add_argument(
         "--column",
         default=0,
-        type="int",
+        type=int,
         help="The column to extract, 0-based, -1 to disable",
     )
     opts, args = p.parse_args(args)

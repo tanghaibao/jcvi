@@ -21,21 +21,21 @@ synteny score. For the same query, it is ordered with decreasing synteny score.
 The last column means orientation. "+" is same direction.
 """
 import os.path as op
-import logging
-import sys
 import sqlite3
+import sys
 
 from bisect import bisect_left
 from itertools import groupby, tee
 
-from jcvi.algorithms.lis import (
+from ..algorithms.lis import (
     longest_increasing_subsequence,
     longest_decreasing_subsequence,
 )
-from jcvi.compara.synteny import check_beds, read_blast
-from jcvi.utils.grouper import Grouper
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, OptionGroup
+from ..apps.base import OptionParser, logger
+from ..formats.base import must_open
+from ..utils.grouper import Grouper
+
+from .synteny import check_beds, read_blast
 
 
 def transposed(data):
@@ -228,7 +228,7 @@ def main(blastfile, p, opts):
 
     batch_query(qbed, sbed, all_data, opts, fw=fw, c=c, transpose=False)
     if qbed.filename == sbed.filename:
-        logging.debug("Self comparisons, mirror ignored")
+        logger.debug("Self comparisons, mirror ignored")
     else:
         batch_query(qbed, sbed, all_data, opts, fw=fw, c=c, transpose=True)
 
@@ -247,31 +247,28 @@ if __name__ == "__main__":
     p.set_stripnames()
     p.set_outfile()
 
-    coge_group = OptionGroup(p, "CoGe-specific options")
-    coge_group.add_option("--sqlite", help="Write sqlite database")
-    coge_group.add_option("--qnote", default="null", help="Query dataset group id")
-    coge_group.add_option("--snote", default="null", help="Subject dataset group id")
+    coge_group = p.add_argument_group("CoGe-specific options")
+    coge_group.add_argument("--sqlite", help="Write sqlite database")
+    coge_group.add_argument("--qnote", default="null", help="Query dataset group id")
+    coge_group.add_argument("--snote", default="null", help="Subject dataset group id")
 
-    params_group = OptionGroup(p, "Synteny parameters")
-    params_group.add_option(
-        "--window", type="int", default=40, help="Synteny window size"
+    params_group = p.add_argument_group("Synteny parameters")
+    params_group.add_argument(
+        "--window", type=int, default=40, help="Synteny window size"
     )
-    params_group.add_option(
+    params_group.add_argument(
         "--cutoff",
-        type="float",
+        type=float,
         default=0.1,
         help="Minimum number of anchors to call synteny",
     )
     supported_scoring = ("collinear", "density")
-    params_group.add_option(
+    params_group.add_argument(
         "--scoring",
         choices=supported_scoring,
         default="collinear",
         help="Scoring scheme",
     )
-
-    p.add_option_group(coge_group)
-    p.add_option_group(params_group)
 
     opts, args = p.parse_args()
 

@@ -9,32 +9,37 @@ and sorghum paper.
 
 import os.path as op
 import sys
-import logging
+
+from collections import Counter, OrderedDict, defaultdict
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
+import seaborn as sns
 
-from collections import defaultdict, OrderedDict
+from ..algorithms.matrix import moving_sum
+from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..formats.base import BaseFile, DictFile, LineFile, must_open
+from ..formats.bed import Bed, bins, get_nbins
+from ..formats.sizes import Sizes
+from ..utils.cbook import autoscale, human_size, percentage
 
-from jcvi.formats.sizes import Sizes
-from jcvi.formats.base import BaseFile, DictFile, LineFile, must_open
-from jcvi.formats.bed import Bed, bins
-from jcvi.algorithms.matrix import moving_sum
-from jcvi.graphics.base import (
-    plt,
-    Rectangle,
+from .base import (
     CirclePolygon,
-    savefig,
-    ticker,
+    Colormap,
+    Extent,
+    Rectangle,
+    adjust_extent,
+    adjust_spines,
     human_readable_base,
     latex,
     markup,
-    set_human_axis,
     normalize_axes,
-    adjust_spines,
+    plt,
+    savefig,
+    set_human_axis,
+    ticker,
 )
-from jcvi.utils.cbook import human_size, autoscale
-from jcvi.apps.base import OptionParser, ActionDispatcher
-
+from .chromosome import HorizontalChromosome
 
 # Colors picked from Schmutz soybean genome paper using ColorPic
 palette = ["#ACABD5", "#DBF0F5", "#3EA77A", "#FBF5AB", "#C162A6"] + list("rgbymck")
@@ -49,8 +54,11 @@ Registration = {
     "Exons": "Genes (exons)",
 }
 
+# Consider a depth of 5 as minimum covered depth
+MIN_COVERED_DEPTH = 5
 
-class BinLine(object):
+
+class BinLine:
     def __init__(self, row):
         args = row.split()
         self.chr = args[0]
@@ -66,10 +74,10 @@ class BinLine(object):
 
 class BinFile(LineFile):
     def __init__(self, filename):
-        super(BinFile, self).__init__(filename)
+        super().__init__(filename)
         self.mapping = defaultdict(list)
 
-        fp = open(filename)
+        fp = open(filename, encoding="utf-8")
         for row in fp:
             b = BinLine(row)
             self.append(b)
@@ -91,8 +99,8 @@ class ChrInfoLine:
 
 class ChrInfoFile(BaseFile, OrderedDict):
     def __init__(self, filename, delimiter=","):
-        super(ChrInfoFile, self).__init__(filename)
-        with open(filename) as fp:
+        super().__init__(filename)
+        with open(filename, encoding="utf-8") as fp:
             for row in fp:
                 if row[0] == "#":
                     continue
@@ -112,8 +120,8 @@ class TitleInfoLine:
 
 class TitleInfoFile(BaseFile, OrderedDict):
     def __init__(self, filename, delimiter=","):
-        super(TitleInfoFile, self).__init__(filename)
-        with open(filename) as fp:
+        super().__init__(filename)
+        with open(filename, encoding="utf-8") as fp:
             for row in fp:
                 if row[0] == "#":
                     continue
@@ -124,13 +132,12 @@ class TitleInfoFile(BaseFile, OrderedDict):
 def main():
 
     actions = (
-        ("stack", "create landscape plot with genic/te composition"),
-        ("heatmap", "similar to stack but adding heatmap"),
         ("composite", "combine line plots, feature bars and alt-bars"),
-        ("multilineplot", "combine multiple line plots in one vertical stack"),
-        # Related to chromosomal depth
         ("depth", "show per chromosome depth plot across genome"),
+        ("heatmap", "similar to stack but adding heatmap"),
         ("mosdepth", "plot depth vs. coverage per chromosome"),
+        ("multilineplot", "combine multiple line plots in one vertical stack"),
+        ("stack", "create landscape plot with genic/te composition"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -148,15 +155,13 @@ def parse_distfile(filename):
     Args:
         filename (str): Path to the file.
     """
-    from collections import defaultdict, Counter
-
     dists = defaultdict(Counter)
     with must_open(filename) as fp:
         for row in fp:
-            chromosome, start, end, depth = row.split()
+            chromosome, _, _, depth = row.split()
             depth = int(float(depth))
             dists[chromosome][depth] += 1
-    logging.debug("Loaded {} seqids".format(len(dists)))
+    logger.debug("Loaded %d seqids", len(dists))
     return dists
 
 
@@ -172,11 +177,11 @@ def parse_groupsfile(filename):
         filename (str): Path to the groups file.
     """
     groups = []
-    with open(filename) as fp:
+    with open(filename, encoding="utf-8") as fp:
         for row in fp:
             chrs, colors = row.split()
             groups.append((chrs.split(","), colors.split(",")))
-    logging.debug("Loaded {} groups".format(len(groups)))
+    logger.debug("Loaded %d groups", len(groups))
     return groups
 
 
@@ -199,13 +204,11 @@ def mosdepth(args):
     Plot depth vs. coverage per chromosome. Inspired by mosdepth plot. See also:
     https://github.com/brentp/mosdepth
     """
-    import seaborn as sns
-
     sns.set_style("darkgrid")
 
     p = OptionParser(mosdepth.__doc__)
-    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to plot")
-    p.add_option(
+    p.add_argument("--maxdepth", default=100, type=int, help="Maximum depth to plot")
+    p.add_argument(
         "--logscale", default=False, action="store_true", help="Use log-scale on depth"
     )
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="6x8")
@@ -221,7 +224,7 @@ def mosdepth(args):
 
     # Construct a composite figure with N tracks indicated in the groups
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     rows = len(groups)
     ypad = 0.05
@@ -230,10 +233,10 @@ def mosdepth(args):
 
     for group_idx, (chrs, colors) in enumerate(groups):
         yy -= yinterval
-        ax = fig.add_axes([0.15, yy, 0.7, yinterval * 0.85])
+        ax = fig.add_axes((0.15, yy, 0.7, yinterval * 0.85))
         for c, color in zip(chrs, colors):
             cdata = dists[c].items()
-            logging.debug("Importing {} records for {}".format(len(cdata), c))
+            logger.debug("Importing %d records for %s", len(cdata), c)
             cx, cy = zip(*sorted(cdata))
             ax.plot(cx, cy, "-", color=color)
         if logscale:
@@ -271,14 +274,18 @@ def mosdepth(args):
 def draw_depth(
     root,
     ax,
-    bed,
-    chrinfo={},
-    defaultcolor="k",
-    sepcolor="w",
-    ylim=100,
-    logscale=False,
-    title=None,
-    subtitle=None,
+    bed: Bed,
+    chrinfo: dict = {},
+    defaultcolor: str = "k",
+    sepcolor: str = "w",
+    maxdepth: int = 100,
+    logscale: bool = False,
+    title: Optional[str] = None,
+    subtitle: Optional[str] = None,
+    median_line: bool = True,
+    draw_seqids: bool = True,
+    calculate_coverage: bool = False,
+    roi: Optional[List[Tuple[str, int]]] = None,
 ):
     """Draw depth plot on the given axes, using data from bed
 
@@ -289,7 +296,7 @@ def draw_depth(
         chrinfo (ChrInfoFile): seqid => color, new name
         defaultcolor (str): matplotlib-compatible color for data points
         sepcolor (str): matplotlib-compatible color for chromosome breaks
-        ylim (int): Upper limit of the y-axis (depth)
+        maxdepth (int): Upper limit of the y-axis (depth)
         title (str): Title of the figure, to the right of the axis
         subtitle (str): Subtitle of the figure, just below title
     """
@@ -301,6 +308,7 @@ def draw_depth(
     ends = {}
     label_positions = []
     start = 0
+    end = 0
     for seqid in seqids:
         if seqid not in sizes:
             continue
@@ -314,6 +322,8 @@ def draw_depth(
     # Extract plotting data
     data = []
     data_by_seqid = defaultdict(list)
+    total_bp = 0
+    covered_bp = 0
     for b in bed:
         seqid = b.seqid
         if seqid not in starts:
@@ -324,6 +334,10 @@ def draw_depth(
         c = chrinfo[seqid].color if seqid in chrinfo else "k"
         data.append((x, y, c))
         data_by_seqid[seqid].append(y)
+        if y >= MIN_COVERED_DEPTH:
+            covered_bp += b.end - b.start
+        total_bp += b.end - b.start
+    logger.debug("cov: %s", percentage(covered_bp, total_bp, precision=0))
 
     x, y, c = zip(*data)
     ax.scatter(
@@ -334,7 +348,7 @@ def draw_depth(
         s=8,
         lw=0,
     )
-    logging.debug("Obtained {} data points with depth data".format(len(data)))
+    logger.debug("Obtained %d data points with depth data", len(data))
 
     # Per seqid median
     medians = {}
@@ -344,39 +358,69 @@ def draw_depth(
         seqid_end = ends[seqid]
         seqid_median = np.median(values)
         medians[seqid] = seqid_median
-        ax.plot(
-            (seqid_start, seqid_end),
-            (seqid_median, seqid_median),
-            "-",
-            lw=4,
-            color=c,
-            alpha=0.5,
-        )
+        if median_line:
+            ax.plot(
+                (seqid_start, seqid_end),
+                (seqid_median, seqid_median),
+                "-",
+                lw=4,
+                color=c,
+                alpha=0.5,
+            )
 
-    # vertical lines for all the breaks
+    # Vertical lines for all the breaks
     for pos in starts.values():
-        ax.plot((pos, pos), (0, ylim), "-", lw=1, color=sepcolor)
+        ax.plot((pos, pos), (0, maxdepth), "-", lw=1, color=sepcolor)
 
-    # beautify the numeric axis
+    # Beautify the numeric axis
     for tick in ax.get_xticklines() + ax.get_yticklines():
         tick.set_visible(False)
 
     median_depth_y = 0.88
     chr_label_y = 0.08
+    rotation = 20 if len(label_positions) > 10 else 0
     for seqid, position in label_positions:
         xpos = 0.1 + position * 0.8 / xsize
         c = chrinfo[seqid].color if seqid in chrinfo else defaultcolor
         newseqid = chrinfo[seqid].new_name if seqid in chrinfo else seqid
-        root.text(
-            xpos, chr_label_y, newseqid, color=c, ha="center", va="center", rotation=20
-        )
+        if draw_seqids:
+            root.text(
+                xpos,
+                chr_label_y,
+                newseqid,
+                color=c,
+                ha="center",
+                va="center",
+                rotation=rotation,
+            )
         seqid_median = medians[seqid]
+        if median_line:
+            root.text(
+                xpos,
+                median_depth_y,
+                str(int(seqid_median)),
+                color=c,
+                ha="center",
+                va="center",
+            )
+
+    # Plot the regions of interest
+    if roi:
+        for chrom, pos, name in roi:
+            if chrom not in starts:
+                continue
+            x = starts[chrom] + pos
+            # TODO: Remove this special case
+            color = {"II": "tomato", "low qual": "g"}.get(name, "gray")
+            ax.plot((x, x), (0, maxdepth), "-", lw=2, color=color)
+
+    # Add an arrow to the right of the plot, indicating these are median depths
+    if median_line:
         root.text(
-            xpos,
-            median_depth_y,
-            str(int(seqid_median)),
-            color=c,
-            ha="center",
+            0.91,
+            0.88,
+            r"$\leftarrow$median",
+            color="lightslategray",
             va="center",
         )
 
@@ -400,16 +444,100 @@ def draw_depth(
             va="center",
             size=15,
         )
+    if calculate_coverage:
+        cov_pct = percentage(covered_bp, total_bp, precision=0, mode=None)
+        root.text(
+            0.95,
+            0.25,
+            latex(f"cov: {cov_pct}"),
+            color="darkslategray",
+            ha="center",
+            va="center",
+            size=15,
+        )
 
     ax.set_xticks([])
     ax.set_xlim(0, xsize)
     if logscale:
         ax.set_yscale("log", basey=2)
-    ax.set_ylim(1 if logscale else 0, ylim)
+    ax.set_ylim(1 if logscale else 0, maxdepth)
     ax.set_ylabel("Depth")
 
     set_human_axis(ax)
     plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=10)
+    normalize_axes(root)
+
+
+def read_roi(roi_file: str) -> Dict[str, List[str]]:
+    """
+    Read the regions of interest file, and return a dict of filename => regions.
+    """
+    roi = defaultdict(list)
+    with open(roi_file, encoding="utf-8") as fp:
+        for row in fp:
+            filename, region, name = row.strip().split(",")[:3]
+            chrom, start_end = region.split(":", 1)
+            start, end = start_end.split("-")
+            region = (chrom, (int(start) + int(end)) // 2, name)
+            roi[filename].append(region)
+    logger.info("Read %d regions of interest", len(roi))
+    return roi
+
+
+def draw_multi_depth(
+    root,
+    panel_roots,
+    panel_axes,
+    bedfiles: List[str],
+    chrinfo_file: str,
+    titleinfo_file: str,
+    maxdepth: int,
+    logscale: bool,
+    median_line: bool = True,
+    calculate_coverage: bool = False,
+    roi: Optional[str] = None,
+):
+    """
+    Draw multiple depth plots on the same canvas.
+    """
+    chrinfo = ChrInfoFile(chrinfo_file) if chrinfo_file else {}
+    titleinfo = TitleInfoFile(titleinfo_file) if titleinfo_file else {}
+    npanels = len(bedfiles)
+    yinterval = 1.0 / npanels
+    ypos = 1 - yinterval
+    roi = read_roi(roi) if roi else {}
+    for i, (bedfile, panel_root, panel_ax) in enumerate(
+        zip(bedfiles, panel_roots, panel_axes)
+    ):
+        pf = op.basename(bedfile).split(".", 1)[0]
+        bed = Bed(bedfile)
+
+        if ypos > 0.001:
+            root.plot((0.02, 0.98), (ypos, ypos), "-", lw=2, color="lightgray")
+
+        title = titleinfo.get(bedfile, pf.split("_", 1)[0])
+        subtitle = None
+        if isinstance(title, TitleInfoLine):
+            subtitle = title.subtitle
+            title = title.title
+
+        draw_seqids = i in (0, npanels - 1)
+        draw_depth(
+            panel_root,
+            panel_ax,
+            bed,
+            chrinfo=chrinfo,
+            maxdepth=maxdepth,
+            logscale=logscale,
+            title=title,
+            subtitle=subtitle,
+            median_line=median_line,
+            draw_seqids=draw_seqids,
+            calculate_coverage=calculate_coverage,
+            roi=roi.get(bedfile),
+        )
+        ypos -= yinterval
+
     normalize_axes(root)
 
 
@@ -438,109 +566,118 @@ def depth(args):
     composite figure.
     """
     p = OptionParser(depth.__doc__)
-    p.add_option(
+    p.add_argument(
         "--chrinfo", help="Comma-separated mappings between seqid, color, new_name"
     )
-    p.add_option(
+    p.add_argument(
         "--titleinfo",
         help="Comma-separated titles mappings between filename, title",
     )
-    p.add_option("--maxdepth", default=100, type="int", help="Maximum depth to show")
-    p.add_option(
+    p.add_argument("--maxdepth", default=100, type=int, help="Maximum depth to show")
+    p.add_argument(
         "--logscale", default=False, action="store_true", help="Use log-scale on depth"
     )
+    p.add_argument(
+        "--no-median-line",
+        default=False,
+        action="store_true",
+        help="Do not plot median depth line",
+    )
+    p.add_argument(
+        "--calculate-coverage",
+        default=False,
+        action="store_true",
+        help="Calculate genome coverage",
+    )
+    p.add_argument(
+        "--roi",
+        help="File that contains regions of interest, format: filename, chr:start-end",
+    )
+    p.set_outfile("depth.pdf")
     opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
 
     if len(args) < 1:
         sys.exit(not p.print_help())
 
     bedfiles = args
-    chrinfo = ChrInfoFile(opts.chrinfo) if opts.chrinfo else {}
-    titleinfo = TitleInfoFile(opts.titleinfo) if opts.titleinfo else {}
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     npanels = len(bedfiles)
     yinterval = 1.0 / npanels
     ypos = 1 - yinterval
-    for bedfile in bedfiles:
-        pf = op.basename(bedfile).split(".", 1)[0]
-        bed = Bed(bedfile)
-
-        panel_root = root if npanels == 1 else fig.add_axes([0, ypos, 1, yinterval])
-        panel_ax = fig.add_axes([0.1, ypos + 0.2 * yinterval, 0.8, 0.65 * yinterval])
-        if ypos > 0.001:
-            root.plot((0, 1), (ypos, ypos), "-", lw=2, color="lightslategray")
-
-        title = titleinfo.get(bedfile, pf.split("_", 1)[0])
-        subtitle = None
-        if isinstance(title, TitleInfoLine):
-            subtitle = title.subtitle
-            title = title.title
-
-        draw_depth(
-            panel_root,
-            panel_ax,
-            bed,
-            chrinfo=chrinfo,
-            ylim=opts.maxdepth,
-            logscale=opts.logscale,
-            title=title,
-            subtitle=subtitle,
-        )
+    panel_roots, panel_axes = [], []
+    for _ in range(npanels):
+        panel_root = root if npanels == 1 else fig.add_axes((0, ypos, 1, yinterval))
+        panel_ax = fig.add_axes((0.1, ypos + 0.2 * yinterval, 0.8, 0.65 * yinterval))
+        panel_roots.append(panel_root)
+        panel_axes.append(panel_ax)
         ypos -= yinterval
 
-    normalize_axes(root)
+    draw_multi_depth(
+        root,
+        panel_roots,
+        panel_axes,
+        bedfiles,
+        opts.chrinfo,
+        opts.titleinfo,
+        opts.maxdepth,
+        opts.logscale,
+        median_line=not opts.no_median_line,
+        calculate_coverage=opts.calculate_coverage,
+        roi=opts.roi,
+    )
 
-    if npanels > 1:
-        pf = op.commonprefix(bedfiles)
-    pf = pf or "depth"
-    image_name = pf + "." + iopts.format
+    image_name = opts.outfile
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    return image_name
 
 
 def add_window_options(p):
-    p.add_option("--window", default=500000, type="int", help="Size of window")
-    p.add_option("--shift", default=100000, type="int", help="Size of shift")
-    p.add_option("--subtract", help="Subtract bases from window")
-    p.add_option(
+    """
+    Add options for window plotting.
+    """
+    p.add_argument("--window", default=500000, type=int, help="Size of window")
+    p.add_argument("--shift", default=100000, type=int, help="Size of shift")
+    p.add_argument("--subtract", help="Subtract bases from window")
+    p.add_argument(
         "--nomerge", default=False, action="store_true", help="Do not merge features"
     )
 
 
 def check_window_options(opts):
+    """
+    Check the window options, and return the values.
+    """
     window = opts.window
     shift = opts.shift
     subtract = opts.subtract
     assert window % shift == 0, "--window must be divisible by --shift"
-    logging.debug(
-        "Line/stack-plot options: window={0} shift={1} subtract={2}".format(
-            window, shift, subtract
-        )
+    logger.debug(
+        "Line/stack-plot options: window=%d shift=%d subtract=%s",
+        window,
+        shift,
+        subtract,
     )
     merge = not opts.nomerge
 
     return window, shift, subtract, merge
 
 
-def get_beds(s, binned=False):
+def get_beds(s: List[str], binned: bool = False) -> List[str]:
+    """
+    Get the bed files for each feature, and return them as a list.
+    """
     return [x + ".bed" for x in s] if not binned else [x for x in s]
-
-
-def get_nbins(clen, shift):
-    nbins = clen / shift
-    if clen % shift:
-        nbins += 1
-    return nbins
 
 
 def linearray(binfile, chr, window, shift):
     mn = binfile.mapping[chr]
-    m, n = zip(*mn)
+    m, _ = zip(*mn)
 
-    m = np.array(m, dtype="float")
-    w = window / shift
+    m = np.array(m, dtype=float)
+    w = window // shift
     m = moving_sum(m, window=w)
     return m
 
@@ -593,19 +730,17 @@ def composite(args):
     --bars: show where the extent of features are
     --altbars: similar to bars, yet in two alternating tracks, e.g. scaffolds
     """
-    from jcvi.graphics.chromosome import HorizontalChromosome
-
     p = OptionParser(composite.__doc__)
-    p.add_option("--lines", help="Features to plot in lineplot")
-    p.add_option("--bars", help="Features to plot in bars")
-    p.add_option("--altbars", help="Features to plot in alt-bars")
-    p.add_option(
+    p.add_argument("--lines", help="Features to plot in lineplot")
+    p.add_argument("--bars", help="Features to plot in bars")
+    p.add_argument("--altbars", help="Features to plot in alt-bars")
+    p.add_argument(
         "--fatten",
         default=False,
         action="store_true",
         help="Help visualize certain narrow features",
     )
-    p.add_option(
+    p.add_argument(
         "--mode",
         default="span",
         choices=("span", "count", "score"),
@@ -618,7 +753,7 @@ def composite(args):
         sys.exit(not p.print_help())
 
     fastafile, chr = args
-    window, shift, subtract, merge = check_window_options(opts)
+    window, shift, _, merge = check_window_options(opts)
     linebeds, barbeds, altbarbeds = [], [], []
     fatten = opts.fatten
     if opts.lines:
@@ -635,13 +770,13 @@ def composite(args):
 
     margin = 0.12
     clen = Sizes(fastafile).mapping[chr]
-    nbins = get_nbins(clen, shift)
+    nbins, _ = get_nbins(clen, shift)
 
     plt.rcParams["xtick.major.size"] = 0
     plt.rcParams["ytick.major.size"] = 0
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     root.text(0.5, 0.95, chr, ha="center", color="darkslategray")
 
@@ -649,7 +784,7 @@ def composite(args):
     xlen = xend - xstart
     ratio = xlen / clen
     # Line plots
-    ax = fig.add_axes([xstart, 0.6, xlen, 0.3])
+    ax = fig.add_axes((xstart, 0.6, xlen, 0.3))
     lineplot(ax, linebins, nbins, chr, window, shift)
 
     # Bar plots
@@ -678,7 +813,7 @@ def composite(args):
     for bb in altbarbeds:
         root.text(xend + 0.01, yy, bb.split(".")[0], va="center")
         bb = Bed(bb)
-        for i, b in enumerate(bb):
+        for b in bb:
             start, end = xs(b.start), xs(b.end)
             span = end - start
             if span < 0.0001:
@@ -709,22 +844,22 @@ def multilineplot(args):
     --lines: traditional line plots, useful for plotting feature freq
     """
     p = OptionParser(multilineplot.__doc__)
-    p.add_option("--lines", help="Features to plot in lineplot")
-    p.add_option("--colors", help="List of colors matching number of input bed files")
-    p.add_option(
+    p.add_argument("--lines", help="Features to plot in lineplot")
+    p.add_argument("--colors", help="List of colors matching number of input bed files")
+    p.add_argument(
         "--mode",
         default="span",
         choices=("span", "count", "score"),
         help="Accumulate feature based on",
     )
-    p.add_option(
+    p.add_argument(
         "--binned",
         default=False,
         action="store_true",
         help="Specify whether the input is already binned; "
         + "if True, input files are considered to be binfiles",
     )
-    p.add_option("--ymax", type="int", help="Set Y-axis max")
+    p.add_argument("--ymax", type=int, help="Set Y-axis max")
     add_window_options(p)
     opts, args, iopts = p.set_image_options(args, figsize="8x5")
 
@@ -732,7 +867,7 @@ def multilineplot(args):
         sys.exit(not p.print_help())
 
     fastafile, chr = args
-    window, shift, subtract, merge = check_window_options(opts)
+    window, shift, _, merge = check_window_options(opts)
     linebeds = []
     colors = opts.colors
     if opts.lines:
@@ -747,7 +882,7 @@ def multilineplot(args):
     )
 
     clen = Sizes(fastafile).mapping[chr]
-    nbins = get_nbins(clen, shift)
+    nbins, _ = get_nbins(clen, shift)
 
     plt.rcParams["xtick.major.size"] = 0
     plt.rcParams["ytick.major.size"] = 0
@@ -778,36 +913,24 @@ def multilineplot(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def heatmap(args):
+def draw_heatmaps(
+    fig,
+    root,
+    root_extent: Extent,
+    fastafile: str,
+    chr: str,
+    stacks: List[str],
+    heatmaps: List[str],
+    window: int,
+    shift: int,
+    cmap: Colormap,
+    subtract: Optional[int] = None,
+    merge: bool = False,
+    meres: Optional[str] = None,
+):
     """
-    %prog heatmap fastafile chr1
-
-    Combine stack plot with heatmap to show abundance of various tracks along
-    given chromosome. Need to give multiple beds to --stacks and --heatmaps
+    Draw heatmap for the given chromosome.
     """
-    p = OptionParser(heatmap.__doc__)
-    p.add_option(
-        "--stacks",
-        default="Exons,Introns,DNA_transposons,Retrotransposons",
-        help="Features to plot in stackplot",
-    )
-    p.add_option(
-        "--heatmaps",
-        default="Copia,Gypsy,hAT,Helitron,Introns,Exons",
-        help="Features to plot in heatmaps",
-    )
-    p.add_option("--meres", default=None, help="Extra centromere / telomere features")
-    add_window_options(p)
-    opts, args, iopts = p.set_image_options(args, figsize="8x5")
-
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    fastafile, chr = args
-    window, shift, subtract, merge = check_window_options(opts)
-
-    stacks = opts.stacks.split(",")
-    heatmaps = opts.heatmaps.split(",")
     stackbeds = get_beds(stacks)
     heatmapbeds = get_beds(heatmaps)
     stackbins = get_binfiles(
@@ -820,9 +943,6 @@ def heatmap(args):
     margin = 0.06
     inner = 0.015
     clen = Sizes(fastafile).mapping[chr]
-
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
 
     # Gauge
     ratio = draw_gauge(root, margin, clen, rightmargin=4 * margin)
@@ -837,17 +957,19 @@ def heatmap(args):
         cc = ca[0].upper() + cb
 
     root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
-    ax = fig.add_axes([xx, yy, xlen, yinterval - inner])
+    extent = (xx, yy, xlen, yinterval - inner)
+    adjusted = adjust_extent(extent, root_extent)
+    ax = fig.add_axes(adjusted)
 
-    nbins = get_nbins(clen, shift)
+    nbins, _ = get_nbins(clen, shift)
 
     owindow = clen / 100
     if owindow > window:
-        window = owindow / shift * shift
+        window = owindow // shift * shift
 
     stackplot(ax, stackbins, nbins, palette, chr, window, shift)
     ax.text(
-        0.1,
+        0.05,
         0.9,
         cc,
         va="top",
@@ -885,13 +1007,12 @@ def heatmap(args):
             extent=(xx, xx + xlen, yy, yy + yh - inner),
             interpolation="nearest",
             aspect="auto",
-            cmap=iopts.cmap,
+            cmap=cmap,
         )
         root.text(xx + xlen + 0.01, yy, s, size=10)
 
     yy -= yh
 
-    meres = opts.meres
     if meres:
         bed = Bed(meres)
         for b in bed:
@@ -904,21 +1025,73 @@ def heatmap(args):
             root.add_patch(CirclePolygon((xx, yy), radius=0.01, fc="m", ec="m"))
             root.text(xx + 0.014, yy, accn, va="center", color="m")
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
+
+
+def heatmap(args):
+    """
+    %prog heatmap fastafile chr1
+
+    Combine stack plot with heatmap to show abundance of various tracks along
+    given chromosome. Need to give multiple beds to --stacks and --heatmaps
+    """
+    p = OptionParser(heatmap.__doc__)
+    p.add_argument(
+        "--stacks",
+        default="Exons,Introns,DNA_transposons,Retrotransposons",
+        help="Features to plot in stackplot",
+    )
+    p.add_argument(
+        "--heatmaps",
+        default="Copia,Gypsy,hAT,Helitron,Introns,Exons",
+        help="Features to plot in heatmaps",
+    )
+    p.add_argument("--meres", default=None, help="Extra centromere / telomere features")
+    add_window_options(p)
+    opts, args, iopts = p.set_image_options(args, figsize="8x5")
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    fastafile, chr = args
+    window, shift, subtract, merge = check_window_options(opts)
+
+    stacks = opts.stacks.split(",")
+    heatmaps = opts.heatmaps.split(",")
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root_extent = (0, 0, 1, 1)
+    root = fig.add_axes(root_extent)
+
+    draw_heatmaps(
+        fig,
+        root,
+        root_extent,
+        fastafile,
+        chr,
+        stacks,
+        heatmaps,
+        window,
+        shift,
+        iopts.cmap,
+        subtract,
+        merge,
+        meres=opts.meres,
+    )
 
     image_name = chr + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
-def draw_gauge(ax, margin, maxl, rightmargin=None):
-    # Draw a gauge on the top of the canvas
+def draw_gauge(ax, margin: float, maxl: int, rightmargin: Optional[float] = None):
+    """
+    Draw a gauge on the top of the canvas, showing the scale of the chromosome.
+    """
     rightmargin = rightmargin or margin
     ax.plot([margin, 1 - rightmargin], [1 - margin, 1 - margin], "k-", lw=2)
 
     best_stride = autoscale(maxl)
-    nintervals = maxl * 1.0 / best_stride
+    nintervals = maxl / best_stride
 
     xx, yy = margin, 1 - margin
     tip = 0.005
@@ -942,13 +1115,22 @@ def draw_gauge(ax, margin, maxl, rightmargin=None):
 
 
 def get_binfiles(
-    inputfiles, fastafile, shift, mode="span", subtract=None, binned=False, merge=True
+    inputfiles: List[str],
+    fastafile: str,
+    shift: int,
+    mode: str = "span",
+    subtract: Optional[int] = None,
+    binned: bool = False,
+    merge: bool = True,
 ):
+    """
+    Get binfiles from input files. If not binned, then bin them first.
+    """
     if not binned:
-        binopts = ["--binsize={0}".format(shift)]
-        binopts.append("--mode={0}".format(mode))
+        binopts = [f"--binsize={shift}"]
+        binopts.append(f"--mode={mode}")
         if subtract:
-            binopts.append("--subtract={0}".format(subtract))
+            binopts.append(f"--subtract={subtract}")
         if not merge:
             binopts.append("--nomerge")
         binfiles = [bins([x, fastafile] + binopts) for x in inputfiles if op.exists(x)]
@@ -959,14 +1141,21 @@ def get_binfiles(
     return binfiles
 
 
-def stackarray(binfile, chr, window, shift):
+def stackarray(binfile: BinFile, chr: str, window: int, shift: int):
+    """
+    Get stack array from binfile for the given chr.
+    """
     mn = binfile.mapping[chr]
     m, n = zip(*mn)
 
-    m = np.array(m, dtype="float")
-    n = np.array(n, dtype="float")
+    m = np.array(m, dtype=float)
+    n = np.array(n, dtype=float)
 
-    w = window / shift
+    w = window // shift
+    nw = m.shape[0]
+    if nw < w:
+        logger.info("%s length < window, using %d bins instead of %d", chr, nw, w)
+        w = nw
     m = moving_sum(m, window=w)
     n = moving_sum(n, window=w)
     m /= n
@@ -974,9 +1163,20 @@ def stackarray(binfile, chr, window, shift):
     return m
 
 
-def stackplot(ax, binfiles, nbins, palette, chr, window, shift):
-    t = np.arange(nbins, dtype="float") + 0.5
-    m = np.zeros(nbins, dtype="float")
+def stackplot(
+    ax,
+    binfiles: List[BinFile],
+    nbins: int,
+    palette: List[str],
+    chr: str,
+    window: int,
+    shift: int,
+):
+    """
+    Plot stackplot on the given axes, using data from binfiles.
+    """
+    t = np.arange(nbins, dtype=float) + 0.5
+    m = np.zeros(nbins, dtype=float)
     zorders = range(10)[::-1]
     for binfile, p, z in zip(binfiles, palette, zorders):
         s = stackarray(binfile, chr, window, shift)
@@ -988,35 +1188,22 @@ def stackplot(ax, binfiles, nbins, palette, chr, window, shift):
     ax.set_axis_off()
 
 
-def stack(args):
+def draw_stacks(
+    fig,
+    root,
+    root_extent: Extent,
+    stacks: List[str],
+    fastafile: str,
+    window: int,
+    shift: int,
+    top: int,
+    merge: bool = True,
+    subtract: Optional[int] = None,
+    switch: Optional[DictFile] = None,
+):
     """
-    %prog stack fastafile
-
-    Create landscape plots that show the amounts of genic sequences, and repetitive
-    sequences along the chromosomes.
+    Draw stack plot.
     """
-    p = OptionParser(stack.__doc__)
-    p.add_option("--top", default=10, type="int", help="Draw the first N chromosomes")
-    p.add_option(
-        "--stacks",
-        default="Exons,Introns,DNA_transposons,Retrotransposons",
-        help="Features to plot in stackplot",
-    )
-    p.add_option("--switch", help="Change chr names based on two-column file")
-    add_window_options(p)
-    opts, args, iopts = p.set_image_options(args, figsize="8x8")
-
-    if len(args) != 1:
-        sys.exit(not p.print_help())
-
-    (fastafile,) = args
-    top = opts.top
-    window, shift, subtract, merge = check_window_options(opts)
-    switch = opts.switch
-    if switch:
-        switch = DictFile(opts.switch)
-
-    stacks = opts.stacks.split(",")
     bedfiles = get_beds(stacks)
     binfiles = get_binfiles(bedfiles, fastafile, shift, subtract=subtract, merge=merge)
 
@@ -1025,10 +1212,6 @@ def stack(args):
     maxl = max(x[1] for x in s)
     margin = 0.08
     inner = 0.02  # y distance between tracks
-
-    pf = fastafile.rsplit(".", 1)[0]
-    fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
 
     # Gauge
     ratio = draw_gauge(root, margin, maxl)
@@ -1046,23 +1229,19 @@ def stack(args):
             cc = ca[0].upper() + cb
 
         if switch and cc in switch:
-            cc = "\n".join((cc, "({0})".format(switch[cc])))
+            cc = "\n".join((cc, f"({switch[cc]})"))
 
+        extent = (xx, yy, xlen, yinterval - inner)
+        adjusted = adjust_extent(extent, root_extent)
         root.add_patch(Rectangle((xx, yy), xlen, yinterval - inner, color=gray))
-        ax = fig.add_axes([xx, yy, xlen, yinterval - inner])
+        ax = fig.add_axes(adjusted)
 
-        nbins = clen / shift
-        if clen % shift:
-            nbins += 1
+        nbins, _ = get_nbins(clen, shift)
 
         stackplot(ax, binfiles, nbins, palette, chr, window, shift)
         root.text(
             xx - 0.04, yy + 0.5 * (yinterval - inner), cc, ha="center", va="center"
         )
-
-        ax.set_xlim(0, nbins)
-        ax.set_ylim(0, 1)
-        ax.set_axis_off()
 
     # Legends
     yy -= yinterval
@@ -1074,14 +1253,63 @@ def stack(args):
         root.add_patch(Rectangle((xx, yy), inner, inner, color=p, lw=0))
         xx += 2 * inner
         root.text(xx, yy, b, size=13)
-        xx += len(b) * 0.012 + inner
+        xx += len(b) * 0.015 + inner
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
+
+def stack(args):
+    """
+    %prog stack fastafile
+
+    Create landscape plots that show the amounts of genic sequences, and repetitive
+    sequences along the chromosomes.
+    """
+    p = OptionParser(stack.__doc__)
+    p.add_argument("--top", default=10, type=int, help="Draw the first N chromosomes")
+    p.add_argument(
+        "--stacks",
+        default="Exons,Introns,DNA_transposons,Retrotransposons",
+        help="Features to plot in stackplot",
+    )
+    p.add_argument("--switch", help="Change chr names based on two-column file")
+    add_window_options(p)
+    opts, args, iopts = p.set_image_options(args, figsize="8x8")
+
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (fastafile,) = args
+    top = opts.top
+    window, shift, subtract, merge = check_window_options(opts)
+    switch = opts.switch
+    if switch:
+        switch = DictFile(opts.switch)
+
+    stacks = opts.stacks.split(",")
+
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root_extent = (0, 0, 1, 1)
+    root = fig.add_axes(root_extent)
+
+    draw_stacks(
+        fig,
+        root,
+        root_extent,
+        stacks,
+        fastafile,
+        window,
+        shift,
+        top,
+        merge,
+        subtract,
+        switch,
+    )
+
+    pf = fastafile.rsplit(".", 1)[0]
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    return image_name
 
 
 if __name__ == "__main__":

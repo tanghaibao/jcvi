@@ -4,17 +4,18 @@
 """
 Manipulate PDF files, using PyPDF2 library.
 """
-import os
 import sys
-import logging
-import traceback
 
 from natsort import natsorted
 
-from PyPDF2 import PdfFileMerger, parse_filename_page_ranges
-from PyPDF2.pagerange import PAGE_RANGE_HELP
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, cleanup
+from pypdf import PdfMerger, parse_filename_page_ranges
+from pypdf.pagerange import PageRange
+
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
+
+from .base import must_open
+
+PAGE_RANGE_HELP = PageRange.__init__.__doc__
 
 
 def main():
@@ -47,17 +48,16 @@ def cat(args):
             In case you don't want chapter 10 before chapter 2.
     """
     p = OptionParser(cat.__doc__.format(page_range_help=PAGE_RANGE_HELP))
-    p.add_option(
+    p.add_argument(
         "--nosort", default=False, action="store_true", help="Do not sort file names"
     )
-    p.add_option(
+    p.add_argument(
         "--cleanup",
         default=False,
         action="store_true",
         help="Remove individual pdfs after merging",
     )
     p.set_outfile()
-    p.set_verbose(help="Show page ranges as they are being read")
     opts, args = p.parse_args(args)
 
     if len(args) < 1:
@@ -67,31 +67,33 @@ def cat(args):
     if outfile in args:
         args.remove(outfile)
 
-    if not opts.nosort:
+    should_sort = not opts.nosort
+    if not all(x.endswith(".pdf") for x in args):
+        should_sort = False
+        logger.debug("Not sorting filenames because non-pdf args")
+
+    if should_sort:
         args = natsorted(args)
 
     filename_page_ranges = parse_filename_page_ranges(args)
-    verbose = opts.verbose
-    fw = must_open(outfile, "wb")
-
-    merger = PdfFileMerger()
-    in_fs = {}
-    try:
-        for (filename, page_range) in filename_page_ranges:
-            if verbose:
-                print(filename, page_range, file=sys.stderr)
-            if filename not in in_fs:
-                in_fs[filename] = open(filename, "rb")
-            merger.append(in_fs[filename], pages=page_range)
-    except:
-        print(traceback.format_exc(), file=sys.stderr)
-        print("Error while reading " + filename, file=sys.stderr)
-        sys.exit(1)
-    merger.write(fw)
-    fw.close()
+    nfiles = len(filename_page_ranges)
+    merger = PdfMerger()
+    with must_open(outfile, "wb") as fw:
+        in_fs = {}
+        try:
+            for filename, page_range in filename_page_ranges:
+                logger.debug("%s: %s", filename, page_range)
+                if filename not in in_fs:
+                    in_fs[filename] = open(filename, "rb")
+                merger.append(in_fs[filename], pages=page_range)
+        except Exception as e:
+            logger.error("Error while reading %s: %s", filename, e)
+            sys.exit(1)
+        merger.write(fw)
+        logger.info("Extracted %d files into `%s`", nfiles, outfile)
 
     if opts.cleanup:
-        logging.debug("Cleaning up {} files".format(len(args)))
+        logger.debug("Cleaning up %d files", nfiles)
         cleanup(args)
 
 

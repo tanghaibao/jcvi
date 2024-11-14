@@ -4,20 +4,21 @@ parses tabular BLAST -m8 (-format 6 in BLAST+) format
 
 import os.path as op
 import sys
-import logging
 
 from itertools import groupby
 from collections import defaultdict
 
-from jcvi.formats.base import LineFile, BaseFile, must_open
-from jcvi.formats.bed import Bed
-from jcvi.formats.sizes import Sizes
-from jcvi.utils.grouper import Grouper
-from jcvi.utils.orderedcollections import OrderedDict
-from jcvi.utils.range import range_distance
-from jcvi.utils.cbook import percentage
-from jcvi.assembly.base import calculate_A50
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh, popen
+from ..apps.base import ActionDispatcher, OptionParser, logger, popen, sh
+from ..assembly.base import calculate_A50
+from ..compara.base import AnchorFile
+from ..utils.cbook import percentage
+from ..utils.grouper import Grouper
+from ..utils.orderedcollections import OrderedDict
+from ..utils.range import range_distance
+
+from .base import LineFile, BaseFile, must_open
+from .bed import Bed
+from .sizes import Sizes
 
 
 try:
@@ -25,7 +26,7 @@ try:
 except:
     from .pyblast import BlastLine
 
-    logging.error("Fall back to Python implementation of BlastLine")
+    logger.error("Fall back to Python implementation of BlastLine")
 
 
 class BlastSlow(LineFile):
@@ -34,7 +35,7 @@ class BlastSlow(LineFile):
     """
 
     def __init__(self, filename, sorted=False):
-        super(BlastSlow, self).__init__(filename)
+        super().__init__(filename)
         fp = must_open(filename)
         for row in fp:
             self.append(BlastLine(row))
@@ -74,7 +75,7 @@ class Blast(BaseFile):
     """
 
     def __init__(self, filename):
-        super(Blast, self).__init__(filename)
+        super().__init__(filename)
         self.fp = must_open(filename)
 
     def __iter__(self):
@@ -139,9 +140,8 @@ class BlastLineByConversion(BlastLine):
     """
 
     def __init__(self, sline, mode="1" * 12):
-
         if int(mode, 2) == 4095:
-            super(BlastLineByConversion, self).__init__(sline)
+            super().__init__(sline)
         elif 3072 <= int(mode, 2) < 4095:
             args = sline.split("\t")
             atoms = args[:2]
@@ -159,7 +159,7 @@ class BlastLineByConversion(BlastLine):
                     else:
                         atoms.append("-1")
             sline = "\t".join(atoms)
-            super(BlastLineByConversion, self).__init__(sline)
+            super().__init__(sline)
         else:
             m = "mode can only contain 0 or 1 \n"
             m += "first two fields (query, subject) cannot be empty"
@@ -220,7 +220,7 @@ def get_stats(blastfile, strict=False):
     from jcvi.utils.range import range_union, range_span
     from .pyblast import BlastLine
 
-    logging.debug("Report stats on `%s`" % blastfile)
+    logger.debug("Report stats on `%s`" % blastfile)
     fp = open(blastfile)
     ref_ivs = []
     qry_ivs = []
@@ -264,6 +264,22 @@ def get_stats(blastfile, strict=False):
     return alignstats
 
 
+def filtered_blastfile_name(
+    blastfile: str,
+    pctid: float,
+    hitlen: int,
+    inverse: bool = False,
+) -> str:
+    """
+    Return a filtered filename for LAST output, with the given similarity cutoff.
+    """
+    pctid_str = f"{pctid:.1f}".replace(".", "_").replace("_0", "")
+    newblastfile = blastfile + ".P{0}L{1}".format(pctid_str, hitlen)
+    if inverse:
+        newblastfile += ".inverse"
+    return newblastfile
+
+
 def filter(args):
     """
     %prog filter test.blast
@@ -280,13 +296,13 @@ def filter(args):
     - noself: remove self-self hits
     """
     p = OptionParser(filter.__doc__)
-    p.add_option("--score", dest="score", default=0, type="int", help="Score cutoff")
+    p.add_argument("--score", dest="score", default=0, type=int, help="Score cutoff")
     p.set_align(pctid=95, hitlen=100, evalue=0.01)
-    p.add_option(
+    p.add_argument(
         "--noself", default=False, action="store_true", help="Remove self-self hits"
     )
-    p.add_option("--ids", help="Path to file with ids to retain")
-    p.add_option(
+    p.add_argument("--ids", help="Path to file with ids to retain")
+    p.add_argument(
         "--inverse",
         default=False,
         action="store_true",
@@ -310,7 +326,6 @@ def filter(args):
 
     (blastfile,) = args
     inverse = opts.inverse
-    outfile = opts.outfile
     fp = must_open(blastfile)
 
     score, pctid, hitlen, evalue, noself = (
@@ -320,13 +335,8 @@ def filter(args):
         opts.evalue,
         opts.noself,
     )
-    newblastfile = (
-        blastfile + ".P{0}L{1}".format(int(pctid), hitlen)
-        if outfile is None
-        else outfile
-    )
-    if inverse:
-        newblastfile += ".inverse"
+    blastfile = opts.outfile or blastfile
+    newblastfile = filtered_blastfile_name(blastfile, pctid, hitlen, inverse)
     fw = must_open(newblastfile, "w")
     for row in fp:
         if row[0] == "#":
@@ -363,7 +373,6 @@ def filter(args):
 
 
 def main():
-
     actions = (
         ("summary", "provide summary on id% and cov%"),
         ("completeness", "print completeness statistics for each query"),
@@ -373,6 +382,7 @@ def main():
         ("covfilter", "filter BLAST file (based on id% and cov%)"),
         ("cscore", "calculate C-score for BLAST pairs"),
         ("best", "get best BLAST hit per query"),
+        ("anchors", "keep only the BLAST pairs that are in the anchors file"),
         ("pairs", "print paired-end reads of BLAST tabular file"),
         ("bed", "get bed file from BLAST tabular file"),
         ("condense", "group HSPs together for same query-subject pair"),
@@ -420,11 +430,11 @@ def gaps(args):
 
     (blastfile,) = args
     blast = BlastSlow(blastfile)
-    logging.debug("A total of {} records imported".format(len(blast)))
+    logger.debug("A total of {} records imported".format(len(blast)))
 
     query_gaps = list(collect_gaps(blast))
     subject_gaps = list(collect_gaps(blast, use_subject=True))
-    logging.debug(
+    logger.debug(
         "Query gaps: {}  Subject gaps: {}".format(len(query_gaps), len(subject_gaps))
     )
 
@@ -499,7 +509,7 @@ def score(args):
             continue
         scores[query] += b.score
 
-    logging.debug("A total of {0} ids loaded.".format(len(ids)))
+    logger.debug("A total of {0} ids loaded.".format(len(ids)))
 
     f = Fasta(fastafile)
     for s in f.iterkeys_ordered():
@@ -517,8 +527,8 @@ def annotation(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(annotation.__doc__)
-    p.add_option("--queryids", help="Query IDS file to switch")
-    p.add_option("--subjectids", help="Subject IDS file to switch")
+    p.add_argument("--queryids", help="Query IDS file to switch")
+    p.add_argument("--subjectids", help="Subject IDS file to switch")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -552,7 +562,7 @@ def completeness(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(completeness.__doc__)
-    p.add_option("--ids", help="Save ids that are over 50% complete")
+    p.add_argument("--ids", help="Save ids that are over 50% complete")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -599,7 +609,7 @@ def completeness(args):
     if idsfile:
         fw = open(idsfile, "w")
         print("\n".join(valid), file=fw)
-        logging.debug(
+        logger.debug(
             "A total of {0} ids (cov > {1} %) written to `{2}`.".format(
                 len(valid), cutoff, idsfile
             )
@@ -617,7 +627,7 @@ def annotate(args):
 
     p = OptionParser(annotate.__doc__)
     p.set_align(pctid=94, hitlen=500)
-    p.add_option("--hang", default=500, type="int", help="Maximum overhang length")
+    p.add_argument("--hang", default=500, type=int, help="Maximum overhang length")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -628,7 +638,7 @@ def annotate(args):
     asizes = Sizes(afasta).mapping
     bsizes = Sizes(bfasta).mapping
     cutoff = Cutoff(opts.pctid, opts.hitlen, opts.hang)
-    logging.debug(str(cutoff))
+    logger.debug(str(cutoff))
     for row in fp:
         b = BlastLine(row)
         asize = asizes[b.query]
@@ -655,13 +665,13 @@ def top10(args):
     from jcvi.formats.base import DictFile
 
     p = OptionParser(top10.__doc__)
-    p.add_option(
+    p.add_argument(
         "--top",
         default=10,
-        type="int",
+        type=int,
         help="Top N taxa to extract",
     )
-    p.add_option(
+    p.add_argument(
         "--ids",
         default=None,
         help="Two column ids file to query seqid",
@@ -691,25 +701,25 @@ def sort(args):
     sort is 'in-place'.
     """
     p = OptionParser(sort.__doc__)
-    p.add_option(
+    p.add_argument(
         "--query",
         default=False,
         action="store_true",
         help="Sort by query position",
     )
-    p.add_option(
+    p.add_argument(
         "--ref",
         default=False,
         action="store_true",
         help="Sort by reference position",
     )
-    p.add_option(
+    p.add_argument(
         "--refscore",
         default=False,
         action="store_true",
         help="Sort by reference name, then score descending",
     )
-    p.add_option(
+    p.add_argument(
         "--coords",
         default=False,
         action="store_true",
@@ -764,19 +774,19 @@ def cscore(args):
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(cscore.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         default=0.9999,
-        type="float",
+        type=float,
         help="Minimum C-score to report",
     )
-    p.add_option(
+    p.add_argument(
         "--pct",
         default=False,
         action="store_true",
         help="Also include pct as last column",
     )
-    p.add_option(
+    p.add_argument(
         "--writeblast",
         default=False,
         action="store_true",
@@ -796,7 +806,7 @@ def cscore(args):
     (blastfile,) = args
 
     blast = Blast(blastfile)
-    logging.debug("Register best scores ..")
+    logger.debug("Register best scores ..")
     best_score = defaultdict(float)
     for b in blast:
         query, subject = b.query, b.subject
@@ -929,11 +939,11 @@ def chain(args):
     Chain adjacent HSPs together to form larger HSP.
     """
     p = OptionParser(chain.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dist",
         dest="dist",
         default=100,
-        type="int",
+        type=int,
         help="extent of flanking regions to search",
     )
 
@@ -947,9 +957,9 @@ def chain(args):
     assert dist > 0
 
     blast = BlastSlow(blastfile)
-    logging.debug("A total of {} records imported".format(len(blast)))
+    logger.debug("A total of {} records imported".format(len(blast)))
     chained_hsps = chain_HSPs(blast, xdist=dist, ydist=dist)
-    logging.debug("A total of {} records after chaining".format(len(chained_hsps)))
+    logger.debug("A total of {} records after chaining".format(len(chained_hsps)))
 
     for b in chained_hsps:
         print(b)
@@ -1032,29 +1042,29 @@ def covfilter(args):
 
     p = OptionParser(covfilter.__doc__)
     p.set_align(pctid=95, pctcov=50)
-    p.add_option(
+    p.add_argument(
         "--scov",
         default=False,
         action="store_true",
         help="Subject coverage instead of query",
     )
-    p.add_option(
+    p.add_argument(
         "--supermap", action="store_true", help="Use supermap instead of union"
     )
-    p.add_option(
+    p.add_argument(
         "--ids",
         dest="ids",
         default=None,
         help="Print out the ids that satisfy",
     )
-    p.add_option(
+    p.add_argument(
         "--list",
         dest="list",
         default=False,
         action="store_true",
         help="List the id% and cov% per gene",
     )
-    p.add_option(
+    p.add_argument(
         "--iterby",
         dest="iterby",
         default="query",
@@ -1148,7 +1158,7 @@ def covfilter(args):
     if opts.list:
         if qspair:
             allpairs = defaultdict(list)
-            for (q, s) in covidstore:
+            for q, s in covidstore:
                 allpairs[q].append((q, s))
                 allpairs[s].append((q, s))
 
@@ -1201,7 +1211,7 @@ def covfilter(args):
         fw = must_open(filename, "w")
         for id in valid:
             print(id, file=fw)
-        logging.debug(
+        logger.debug(
             "Queries beyond cutoffs {0} written to `{1}`.".format(
                 cutoff_message, filename
             )
@@ -1251,20 +1261,26 @@ def bed(args):
     Print out bed file based on coordinates in BLAST report. By default, write
     out subject positions. Use --swap to write query positions.
     """
-    from jcvi.formats.bed import sort as bed_sort
+    from .bed import sort as bed_sort, mergeBed
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--swap",
         default=False,
         action="store_true",
         help="Write query positions",
     )
-    p.add_option(
+    p.add_argument(
         "--both",
         default=False,
         action="store_true",
         help="Generate one line for each of query and subject",
+    )
+    p.add_argument(
+        "--merge",
+        default=None,
+        type=int,
+        help="Merge hits within this distance",
     )
 
     opts, args = p.parse_args(args)
@@ -1290,9 +1306,11 @@ def bed(args):
         if negative:
             print(b.swapped.bedline, file=fw)
 
-    logging.debug("File written to `%s`.", bedfile)
+    logger.debug("File written to `%s`.", bedfile)
     fw.close()
     bed_sort([bedfile, "-i"])
+    if opts.merge:
+        mergeBed(bedfile, sorted=True, d=opts.merge, inplace=True)
 
     return bedfile
 
@@ -1317,6 +1335,42 @@ def pairs(args):
     return jcvi.formats.bed.pairs(args)
 
 
+def anchors(args):
+    """
+    %prog anchors blastfile anchorsfile
+
+    Extract a subset of the BLAST file based on the anchors file. The anchors
+    file is a tab-delimited file with two columns, likely generated from synteny
+    pipeline. This is useful to filter down BLAST.
+    """
+    p = OptionParser(anchors.__doc__)
+    p.set_outfile()
+    p.add_argument(
+        "--best", default=False, action="store_true", help="Keep only the best hit"
+    )
+    opts, args = p.parse_args(args)
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    blastfile, anchorsfile = args
+    anchor_file = AnchorFile(anchorsfile)
+    anchor_pairs = set((a, b) for a, b, _ in anchor_file.iter_pairs())
+    blast = Blast(blastfile)
+    found, total = 0, 0
+    fw = must_open(opts.outfile, "w")
+    seen = set()
+    for rec in blast:
+        pp = (rec.query, rec.subject)
+        if pp in anchor_pairs:
+            found += 1
+            if opts.best and pp in seen:
+                continue
+            print(rec, file=fw)
+            seen.add(pp)
+        total += 1
+    logger.info("Found %s", percentage(found, total))
+
+
 def best(args):
     """
     %prog best blastfile
@@ -1325,20 +1379,20 @@ def best(args):
     """
     p = OptionParser(best.__doc__)
 
-    p.add_option("-n", default=1, type="int", help="get best N hits")
-    p.add_option(
+    p.add_argument("-n", default=1, type=int, help="get best N hits")
+    p.add_argument(
         "--nosort",
         default=False,
         action="store_true",
         help="assume BLAST is already sorted",
     )
-    p.add_option(
+    p.add_argument(
         "--hsps",
         default=False,
         action="store_true",
         help="get all HSPs for the best pair",
     )
-    p.add_option(
+    p.add_argument(
         "--subject",
         default=False,
         action="store_true",
@@ -1364,7 +1418,7 @@ def best(args):
             sargs += ["--refscore"]
         sort(sargs)
     else:
-        logging.debug("Assuming sorted BLAST")
+        logger.debug("Assuming sorted BLAST")
 
     if not opts.subject:
         bestblastfile = blastfile + ".best"
@@ -1385,15 +1439,19 @@ def summary(args):
 
     Provide summary on id% and cov%, for both query and reference. Often used in
     comparing genomes (based on NUCMER results).
+
+    Columns:
+    filename, identicals, qrycovered, pct_qrycovered, refcovered, pct_refcovered,
+    qryspan, pct_qryspan, refspan, pct_refspan
     """
     p = OptionParser(summary.__doc__)
-    p.add_option(
+    p.add_argument(
         "--strict",
         default=False,
         action="store_true",
         help="Strict 'gapless' mode. Exclude gaps from covered base.",
     )
-    p.add_option(
+    p.add_argument(
         "--tabular",
         default=False,
         action="store_true",
@@ -1425,17 +1483,17 @@ def subset(args):
     Otherwise the script will do nothing.
     """
     p = OptionParser(subset.__doc__)
-    p.add_option(
+    p.add_argument(
         "--qchrs",
         default=None,
         help="query chrs to extract, comma sep",
     )
-    p.add_option(
+    p.add_argument(
         "--schrs",
         default=None,
         help="subject chrs to extract, comma sep",
     )
-    p.add_option(
+    p.add_argument(
         "--convert",
         default=False,
         action="store_true",
@@ -1478,7 +1536,7 @@ def subset(args):
                 b.subject = so[s][1].seqid + "_" + "{0:05d}".format(so[s][0])
             print(b, file=fw)
     fw.close()
-    logging.debug("Subset blastfile written to `{0}`".format(outfile))
+    logger.debug("Subset blastfile written to `{0}`".format(outfile))
 
 
 if __name__ == "__main__":

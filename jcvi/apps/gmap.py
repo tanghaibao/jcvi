@@ -9,15 +9,16 @@ Run GMAP/GSNAP commands. GMAP/GSNAP manual:
 
 import os.path as op
 import sys
-import logging
 
-from jcvi.formats.sam import get_prefix
-from jcvi.apps.base import (
-    OptionParser,
+from ..formats.sam import get_prefix
+
+from .base import (
     ActionDispatcher,
+    OptionParser,
+    backup,
+    logger,
     need_update,
     sh,
-    backup,
 )
 
 
@@ -98,7 +99,7 @@ def check_index(dbfile, supercat=False, go=True):
         cmd = "gmap_build -D {0} -d {1} {2}".format(dbdir, dbname, filename)
         sh(cmd)
     else:
-        logging.error("`{0}` exists. `gmap_build` already run.".format(safile))
+        logger.error("`{0}` exists. `gmap_build` already run.".format(safile))
 
     if go and supercat and updated:
         sh("mv {0} {1}".format(coordsbak, coordsfile))
@@ -113,7 +114,7 @@ def index(args):
         Wrapper for `gmap_build`. Same interface.
     """
     p = OptionParser(index.__doc__)
-    p.add_option(
+    p.add_argument(
         "--supercat",
         default=False,
         action="store_true",
@@ -135,13 +136,13 @@ def gmap(args):
     Wrapper for `gmap`.
     """
     p = OptionParser(gmap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cross", default=False, action="store_true", help="Cross-species alignment"
     )
-    p.add_option(
+    p.add_argument(
         "--npaths",
         default=0,
-        type="int",
+        type=int,
         help="Maximum number of paths to show."
         " If set to 0, prints two paths if chimera"
         " detected, else one.",
@@ -159,7 +160,7 @@ def gmap(args):
     gmapfile = prefix + ".gmap.gff3"
 
     if not need_update((dbfile, fastafile), gmapfile):
-        logging.error("`{0}` exists. `gmap` already run.".format(gmapfile))
+        logger.error("`{0}` exists. `gmap` already run.".format(gmapfile))
     else:
         dbdir, dbname = check_index(dbfile)
         cmd = "gmap -D {0} -d {1}".format(dbdir, dbname)
@@ -185,13 +186,13 @@ def align(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(align.__doc__)
-    p.add_option(
+    p.add_argument(
         "--rnaseq",
         default=False,
         action="store_true",
         help="Input is RNA-seq reads, turn splicing on",
     )
-    p.add_option(
+    p.add_argument(
         "--native",
         default=False,
         action="store_true",
@@ -203,9 +204,9 @@ def align(args):
     opts, args = p.parse_args(args)
 
     if len(args) == 2:
-        logging.debug("Single-end alignment")
+        logger.debug("Single-end alignment")
     elif len(args) == 3:
-        logging.debug("Paired-end alignment")
+        logger.debug("Paired-end alignment")
     else:
         sys.exit(not p.print_help())
 
@@ -218,7 +219,7 @@ def align(args):
     nativefile = gsnapfile.rsplit(".", 1)[0] + ".unique.native"
 
     if not need_update((dbfile, readfile), gsnapfile):
-        logging.error("`{0}` exists. `gsnap` already run.".format(gsnapfile))
+        logger.error("`{0}` exists. `gsnap` already run.".format(gsnapfile))
     else:
         dbdir, dbname = check_index(dbfile)
         cmd = "gsnap -D {0} -d {1}".format(dbdir, dbname)

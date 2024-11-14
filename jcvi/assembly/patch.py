@@ -17,32 +17,31 @@ There are a few techniques, used in curating medicago assembly.
 import os.path as op
 import sys
 import math
-import logging
 
 from collections import defaultdict
 from itertools import groupby
 from more_itertools import pairwise, roundrobin
 
-from jcvi.formats.bed import (
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, sh
+from ..formats.base import FileMerger
+from ..formats.bed import (
     Bed,
     BedLine,
     complementBed,
-    mergeBed,
     fastaFromBed,
+    mergeBed,
     summary,
 )
-from jcvi.formats.blast import BlastSlow
-from jcvi.formats.sizes import Sizes
-from jcvi.utils.range import (
-    range_parse,
-    range_distance,
-    range_minmax,
-    range_merge,
+from ..formats.blast import BlastSlow
+from ..formats.sizes import Sizes
+from ..utils.range import (
     range_closest,
+    range_distance,
     range_interleave,
+    range_merge,
+    range_minmax,
+    range_parse,
 )
-from jcvi.formats.base import FileMerger
-from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup, sh
 
 
 def main():
@@ -83,22 +82,22 @@ def pastegenes(args):
     from jcvi.utils.cbook import gene_name
 
     p = OptionParser(pastegenes.__doc__)
-    p.add_option(
+    p.add_argument(
         "--cutoff",
         default=90,
-        type="int",
+        type=int,
         help="Coverage cutoff to call gene missing",
     )
-    p.add_option(
+    p.add_argument(
         "--flank",
         default=2000,
-        type="int",
+        type=int,
         help="Get the seq of size on two ends",
     )
-    p.add_option(
+    p.add_argument(
         "--maxsize",
         default=50000,
-        type="int",
+        type=int,
         help="Maximum size of patchers to be replaced",
     )
     opts, args = p.parse_args(args)
@@ -189,8 +188,8 @@ def pastegenes(args):
     fastaFromBed(extrabed, oldassembly, name=True)
     summary([extrabed])
 
-    logging.debug("Singleton blocks : {0}".format(singletons))
-    logging.debug("Large blocks : {0} ({1} genes)".format(large, large_genes))
+    logger.debug("Singleton blocks : {0}".format(singletons))
+    logger.debug("Large blocks : {0} ({1} genes)".format(large, large_genes))
 
 
 def pasteprepare(args):
@@ -200,10 +199,10 @@ def pasteprepare(args):
     Prepare sequences for paste.
     """
     p = OptionParser(pasteprepare.__doc__)
-    p.add_option(
+    p.add_argument(
         "--flank",
         default=5000,
-        type="int",
+        type=int,
         help="Get the seq of size on two ends",
     )
     opts, args = p.parse_args(args)
@@ -238,13 +237,13 @@ def paste(args):
     from jcvi.formats.bed import uniq
 
     p = OptionParser(paste.__doc__)
-    p.add_option(
+    p.add_argument(
         "--maxsize",
         default=300000,
-        type="int",
+        type=int,
         help="Maximum size of patchers to be replaced",
     )
-    p.add_option("--prefix", help="Prefix of the new object")
+    p.add_argument("--prefix", help="Prefix of the new object")
     p.set_rclip(rclip=1)
     opts, args = p.parse_args(args)
 
@@ -298,7 +297,7 @@ def closest(args):
     Identify the nearest gaps flanking suggested regions.
     """
     p = OptionParser(closest.__doc__)
-    p.add_option(
+    p.add_argument(
         "--om",
         default=False,
         action="store_true",
@@ -516,10 +515,10 @@ def fill(args):
     Perform gap filling of one assembly (bad) using sequences from another.
     """
     p = OptionParser(fill.__doc__)
-    p.add_option(
+    p.add_argument(
         "--extend",
         default=2000,
-        type="int",
+        type=int,
         help="Extend seq flanking the gaps",
     )
     opts, args = p.parse_args(args)
@@ -730,14 +729,14 @@ def install(args):
 
     p = OptionParser(install.__doc__)
     p.set_rclip(rclip=1)
-    p.add_option(
+    p.add_argument(
         "--maxsize",
         default=300000,
-        type="int",
+        type=int,
         help="Maximum size of patchers to be replaced",
     )
-    p.add_option("--prefix", help="Prefix of the new object")
-    p.add_option(
+    p.add_argument("--prefix", help="Prefix of the new object")
+    p.add_argument(
         "--strict",
         default=False,
         action="store_true",
@@ -779,7 +778,7 @@ def install(args):
         id = arec.id
         exclude.add(id)
 
-    logging.debug(
+    logger.debug(
         "Ignore {0} updates because of decreasing quality.".format(len(exclude))
     )
 
@@ -814,7 +813,7 @@ def refine(args):
     from pybedtools import BedTool
 
     p = OptionParser(refine.__doc__)
-    p.add_option(
+    p.add_argument(
         "--closest",
         default=False,
         action="store_true",
@@ -828,7 +827,7 @@ def refine(args):
 
     breakpointsbed, gapsbed = args
     ncols = len(next(open(breakpointsbed)).split())
-    logging.debug("File %s contains %d columns.", breakpointsbed, ncols)
+    logger.debug("File %s contains %d columns.", breakpointsbed, ncols)
     a = BedTool(breakpointsbed)
     b = BedTool(gapsbed)
     o = a.intersect(b, wao=True)
@@ -892,7 +891,7 @@ def merge_ranges(beds):
     mr = [range_parse(x) for x in m]
     mc = set(x.seqid for x in mr)
     if len(mc) != 1:
-        logging.error("Multiple seqid found in pocket. Aborted.")
+        logger.error("Multiple seqid found in pocket. Aborted.")
         return
 
     mc = list(mc)[0]
@@ -917,12 +916,12 @@ def patcher(args):
     from jcvi.formats.bed import uniq
 
     p = OptionParser(patcher.__doc__)
-    p.add_option(
+    p.add_argument(
         "--backbone",
         default="OM",
         help="Prefix of the backbone assembly",
     )
-    p.add_option("--object", default="object", help="New object name")
+    p.add_argument("--object", default="object", help="New object name")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:

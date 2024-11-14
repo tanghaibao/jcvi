@@ -3,32 +3,43 @@
 
 import os.path as op
 import sys
-import logging
 import string
 
 from collections import defaultdict
 from itertools import product, combinations
 
-from jcvi.formats.blast import BlastLine
-from jcvi.formats.fasta import Fasta
-from jcvi.formats.bed import Bed
-from jcvi.formats.base import must_open, BaseFile
-from jcvi.utils.grouper import Grouper
-from jcvi.utils.cbook import gene_name
-from jcvi.compara.synteny import AnchorFile, check_beds
-from jcvi.apps.base import (
+from ..apps.base import (
+    ActionDispatcher,
     OptionParser,
     glob,
-    ActionDispatcher,
+    logger,
+    mkdir,
     need_update,
     sh,
-    mkdir,
 )
+from ..apps.align import last as last_main, diamond_blastp_main, blast_main
+from ..compara.blastfilter import main as blastfilter_main
+from ..compara.quota import main as quota_main
+from ..compara.synteny import scan, mcscan, liftover
+from ..formats.base import BaseFile, DictFile, must_open
+from ..formats.bed import Bed
+from ..formats.blast import (
+    BlastLine,
+    cscore,
+    filter as blast_filter,
+    filtered_blastfile_name,
+)
+from ..formats.fasta import Fasta
+from ..utils.cbook import gene_name
+from ..utils.grouper import Grouper
+
+from .base import AnchorFile
+from .synteny import check_beds
 
 
 class OMGFile(BaseFile):
     def __init__(self, filename):
-        super(OMGFile, self).__init__(filename)
+        super().__init__(filename)
         fp = open(filename)
         inblock = False
         components = []
@@ -63,7 +74,6 @@ class OMGFile(BaseFile):
 
 
 def main():
-
     actions = (
         ("tandem", "identify tandem gene groups within certain distance"),
         ("ortholog", "run a combined synteny and RBH pipeline to call orthologs"),
@@ -118,7 +128,7 @@ def enrich(args):
     Enrich OMG output by pulling genes misses by OMG.
     """
     p = OptionParser(enrich.__doc__)
-    p.add_option(
+    p.add_argument(
         "--ghost",
         default=False,
         action="store_true",
@@ -146,10 +156,8 @@ def enrich(args):
         members = row.strip().split(",")
         groups.join(*members)
 
-    logging.debug(
-        "Imported {0} families with {1} members.".format(
-            len(groups), groups.num_members
-        )
+    logger.debug(
+        "Imported %d families with %d members.", len(groups), groups.num_members
     )
 
     seen = set()
@@ -162,9 +170,7 @@ def enrich(args):
         omggroups.join(*genes)
 
     nmembers = omggroups.num_members
-    logging.debug(
-        "Imported {0} OMG families with {1} members.".format(len(omggroups), nmembers)
-    )
+    logger.debug("Imported %d OMG families with %d members.", len(omggroups), nmembers)
     assert nmembers == len(seen)
 
     alltaxa = set(str(x) for x in range(ntaxa))
@@ -230,7 +236,7 @@ def enrich(args):
         if not ghost:
             seen.update(best_addition)
 
-    logging.debug("Recruited {0} new genes.".format(len(recruited)))
+    logger.debug("Recruited %d new genes.", len(recruited))
 
 
 def pairwise_distance(a, b, threadorder):
@@ -259,7 +265,7 @@ def insert_into_threaded(atoms, threaded, threadorder):
     i = min_idx
     t = threaded[i]
     threaded.insert(i, atoms)
-    logging.debug("Insert {0} before {1} (d={2})".format(atoms, t, min_d))
+    logger.debug("Insert %s before %s (d=%d)", atoms, t, min_d)
 
 
 def sort_layout(thread, listfile, column=0):
@@ -268,8 +274,6 @@ def sort_layout(thread, listfile, column=0):
     contents against threadbed, then for contents not in threadbed, insert to
     the nearest neighbor.
     """
-    from jcvi.formats.base import DictFile
-
     outfile = listfile.rsplit(".", 1)[0] + ".sorted.list"
     threadorder = thread.order
     fw = open(outfile, "w")
@@ -288,7 +292,7 @@ def sort_layout(thread, listfile, column=0):
     assert len(threaded) == len(imported)
 
     total = sum(1 for x in open(listfile))
-    logging.debug("Total: {0}, currently threaded: {1}".format(total, len(threaded)))
+    logger.debug("Total: %d, currently threaded: %d", total, len(threaded))
     fp = open(listfile)
     for row in fp:
         atoms = row.split()
@@ -301,7 +305,7 @@ def sort_layout(thread, listfile, column=0):
         print("\t".join(atoms), file=fw)
 
     fw.close()
-    logging.debug("File `{0}` sorted to `{1}`.".format(outfile, thread.filename))
+    logger.debug("File `%s` sorted to `%s`.", outfile, thread.filename)
 
 
 def layout(args):
@@ -312,7 +316,7 @@ def layout(args):
     separated by comma in place of taxa, e.g. "BR,BO,AN,CN"
     """
     p = OptionParser(layout.__doc__)
-    p.add_option("--sort", help="Sort layout file based on bedfile")
+    p.add_argument("--sort", help="Sort layout file based on bedfile")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -355,7 +359,7 @@ def layout(args):
     cmd = "sort -k{0},{0} {1} -o {1}".format(lastcolumn, listfile)
     sh(cmd)
 
-    logging.debug("List file written to `{0}`.".format(listfile))
+    logger.debug("List file written to `%s`.", listfile)
     sort = opts.sort
     if sort:
         thread = Bed(sort)
@@ -405,9 +409,7 @@ def group(args):
         for a, b, idx in ac.iter_pairs():
             groups.join(a, b)
 
-    logging.debug(
-        "Created {0} groups with {1} members.".format(len(groups), groups.num_members)
-    )
+    logger.debug("Created %d groups with %d members.", len(groups), groups.num_members)
 
     outfile = opts.outfile
     fw = must_open(outfile, "w")
@@ -498,7 +500,7 @@ def geneinfo(bed, genomeidx, ploidy):
         )
     fwinfo.close()
 
-    logging.debug("Update info file `{0}`.".format(infofile))
+    logger.debug("Update info file `%s`.", infofile)
 
     return infofile
 
@@ -509,15 +511,12 @@ def omgprepare(args):
 
     Prepare to run Sankoff's OMG algorithm to get orthologs.
     """
-    from jcvi.formats.blast import cscore
-    from jcvi.formats.base import DictFile
-
     p = OptionParser(omgprepare.__doc__)
-    p.add_option("--norbh", action="store_true", help="Disable RBH hits")
-    p.add_option(
-        "--pctid", default=0, type="int", help="Percent id cutoff for RBH hits"
+    p.add_argument("--norbh", action="store_true", help="Disable RBH hits")
+    p.add_argument(
+        "--pctid", default=0, type=int, help="Percent id cutoff for RBH hits"
     )
-    p.add_option("--cscore", default=90, type="int", help="C-score cutoff for RBH hits")
+    p.add_argument("--cscore", default=90, type=int, help="C-score cutoff for RBH hits")
     p.set_stripnames()
     p.set_beds()
 
@@ -546,7 +545,7 @@ def omgprepare(args):
     cscore([blastfile, "-o", cscorefile, "--cutoff=0", "--pct"])
     ac = AnchorFile(anchorfile)
     pairs = set((a, b) for a, b, i in ac.iter_pairs())
-    logging.debug("Imported {0} pairs from `{1}`.".format(len(pairs), anchorfile))
+    logger.debug("Imported %d pairs from `%s`.", len(pairs), anchorfile)
 
     weightsfile = pf + ".weights"
     fp = open(cscorefile)
@@ -569,12 +568,10 @@ def omgprepare(args):
         npairs += 1
     fw.close()
 
-    logging.debug("Write {0} pairs to `{1}`.".format(npairs, weightsfile))
+    logger.debug("Write %d pairs to `%s`.", npairs, weightsfile)
 
 
 def make_ortholog(blocksfile, rbhfile, orthofile):
-    from jcvi.formats.base import DictFile
-
     # Generate mapping both ways
     adict = DictFile(rbhfile)
     bdict = DictFile(rbhfile, keypos=1, valuepos=0)
@@ -592,7 +589,7 @@ def make_ortholog(blocksfile, rbhfile, orthofile):
                 b += "'"
         print("\t".join((a, b)), file=fw)
 
-    logging.debug("Recruited {0} pairs from RBH.".format(nrecruited))
+    logger.debug("Recruited %d pairs from RBH.", nrecruited)
     fp.close()
     fw.close()
 
@@ -608,57 +605,70 @@ def ortholog(args):
     such predictions. Extra orthologs will be recruited from reciprocal best
     match (RBH).
     """
-    from jcvi.apps.align import last as last_main
-    from jcvi.compara.blastfilter import main as blastfilter_main
-    from jcvi.compara.quota import main as quota_main
-    from jcvi.compara.synteny import scan, mcscan, liftover
-    from jcvi.formats.blast import cscore, filter
-
     p = OptionParser(ortholog.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dbtype",
         default="nucl",
         choices=("nucl", "prot"),
         help="Molecule type of subject database",
     )
-    p.add_option(
+
+    p.add_argument(
         "--full",
         default=False,
         action="store_true",
         help="Run in full 1x1 mode, including blocks and RBH",
     )
-    p.add_option("--cscore", default=0.7, type="float", help="C-score cutoff")
-    p.add_option(
-        "--dist", default=20, type="int", help="Extent of flanking regions to search"
+    p.add_argument("--cscore", default=0.7, type=float, help="C-score cutoff")
+    p.add_argument(
+        "--dist", default=20, type=int, help="Extent of flanking regions to search"
     )
-    p.add_option(
+    p.add_argument(
         "-n",
         "--min_size",
         dest="n",
-        type="int",
+        type=int,
         default=4,
         help="minimum number of anchors in a cluster",
     )
-    p.add_option("--quota", help="Quota align parameter")
-    p.add_option("--exclude", help="Remove anchors from a previous run")
-    p.add_option(
+    p.add_argument("--quota", help="Quota align parameter")
+    p.add_argument("--exclude", help="Remove anchors from a previous run")
+    p.add_argument(
+        "--self_remove",
+        default=98,
+        type=float,
+        help="Remove self hits that are above this percent identity",
+    )
+    p.add_argument(
         "--no_strip_names",
         default=False,
         action="store_true",
         help="Do not strip alternative splicing (e.g. At5g06540.1 -> At5g06540)",
     )
-    p.add_option(
+    p.add_argument(
         "--liftover_dist",
-        type="int",
+        type=int,
         help="Distance to extend from liftover. Defaults to half of --dist",
     )
     p.set_cpus()
     dotplot_group = p.set_dotplot_opts()
-    dotplot_group.add_option(
+    dotplot_group.add_argument(
         "--notex", default=False, action="store_true", help="Do not use tex"
     )
-    dotplot_group.add_option(
+    dotplot_group.add_argument(
         "--no_dotplot", default=False, action="store_true", help="Do not make dotplot"
+    )
+    p.add_argument(
+        "--ignore_zero_anchor",
+        default=False,
+        action="store_true",
+        help="Ignore this pair of ortholog identification instead of throwing an error when performing many pairs of cataloging.",
+    )
+    p.add_argument(
+        "--align_soft",
+        default="last",
+        choices=("last", "blast", "diamond_blastp"),
+        help="Sequence alignment software. Default <last> for both <nucl> and <prot>. Users could also use <blast> for both <nucl> and <prot>, or <diamond_blastp> for <prot>.",
     )
 
     opts, args = p.parse_args(args)
@@ -668,6 +678,7 @@ def ortholog(args):
 
     a, b = args
     dbtype = opts.dbtype
+    ignore_zero_anchor = opts.ignore_zero_anchor
     suffix = ".cds" if dbtype == "nucl" else ".pep"
     abed, afasta = a + ".bed", a + suffix
     bbed, bfasta = b + ".bed", b + suffix
@@ -677,6 +688,7 @@ def ortholog(args):
     dist = "--dist={0}".format(opts.dist)
     minsize_flag = "--min_size={}".format(opts.n)
     cpus_flag = "--cpus={}".format(opts.cpus)
+    align_soft = opts.align_soft
 
     aprefix = op.basename(a)
     bprefix = op.basename(b)
@@ -684,12 +696,20 @@ def ortholog(args):
     qprefix = ".".join((bprefix, aprefix))
     last = pprefix + ".last"
     if need_update((afasta, bfasta), last, warn=True):
-        last_main([bfasta, afasta, cpus_flag], dbtype)
+        if align_soft == "blast":
+            blast_main([bfasta, afasta, cpus_flag], dbtype)
+        elif dbtype == "prot" and align_soft == "diamond_blastp":
+            diamond_blastp_main([bfasta, afasta, cpus_flag], dbtype)
+        else:
+            last_main([bfasta, afasta, cpus_flag], dbtype)
 
+    self_remove = opts.self_remove
     if a == b:
-        lastself = last + ".P98L0.inverse"
+        lastself = filtered_blastfile_name(last, self_remove, 0, inverse=True)
         if need_update(last, lastself, warn=True):
-            filter([last, "--hitlen=0", "--pctid=98", "--inverse", "--noself"])
+            blast_filter(
+                [last, "--hitlen=0", f"--pctid={self_remove}", "--inverse", "--noself"]
+            )
         last = lastself
 
     filtered_last = last + ".filtered"
@@ -718,7 +738,15 @@ def ortholog(args):
                 dargs += ["--no_strip_names"]
             if opts.liftover_dist:
                 dargs += ["--liftover_dist={}".format(opts.liftover_dist)]
-            scan(dargs)
+            try:
+                scan(dargs)
+            except ValueError as e:
+                if ignore_zero_anchor:
+                    logger.debug(str(e))
+                    logger.debug("Ignoring this error and continuing...")
+                    return
+                else:
+                    raise ValueError(e) from e
         if quota:
             quota_main([lifted_anchors, "--quota={0}".format(quota), "--screen"])
         if need_update(anchors, pdf, warn=True) and not opts.no_dotplot:
@@ -786,7 +814,6 @@ def tandem_main(
     ofile=sys.stderr,
     genefam=False,
 ):
-
     if genefam:
         N = 1e5
 
@@ -890,34 +917,34 @@ def tandem(args):
     pep_file can also be used in same manner.
     """
     p = OptionParser(tandem.__doc__)
-    p.add_option(
+    p.add_argument(
         "--tandem_Nmax",
         dest="tandem_Nmax",
-        type="int",
+        type=int,
         default=3,
         help="merge tandem genes within distance",
     )
-    p.add_option(
+    p.add_argument(
         "--percent_overlap",
-        type="int",
+        type=int,
         default=50,
         help="tandem genes have >=x% aligned sequence, x=0-100",
     )
     p.set_align(evalue=0.01)
-    p.add_option(
+    p.add_argument(
         "--not_self",
         default=False,
         action="store_true",
         help="provided is not self blast file",
     )
-    p.add_option(
+    p.add_argument(
         "--strip_gene_name",
         dest="sep",
-        type="string",
+        type=str,
         default=".",
         help="strip alternative splicing. Use None for no stripping.",
     )
-    p.add_option(
+    p.add_argument(
         "--genefamily",
         dest="genefam",
         action="store_true",

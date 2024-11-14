@@ -7,20 +7,20 @@ Scripts for the ALLMAPS manuscript
 import sys
 import numpy as np
 
-from jcvi.assembly.allmaps import AGP, Map, GapEstimator, normalize_lms_axis, spearmanr
-from jcvi.formats.bed import Bed
-from jcvi.utils.cbook import percentage
-from jcvi.graphics.chromosome import HorizontalChromosome
-from jcvi.graphics.base import (
-    plt,
-    savefig,
+from ..apps.base import OptionParser, ActionDispatcher
+from ..assembly.allmaps import AGP, GapEstimator, Map, normalize_lms_axis, spearmanr
+from ..formats.bed import Bed
+from ..graphics.base import (
     latex,
     normalize_axes,
     panel_labels,
-    set2,
+    plt,
+    savefig,
     set_ticklabels_helvetica,
+    set2,
 )
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..graphics.chromosome import HorizontalChromosome
+from ..utils.cbook import percentage
 
 
 def main():

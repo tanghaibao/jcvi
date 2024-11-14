@@ -9,11 +9,10 @@
 #
 import csv
 import sys
-import logging
 import os.path as op
 
-from jcvi.formats.fasta import Fasta, SeqIO
-from jcvi.apps.base import ActionDispatcher, OptionParser, mkdir
+from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir
+from ..formats.fasta import Fasta, SeqIO
 
 
 def lcn(args):
@@ -21,8 +20,10 @@ def lcn(args):
     %prog lcn Orthogroups/Orthogroups.tsv Orthogroup_Sequences/ lcn/
     """
     p = OptionParser(lcn.__doc__)
-    p.add_option("--min-single-ratio", default=0.9, help="Single copy ratio must be > ")
-    p.add_option("--max-zero-ratio", default=0, help="Zero copy ratio must be < ")
+    p.add_argument(
+        "--min-single-ratio", default=0.9, help="Single copy ratio must be > "
+    )
+    p.add_argument("--max-zero-ratio", default=0, help="Zero copy ratio must be < ")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -46,7 +47,7 @@ def lcn(args):
             print(row[0], single_ratio, zero_ratio, counts, file=sys.stderr)
             selected.append(row)
 
-    logging.debug("A total of {} orthogroups selected".format(len(selected)))
+    logger.debug("A total of %d orthogroups selected", len(selected))
 
     # Collect the FASTA sequences now
     mkdir(lcn_dir)

@@ -9,10 +9,10 @@
 #
 
 import sys
-import logging
 
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser, logger
+
+from .base import must_open
 
 
 class PAFLine:
@@ -90,7 +90,7 @@ def bed(args):
     from jcvi.formats.bed import sort as sort_bed
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--swap", default=False, action="store_true", help="Write query positions"
     )
 
@@ -112,7 +112,7 @@ def bed(args):
             else:
                 print(b.sbedline, file=fw)
 
-    logging.debug("File written to `%s`.", bedfile)
+    logger.debug("File written to `%s`.", bedfile)
     sort_bed([bedfile, "-i"])
     return bedfile
 

@@ -5,30 +5,34 @@
 Legacy script to plot distribution of certain classes onto chromosomes. Adapted
 from the script used in the Tang et al. PNAS 2010 paper, sigma figure.
 """
-import logging
 import sys
+
 from itertools import groupby
 from math import ceil
-from typing import Tuple
+from typing import Optional, Tuple
 
 import numpy as np
 
-from jcvi.apps.base import OptionGroup, OptionParser, datafile, sample_N
-from jcvi.formats.base import DictFile, get_number
-from jcvi.formats.bed import Bed
-from jcvi.formats.sizes import Sizes
-from jcvi.graphics.base import (
+from natsort import natsorted
+
+from ..apps.base import OptionParser, datafile, logger, sample_N
+from ..formats.base import DictFile, get_number
+from ..formats.bed import Bed
+from ..formats.sizes import Sizes
+
+from .base import (
     CirclePolygon,
     Polygon,
     Rectangle,
     latex,
     markup,
+    normalize_axes,
     plt,
     savefig,
     set1_n,
     set3_n,
 )
-from jcvi.graphics.glyph import BaseGlyph, plot_cap
+from .glyph import BaseGlyph, plot_cap
 
 
 class Chromosome(BaseGlyph):
@@ -56,7 +60,7 @@ class Chromosome(BaseGlyph):
         alternating shades. Use a list of starting locations to segment.
         """
         y1, y2 = sorted((y1, y2))
-        super(Chromosome, self).__init__(ax)
+        super().__init__(ax)
         pts, r = self.get_pts(x, y1, y2, width)
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
         if patch:
@@ -108,7 +112,7 @@ class HorizontalChromosome(BaseGlyph):
         assert style in Chromosome.Styles, f"Unknown style `{style}`"
 
         x1, x2 = sorted((x1, x2))
-        super(HorizontalChromosome, self).__init__(ax)
+        super().__init__(ax)
         pts, r = self.get_pts(x1, x2, y, height, style=style)
         self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder + 1))
 
@@ -231,11 +235,11 @@ class GeneticMap(BaseGlyph):
     def __init__(
         self, ax, x, y1, y2, markers, unit="cM", tip=0.008, fc="k", flip=False
     ):
-        super(GeneticMap, self).__init__(ax)
+        super().__init__(ax)
         # tip = length of the ticks
         y1, y2 = sorted((y1, y2))
         ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
-        max_marker_name, max_chr_len = max(markers, key=lambda x: x[-1])
+        _, max_chr_len = max(markers, key=lambda x: x[-1])
         r = y2 - y1
         ratio = r / max_chr_len
         marker_pos = {}
@@ -281,7 +285,7 @@ class Gauge(BaseGlyph):
             extra (float): offset for the unit label
             fc (str): face color of the glyph
         """
-        super(Gauge, self).__init__(ax)
+        super().__init__(ax)
         ax.plot([x, x], [y1, y2], "-", color=fc, lw=2)
         r = y2 - y1
         yy = y2
@@ -313,7 +317,7 @@ def write_ImageMapLine(tlx, tly, brx, bry, w, h, dpi, chr, segment_start, segmen
     """
     tlx, brx = [canvas2px(x, w, dpi) for x in (tlx, brx)]
     tly, bry = [canvas2px(y, h, dpi) for y in (tly, bry)]
-    chr, bac_list = chr.split(":")
+    chr, _ = chr.split(":")
     return (
         '<area shape="rect" coords="'
         + ",".join(str(x) for x in (tlx, tly, brx, bry))
@@ -357,7 +361,7 @@ def draw_cytoband(
     bands = pd.read_csv(filename, sep="\t")
     chrombands = bands[bands["#chrom"] == chrom]
     data = []
-    for i, (chr, start, end, name, gie) in chrombands.iterrows():
+    for _, (chr, start, end, name, gie) in chrombands.iterrows():
         data.append((chr, start, end, name, gie))
     chromsize = max(x[2] for x in data)
     scale = width * 1.0 / chromsize
@@ -423,50 +427,47 @@ def main():
     """
 
     p = OptionParser(main.__doc__)
-    p.add_option(
+    p.add_argument(
         "--sizes", help="FASTA sizes file, which contains chr<tab>size, one per line"
     )
-    g = OptionGroup(p, "Display accessories")
-    g.add_option(
+    g = p.add_argument_group("Display accessories")
+    g.add_argument(
         "--title",
         help="title of the image",
     )
-    g.add_option(
+    g.add_argument(
         "--gauge",
         default=False,
         action="store_true",
         help="draw a gauge with size label",
     )
-    p.add_option_group(g)
 
-    g = OptionGroup(p, "HTML image map")
-    g.add_option(
+    g = p.add_argument_group("HTML image map")
+    g.add_argument(
         "--imagemap",
         default=False,
         action="store_true",
         help="generate an HTML image map associated with the image",
     )
-    g.add_option(
+    g.add_argument(
         "--winsize",
         default=50000,
-        type="int",
+        type=int,
         help="if drawing an imagemap, specify the window size (bases) of each map element ",
     )
-    p.add_option_group(g)
 
-    g = OptionGroup(p, "Color legend")
-    g.add_option(
+    g = p.add_argument_group("Color legend")
+    g.add_argument(
         "--nolegend",
         dest="legend",
         default=True,
         action="store_false",
         help="Do not generate color legend",
     )
-    g.add_option(
-        "--mergedist", default=0, type="int", help="Merge regions closer than "
+    g.add_argument(
+        "--mergedist", default=0, type=int, help="Merge regions closer than "
     )
-    g.add_option("--empty", help="Write legend for unpainted region")
-    p.add_option_group(g)
+    g.add_argument("--empty", help="Write legend for unpainted region")
 
     opts, args, iopts = p.set_image_options(figsize="6x6", dpi=300)
 
@@ -479,7 +480,7 @@ def main():
         mappingfile = args[1]
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
 
     draw_chromosomes(
         root,
@@ -496,9 +497,7 @@ def main():
         title=opts.title,
     )
 
-    root.set_xlim(0, 1)
-    root.set_ylim(0, 1)
-    root.set_axis_off()
+    normalize_axes(root)
 
     prefix = bedfile.rsplit(".", 1)[0]
     figname = prefix + "." + opts.format
@@ -510,14 +509,14 @@ def draw_chromosomes(
     bedfile,
     sizes,
     iopts,
-    mergedist,
-    winsize,
-    imagemap,
-    mappingfile=None,
-    gauge=False,
-    legend=True,
-    empty=False,
-    title=None,
+    mergedist: int,
+    winsize: int,
+    imagemap: bool = False,
+    mappingfile: Optional[str] = None,
+    gauge: bool = False,
+    legend: bool = True,
+    empty: bool = False,
+    title: Optional[str] = None,
 ):
     bed = Bed(bedfile)
     prefix = bedfile.rsplit(".", 1)[0]
@@ -540,9 +539,7 @@ def draw_chromosomes(
         mappings = dict((x, x) for x in classes)
         preset_colors = {}
 
-    logging.debug(
-        "A total of {} classes found: {}".format(len(classes), ",".join(classes))
-    )
+    logger.debug("A total of %d classes found: %s", len(classes), ",".join(classes))
 
     # Assign colors to classes
     ncolors = max(3, min(len(classes), 12))
@@ -551,14 +548,14 @@ def draw_chromosomes(
     colorset = sample_N(colorset, len(classes), seed=iopts.seed)
     class_colors = dict(zip(classes, colorset))
     class_colors.update(preset_colors)
-    logging.debug("Assigned colors: {}".format(class_colors))
+    logger.debug("Assigned colors: %s", class_colors)
 
     chr_lens = {}
     centromeres = {}
     if sizes:
         chr_lens = Sizes(sizes).sizes_mapping
     else:
-        for b, blines in groupby(bed, key=(lambda x: x.seqid)):
+        for b, blines in groupby(bed, key=lambda x: x.seqid):
             blines = list(blines)
             maxlen = max(x.end for x in blines)
             chr_lens[b] = maxlen
@@ -586,8 +583,10 @@ def draw_chromosomes(
     ratio = r / max_chr_len  # canvas / base
 
     # first the chromosomes
-    for a, (chr, clen) in enumerate(sorted(chr_lens.items())):
+    chr_locations = {}
+    for a, (chr, clen) in enumerate(natsorted(chr_lens.items())):
         xx = xstart + a * xinterval + 0.5 * xwidth
+        chr_locations[chr] = xx
         root.text(xx, ystart + 0.01, str(get_number(chr)), ha="center")
         if centromeres:
             yy = ystart - centromeres[chr] * ratio
@@ -597,16 +596,14 @@ def draw_chromosomes(
         else:
             Chromosome(root, xx, ystart, ystart - clen * ratio, width=xwidth)
 
-    chr_idxs = dict((a, i) for i, a in enumerate(sorted(chr_lens.keys())))
-
     alpha = 1
     # color the regions
     for chr in sorted(chr_lens.keys()):
-        segment_size, excess = 0, 0
+        excess = 0
         bac_list = []
         prev_end, prev_klass = 0, None
+        xx = chr_locations[chr] - 0.5 * xwidth
         for b in bed.sub_bed(chr):
-            idx = chr_idxs[chr]
             klass = b.accn
             if klass == "centromere":
                 continue
@@ -614,7 +611,6 @@ def draw_chromosomes(
             end = b.end
             if start < prev_end + mergedist and klass == prev_klass:
                 start = prev_end
-            xx = xstart + idx * xinterval
             yystart = ystart - end * ratio
             yyend = ystart - start * ratio
             root.add_patch(
@@ -630,11 +626,9 @@ def draw_chromosomes(
             prev_end, prev_klass = b.end, klass
 
             if imagemap:
-                """
-                `segment` : size of current BAC being investigated + `excess`
-                `excess`  : left-over bases from the previous BAC, as a result of
-                            iterating over `winsize` regions of `segment`
-                """
+                # `segment` : size of current BAC being investigated + `excess`
+                # `excess`  : left-over bases from the previous BAC, as a result of
+                #             iterating over `winsize` regions of `segment`
                 if excess == 0:
                     segment_start = start
                 segment = (end - start + 1) + excess
@@ -700,7 +694,7 @@ def draw_chromosomes(
     if imagemap:
         print("</map>", file=mapfh)
         mapfh.close()
-        logging.debug("Image map written to `{0}`".format(mapfh.name))
+        logger.debug("Image map written to `%s`", mapfh.name)
 
     if gauge:
         xstart, ystart = 0.9, 0.85

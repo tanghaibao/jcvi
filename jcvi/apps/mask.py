@@ -7,9 +7,10 @@ Mask low complexity regions in the genome.
 import os.path as op
 import sys
 
-from jcvi.formats.fasta import Fasta
-from jcvi.utils.cbook import depends, percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, sh
+from ..formats.fasta import Fasta
+from ..utils.cbook import depends, percentage
+
+from .base import ActionDispatcher, OptionParser, sh
 
 
 @depends
@@ -96,7 +97,7 @@ def mask(args):
     (default to lower case, set --hard for hardmasking).
     """
     p = OptionParser(mask.__doc__)
-    p.add_option(
+    p.add_argument(
         "--hard",
         dest="hard",
         default=False,

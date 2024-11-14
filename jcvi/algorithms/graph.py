@@ -5,13 +5,15 @@
 Wrapper for the common graph algorithms.
 """
 import sys
-import logging
+
+from collections import deque
 
 import networkx as nx
-from collections import deque
+
 from more_itertools import pairwise
 
-from jcvi.formats.base import must_open
+from ..apps.base import logger
+from ..formats.base import must_open
 
 
 """
@@ -204,7 +206,7 @@ class BiGraph(object):
             a, b = a.strip("<>"), b.strip("<>")
             self.add_edge(a, b, oa, ob, color=color)
             nedges += 1
-        logging.debug(
+        logger.debug(
             "A total of {0} edges imported from `{1}` (color={2}).".format(
                 nedges, filename, color
             )
@@ -215,7 +217,7 @@ class BiGraph(object):
         fw = must_open(filename, "w")
         for e in self.edges.values():
             print(e, file=fw)
-        logging.debug("Graph written to `{0}`.".format(filename))
+        logger.debug("Graph written to `{0}`.".format(filename))
 
     def draw(
         self,
@@ -251,7 +253,7 @@ class BiGraph(object):
         if verbose:
             G.write(sys.stderr)
         G.draw(pngfile, prog=prog)
-        logging.debug("Graph written to `{0}`.".format(pngfile))
+        logger.debug("Graph written to `{0}`.".format(pngfile))
 
     def get_next(self, node, tag="<"):
         return self.get_node(node).get_next(tag)
@@ -269,19 +271,19 @@ class BiGraph(object):
 
 
 def graph_stats(G, diameter=False):
-    logging.debug("Graph stats: |V|={0}, |E|={1}".format(len(G), G.size()))
+    logger.debug("Graph stats: |V|={0}, |E|={1}".format(len(G), G.size()))
     if diameter:
         d = max(nx.diameter(H) for H in nx.connected_component_subgraphs(G))
-        logging.debug("Graph diameter: {0}".format(d))
+        logger.debug("Graph diameter: {0}".format(d))
 
 
 def graph_local_neighborhood(G, query, maxdegree=10000, maxsize=10000):
     c = [k for k, d in G.degree().iteritems() if d > maxdegree]
     if c:
-        logging.debug("Remove {0} nodes with deg > {1}".format(len(c), maxdegree))
+        logger.debug("Remove {0} nodes with deg > {1}".format(len(c), maxdegree))
     G.remove_nodes_from(c)
 
-    logging.debug("BFS search from {0}".format(query))
+    logger.debug("BFS search from {0}".format(query))
 
     queue = set(query)
     # BFS search of max depth
@@ -325,7 +327,7 @@ def graph_simplify(G):
         elif d == 2:
             path_nodes.append(k)
 
-    logging.debug("Remove {0} spurs.".format(len(spurs)))
+    logger.debug("Remove {0} spurs.".format(len(spurs)))
     G.remove_nodes_from(spurs)
 
     SG = G.subgraph(path_nodes)
@@ -342,7 +344,7 @@ def graph_simplify(G):
         for n in neighbors:
             G.add_edge(newtag, n)
         G.remove_nodes_from(c)
-    logging.debug(
+    logger.debug(
         "Contract {0} path nodes into {1} nodes.".format(len(path_nodes), len(cc))
     )
 
@@ -413,7 +415,7 @@ def reduce_paths(G):
 def draw_graph(G, pngfile, prog="dot"):
     G = nx.to_agraph(G)
     G.draw(pngfile, prog=prog)
-    logging.debug("Graph written to `{0}`.".format(pngfile))
+    logger.debug("Graph written to `{0}`.".format(pngfile))
 
 
 def transitive_reduction(G):

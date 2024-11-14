@@ -6,74 +6,95 @@ Image processing pipelines for phenotyping projects.
 """
 import json
 import os.path as op
-import sys
 import string
-import logging
-from math import sin, cos, pi
+import sys
 
 from collections import Counter
+from datetime import date
+from math import cos, pi, sin
+from typing import Any, List, Optional, Tuple
 
 import numpy as np
-from jcvi.graphics.base import (
-    plt,
-    savefig,
-    normalize_axes,
-    Rectangle,
-    latex,
-    load_image,
-)
+
+from ..apps.base import setup_magick_home
+
+setup_magick_home()
 
 from PIL.Image import open as iopen
+from pyefd import elliptic_fourier_descriptors
 from pytesseract import image_to_string
-
-from wand.image import Image
-from webcolors import rgb_to_hex, normalize_integer_triplet
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
-from skimage.filters import roberts, sobel
 from skimage.feature import canny, peak_local_max
-from skimage.measure import regionprops, label
+from skimage.filters import roberts, sobel, threshold_otsu
+from skimage.measure import find_contours, regionprops, label
 from skimage.morphology import disk, closing
-from skimage.segmentation import watershed
-from skimage.segmentation import clear_border
+from skimage.segmentation import clear_border, watershed
+from wand.image import Image
+from webcolors import rgb_to_hex, normalize_integer_triplet
 
-from jcvi.utils.webcolors import closest_color
-from jcvi.formats.base import must_open
-from jcvi.algorithms.formula import reject_outliers, get_kmeans
-from jcvi.apps.base import (
-    OptionParser,
-    OptionGroup,
+from ..algorithms.formula import get_kmeans, reject_outliers
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
+    datadir,
+    logger,
     iglob,
     mkdir,
-    datadir,
+)
+from ..formats.base import must_open
+from ..formats.pdf import cat
+from ..utils.webcolors import closest_color
+
+from .base import (
+    Rectangle,
+    latex,
+    load_image,
+    normalize_axes,
+    plt,
+    savefig,
+    set_helvetica_axis,
 )
 
 
 np.seterr(all="ignore")
 
+RGBTuple = Tuple[int, int, int]
+
 
 class Seed(object):
-    def __init__(self, imagename, accession, seedno, rgb, props, exif):
+    """
+    Seed object with metrics.
+    """
+
+    def __init__(
+        self,
+        imagename: str,
+        accession: str,
+        seedno: int,
+        rgb: RGBTuple,
+        props: Any,
+        efds: np.ndarray,
+        exif: dict,
+    ):
         self.imagename = imagename
         self.accession = accession
         self.seedno = seedno
         y, x = props.centroid
         self.x, self.y = int(round(x)), int(round(y))
-        self.location = "{0}|{1}".format(self.x, self.y)
+        self.location = f"{self.x}|{self.y}"
         self.area = int(round(props.area))
         self.length = int(round(props.major_axis_length))
         self.width = int(round(props.minor_axis_length))
         self.props = props
+        self.efds = efds
         self.circularity = 4 * pi * props.area / props.perimeter**2
         self.rgb = rgb
         self.colorname = closest_color(rgb)
-        self.datetime = exif.get("exif:DateTimeOriginal", "none")
+        self.datetime = exif.get("exif:DateTimeOriginal", date.today())
         self.rgbtag = triplet_to_rgb(rgb)
-        self.pixeltag = "length={0} width={1} area={2}".format(
-            self.length, self.width, self.area
-        )
+        self.pixeltag = f"length={self.length} width={self.width} area={self.area}"
         self.hashtag = " ".join((self.rgbtag, self.colorname))
         self.calibrated = False
 
@@ -85,7 +106,7 @@ class Seed(object):
             self.seedno,
             self.location,
             self.area,
-            "{0:.2f}".format(self.circularity),
+            f"{self.circularity:.2f}",
             self.length,
             self.width,
             self.colorname,
@@ -100,37 +121,101 @@ class Seed(object):
                 self.correctedcolorname,
                 self.correctedrgb,
             ]
+        fields += [",".join(f"{x:.3f}" for x in self.efds)]
         return "\t".join(str(x) for x in fields)
 
     @classmethod
-    def header(cls, calibrate=False):
+    def header(cls, calibrated: bool = False) -> str:
+        """
+        Return header line for the TSV file.
+        """
         fields = (
             "ImageName DateTime Accession SeedNum Location "
             "Area Circularity Length(px) Width(px) ColorName RGB".split()
         )
-        if calibrate:
+        if calibrated:
             fields += (
                 "PixelCMratio RGBtransform Length(cm)"
                 " Width(cm) CorrectedColorName CorrectedRGB".split()
             )
+        fields += ["EllipticFourierDescriptors"]
         return "\t".join(fields)
 
-    def calibrate(self, pixel_cm_ratio, tr):
-        self.pixelcmratio = "{0:.2f}".format(pixel_cm_ratio)
-        self.rgbtransform = ",".join(["{0:.2f}".format(x) for x in tr.flatten()])
-        self.correctedlength = "{0:.2f}".format(self.length / pixel_cm_ratio)
-        self.correctedwidth = "{0:.2f}".format(self.width / pixel_cm_ratio)
+    def calibrate(self, pixel_cm_ratio: float, tr: np.ndarray):
+        """
+        Calibrate pixel-inch ratio and color adjustment.
+        """
+        self.pixelcmratio = f"{pixel_cm_ratio:.2f}"
+        self.rgbtransform = ",".join([f"{x:.2f}" for x in tr.flatten()])
+        self.correctedlength = f"{self.length / pixel_cm_ratio:.2f}"
+        self.correctedwidth = f"{self.width / pixel_cm_ratio:.2f}"
         correctedrgb = np.dot(tr, np.array(self.rgb))
         self.correctedrgb = triplet_to_rgb(correctedrgb)
         self.correctedcolorname = closest_color(correctedrgb)
         self.calibrated = True
 
 
-def rgb_to_triplet(rgb):
-    return tuple([int(x) for x in rgb.split(",")])
+def sam(img: np.ndarray, checkpoint: str) -> List[dict]:
+    """
+    Use Segment Anything Model (SAM) to segment objects.
+    """
+    try:
+        from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
+    except ImportError:
+        logger.fatal("segment_anything not installed. Please install it first.")
+        sys.exit(1)
+
+    model_type = "vit_h"
+    if not op.exists(checkpoint):
+        raise AssertionError(
+            f"File `{checkpoint}` not found, please specify --sam-checkpoint"
+        )
+    sam = sam_model_registry[model_type](checkpoint=checkpoint)
+    logger.info("Using SAM model `%s` (%s)", model_type, checkpoint)
+    mask_generator = SamAutomaticMaskGenerator(sam)
+    return mask_generator.generate(img)
 
 
-def triplet_to_rgb(triplet):
+def is_overlapping(mask1: dict, mask2: dict, threshold=0.5):
+    """
+    Check if bounding boxes of mask1 and mask2 overlap more than the given
+    threshold.
+    """
+    x1, y1, w1, h1 = mask1["bbox"]
+    x2, y2, w2, h2 = mask2["bbox"]
+    x_overlap = max(0, min(x1 + w1, x2 + w2) - max(x1, x2))
+    y_overlap = max(0, min(y1 + h1, y2 + h2) - max(y1, y2))
+    intersection = x_overlap * y_overlap
+    return intersection / min(w1 * h1, w2 * h2) > threshold
+
+
+def deduplicate_masks(masks: List[dict], threshold=0.5):
+    """
+    Deduplicate masks to retain only the foreground objects.
+    """
+    masks_sorted = sorted(masks, key=lambda x: x["area"])
+    retained_masks = []
+
+    for mask in masks_sorted:
+        if not any(
+            is_overlapping(mask, retained_mask, threshold)
+            for retained_mask in retained_masks
+        ):
+            retained_masks.append(mask)
+    return retained_masks
+
+
+def rgb_to_triplet(rgb: str) -> RGBTuple:
+    """
+    Convert RGB string to triplet.
+    """
+    return tuple([int(x) for x in rgb.split(",")][:3])
+
+
+def triplet_to_rgb(triplet: RGBTuple) -> str:
+    """
+    Convert triplet to RGB string.
+    """
     triplet = normalize_integer_triplet(triplet)
     return ",".join(str(int(round(x))) for x in triplet)
 
@@ -146,9 +231,12 @@ def main():
     p.dispatch(globals())
 
 
-def total_error(x, colormap):
+def total_error(x: np.ndarray, colormap: Tuple[Tuple[np.ndarray, np.ndarray]]) -> float:
+    """
+    Calculate total error between observed and expected colors.
+    """
     xs = np.reshape(x, (3, 3))
-    error_squared = sum([np.linalg.norm(np.dot(xs, o) - e) ** 2 for o, e in colormap])
+    error_squared = sum(np.linalg.norm(np.dot(xs, o) - e) ** 2 for o, e in colormap)
     return error_squared**0.5
 
 
@@ -163,7 +251,7 @@ def calibrate(args):
     """
     xargs = args[2:]
     p = OptionParser(calibrate.__doc__)
-    opts, args, iopts = add_seeds_options(p, args)
+    _, args, _ = add_seeds_options(p, args)
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -175,18 +263,19 @@ def calibrate(args):
     colorcheckerfile = op.join(datadir, "colorchecker.txt")
     colorchecker = []
     expected = 0
-    for row in open(colorcheckerfile):
-        boxes = row.split()
-        colorchecker.append(boxes)
-        expected += len(boxes)
+    with open(colorcheckerfile, encoding="utf-8") as file:
+        for row in file:
+            boxes = row.split()
+            colorchecker.append(boxes)
+            expected += len(boxes)
 
     folder = op.split(imagefile)[0]
-    objects = seeds([imagefile, "--outdir={0}".format(folder)] + xargs)
+    objects = seeds([imagefile, f"--outdir={folder}"] + xargs)
     nseeds = len(objects)
-    logging.debug("Found {0} boxes (expected={1})".format(nseeds, expected))
+    logger.debug("Found %d boxes (expected=%d)", nseeds, expected)
     assert (
         expected - 4 <= nseeds <= expected + 4
-    ), "Number of boxes drastically different from {0}".format(expected)
+    ), f"Number of boxes drastically different from {expected}"
 
     # Calculate pixel-cm ratio
     boxes = [t.area for t in objects]
@@ -194,10 +283,8 @@ def calibrate(args):
     retained_boxes = [b for r, b in zip(reject, boxes) if not r]
     mbox = np.median(retained_boxes)  # in pixels
     pixel_cm_ratio = (mbox / boxsize) ** 0.5
-    logging.debug(
-        "Median box size: {0} pixels. Measured box size: {1} cm2".format(mbox, boxsize)
-    )
-    logging.debug("Pixel-cm ratio: {0}".format(pixel_cm_ratio))
+    logger.debug("Median box size: %d pixels. Measured box size: %d cm2", mbox, boxsize)
+    logger.debug("Pixel-cm ratio: %.2f", pixel_cm_ratio)
 
     xs = [t.x for t in objects]
     ys = [t.y for t in objects]
@@ -228,93 +315,95 @@ def calibrate(args):
     fw = must_open(jsonfile, "w")
     print(json.dumps(calib, indent=4), file=fw)
     fw.close()
-    logging.debug("Calibration specs written to `{0}`.".format(jsonfile))
+    logger.debug("Calibration specs written to `%s`.", jsonfile)
 
     return jsonfile
 
 
 def add_seeds_options(p, args):
-    g1 = OptionGroup(p, "Image manipulation")
-    g1.add_option("--rotate", default=0, type="int", help="Rotate degrees clockwise")
-    g1.add_option(
+    """
+    Add options to the OptionParser for seeds() and batchseeds() functions.
+    """
+    g1 = p.add_argument_group("Image manipulation")
+    g1.add_argument("--rotate", default=0, type=int, help="Rotate degrees clockwise")
+    g1.add_argument(
         "--rows", default=":", help="Crop rows e.g. `:800` from first 800 rows"
     )
-    g1.add_option(
+    g1.add_argument(
         "--cols", default=":", help="Crop cols e.g. `-800:` from last 800 cols"
     )
-    g1.add_option("--labelrows", help="Label rows e.g. `:800` from first 800 rows")
-    g1.add_option("--labelcols", help="Label cols e.g. `-800: from last 800 rows")
+    g1.add_argument("--labelrows", help="Label rows e.g. `:800` from first 800 rows")
+    g1.add_argument("--labelcols", help="Label cols e.g. `-800: from last 800 rows")
     valid_colors = ("red", "green", "blue", "purple", "yellow", "orange", "INVERSE")
-    g1.add_option(
+    g1.add_argument(
         "--changeBackground",
         default=0,
         choices=valid_colors,
         help="Changes background color",
     )
-    p.add_option_group(g1)
 
-    g2 = OptionGroup(p, "Object recognition")
-    g2.add_option(
+    g2 = p.add_argument_group("Object recognition")
+    g2.add_argument(
         "--minsize",
-        default=0.05,
-        type="float",
+        default=0.2,
+        type=float,
         help="Min percentage of object to image",
     )
-    g2.add_option(
-        "--maxsize", default=50, type="float", help="Max percentage of object to image"
+    g2.add_argument(
+        "--maxsize", default=20, type=float, help="Max percentage of object to image"
     )
-    g2.add_option(
-        "--count", default=100, type="int", help="Report max number of objects"
+    g2.add_argument(
+        "--count", default=100, type=int, help="Report max number of objects"
     )
-    g2.add_option(
+    g2.add_argument(
         "--watershed",
         default=False,
         action="store_true",
         help="Run watershed to segment touching objects",
     )
-    p.add_option_group(g2)
 
-    g3 = OptionGroup(p, "De-noise")
-    valid_filters = ("canny", "roberts", "sobel")
-    g3.add_option(
+    g3 = p.add_argument_group("De-noise")
+    valid_filters = ("canny", "otsu", "roberts", "sam", "sobel")
+    g3.add_argument(
         "--filter",
         default="canny",
         choices=valid_filters,
         help="Edge detection algorithm",
     )
-    g3.add_option(
+    g3.add_argument(
         "--sigma",
         default=1,
-        type="int",
+        type=int,
         help="Canny edge detection sigma, higher for noisy image",
     )
-    g3.add_option(
+    g3.add_argument(
         "--kernel",
         default=2,
-        type="int",
+        type=int,
         help="Edge closure, higher if the object edges are dull",
     )
-    g3.add_option(
-        "--border", default=5, type="int", help="Remove image border of certain pixels"
+    g3.add_argument(
+        "--border", default=5, type=int, help="Remove image border of certain pixels"
     )
-    p.add_option_group(g3)
+    g3.add_argument(
+        "--sam-checkpoint", default="sam_vit_h_4b8939.pth", help="SAM checkpoint file"
+    )
 
-    g4 = OptionGroup(p, "Output")
-    g4.add_option("--calibrate", help="JSON file to correct distance and color")
-    g4.add_option(
+    g4 = p.add_argument_group("Output")
+    g4.add_argument("--calibrate", help="JSON file to correct distance and color")
+    g4.add_argument(
         "--edges",
         default=False,
         action="store_true",
         help="Visualize edges in middle PDF panel",
     )
-    g4.add_option(
+    g4.add_argument(
         "--outdir", default=".", help="Store intermediate images and PDF in folder"
     )
-    g4.add_option("--prefix", help="Output prefix")
-    g4.add_option(
+    g4.add_argument("--prefix", help="Output prefix")
+    g4.add_argument(
         "--noheader", default=False, action="store_true", help="Do not print header"
     )
-    p.add_option_group(g4)
     opts, args, iopts = p.set_image_options(args, figsize="12x6", style="white")
 
     return opts, args, iopts
@@ -326,11 +415,9 @@ def batchseeds(args):
 
     Extract seed metrics for each image in a directory.
     """
-    from jcvi.formats.pdf import cat
-
     xargs = args[1:]
     p = OptionParser(batchseeds.__doc__)
-    opts, args, iopts = add_seeds_options(p, args)
+    opts, args, _ = add_seeds_options(p, args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -352,41 +439,50 @@ def batchseeds(args):
         images.append(im)
 
     fw = must_open(outfile, "w")
-    print(Seed.header(calibrate=jsonfile), file=fw)
+    print(Seed.header(calibrated=bool(jsonfile)), file=fw)
     nseeds = 0
     for im in images:
-        imargs = [im, "--noheader", "--outdir={0}".format(outdir)] + xargs
+        imargs = [im, "--noheader", f"--outdir={outdir}"] + xargs
         if jsonfile:
-            imargs += ["--calibrate={0}".format(jsonfile)]
+            imargs += [f"--calibrate={jsonfile}"]
         objects = seeds(imargs)
         for o in objects:
             print(o, file=fw)
         nseeds += len(objects)
     fw.close()
-    logging.debug("Processed {0} images.".format(len(images)))
-    logging.debug("A total of {0} objects written to `{1}`.".format(nseeds, outfile))
+    logger.debug("Processed %d images.", len(images))
+    logger.debug("A total of %d objects written to `%s`.", nseeds, outfile)
 
     pdfs = iglob(outdir, "*.pdf")
     outpdf = folder + "-output.pdf"
-    cat(pdfs + ["--outfile={0}".format(outpdf)])
+    cat(pdfs + [f"--outfile={outpdf}"])
 
-    logging.debug("Debugging information written to `{0}`.".format(outpdf))
+    logger.debug("Debugging information written to `%s`.", outpdf)
     return outfile
 
 
-def p_round(n, precision=5):
+def p_round(n: int, precision: int = 5) -> int:
+    """
+    Round to the nearest precision.
+    """
     precision = int(precision)
     return int(round(n / float(precision))) * precision
 
 
-def pixel_stats(img):
+def pixel_stats(img: List[RGBTuple]) -> RGBTuple:
+    """
+    Get the most common pixel color.
+    """
     img = [(p_round(r), p_round(g), p_round(b)) for r, g, b in img]
     c = Counter(img)
-    imgx, count = c.most_common(1)[0]
+    imgx, _ = c.most_common(1)[0]
     return imgx
 
 
-def slice(s, m):
+def slice_to_ints(s: str, m: int) -> Tuple[int, int]:
+    """
+    Parse slice string.
+    """
     assert ":" in s
     ra, rb = s.split(":")
     ra = 0 if ra == "" else int(ra)
@@ -394,8 +490,11 @@ def slice(s, m):
     return ra, rb
 
 
-def convert_background(pngfile, new_background):
-    """Replace the background color with the specified background color, default is blue"""
+def convert_background(pngfile: str, new_background: str):
+    """
+    Replace the background color with the specified background color, default is
+    blue.
+    """
     if new_background:
         _name, _ext = op.splitext(op.basename(pngfile))
         _name += "_bgxform"
@@ -403,21 +502,20 @@ def convert_background(pngfile, new_background):
 
         img = iopen(pngfile)
         pixels = list(img.getdata())
-        h, w = img.size
 
         # Get Standard Deviation of RGB
-        rgbArray = []
+        rgb_array = []
         for x in range(255):
-            rgbArray.append(x)
-        stdRGB = np.std(rgbArray) * 0.8
+            rgb_array.append(x)
+        std_rgb = np.std(rgb_array) * 0.8
 
         # Get average color
-        obcolor = [None, None, None]
+        obcolor = [0, 0, 0]
         pixel_values = []
         for t in range(3):
             pixel_color = img.getdata(band=t)
             for pixel in pixel_color:
-                if pixel > stdRGB:
+                if pixel > std_rgb:
                     pixel_values.append(pixel)
             obcolor[t] = sum(pixel_values) // len(pixel_values)
 
@@ -426,13 +524,12 @@ def convert_background(pngfile, new_background):
             pixel_color = img.getdata(band=t)
             seed_pixel_values = []
             for i in pixel_color:
-                if (i > (obcolor[t] - stdRGB)) and (i < (obcolor[t] + stdRGB)):
+                if obcolor[t] - std_rgb < i < obcolor[t] + std_rgb:
                     seed_pixel_values.append(i)
             obcolor[t] = sum(seed_pixel_values) // len(seed_pixel_values)
         # Selection of colors based on option parser
-        nbcolor = [None, None, None]
+        nbcolor = [0, 0, 0]
         if new_background == "INVERSE":
-            nbcolor = [None, None, None]
             for t in range(3):
                 nbcolor[t] = 255 - obcolor[t]
         elif new_background == "red":
@@ -456,12 +553,9 @@ def convert_background(pngfile, new_background):
         # Change Background Color
         obcolor = tuple(obcolor)
         nbcolor = tuple(nbcolor)
-        for i in range(len(pixels)):
-            r, g, b = pixels[i]
-            if (obcolor[0] - stdRGB) <= r <= (obcolor[0] + stdRGB):
-                if (obcolor[1] - stdRGB) <= g <= (obcolor[1] + stdRGB):
-                    if (obcolor[2] - stdRGB) <= b <= (obcolor[2] + stdRGB):
-                        pixels[i] = nbcolor
+        for idx, pixel in enumerate(pixels):
+            if all(o - std_rgb <= p <= o + std_rgb for o, p in zip(obcolor, pixel)):
+                pixels[idx] = nbcolor
         img.putdata(pixels)
         img.save(newfile, "PNG")
         return newfile
@@ -469,22 +563,25 @@ def convert_background(pngfile, new_background):
 
 
 def convert_image(
-    pngfile,
-    pf,
-    outdir=".",
-    resize=1000,
-    format="jpeg",
-    rotate=0,
-    rows=":",
-    cols=":",
-    labelrows=None,
-    labelcols=None,
-):
+    pngfile: str,
+    pf: str,
+    outdir: str = ".",
+    resize: int = 1000,
+    img_format: str = "jpeg",
+    rotate: int = 0,
+    rows: str = ":",
+    cols: str = ":",
+    labelrows: Optional[str] = None,
+    labelcols: Optional[str] = None,
+) -> Tuple[str, str, Optional[str], dict]:
+    """
+    Convert image to JPEG format and resize it.
+    """
     resizefile = op.join(outdir, pf + ".resize.jpg")
     mainfile = op.join(outdir, pf + ".main.jpg")
     labelfile = op.join(outdir, pf + ".label.jpg")
     img = Image(filename=pngfile)
-    exif = dict((k, v) for k, v in img.metadata.items() if k.startswith("exif:"))
+    exif = dict((k, img.metadata[k]) for k in img.metadata if k.startswith("exif:"))
 
     # Rotation, slicing and cropping of main image
     if rotate:
@@ -497,23 +594,21 @@ def convert_image(
             else:
                 nw, nh = resize * w // h, resize
             img.resize(nw, nh)
-            logging.debug(
-                "Image `{0}` resized from {1}px:{2}px to {3}px:{4}px".format(
-                    pngfile, w, h, nw, nh
-                )
+            logger.debug(
+                "Image `%s` resized from %dpx:%dpx to %dpx:%dpx", pngfile, w, h, nw, nh
             )
-    img.format = format
+    img.format = img_format
     img.save(filename=resizefile)
 
     rimg = img.clone()
     if rows != ":" or cols != ":":
         w, h = img.size
-        ra, rb = slice(rows, h)
-        ca, cb = slice(cols, w)
+        ra, rb = slice_to_ints(rows, h)
+        ca, cb = slice_to_ints(cols, w)
         # left, top, right, bottom
-        logging.debug("Crop image to {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+        logger.debug("Crop image to %d:%d %d:%d", ra, rb, ca, cb)
         img.crop(ca, ra, cb, rb)
-        img.format = format
+        img.format = img_format
         img.save(filename=mainfile)
     else:
         mainfile = resizefile
@@ -525,11 +620,11 @@ def convert_image(
             labelcols = ":"
         if labelcols and not labelrows:
             labelrows = ":"
-        ra, rb = slice(labelrows, h)
-        ca, cb = slice(labelcols, w)
-        logging.debug("Extract label from {0}:{1} {2}:{3}".format(ra, rb, ca, cb))
+        ra, rb = slice_to_ints(labelrows, h)
+        ca, cb = slice_to_ints(labelcols, w)
+        logger.debug("Extract label from %d:%d %d:%d", ra, rb, ca, cb)
         rimg.crop(ca, ra, cb, rb)
-        rimg.format = format
+        rimg.format = img_format
         rimg.save(filename=labelfile)
     else:
         labelfile = None
@@ -537,13 +632,27 @@ def convert_image(
     return resizefile, mainfile, labelfile, exif
 
 
-def extract_label(labelfile):
+def extract_label(labelfile: str) -> str:
+    """
+    Extract accession number from label image.
+    """
     accession = image_to_string(iopen(labelfile))
     accession = " ".join(accession.split())  # normalize spaces
     accession = "".join(x for x in accession if x in string.printable)
     if not accession:
         accession = "none"
     return accession
+
+
+def efd_feature(contour: np.ndarray) -> np.ndarray:
+    """
+    To use EFD as features, one can write a small wrapper function.
+
+    Based on: https://pyefd.readthedocs.io/en/latest
+    """
+    coeffs = elliptic_fourier_descriptors(contour, normalize=True)
+    # skip the first three coefficients, which are always 1, 0, 0
+    return coeffs.flatten()[3:]
 
 
 def seeds(args):
@@ -567,7 +676,7 @@ def seeds(args):
     ff = opts.filter
     calib = opts.calibrate
     outdir = opts.outdir
-    if outdir != ".":
+    if outdir and outdir != ".":
         mkdir(outdir)
     if calib:
         calib = json.load(must_open(calib))
@@ -588,54 +697,76 @@ def seeds(args):
     oimg = load_image(resizefile)
     img = load_image(mainfile)
 
-    fig, (ax1, ax2, ax3, ax4) = plt.subplots(
-        ncols=4, nrows=1, figsize=(iopts.w, iopts.h)
-    )
+    _, (ax1, ax2, ax3, ax4) = plt.subplots(ncols=4, nrows=1, figsize=(iopts.w, iopts.h))
     # Edge detection
     img_gray = rgb2gray(img)
-    logging.debug("Running {0} edge detection ...".format(ff))
-    if ff == "canny":
-        edges = canny(img_gray, sigma=opts.sigma)
-    elif ff == "roberts":
-        edges = roberts(img_gray)
-    elif ff == "sobel":
-        edges = sobel(img_gray)
-    edges = clear_border(edges, buffer_size=opts.border)
-    selem = disk(kernel)
-    closed = closing(edges, selem) if kernel else edges
-    filled = binary_fill_holes(closed)
-
-    # Watershed algorithm
-    if opts.watershed:
-        distance = distance_transform_edt(filled)
-        local_maxi = peak_local_max(distance, threshold_rel=0.05, indices=False)
-        coordinates = peak_local_max(distance, threshold_rel=0.05)
-        markers, nmarkers = label(local_maxi, return_num=True)
-        logging.debug("Identified {0} watershed markers".format(nmarkers))
-        labels = watershed(closed, markers, mask=filled)
-    else:
-        labels = label(filled)
-
-    # Object size filtering
     w, h = img_gray.shape
     canvas_size = w * h
     min_size = int(round(canvas_size * opts.minsize / 100))
     max_size = int(round(canvas_size * opts.maxsize / 100))
-    logging.debug(
-        "Find objects with pixels between {0} ({1}%) and {2} ({3}%)".format(
-            min_size, opts.minsize, max_size, opts.maxsize
+
+    logger.debug("Running %s edge detection …", ff)
+    if ff == "canny":
+        edges = canny(img_gray, sigma=opts.sigma)
+    elif ff == "otsu":
+        thresh = threshold_otsu(img_gray)
+        edges = img_gray > thresh
+    elif ff == "roberts":
+        edges = roberts(img_gray)
+    elif ff == "sobel":
+        edges = sobel(img_gray)
+    if ff == "sam":
+        masks = sam(img, opts.sam_checkpoint)
+        filtered_masks = [
+            mask for mask in masks if min_size <= mask["area"] <= max_size
+        ]
+        deduplicated_masks = deduplicate_masks(filtered_masks)
+        logger.info(
+            "SAM: %d (raw) → %d (size filtered) → %d (deduplicated)",
+            len(masks),
+            len(filtered_masks),
+            len(deduplicated_masks),
         )
+        labels = np.zeros(img_gray.shape, dtype=int)
+        for i, mask in enumerate(deduplicated_masks):
+            labels[mask["segmentation"]] = i + 1
+        labels = clear_border(labels)
+    else:
+        edges = clear_border(edges, buffer_size=opts.border)
+        selem = disk(kernel)
+        closed = closing(edges, selem) if kernel else edges
+        filled = binary_fill_holes(closed)
+
+        # Watershed algorithm
+        if opts.watershed:
+            distance = distance_transform_edt(filled)
+            local_maxi = peak_local_max(distance, threshold_rel=0.05, indices=False)
+            coordinates = peak_local_max(distance, threshold_rel=0.05)
+            markers, nmarkers = label(local_maxi, return_num=True)
+            logger.debug("Identified %d watershed markers", nmarkers)
+            labels = watershed(closed, markers, mask=filled)
+        else:
+            labels = label(filled)
+
+    # Object size filtering
+    logger.debug(
+        "Find objects with pixels between %d (%.2f%%) and %d (%d%%)",
+        min_size,
+        opts.minsize,
+        max_size,
+        opts.maxsize,
     )
 
     # Plotting
     ax1.set_title("Original picture")
     ax1.imshow(oimg)
 
-    params = r"{0}, $\sigma$={1}, $k$={2}".format(ff, sigma, kernel)
+    params = rf"{ff}, $\sigma$={sigma}, $k$={kernel}"
     if opts.watershed:
         params += ", watershed"
-    ax2.set_title("Edge detection\n({0})".format(params))
-    closed = gray2rgb(closed)
+    ax2.set_title(f"Edge detection\n({params})")
+    if ff != "sam":
+        closed = gray2rgb(closed)
     ax2_img = labels
     if opts.edges:
         ax2_img = closed
@@ -655,23 +786,27 @@ def seeds(args):
     # Calculate region properties
     rp = regionprops(labels)
     rp = [x for x in rp if min_size <= x.area <= max_size]
+    rp.sort(key=lambda x: x.area, reverse=True)
     nb_labels = len(rp)
-    logging.debug("A total of {0} objects identified.".format(nb_labels))
+    logger.debug("A total of %d objects identified.", nb_labels)
     objects = []
     for i, props in enumerate(rp):
         i += 1
         if i > opts.count:
             break
 
+        contour = find_contours(labels == props.label, 0.5)[0]
+        efds = efd_feature(contour)
         y0, x0 = props.centroid
         orientation = props.orientation
         major, minor = props.major_axis_length, props.minor_axis_length
-        major_dx = cos(orientation) * major / 2
-        major_dy = sin(orientation) * major / 2
-        minor_dx = sin(orientation) * minor / 2
-        minor_dy = cos(orientation) * minor / 2
-        ax2.plot((x0 - major_dx, x0 + major_dx), (y0 + major_dy, y0 - major_dy), "r-")
+        major_dx = sin(orientation) * major / 2
+        major_dy = cos(orientation) * major / 2
+        minor_dx = cos(orientation) * minor / 2
+        minor_dy = -sin(orientation) * minor / 2
+        ax2.plot((x0 - major_dx, x0 + major_dx), (y0 - major_dy, y0 + major_dy), "r-")
         ax2.plot((x0 - minor_dx, x0 + minor_dx), (y0 - minor_dy, y0 + minor_dy), "r-")
+        ax2.plot(contour[:, 1], contour[:, 0], "y-")
 
         npixels = int(props.area)
         # Sample the center of the blob for color
@@ -681,33 +816,35 @@ def seeds(args):
         pixels = []
         for row in square:
             pixels.extend(row)
-        logging.debug(
-            "Seed #{0}: {1} pixels ({2} sampled) - {3:.2f}%".format(
-                i, npixels, len(pixels), 100.0 * npixels / canvas_size
-            )
+        logger.debug(
+            "Seed #%d: %d pixels (%d sampled) - %.2f%%",
+            i,
+            npixels,
+            len(pixels),
+            100.0 * npixels / canvas_size,
         )
 
         rgb = pixel_stats(pixels)
-        objects.append(Seed(filename, accession, i, rgb, props, exif))
+        objects.append(Seed(filename, accession, i, rgb, props, efds, exif))
         minr, minc, maxr, maxc = props.bbox
         rect = Rectangle(
             (minc, minr), maxc - minc, maxr - minr, fill=False, ec="w", lw=1
         )
         ax3.add_patch(rect)
         mc, mr = (minc + maxc) // 2, (minr + maxr) // 2
-        ax3.text(mc, mr, "{0}".format(i), color="w", ha="center", va="center", size=6)
+        ax3.text(mc, mr, f"{i}", color="w", ha="center", va="center", size=6)
 
     for ax in (ax2, ax3):
         ax.set_xlim(0, h)
         ax.set_ylim(w, 0)
 
     # Output identified seed stats
-    ax4.text(0.1, 0.92, "File: {0}".format(latex(filename)), color="g")
-    ax4.text(0.1, 0.86, "Label: {0}".format(latex(accession)), color="m")
+    ax4.text(0.1, 0.92, f"File: {latex(filename)}", color="g")
+    ax4.text(0.1, 0.86, f"Label: {latex(accession)}", color="m")
     yy = 0.8
     fw = must_open(opts.outfile, "w")
     if not opts.noheader:
-        print(Seed.header(calibrate=calib), file=fw)
+        print(Seed.header(calibrated=calib), file=fw)
     for o in objects:
         if calib:
             o.calibrate(pixel_cm_ratio, tr)
@@ -726,16 +863,13 @@ def seeds(args):
     ax4.text(
         0.1,
         yy,
-        "(A total of {0} objects displayed)".format(nb_labels),
+        f"(A total of {nb_labels} objects displayed)",
         color="darkslategray",
     )
     normalize_axes(ax4)
 
     for ax in (ax1, ax2, ax3):
-        xticklabels = [int(x) for x in ax.get_xticks()]
-        yticklabels = [int(x) for x in ax.get_yticks()]
-        ax.set_xticklabels(xticklabels, family="Helvetica", size=8)
-        ax.set_yticklabels(yticklabels, family="Helvetica", size=8)
+        set_helvetica_axis(ax)
 
     image_name = op.join(outdir, pf + "." + iopts.format)
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)

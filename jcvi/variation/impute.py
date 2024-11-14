@@ -5,14 +5,13 @@
 Impute unknown variations given an input vcf file.
 """
 import os.path as op
-import logging
 import sys
 
-from jcvi.utils.cbook import percentage
-from jcvi.apps.grid import MakeManager
-from jcvi.formats.base import must_open
-from jcvi.formats.vcf import VcfLine, CM
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..apps.grid import MakeManager
+from ..formats.base import must_open
+from ..formats.vcf import VcfLine, CM
+from ..utils.cbook import percentage
 
 
 def main():
@@ -82,7 +81,7 @@ def validate(args):
         v = VcfLine(row)
         register[(v.seqid, v.pos)] = v.genotype
 
-    logging.debug("Imported {0} records from `{1}`".format(len(register), withheld))
+    logger.debug("Imported %d records from `%s`", len(register), withheld)
 
     fp = must_open(imputed)
     hit = concordant = 0
@@ -109,7 +108,7 @@ def validate(args):
         else:
             print(row.strip(), "truth={0}".format(truth), file=sys.stderr)
 
-    logging.debug("Total concordant: {0}".format(percentage(concordant, hit)))
+    logger.debug("Total concordant: %s", percentage(concordant, hit))
 
 
 def minimac(args):

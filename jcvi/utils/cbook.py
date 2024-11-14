@@ -2,12 +2,15 @@
 Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
+
 import os.path as op
 import re
 import sys
-import logging
 
 from collections import defaultdict
+from typing import Optional
+
+from ..apps.base import logger
 
 
 def inspect(item, maxchar=80):
@@ -36,7 +39,7 @@ def timeit(func):
         te = time.time()
 
         msg = "{0}{1} {2:.2f}s".format(func.__name__, args, te - ts)
-        logging.debug(msg)
+        logger.debug(msg)
 
         return result
 
@@ -83,7 +86,7 @@ Functions that make text formatting easier.
 
 class Registry(defaultdict):
     def __init__(self, *args, **kwargs):
-        super(Registry, self).__init__(list, *args, **kwargs)
+        super().__init__(list, *args, **kwargs)
 
     def iter_tag(self, tag):
         for key, ts in self.items():
@@ -148,7 +151,7 @@ class SummaryStats(object):
         for x in self.data:
             print(x, file=fw)
         fw.close()
-        logging.debug(
+        logger.debug(
             "Array of size {0} written to file `{1}`.".format(self.size, filename)
         )
 
@@ -179,7 +182,7 @@ def enumerate_reversed(sequence):
         yield index, sequence[index]
 
 
-def percentage(a, b, precision=1, mode=0):
+def percentage(a, b, precision=1, mode: Optional[int] = 0):
     """
     >>> percentage(100, 200)
     '100 of 200 (50.0%)'
@@ -259,8 +262,11 @@ def human_size(size, a_kilobyte_is_1024_bytes=False, precision=1, target=None):
     return "{0:.{1}f}{2}".format(size, precision, suffix)
 
 
-def autoscale(bp, optimal=6):
+def autoscale(bp: int, optimal: int = 6):
     """
+    Autoscale the basepair length to a more human readable number.
+    The optimal is the number of ticks we want to see on the axis.
+
     >>> autoscale(150000000)
     20000000
     >>> autoscale(97352632)
@@ -271,7 +277,7 @@ def autoscale(bp, optimal=6):
     precision = len(slen) - 2  # how many zeros we need to pad?
     bp_len_scaled = int(tlen)  # scale bp_len to range (0, 100)
     tick_diffs = [(x, abs(bp_len_scaled / x - optimal)) for x in [1, 2, 5, 10]]
-    best_stride, best_tick_diff = min(tick_diffs, key=lambda x: x[1])
+    best_stride, _ = min(tick_diffs, key=lambda x: x[1])
 
     while precision > 0:
         best_stride *= 10
@@ -390,8 +396,6 @@ def fixChromName(name, orgn="medicago"):
             `chromosome:AGPv2:mitochondrion:1:569630:1` to `Mt`
             `chromosome:AGPv2:chloroplast:1:140384:1` to `Pt`
     """
-    import re
-
     mtr_pat1 = re.compile(r"Mt[0-9]+\.[0-9]+[.[0-9]+]*_([a-z]+[0-9]+)")
     mtr_pat2 = re.compile(r"([A-z0-9]+)_[A-z]+_[A-z]+")
 

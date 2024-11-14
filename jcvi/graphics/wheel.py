@@ -4,15 +4,17 @@
 """
 Wheel plot that shows continuous data in radial axes.
 """
-import numpy as np
 import sys
 
 from math import degrees
 from collections import OrderedDict
 from itertools import groupby
 
-from jcvi.graphics.base import plt, savefig, normalize_axes
-from jcvi.apps.base import OptionParser, ActionDispatcher
+import numpy as np
+
+from ..apps.base import ActionDispatcher, OptionParser
+
+from .base import normalize_axes, plt, savefig
 
 
 def main():
@@ -73,7 +75,7 @@ def wheel(args):
     Wheel plot that shows continous data in radial axes.
     """
     p = OptionParser(wheel.__doc__)
-    p.add_option(
+    p.add_argument(
         "--column",
         default="score",
         choices=("score", "percentile"),

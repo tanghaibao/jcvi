@@ -3,14 +3,14 @@
 
 import os.path as op
 import sys
-import logging
 
 from math import exp
 from multiprocessing import Lock, Pool
 
-from jcvi.formats.base import must_open
-from jcvi.apps.grid import Jobs
-from jcvi.apps.base import OptionParser, mkdir, Popen
+from ..formats.base import must_open
+
+from .grid import Jobs
+from .base import OptionParser, Popen, logger, mkdir
 
 
 # LASTZ options
@@ -130,11 +130,11 @@ def lastz_2bit(t):
     proc = Popen(lastz_cmd)
     out_fh = open(outfile, "w")
 
-    logging.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
+    logger.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
     for row in proc.stdout:
         out_fh.write(row)
         out_fh.flush()
-    logging.debug("job <%d> finished" % proc.pid)
+    logger.debug("job <%d> finished" % proc.pid)
 
 
 def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra, mask=False):
@@ -159,14 +159,14 @@ def lastz(k, n, bfasta_fn, afasta_fn, out_fh, lock, lastz_bin, extra, mask=False
 
     proc = Popen(lastz_cmd)
 
-    logging.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
+    logger.debug("job <%d> started: %s" % (proc.pid, lastz_cmd))
     for row in proc.stdout:
         row = lastz_to_blast(row)
         lock.acquire()
         print(row, file=out_fh)
         out_fh.flush()
         lock.release()
-    logging.debug("job <%d> finished" % proc.pid)
+    logger.debug("job <%d> finished" % proc.pid)
 
 
 def main():
@@ -183,21 +183,21 @@ def main():
         "sam-, softsam-, cigar, BLASTN, BLASTN-, differences, rdotplot, text".split(",")
     )
 
-    p.add_option(
+    p.add_argument(
         "--format",
         default="BLASTN-",
         choices=supported_formats,
         help="Ooutput format",
     )
-    p.add_option("--path", dest="lastz_path", default=None, help="specify LASTZ path")
-    p.add_option(
+    p.add_argument("--path", dest="lastz_path", default=None, help="specify LASTZ path")
+    p.add_argument(
         "--mask",
         dest="mask",
         default=False,
         action="store_true",
         help="treat lower-case letters as mask info",
     )
-    p.add_option(
+    p.add_argument(
         "--similar",
         default=False,
         action="store_true",
@@ -228,7 +228,7 @@ def main():
 
     mask = opts.mask
     cpus = opts.cpus
-    logging.debug("Dispatch job to %d cpus" % cpus)
+    logger.debug("Dispatch job to %d cpus" % cpus)
     format = opts.format
     blastline = format == "BLASTN-"
 

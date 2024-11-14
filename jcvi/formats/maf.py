@@ -7,17 +7,26 @@ MAF format specification:
 """
 import sys
 
+from bisect import bisect
+from dataclasses import dataclass
+
+from Bio import AlignIO
+from Bio import SeqIO
 from bx import interval_index_file
 from bx.align import maf
 
-from jcvi.formats.base import BaseFile
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update
-from jcvi.apps.lastz import blastz_score_to_ncbi_expectation, blastz_score_to_ncbi_bits
+from ..apps.base import ActionDispatcher, OptionParser, need_update
+from ..apps.lastz import blastz_score_to_ncbi_expectation, blastz_score_to_ncbi_bits
+
+from .base import BaseFile, logger
+
+
+FLANK = 60
 
 
 class Maf(BaseFile, dict):
     def __init__(self, filename, index=False):
-        super(Maf, self).__init__(filename)
+        super().__init__(filename)
 
         indexfile = filename + ".idx"
         if index:
@@ -57,14 +66,101 @@ class Maf(BaseFile, dict):
         index_handle.close()
 
 
+@dataclass
+class Breakpoint:
+    arec: str
+    astart: int
+    brec: str
+    bstart: int
+
+    def __str__(self):
+        return f"{self.arec}:{self.astart}-{self.brec}:{self.bstart}"
+
+
 def main():
 
     actions = (
         ("bed", "convert MAF to BED format"),
         ("blast", "convert MAF to BLAST tabular format"),
+        ("breakpoints", "find breakpoints in MAF and 'simulate' chimeric contigs"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
+
+
+def breakpoints(args):
+    """
+    %prog breakpoints A.B.maf A.fa B.fa AB 1000000 2000000
+
+    Find breakpoints in MAF and 'simulate' chimeric contigs in `AB.fa`.
+    Breakpoints are 'roughly' around the user defined positions. The idea is
+    to simulate chimeric contigs, which are useful for testing algorithms,
+    e.g. klassify.
+    """
+    p = OptionParser(breakpoints.__doc__)
+    p.add_argument(
+        "--minsize",
+        default=10000,
+        type=int,
+        help="Minimum size of alignment to consider",
+    )
+    opts, args = p.parse_args(args)
+
+    if len(args) not in (5, 6):
+        sys.exit(not p.print_help())
+
+    maf_file, a_fasta, b_fasta, ab = args[:4]
+    bps = sorted(int(x) for x in args[4:])
+    minsize = opts.minsize
+
+    filtered_msa = []
+    for msa in AlignIO.parse(maf_file, "maf"):
+        arec, brec = msa
+        if brec.annotations["size"] < minsize:
+            continue
+        filtered_msa.append((brec.annotations["start"], arec, brec))
+    logger.info("Total alignments: %d", len(filtered_msa))
+
+    final = []
+    # Load the sequences
+    ar = next(SeqIO.parse(a_fasta, "fasta"))
+    br = next(SeqIO.parse(b_fasta, "fasta"))
+    for bp in bps:
+        i = bisect(filtered_msa, (bp,))
+        _, arec, brec = filtered_msa[i]
+        logger.info("%s", arec)
+        logger.info("%s", brec)
+        assert len(arec) == len(brec)
+        # Find the midpoint, safe to crossover there
+        midpoint = len(arec) // 2
+        aseq = arec.seq[:midpoint]
+        astart = arec.annotations["start"] + len(aseq) - aseq.count("-")
+        logger.info("%s|%s", aseq[-FLANK:], arec.seq[midpoint:][:FLANK])
+        bseq = brec.seq[:midpoint]
+        bstart = brec.annotations["start"] + len(bseq) - bseq.count("-")
+        logger.info("%s|%s", bseq[-FLANK:], brec.seq[midpoint:][:FLANK])
+        bpt = Breakpoint(arec.id, astart, brec.id, bstart)
+        logger.info("-" * FLANK * 2 + ">")
+        logger.info("%s|%s", ar.seq[:astart][-FLANK:], br.seq[bstart:][:FLANK])
+        final.append(bpt)
+
+    logger.info("Breakpoints found: %s", final)
+    if len(final) == 2:
+        bp1, bp2 = final[:2]
+        # ====-------=======
+        #   bp1     bp2
+        abseq = (
+            ar.seq[: bp1.astart]
+            + br.seq[bp1.bstart : bp2.bstart]
+            + ar.seq[bp2.astart :]
+        )
+    elif len(final) == 1:
+        bp = final[0]
+        abseq = ar.seq[: bp.astart] + br.seq[bp.bstart :]
+    abrec = SeqIO.SeqRecord(abseq, id=ab, description="")
+    ab_fasta = f"{ab}.fa"
+    SeqIO.write([abrec], ab_fasta, "fasta")
+    logger.info("Writing to %s", ab_fasta)
 
 
 def bed(args):
@@ -75,8 +171,7 @@ def bed(args):
     then useful to check coverage, etc.
     """
     p = OptionParser(bed.__doc__)
-
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(p.print_help())
@@ -128,6 +223,9 @@ def alignment_details(a, b):
 
 
 def maf_to_blast8(f):
+    """
+    Convert a MAF file to BLAST tabular format.
+    """
     reader = Maf(f).reader
     for rec in reader:
         a, b = rec.components
@@ -173,7 +271,7 @@ def blast(args):
     From a folder of .maf files, generate .blast file with tabular format.
     """
     p = OptionParser(blast.__doc__)
-    opts, args = p.parse_args(args)
+    _, args = p.parse_args(args)
 
     if len(args) == 0:
         sys.exit(p.print_help())

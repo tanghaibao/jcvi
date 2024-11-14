@@ -6,17 +6,17 @@ Variant call format.
 """
 import os.path as op
 import sys
-import logging
 
 from collections import defaultdict
 from itertools import groupby
 from pyfaidx import Fasta
 from pyliftover import LiftOver
 
-from jcvi.formats.base import must_open
-from jcvi.formats.sizes import Sizes
-from jcvi.utils.cbook import percentage
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
+from ..utils.cbook import percentage
+
+from .base import must_open
+from .sizes import Sizes
 
 
 class VcfLine:
@@ -112,7 +112,7 @@ class UniqueLiftover(object):
             )
 
         if verbose:
-            logging.error(exception_string)
+            logger.error(exception_string)
         return None, None
 
 
@@ -151,7 +151,7 @@ def validate(args):
     import pyfasta
 
     p = OptionParser(validate.__doc__)
-    p.add_option("--prefix", help="Add prefix to seqid")
+    p.add_argument("--prefix", help="Add prefix to seqid")
     opts, args = p.parse_args(args)
 
     vcffile, fastafile = args
@@ -177,8 +177,8 @@ def validate(args):
         elif alt == true_ref:
             match_alt += 1
 
-    logging.debug("Match REF: {}".format(percentage(match_ref, total)))
-    logging.debug("Match ALT: {}".format(percentage(match_alt, total)))
+    logger.debug("Match REF: {}".format(percentage(match_ref, total)))
+    logger.debug("Match ALT: {}".format(percentage(match_alt, total)))
 
 
 def uniq(args):
@@ -247,8 +247,8 @@ def sample(args):
         else:
             nwithheld += 1
             print(row.strip(), file=fww)
-    logging.debug("{0} records kept to `{1}`".format(nkept, kept))
-    logging.debug("{0} records withheld to `{1}`".format(nwithheld, withheld))
+    logger.debug("{0} records kept to `{1}`".format(nkept, kept))
+    logger.debug("{0} records withheld to `{1}`".format(nwithheld, withheld))
 
 
 def get_vcfstanza(fastafile, sampleid="SAMP_001"):
@@ -337,7 +337,7 @@ def read_rsid(seqid, legend):
                     register[rsid][-1].append(alt)
             else:
                 register[rsid] = (pos, ref, [alt])
-    logging.debug(
+    logger.debug(
         "A total of {0} sites imported from `{1}`".format(len(register), legend)
     )
     return register
@@ -443,7 +443,7 @@ def from23andme(args):
         try:
             ia, ib = alleles.index(a), alleles.index(b)
         except ValueError:  # alleles not seen
-            logging.error(
+            logger.error(
                 "{0}: alleles={1}, genotype={2}".format(rsid, alleles, genotype)
             )
             skipped += 1
@@ -457,7 +457,7 @@ def from23andme(args):
             file=fw,
         )
 
-    logging.debug(
+    logger.debug(
         "duplicates={0} skipped={1} missing={2}".format(duplicates, skipped, missing)
     )
 
@@ -496,10 +496,10 @@ def location(args):
     from jcvi.graphics.histogram import stem_leaf_plot
 
     p = OptionParser(location.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dist",
         default=100,
-        type="int",
+        type=int,
         help="Distance cutoff to call 5` and 3`",
     )
     opts, args = p.parse_args(args)
@@ -551,8 +551,8 @@ def summary(args):
     from jcvi.utils.table import tabulate
 
     p = OptionParser(summary.__doc__)
-    p.add_option("--counts", help="Print SNP counts in a txt file")
-    p.add_option("--bed", help="Print SNPs locations in a bed file")
+    p.add_argument("--counts", help="Print SNP counts in a txt file")
+    p.add_argument("--bed", help="Print SNPs locations in a bed file")
     opts, args = p.parse_args(args)
 
     if len(args) != 2:
@@ -594,7 +594,7 @@ def summary(args):
             print("\t".join(str(x) for x in (ctg, pos - 1, pos, locus)), file=bedfw)
 
     if bedfw:
-        logging.debug("SNP locations written to `{0}`.".format(opts.bed))
+        logger.debug("SNP locations written to `{0}`.".format(opts.bed))
         bedfw.close()
 
     nsites = sum(len(x) for x in snps.values())
@@ -644,7 +644,7 @@ def summary(args):
         print("\t".join(str(x) for x in (ctg, snpcount, goodsnpcount)), file=fw)
 
     fw.close()
-    logging.debug("SNP counts per contig is written to `{0}`.".format(snpcountsfile))
+    logger.debug("SNP counts per contig is written to `{0}`.".format(snpcountsfile))
 
 
 g2x = {"0/0": "A", "0/1": "X", "1/1": "B", "./.": "-", ".": "-"}
@@ -685,43 +685,43 @@ def mstmap(args):
     from jcvi.assembly.geneticmap import MSTMatrix
 
     p = OptionParser(mstmap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dh",
         default=False,
         action="store_true",
         help="Double haploid population, no het",
     )
-    p.add_option(
+    p.add_argument(
         "--freq",
         default=0.2,
-        type="float",
+        type=float,
         help="Allele must be above frequency",
     )
-    p.add_option(
+    p.add_argument(
         "--mindepth",
         default=3,
-        type="int",
+        type=int,
         help="Only trust genotype calls with depth",
     )
-    p.add_option(
+    p.add_argument(
         "--missing_threshold",
         default=0.25,
-        type="float",
+        type=float,
         help="Fraction missing must be below",
     )
-    p.add_option(
+    p.add_argument(
         "--noheader",
         default=False,
         action="store_true",
         help="Do not print MSTmap run parameters",
     )
-    p.add_option(
+    p.add_argument(
         "--pv4",
         default=False,
         action="store_true",
         help="Enable filtering strand-bias, tail distance bias, etc.",
     )
-    p.add_option(
+    p.add_argument(
         "--freebayes",
         default=False,
         action="store_true",
@@ -796,7 +796,7 @@ def liftover(args):
     Lift over coordinates in vcf file.
     """
     p = OptionParser(liftover.__doc__)
-    p.add_option(
+    p.add_argument(
         "--newid", default=False, action="store_true", help="Make new identifiers"
     )
     opts, args = p.parse_args(args)
@@ -842,7 +842,7 @@ def liftover(args):
         else:
             num_excluded += 1
 
-    logging.debug("Excluded {0}".format(num_excluded))
+    logger.debug("Excluded {0}".format(num_excluded))
 
 
 if __name__ == "__main__":

@@ -7,8 +7,8 @@ Run EMBOSS programs.
 import sys
 import multiprocessing as mp
 
-from jcvi.apps.base import ActionDispatcher, OptionParser, cleanup
-from jcvi.formats.base import must_open
+from ..formats.base import must_open
+from .base import ActionDispatcher, OptionParser, cleanup
 
 
 class NeedleHeader(object):

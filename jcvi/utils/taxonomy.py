@@ -28,7 +28,6 @@ Example:
 """
 import sys
 import time
-import logging
 
 from functools import lru_cache
 
@@ -40,7 +39,7 @@ from ete3 import Tree
 from ClientForm import ParseResponse
 from BeautifulSoup import BeautifulSoup
 
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser, logger
 
 
 URL = "http://itol.embl.de/other_trees.shtml"
@@ -65,8 +64,8 @@ class TaxIDTree(object):
                 response = urlopen(URL)
                 success = True
             except (URLError, HTTPError, RuntimeError) as e:
-                logging.error(e)
-                logging.debug("wait 5 seconds to reconnect...")
+                logger.error(e)
+                logger.debug("wait 5 seconds to reconnect...")
                 time.sleep(5)
 
         forms = ParseResponse(response, backwards_compat=False)

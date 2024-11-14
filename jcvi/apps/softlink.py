@@ -6,10 +6,9 @@ Procedure to touch and copy softlinks
 """
 import os
 import os.path as op
-import logging
 import sys
 
-from jcvi.apps.base import OptionParser, ActionDispatcher, get_abs_path
+from .base import ActionDispatcher, OptionParser, get_abs_path, logger
 
 
 def main():
@@ -31,7 +30,7 @@ def lnsf(source, target, log=False):
         os.unlink(target)
     os.symlink(source, target)
     if log:
-        logging.debug("{0} => {1}".format(source, target))
+        logger.debug("{0} => {1}".format(source, target))
 
 
 def link(args):
@@ -43,7 +42,7 @@ def link(args):
     from jcvi.apps.base import mkdir
 
     p = OptionParser(link.__doc__)
-    p.add_option("--dir", help="Place links in a subdirectory")
+    p.add_argument("--dir", help="Place links in a subdirectory")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -98,7 +97,7 @@ def clean(args):
     for link_name in os.listdir(os.getcwd()):
         if not op.islink(link_name):
             continue
-        logging.debug("remove symlink `{0}`".format(link_name))
+        logger.debug("remove symlink `{0}`".format(link_name))
         os.unlink(link_name)
 
 
@@ -120,7 +119,7 @@ def cp(args):
         link_name = op.basename(link_name)
         if not op.exists(link_name):
             os.symlink(source, link_name)
-        logging.debug(" => ".join((source, link_name)))
+        logger.debug(" => ".join((source, link_name)))
 
 
 def size(args):

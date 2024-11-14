@@ -1,15 +1,128 @@
+# Specifies the build system requirements and backend
 [build-system]
 requires = [
-    "Cython",
-    "numpy",
-    "setuptools",
-    "setuptools_scm[toml]",
-    "setuptools_scm_git_archive",
-    "wheel",
+    "hatchling",  # Build backend
+    "hatch-vcs",  # Version control system plugin for dynamic versioning
+    "Cython",     # Cython for compiling C extensions
+    "numpy",      # NumPy for numerical operations and C extension includes
 ]
-build-backend = "setuptools.build_meta"
 
-[tool.setuptools_scm]
-write_to = "jcvi/version.py"
-git_describe_command = "git describe --dirty --tags --long --match v* --first-parent"
-version_scheme = "no-guess-dev"
+build-backend = "hatchling.build"
+
+# Project metadata and configuration
+[project]
+name = "jcvi"
+description = "Python utility libraries on genome assembly, annotation and comparative genomics"
+readme = "README.md"
+requires-python = ">=3.6"
+license = {text = "BSD"}
+authors = [
+    {name = "Haibao Tang", email = "tanghaibao@gmail.com"},
+    {name = "Vivek Krishnakumar"},
+    {name = "Jingping Li"}
+]
+
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+
+dependencies = [
+    "CrossMap",
+    "Wand",
+    "biopython",
+    "boto3",
+    "brewer2mpl",
+    "deap",
+    "ete3",
+    "ftpretty",
+    "gffutils",
+    "goatools",
+    "genomepy",
+    "graphviz",
+    "jinja2",
+    "matplotlib",
+    "more-itertools",
+    "natsort",
+    "networkx",
+    "numpy<2",
+    "ortools",
+    "pybedtools",
+    "pyefd",
+    "pypdf",
+    "pytesseract",
+    "rich",
+    "scikit-image",
+    "scipy",
+    "seaborn",
+    "webcolors"
+]
+
+# Indicates that the version is dynamically determined
+dynamic = ["version"]
+
+# Optional dependencies for testing
+[project.optional-dependencies]
+test = [
+    "PyYAML",
+    "pytest",
+    "pytest-cov",
+    "pytest-benchmark",
+    "mock"
+]
+
+# Project URLs
+[project.urls]
+homepage = "http://github.com/tanghaibao/jcvi"
+
+# Hatch metadata configuration
+[tool.hatch.metadata]
+allow-direct-references = true
+
+# Hatch build configuration
+[tool.hatch.build]
+include = [
+    "jcvi/**",  # Include all files in the jcvi directory
+    "README.md",
+]
+exclude = [
+    ".github/*",  # Exclude GitHub workflows and configurations
+    "docker/*",   # Exclude Docker-related files
+    "tests/*",    # Exclude test files
+    ".*"          # Exclude hidden files
+]
+
+# Hatch version configuration using VCS
+[tool.hatch.version]
+source = "vcs"  # Use version control system for versioning
+
+# Version file location for VCS
+[tool.hatch.build.hooks.vcs]
+version-file = "jcvi/version.py"  # Path to write the version information
+
+# Version control system (VCS) versioning
+[tool.hatch.version.vcs]
+tag-pattern = "v*"  # Git tags starting with 'v' will be used for versioning
+fallback-version = "0.0.0"
+
+# Hatch build targets for source distribution
+[tool.hatch.build.targets.sdist]
+include = [
+    "jcvi/**",
+    "README.md",
+]
+
+# Hatch build targets for wheel distribution
+[tool.hatch.build.targets.wheel]
+include = [
+    "jcvi/**",
+    "README.md",
+]
+
+# Cython extensions to be built
+[tool.hatch.build.targets.wheel.ext_modules]
+jcvi.assembly.chic = {sources = ["jcvi/assembly/chic.pyx"], include-dirs = ["{numpy.get_include()}"], extra-compile-args = ["-O3"]}
+jcvi.formats.cblast = {sources = ["jcvi/formats/cblast.pyx"], extra-compile-args = ["-O3"]}

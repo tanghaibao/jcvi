@@ -6,7 +6,6 @@ Deconvolute fastq files according to barcodes.
 """
 import os.path as op
 import sys
-import logging
 
 from collections import namedtuple
 from itertools import product, groupby, islice
@@ -15,9 +14,9 @@ from multiprocessing import Pool
 from Bio.Data.IUPACData import ambiguous_dna_values
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
 
-from jcvi.formats.base import FileMerger, must_open
-from jcvi.formats.fastq import FastqPairedIterator
-from jcvi.apps.base import OptionParser, ActionDispatcher, flatten, mkdir, glob
+from ..apps.base import ActionDispatcher, OptionParser, flatten, glob, logger, mkdir
+from ..formats.base import FileMerger, must_open
+from ..formats.fastq import FastqPairedIterator
 
 
 def main():
@@ -141,19 +140,19 @@ def split(args):
     """
     p = OptionParser(split.__doc__)
     p.set_outdir(outdir="deconv")
-    p.add_option(
+    p.add_argument(
         "--nocheckprefix",
         default=False,
         action="store_true",
         help="Don't check shared prefix",
     )
-    p.add_option(
+    p.add_argument(
         "--paired",
         default=False,
         action="store_true",
         help="Paired-end data",
     )
-    p.add_option(
+    p.add_argument(
         "--append",
         default=False,
         action="store_true",
@@ -182,7 +181,7 @@ def split(args):
             barcodes.append(BarcodeLine._make((id, s)))
 
     nbc = len(barcodes)
-    logging.debug("Imported {0} barcodes (ambiguous codes expanded).".format(nbc))
+    logger.debug("Imported {0} barcodes (ambiguous codes expanded).".format(nbc))
     checkprefix = not opts.nocheckprefix
 
     if checkprefix:
@@ -196,7 +195,7 @@ def split(args):
 
                 assert bc.seq != s.seq
                 if s.seq.startswith(bc.seq) and len(s.seq) > len(bc.seq):
-                    logging.error("{0} shares same prefix as {1}.".format(s, bc))
+                    logger.error("{0} shares same prefix as {1}.".format(s, bc))
                     exclude.append(s)
             excludebarcodes.append(exclude)
     else:
@@ -206,7 +205,7 @@ def split(args):
     mkdir(outdir)
 
     cpus = opts.cpus
-    logging.debug("Create a pool of {0} workers.".format(cpus))
+    logger.debug("Create a pool of {0} workers.".format(cpus))
     pool = Pool(cpus)
 
     if paired:
@@ -219,7 +218,7 @@ def split(args):
         split_fun = split_barcode
         mode = "single"
 
-    logging.debug("Mode: {0}".format(mode))
+    logger.debug("Mode: {0}".format(mode))
 
     pool.map(
         split_fun, zip(barcodes, excludebarcodes, nbc * [outdir], nbc * [fastqfile])

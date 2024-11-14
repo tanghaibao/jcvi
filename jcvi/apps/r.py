@@ -2,14 +2,13 @@
 uses R for statistics and graphics
 """
 
-import os.path as op
-import os
 import sys
 
 from string import Template
 
-from jcvi.formats.base import must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher, cleanup, sh
+from ..formats.base import must_open
+
+from .base import ActionDispatcher, OptionParser, cleanup, sh
 
 
 class RTemplate(object):

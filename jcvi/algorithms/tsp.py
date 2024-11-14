@@ -7,16 +7,17 @@ algorithms.lpsolve.tsp(). See also:
 https://developers.google.com/optimization/routing/tsp
 """
 import os.path as op
-import logging
-import numpy as np
 
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations
+
+import numpy as np
+
 from more_itertools import pairwise
 
 from jcvi.formats.base import must_open
-from jcvi.apps.base import cleanup, mkdir, sh, which
+from jcvi.apps.base import cleanup, logger, mkdir, sh, which
 
 
 INF = 10000
@@ -43,7 +44,7 @@ class TSPDataModel:
         max_x, min_x = max(weights), min(weights)
         inf = 2 * max(abs(max_x), abs(min_x))
         factor = 10**precision
-        logging.debug(
+        logger.debug(
             "TSP rescale: max_x=%d, min_x=%d, inf=%d, factor=%d",
             max_x,
             min_x,
@@ -108,7 +109,7 @@ class TSPDataModel:
         solution = routing.SolveWithParameters(search_parameters)
 
         tour = []
-        logging.info("Objective: %d", solution.ObjectiveValue())
+        logger.info("Objective: %d", solution.ObjectiveValue())
         index = routing.Start(0)
         route_distance = 0
         while not routing.IsEnd(index):
@@ -116,7 +117,7 @@ class TSPDataModel:
             previous_index = index
             index = solution.Value(routing.NextVar(index))
             route_distance = routing.GetArcCostForVehicle(previous_index, index, 0)
-        logging.info("Route distance: %d", route_distance)
+        logger.info("Route distance: %d", route_distance)
 
         return [nodes[x] for x in tour]
 
@@ -189,7 +190,7 @@ class Concorde(object):
 
         print("EOF", file=fw)
         fw.close()
-        logging.debug("Write TSP instance to `%s`", tspfile)
+        logger.debug("Write TSP instance to `%s`", tspfile)
 
     def run_concorde(self, tspfile, seed=666):
         outfile = op.join(self.work_dir, "data.sol")

@@ -11,9 +11,9 @@ import sys
 
 from collections import defaultdict
 
-from jcvi.formats.fasta import ids
-from jcvi.formats.base import write_file
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from ..apps.base import ActionDispatcher, OptionParser, need_update, sh
+from ..formats.base import write_file
+from ..formats.fasta import ids
 
 
 EVMRUN = r"""

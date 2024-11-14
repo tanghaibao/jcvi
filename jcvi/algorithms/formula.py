@@ -5,16 +5,19 @@
 Some math formula for various calculations
 """
 import sys
-import numpy as np
 
+from collections import Counter
+from functools import lru_cache
 from math import log, exp, sqrt
 
-from jcvi.utils.cbook import human_size
+import numpy as np
+import scipy
+
+from ..utils.cbook import human_size
 
 
 def mean_confidence_interval(data, confidence=0.95):
     # Compute the confidence interval around the mean
-    import scipy
 
     a = 1.0 * np.array(data)
     n = len(a)
@@ -176,7 +179,7 @@ def jukesCantorD(p, L=100):
 
     rD = 1 - 4.0 / 3 * p
     D = -0.75 * log(rD)
-    varD = p * (1 - p) / (rD ** 2 * L)
+    varD = p * (1 - p) / (rD**2 * L)
 
     return D, varD
 
@@ -218,8 +221,35 @@ def velvet(readsize, genomesize, numreads, K):
     print("RAM usage: {0} (MAXKMERLENGTH=31)".format(ram), file=sys.stderr)
 
 
-if __name__ == "__main__":
+@lru_cache(maxsize=None)
+def calc_ldscore(a: str, b: str) -> float:
+    """
+    Calculate Linkage disequilibrium (r2) between two genotypes.
+    """
+    assert len(a) == len(b), f"{a}\n{b}"
+    # Assumes markers as A/B
+    c = Counter(zip(a, b))
+    c_aa = c[("A", "A")]
+    c_ab = c[("A", "B")]
+    c_ba = c[("B", "A")]
+    c_bb = c[("B", "B")]
+    n = c_aa + c_ab + c_ba + c_bb
+    if n == 0:
+        return 0
 
-    import doctest
+    f = 1.0 / n
+    x_aa = c_aa * f
+    x_ab = c_ab * f
+    x_ba = c_ba * f
+    x_bb = c_bb * f
+    p_a = x_aa + x_ab
+    p_b = x_ba + x_bb
+    q_a = x_aa + x_ba
+    q_b = x_ab + x_bb
+    D = x_aa - p_a * q_a
+    denominator = p_a * p_b * q_a * q_b
+    if denominator == 0:
+        return 0
 
-    doctest.testmod()
+    r2 = D * D / denominator
+    return r2

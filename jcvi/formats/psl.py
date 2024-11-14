@@ -4,12 +4,13 @@
 """
 Classes to handle the .psl files
 """
-import sys
 import math
 import re
+import sys
 
-from jcvi.formats.base import LineFile, must_open
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser
+
+from .base import LineFile, must_open
 
 
 class PslLine(object):
@@ -253,10 +254,7 @@ class PslLine(object):
 
 class Psl(LineFile):
     def __init__(self, filename=None):
-        super(Psl, self).__init__(filename)
-
-        import re
-
+        super().__init__(filename)
         self.mCounts = {}  # dict to hold match counts
         if not filename:
             return
@@ -312,20 +310,20 @@ def gff(args):
     Convert to gff format.
     """
     p = OptionParser(gff.__doc__)
-    p.add_option("--source", default="GMAP", help="specify GFF source")
-    p.add_option(
+    p.add_argument("--source", default="GMAP", help="specify GFF source")
+    p.add_argument(
         "--type",
         default="EST_match",
         help="specify GFF feature type",
     )
-    p.add_option("--suffix", default=".match", help="match ID suffix")
-    p.add_option(
+    p.add_argument("--suffix", default=".match", help="match ID suffix")
+    p.add_argument(
         "--swap",
         default=False,
         action="store_true",
         help="swap query and target features",
     )
-    p.add_option(
+    p.add_argument(
         "--simple_score",
         default=False,
         action="store_true",

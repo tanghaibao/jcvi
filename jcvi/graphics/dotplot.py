@@ -27,25 +27,28 @@ see more here: http://matplotlib.sourceforge.net/users/usetex.html
 """
 
 import os.path as op
-import sys
-import logging
 import string
+import sys
 
+from copy import deepcopy
 from random import sample
+from typing import Optional
 
-from jcvi.compara.synteny import AnchorFile, batch_scan, check_beds, get_orientation
-from jcvi.utils.cbook import seqid_parse, thousands
-from jcvi.apps.base import OptionParser, need_update
-from jcvi.graphics.base import (
-    plt,
+from ..apps.base import OptionParser, logger, need_update
+from ..compara.base import AnchorFile
+from ..compara.synteny import batch_scan, check_beds, get_orientation
+from ..utils.cbook import seqid_parse, thousands
+
+from .base import (
     Rectangle,
-    set_human_axis,
-    savefig,
-    draw_cmap,
     TextHandler,
+    draw_cmap,
     latex,
     markup,
     normalize_axes,
+    plt,
+    savefig,
+    set_human_axis,
     set1,
 )
 
@@ -58,7 +61,7 @@ class Palette(dict):
             palettedict (Dict, optional): Get the mapping from a dict. Defaults to None.
             palettefile (str, optional): Get the mapping from a two-column file. Defaults to None.
         """
-        super(Palette, self).__init__()
+        super().__init__()
         if palettedict is not None:
             self.update(palettedict)
         if palettefile is None:
@@ -76,12 +79,12 @@ class Palette(dict):
         self.categories = sorted(set(self.values()))
         self.colors = dict(zip(self.categories, pal))
 
-        logging.debug(
+        logger.debug(
             "Color info ({0} categories) imported for {1} blocks.".format(
                 len(self.colors), len(self)
             )
         )
-        logging.debug(str(self.colors))
+        logger.debug(str(self.colors))
 
         for k, v in self.items():  # Update from categories to colors
             self[k] = self.colors[v]
@@ -220,44 +223,51 @@ def plot_breaks_and_labels(
     return xlim, ylim
 
 
-def downsample(data, sample_number=10000):
+def downsample(data, sample_number: int = 10000):
+    """
+    Downsample the data to a manageable size for plotting.
+    """
     npairs = len(data)
     # Only show random subset
     if npairs > sample_number:
-        logging.debug(
-            "Showing a random subset of {0} data points (total {1}) "
-            "for clarity.".format(sample_number, npairs)
+        logger.debug(
+            "Showing a random subset of %d data points (total %d) for clarity.",
+            sample_number,
+            npairs,
         )
         data = sample(data, sample_number)
     return data
 
 
 def dotplot(
-    anchorfile,
+    anchorfile: str,
     qbed,
     sbed,
     fig,
     root,
     ax,
-    vmin=0,
-    vmax=1,
-    is_self=False,
-    synteny=False,
-    cmap_text=None,
+    vmin: float = 0,
+    vmax: float = 1,
+    is_self: bool = False,
+    synteny: bool = False,
+    cmap_text: Optional[str] = None,
     cmap="copper",
     genomenames=None,
-    sample_number=10000,
-    minfont=5,
-    palette=None,
-    chrlw=0.1,
-    title=None,
-    sep=True,
-    sepcolor="g",
-    stdpf=True,
-    chpf=True,
+    sample_number: int = 10000,
+    minfont: int = 5,
+    palette: Optional[Palette] = None,
+    chrlw: float = 0.1,
+    title: Optional[str] = None,
+    sep: bool = True,
+    sepcolor: str = "g",
+    stdpf: bool = True,
+    chpf: bool = True,
     usetex: bool = True,
 ):
-    fp = open(anchorfile)
+    """
+    Draw a dotplot from an anchor file.
+    """
+    fp = open(anchorfile, encoding="utf-8")
     # add genome names
     if genomenames:
         gx, gy = genomenames.split("_")
@@ -273,7 +283,7 @@ def dotplot(
 
     data = []
     if cmap_text:
-        logging.debug("Capping values within [{0:.1f}, {1:.1f}]".format(vmin, vmax))
+        logger.debug("Capping values within [%.1f, %.1f]", vmin, vmax)
 
     block_id = 0
     block_color = "k"
@@ -336,7 +346,7 @@ def dotplot(
         draw_cmap(root, cmap_text, vmin, vmax, cmap=cmap)
 
     xsize, ysize = len(qbed), len(sbed)
-    logging.debug("xsize=%d ysize=%d" % (xsize, ysize))
+    logger.debug("xsize=%d ysize=%d", xsize, ysize)
     qbreaks = qbed.get_breaks()
     sbreaks = sbed.get_breaks()
     xlim, _ = plot_breaks_and_labels(
@@ -373,19 +383,18 @@ def dotplot(
             xstart += 0.1
 
     if title is None:
-        title = "Inter-genomic comparison: {0} vs {1}".format(gx, gy)
+        title = f"Inter-genomic comparison: {gx} vs {gy}"
         if is_self:
-            title = "Intra-genomic comparison within {0}".format(gx)
-            npairs /= 2
-        title += " ({0} gene pairs)".format(thousands(npairs))
+            title = f"Intra-genomic comparison within {gx}"
+            npairs //= 2
+        title += f" ({thousands(npairs)} gene pairs)"
     root.set_title(title, x=0.5, y=0.96, color="k")
     if title:
-        logging.debug("Dot plot title: {}".format(title))
+        logger.debug("Dot plot title: %s", title)
     normalize_axes(root)
 
 
 def subset_bed(bed, seqids):
-    from copy import deepcopy
 
     newbed = deepcopy(bed)
     del newbed[:]
@@ -399,57 +408,57 @@ def subset_bed(bed, seqids):
 def dotplot_main(args):
     p = OptionParser(__doc__)
     p.set_beds()
-    p.add_option(
+    p.add_argument(
         "--synteny",
         default=False,
         action="store_true",
         help="Run a fast synteny scan and display blocks",
     )
-    p.add_option("--cmaptext", help="Draw colormap box on the bottom-left corner")
-    p.add_option(
+    p.add_argument("--cmaptext", help="Draw colormap box on the bottom-left corner")
+    p.add_argument(
         "--vmin",
         dest="vmin",
-        type="float",
+        type=float,
         default=0,
         help="Minimum value in the colormap",
     )
-    p.add_option(
+    p.add_argument(
         "--vmax",
         dest="vmax",
-        type="float",
+        type=float,
         default=2,
         help="Maximum value in the colormap",
     )
-    p.add_option(
+    p.add_argument(
         "--nmax",
         dest="sample_number",
-        type="int",
+        type=int,
         default=10000,
         help="Maximum number of data points to plot",
     )
-    p.add_option(
+    p.add_argument(
         "--minfont",
-        type="int",
+        type=int,
         default=4,
         help="Do not render labels with size smaller than",
     )
-    p.add_option("--colormap", help="Two column file, block id to color mapping")
-    p.add_option(
+    p.add_argument("--colormap", help="Two column file, block id to color mapping")
+    p.add_argument(
         "--colororientation",
         action="store_true",
         default=False,
         help="Color the blocks based on orientation, similar to mummerplot",
     )
-    p.add_option(
+    p.add_argument(
         "--nosort",
         default=False,
         action="store_true",
         help="Do not sort the seqids along the axes",
     )
-    p.add_option(
+    p.add_argument(
         "--nosep", default=False, action="store_true", help="Do not add contig lines"
     )
-    p.add_option("--title", help="Title of the dot plot")
+    p.add_argument("--title", help="Title of the dot plot")
     p.set_dotplot_opts()
     p.set_outfile(outfile=None)
     opts, args, iopts = p.set_image_options(
@@ -472,9 +481,9 @@ def dotplot_main(args):
 
     cmaptext = opts.cmaptext
     if anchorfile.endswith(".ks"):
-        from jcvi.apps.ks import KsFile
+        from ..compara.ks import KsFile
 
-        logging.debug("Anchors contain Ks values")
+        logger.debug("Anchors contain Ks values")
         cmaptext = cmaptext or "*Ks* values"
         anchorksfile = anchorfile + ".anchors"
         if need_update(anchorfile, anchorksfile):
@@ -491,8 +500,8 @@ def dotplot_main(args):
 
         for pair in ac.iter_pairs():
             q, s = pair[:2]
-            qi, q = qorder[q]
-            si, s = sorder[s]
+            _, q = qorder[q]
+            _, s = sorder[s]
             qseqids.add(q.seqid)
             sseqids.add(s.seqid)
 
@@ -503,8 +512,8 @@ def dotplot_main(args):
             sbed = subset_bed(sbed, sseqids)
 
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])  # the whole canvas
-    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])  # the dot plot
+    root = fig.add_axes((0, 0, 1, 1))  # the whole canvas
+    ax = fig.add_axes((0.1, 0.1, 0.8, 0.8))  # the dot plot
 
     dotplot(
         anchorfile,

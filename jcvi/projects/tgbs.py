@@ -5,7 +5,6 @@
 Reference-free tGBS related functions.
 """
 
-import logging
 import os
 import os.path as op
 import sys
@@ -13,15 +12,23 @@ import sys
 from collections import Counter
 from pickle import dump, load
 
-from jcvi.formats.fasta import Fasta, SeqIO
-from jcvi.formats.fastq import iter_fastq
-from jcvi.formats.base import must_open, write_file
-from jcvi.formats.sam import get_prefix
-from jcvi.apps.cdhit import deduplicate
-from jcvi.apps.gmap import check_index
-from jcvi.apps.grid import MakeManager
-from jcvi.graphics.base import plt, savefig, normalize_axes
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh, iglob, mkdir
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    iglob,
+    logger,
+    mkdir,
+    need_update,
+    sh,
+)
+from ..apps.cdhit import deduplicate
+from ..apps.gmap import check_index
+from ..apps.grid import MakeManager
+from ..formats.base import must_open, write_file
+from ..formats.fasta import Fasta, SeqIO
+from ..formats.fastq import iter_fastq
+from ..formats.sam import get_prefix
+from ..graphics.base import normalize_axes, plt, savefig
 
 
 speedupsh = r"""
@@ -102,7 +109,7 @@ def query(args):
     locifile, contig = args
     idx = build_index(locifile)
     pos = idx[contig]
-    logging.debug("Contig {0} found at pos {1}".format(contig, pos))
+    logger.debug("Contig {0} found at pos {1}".format(contig, pos))
     fp = open(locifile)
     fp.seek(pos)
     section = []
@@ -164,12 +171,12 @@ def mstmap(args):
     from jcvi.assembly.geneticmap import MSTMatrix
 
     p = OptionParser(mstmap.__doc__)
-    p.add_option(
+    p.add_argument(
         "--population_type",
         default="RIL6",
         help="Type of population, possible values are DH and RILd",
     )
-    p.add_option(
+    p.add_argument(
         "--missing_threshold",
         default=0.5,
         help="Missing threshold, .25 excludes any marker with >25% missing",
@@ -207,8 +214,8 @@ def weblogo(args):
     from rich.progress import Progress
 
     p = OptionParser(weblogo.__doc__)
-    p.add_option("-N", default=10, type="int", help="Count the first and last N bases")
-    p.add_option("--nreads", default=1000000, type="int", help="Parse first N reads")
+    p.add_argument("-N", default=10, type=int, help="Count the first and last N bases")
+    p.add_argument("--nreads", default=1000000, type=int, help="Parse first N reads")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -286,7 +293,7 @@ def count(args):
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(count.__doc__)
-    p.add_option("--csv", help="Write depth per contig to file")
+    p.add_argument("--csv", help="Write depth per contig to file")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -316,7 +323,7 @@ def count(args):
 
     if csv:
         csv.close()
-        logging.debug("File written to `%s`.", opts.csv)
+        logger.debug("File written to `%s`.", opts.csv)
 
     s = SummaryStats(sizes)
     print(s, file=sys.stderr)
@@ -335,7 +342,7 @@ def novo(args):
     from jcvi.apps.cdhit import filter as cdhit_filter
 
     p = OptionParser(novo.__doc__)
-    p.add_option(
+    p.add_argument(
         "--technology",
         choices=("illumina", "454", "iontorrent"),
         default="iontorrent",
@@ -422,7 +429,7 @@ def novo(args):
 def scan_read_files(trimmed, patterns):
     reads = iglob(trimmed, patterns)
     samples = sorted(set(op.basename(x).split(".")[0] for x in reads))
-    logging.debug(
+    logger.debug(
         "Total {0} read files from {1} samples".format(len(reads), len(samples))
     )
     return reads, samples
@@ -511,7 +518,7 @@ def snpflow(args):
     nseqs = len(Fasta(ref))
     supercat = nseqs >= 1000
     if supercat:
-        logging.debug("Total seqs in ref: {0} (supercat={1})".format(nseqs, supercat))
+        logger.debug("Total seqs in ref: {0} (supercat={1})".format(nseqs, supercat))
 
     reads, samples = scan_read_files(trimmed, opts.names)
 

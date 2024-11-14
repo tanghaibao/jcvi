@@ -7,12 +7,13 @@ Run through NCBI vecscreen on a local machine.
 import os.path as op
 import sys
 
-from jcvi.utils.range import range_merge
-from jcvi.formats.fasta import tidy
-from jcvi.formats.blast import BlastLine
-from jcvi.formats.base import must_open
-from jcvi.apps.align import run_vecscreen, run_megablast
-from jcvi.apps.base import OptionParser, ActionDispatcher, download, sh
+from ..formats.base import must_open
+from ..formats.blast import BlastLine
+from ..formats.fasta import tidy
+from ..utils.range import range_merge
+
+from .align import run_vecscreen, run_megablast
+from .base import ActionDispatcher, OptionParser, download, sh
 
 ECOLI_URL = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/019/425/GCF_000019425.1_ASM1942v1/GCF_000019425.1_ASM1942v1_genomic.fna.gz"
 UNIVEC_URL = "ftp://ftp.ncbi.nih.gov/pub/UniVec/UniVec_Core"
@@ -47,7 +48,7 @@ def mask(args):
     perform FASTA tidy if requested.
     """
     p = OptionParser(mask.__doc__)
-    p.add_option(
+    p.add_argument(
         "--db",
         default=ECOLI_URL,
         help="Contaminant db other than Ecoli K12, will download if file starts with http://, https://, or ftp://",
@@ -90,13 +91,13 @@ def blast(args):
     on the vector/contaminant ranges.
     """
     p = OptionParser(blast.__doc__)
-    p.add_option(
+    p.add_argument(
         "--dist",
         default=100,
-        type="int",
+        type=int,
         help="Merge adjacent HSPs separated by",
     )
-    p.add_option("--db", help="Use a different database rather than UniVec_Core")
+    p.add_argument("--db", help="Use a different database rather than UniVec_Core")
     opts, args = p.parse_args(args)
 
     if len(args) != 1:

@@ -8,22 +8,24 @@ Gradient gene features
 import os.path as op
 import sys
 
-import numpy as np
 from random import choice, shuffle, random, randint
 
-from jcvi.apps.base import OptionParser, ActionDispatcher
-from jcvi.graphics.base import (
-    plt,
-    Rectangle,
+import numpy as np
+
+from ..apps.base import OptionParser, ActionDispatcher
+from ..utils.grouper import Grouper
+
+from .base import (
     CirclePolygon,
     Ellipse,
     FancyArrowPatch,
     Polygon,
+    Rectangle,
+    get_map,
+    plt,
     savefig,
     set3,
-    get_map,
 )
-from jcvi.utils.grouper import Grouper
 
 
 tstep = 0.05
@@ -286,7 +288,7 @@ class Glyph(BaseGlyph):
             style (str, optional): Style, either box|arrow. Defaults to "box".
         """
 
-        super(Glyph, self).__init__(ax)
+        super().__init__(ax)
         width = x2 - x1
         # Frame around the gradient rectangle
         p1 = (x1, y - 0.5 * height)
@@ -329,7 +331,7 @@ class ExonGlyph(BaseGlyph):
     """Multiple rectangles linked together."""
 
     def __init__(self, ax, x, y, mrnabed, exonbeds, height=0.03, ratio=1, align="left"):
-        super(ExonGlyph, self).__init__(ax)
+        super().__init__(ax)
         start, end = mrnabed.start, mrnabed.end
         xa = lambda a: x + (a - start) * ratio
         xb = lambda a: x - (end - a) * ratio
@@ -357,7 +359,7 @@ class GeneGlyph(BaseGlyph):
         shadow=False,
         **kwargs
     ):
-        super(GeneGlyph, self).__init__(ax)
+        super().__init__(ax)
         # Figure out the polygon vertices first
         orientation = 1 if x1 < x2 else -1
         level = 10
@@ -601,10 +603,12 @@ def gff(args):
     """
     align_choices = ("left", "center", "right")
     p = OptionParser(gff.__doc__)
-    p.add_option(
+    p.add_argument(
         "--align", default="left", choices=align_choices, help="Horizontal alignment"
     )
-    p.add_option("--noUTR", default=False, action="store_true", help="Do not plot UTRs")
+    p.add_argument(
+        "--noUTR", default=False, action="store_true", help="Do not plot UTRs"
+    )
     opts, args = p.parse_args(args)
 
     if len(args) < 1:

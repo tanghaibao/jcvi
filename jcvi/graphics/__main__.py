@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 """
-Suite of visualization tools for dot-plots, histograms, karytotypes, macro-/micro-synteny plots, seed counting using GRABSEEDS, etc. 
+Suite of visualization tools for dot-plots, histograms, karytotypes, macro-/micro-synteny plots, seed counting using GRABSEEDS, etc.
 """
 
-from jcvi.apps.base import dmain
+from ..apps.base import dmain
 
 
 if __name__ == "__main__":

@@ -22,7 +22,7 @@ from cpython cimport array
 import array
 
 
-ctypedef np.int_t INT
+ctypedef np.int INT
 DEF LIMIT = 10000000
 DEF BB = 12
 cdef int *GR = \

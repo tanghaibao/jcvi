@@ -22,7 +22,7 @@ def compact(A, factor=2):
         factor (int, optional): Compact factor. Defaults to 2.
 
     Example:
-    >>> A = np.arange(16, dtype="int").reshape(4, 4); A
+    >>> A = np.arange(16, dtype=int).reshape(4, 4); A
     array([[ 0,  1,  2,  3],
            [ 4,  5,  6,  7],
            [ 8,  9, 10, 11],

@@ -7,19 +7,19 @@ Automate genome annotation by iterating processing a set of files, individually.
 
 import os.path as op
 import sys
-import logging
 
 from functools import partial
 from tempfile import mkdtemp
 
-from jcvi.assembly.automaton import iter_project
-from jcvi.apps.grid import Jobs, MakeManager
-from jcvi.formats.base import FileMerger, split
-from jcvi.apps.base import (
+from ..assembly.automaton import iter_project
+from ..apps.grid import Jobs, MakeManager
+from ..formats.base import FileMerger, split
+from ..apps.base import (
     ActionDispatcher,
     OptionParser,
     cleanup,
     iglob,
+    logger,
     mkdir,
     need_update,
     sh,
@@ -63,9 +63,13 @@ def augustus(args):
     annotation.reformat.augustus().
     """
     p = OptionParser(augustus.__doc__)
-    p.add_option("--species", default="maize", help="Use species model for prediction")
-    p.add_option("--hintsfile", help="Hint-guided AUGUSTUS")
-    p.add_option("--nogff3", default=False, action="store_true", help="Turn --gff3=off")
+    p.add_argument(
+        "--species", default="maize", help="Use species model for prediction"
+    )
+    p.add_argument("--hintsfile", help="Hint-guided AUGUSTUS")
+    p.add_argument(
+        "--nogff3", default=False, action="store_true", help="Turn --gff3=off"
+    )
     p.set_home("augustus")
     p.set_cpus()
     opts, args = p.parse_args(args)
@@ -112,7 +116,7 @@ def star(args):
     Run star on a folder with reads.
     """
     p = OptionParser(star.__doc__)
-    p.add_option(
+    p.add_argument(
         "--single", default=False, action="store_true", help="Single end mapping"
     )
     p.set_fastq_names()
@@ -163,7 +167,7 @@ def cufflinks(args):
     Run cufflinks on a folder containing tophat results.
     """
     p = OptionParser(cufflinks.__doc__)
-    p.add_option("--gtf", help="Reference annotation")
+    p.add_argument("--gtf", help="Reference annotation")
     p.set_cpus()
     opts, args = p.parse_args(args)
 
@@ -219,26 +223,26 @@ def tophat(args):
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(tophat.__doc__)
-    p.add_option("--gtf", help="Reference annotation")
-    p.add_option(
+    p.add_argument("--gtf", help="Reference annotation")
+    p.add_argument(
         "--single", default=False, action="store_true", help="Single end mapping"
     )
-    p.add_option(
+    p.add_argument(
         "--intron",
         default=15000,
-        type="int",
+        type=int,
         help="Max intron size",
     )
-    p.add_option(
+    p.add_argument(
         "--dist",
         default=-50,
-        type="int",
+        type=int,
         help="Mate inner distance",
     )
-    p.add_option(
+    p.add_argument(
         "--stdev",
         default=50,
-        type="int",
+        type=int,
         help="Mate standard deviation",
     )
     p.set_phred()
@@ -255,7 +259,7 @@ def tophat(args):
         outdir = "{0}_tophat".format(prefix)
         outfile = op.join(outdir, "accepted_hits.bam")
         if op.exists(outfile):
-            logging.debug("File `{0}` found. Skipping.".format(outfile))
+            logger.debug("File `%s` found. Skipping.", outfile)
             continue
 
         cmd = "tophat -p {0}".format(opts.cpus)

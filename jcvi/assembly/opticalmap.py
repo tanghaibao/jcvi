@@ -5,7 +5,6 @@
 Optical map alignment parser.
 """
 import sys
-import logging
 
 from collections import defaultdict
 from xml.etree.ElementTree import ElementTree
@@ -13,10 +12,10 @@ from xml.etree.ElementTree import ElementTree
 import numpy as np
 from more_itertools import pairwise
 
-from jcvi.formats.bed import Bed
-from jcvi.formats.base import must_open
-from jcvi.utils.range import range_chain, range_parse, Range
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..formats.base import must_open
+from ..formats.bed import Bed
+from ..utils.range import range_chain, range_parse, Range
 
 
 class OpticalMap(object):
@@ -312,9 +311,7 @@ def chimera(args):
             nchimera += 1
 
     fw.close()
-    logging.debug(
-        "A total of {0} junctions written to `{1}`.".format(nchimera, chimerabed)
-    )
+    logger.debug("A total of %d junctions written to `%s`.", nchimera, chimerabed)
 
 
 def select_bed(bed):
@@ -364,7 +361,7 @@ def fasta(args):
             oo.add(chr, scf, sizes[scf], b.strand)
             seen.add(cs)
         else:
-            logging.debug("Seen {0}, ignored.".format(cs))
+            logger.debug("Seen %s, ignored.", cs)
 
     oo.write_AGP(agp, gaptype="contig")
     agp.close()
@@ -380,26 +377,26 @@ def bed(args):
     from jcvi.formats.bed import sort
 
     p = OptionParser(bed.__doc__)
-    p.add_option(
+    p.add_argument(
         "--blockonly",
         default=False,
         action="store_true",
         help="Only print out large blocks, not fragments",
     )
-    p.add_option(
+    p.add_argument(
         "--point",
         default=False,
         action="store_true",
         help="Print accesssion as single point instead of interval",
     )
-    p.add_option("--scale", type="float", help="Scale the OM distance by factor")
-    p.add_option(
+    p.add_argument("--scale", type=float, help="Scale the OM distance by factor")
+    p.add_argument(
         "--switch",
         default=False,
         action="store_true",
         help="Switch reference and aligned map elements",
     )
-    p.add_option(
+    p.add_argument(
         "--nosort",
         default=False,
         action="store_true",

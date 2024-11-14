@@ -10,9 +10,8 @@ Library dependency: xlutils
 """
 import os.path as op
 import sys
-import logging
 
-from jcvi.apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser, logger
 
 
 class ColorMatcher(object):
@@ -119,9 +118,9 @@ class ColorMatcher(object):
                 rgb = map(int, color.split(","))
             else:
                 rgb = color.Get()
-            logging.disable(logging.DEBUG)
+            logger.disable(logger.DEBUG)
             distances = [color_diff(rgb, x) for x in self.xlwt_colors]
-            logging.disable(logging.NOTSET)
+            logger.disable(logger.NOTSET)
             result = distances.index(min(distances))
             self.unused_colors.discard(self.xlwt_colors[result])
             return result
@@ -165,13 +164,13 @@ def fromcsv(args):
     from jcvi.formats.base import flexible_cast
 
     p = OptionParser(fromcsv.__doc__)
-    p.add_option(
+    p.add_argument(
         "--noheader",
         default=False,
         action="store_true",
         help="Do not treat the first row as header",
     )
-    p.add_option("--rgb", default=-1, type="int", help="Show RGB color box")
+    p.add_argument("--rgb", default=-1, type=int, help="Show RGB color box")
     p.set_sep()
     opts, args = p.parse_args(args)
 
@@ -210,7 +209,7 @@ def fromcsv(args):
                     s.write(i, j, cell)
 
     w.save(excelfile)
-    logging.debug("File written to `%s`.", excelfile)
+    logger.debug("File written to `%s`.", excelfile)
     return excelfile
 
 

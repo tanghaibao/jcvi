@@ -7,34 +7,34 @@ Wrapper to trim and correct sequence data.
 import os
 import os.path as op
 import sys
-import logging
 
-from jcvi.formats.base import BaseFile, write_file, must_open
-from jcvi.formats.fastq import guessoffset
-from jcvi.utils.cbook import depends, human_size
-from jcvi.apps.base import (
-    OptionParser,
+from ..apps.base import (
     ActionDispatcher,
+    OptionParser,
     cleanup,
+    datadir,
     download,
-    sh,
+    logger,
     mkdir,
     need_update,
-    datadir,
+    sh,
 )
+from ..formats.base import BaseFile, must_open, write_file
+from ..formats.fastq import guessoffset
+from ..utils.cbook import depends, human_size
 
 
 class FastQCdata(BaseFile, dict):
     def __init__(self, filename, human=False):
-        super(FastQCdata, self).__init__(filename)
+        super().__init__(filename)
         if not op.exists(filename):
-            logging.debug("File `{0}` not found.".format(filename))
+            logger.debug("File `%s` not found.", filename)
             # Sample_RF37-1/RF37-1_GATCAG_L008_R2_fastqc =>
             # RF37-1_GATCAG_L008_R2
             self["Filename"] = op.basename(op.split(filename)[0]).rsplit("_", 1)[0]
-            self["Total Sequences"] = self["Sequence length"] = self[
-                "Total Bases"
-            ] = "na"
+            self["Total Sequences"] = self["Sequence length"] = self["Total Bases"] = (
+                "na"
+            )
             return
 
         fp = open(filename)
@@ -66,14 +66,13 @@ class FastQCdata(BaseFile, dict):
 def main():
 
     actions = (
-        ("count", "count reads based on FASTQC results"),
-        ("trim", "trim reads using TRIMMOMATIC"),
-        ("correct", "correct reads using ALLPATHS-LG"),
-        ("hetsmooth", "reduce K-mer diversity using het-smooth"),
-        ("alignextend", "increase read length by extending based on alignments"),
         ("contamination", "check reads contamination against Ecoli"),
+        ("correct", "correct reads using ALLPATHS-LG"),
+        ("count", "count reads based on FASTQC results"),
         ("diginorm", "run K-mer based normalization"),
         ("expand", "expand sequences using short reads"),
+        ("hetsmooth", "reduce K-mer diversity using het-smooth"),
+        ("trim", "trim reads using TRIMMOMATIC"),
     )
     p = ActionDispatcher(actions)
     p.dispatch(globals())
@@ -101,11 +100,11 @@ def diginorm(args):
     from jcvi.apps.base import getfilesize
 
     p = OptionParser(diginorm.__doc__)
-    p.add_option(
+    p.add_argument(
         "--single", default=False, action="store_true", help="Single end reads"
     )
-    p.add_option("--tablesize", help="Memory size")
-    p.add_option(
+    p.add_argument("--tablesize", help="Memory size")
+    p.add_argument(
         "--npass",
         default="1",
         choices=("1", "2"),
@@ -205,7 +204,7 @@ def expand(args):
     )
 
     samfile, mapped, _ = get_samfile(reads, bes, bowtie=True, mapped=True)
-    logging.debug("Extract first {0} reads from `{1}`.".format(nreads, mapped))
+    logger.debug("Extract first %d reads from `%s`.", nreads, mapped)
 
     pf = mapped.split(".")[0]
     pf = pf.split("-")[0]
@@ -252,9 +251,7 @@ def expand(args):
     fw.close()
 
     cleanup(samfile, logfile, mapped, reads, fastafile, qualfile, blastfile, pf)
-    logging.debug(
-        "Annotated seqs (n={0}) written to `{1}`.".format(len(recs), annotatedfasta)
-    )
+    logger.debug("Annotated seqs (n=%d) written to `%s`.", len(recs), annotatedfasta)
 
     return annotatedfasta
 
@@ -302,68 +299,6 @@ def contamination(args):
     fw.close()
 
 
-def alignextend(args):
-    """
-    %prog alignextend ref.fasta read.1.fastq read.2.fastq
-
-    Wrapper around AMOS alignextend.
-    """
-    choices = "prepare,align,filter,rmdup,genreads".split(",")
-    p = OptionParser(alignextend.__doc__)
-    p.add_option(
-        "--nosuffix",
-        default=False,
-        action="store_true",
-        help="Do not add /1/2 suffix to the read",
-    )
-    p.add_option(
-        "--rc",
-        default=False,
-        action="store_true",
-        help="Reverse complement the reads before alignment",
-    )
-    p.add_option("--len", default=100, type="int", help="Extend to this length")
-    p.add_option(
-        "--stage", default="prepare", choices=choices, help="Start from certain stage"
-    )
-    p.add_option(
-        "--dup",
-        default=10,
-        type="int",
-        help="Filter duplicates with coordinates within this distance",
-    )
-    p.add_option(
-        "--maxdiff", default=1, type="int", help="Maximum number of differences"
-    )
-    p.set_home("amos")
-    p.set_cpus()
-    opts, args = p.parse_args(args)
-
-    if len(args) != 3:
-        sys.exit(not p.print_help())
-
-    ref, r1, r2 = args
-    pf = op.basename(r1).split(".")[0]
-    cmd = op.join(opts.amos_home, "src/Experimental/alignextend.pl")
-    if not opts.nosuffix:
-        cmd += " -suffix"
-    bwa_idx = "{0}.ref.fa.sa".format(pf)
-    if not need_update(ref, bwa_idx):
-        cmd += " -noindex"
-    cmd += " -threads {0}".format(opts.cpus)
-    offset = guessoffset([r1])
-    if offset == 64:
-        cmd += " -I"
-    if opts.rc:
-        cmd += " -rc"
-    cmd += " -allow -len {0} -dup {1}".format(opts.len, opts.dup)
-    cmd += " -min {0} -max {1}".format(2 * opts.len, 20 * opts.len)
-    cmd += " -maxdiff {0}".format(opts.maxdiff)
-    cmd += " -stage {0}".format(opts.stage)
-    cmd += " ".join(("", pf, ref, r1, r2))
-    sh(cmd)
-
-
 def count(args):
     """
     %prog count *.gz
@@ -374,8 +309,8 @@ def count(args):
     from jcvi.utils.table import loadtable, write_csv
 
     p = OptionParser(count.__doc__)
-    p.add_option("--dir", help="Sub-directory where FASTQC was run")
-    p.add_option(
+    p.add_argument("--dir", help="Sub-directory where FASTQC was run")
+    p.add_argument(
         "--human",
         default=False,
         action="store_true",
@@ -418,9 +353,9 @@ def hetsmooth(args):
                reads_1.fq reads_2.fq
     """
     p = OptionParser(hetsmooth.__doc__)
-    p.add_option("-K", default=23, type="int", help="K-mer size")
-    p.add_option("-L", type="int", help="Bottom threshold, first min")
-    p.add_option("-U", type="int", help="Top threshold, second min")
+    p.add_argument("-K", default=23, type=int, help="K-mer size")
+    p.add_argument("-L", type=int, help="Bottom threshold, first min")
+    p.add_argument("-U", type=int, help="Top threshold, second min")
     opts, args = p.parse_args(args)
 
     if len(args) != 3:
@@ -454,43 +389,43 @@ def trim(args):
     tv = "0.32"
     TrimJar = "trimmomatic-{0}.jar".format(tv)
     p = OptionParser(trim.__doc__)
-    p.add_option(
+    p.add_argument(
         "--path",
         default=op.join("~/bin", TrimJar),
         help="Path to trimmomatic jar file",
     )
     p.set_phred()
-    p.add_option(
+    p.add_argument(
         "--nofrags",
         default=False,
         action="store_true",
         help="Discard frags file in PE mode",
     )
-    p.add_option(
+    p.add_argument(
         "--minqv",
         default=15,
-        type="int",
+        type=int,
         help="Average qv after trimming",
     )
-    p.add_option(
+    p.add_argument(
         "--minlen",
         default=36,
-        type="int",
+        type=int,
         help="Minimum length after trimming",
     )
-    p.add_option(
+    p.add_argument(
         "--adapteronly",
         default=False,
         action="store_true",
         help="Only trim adapters with no qv trimming",
     )
-    p.add_option(
+    p.add_argument(
         "--nogz",
         default=False,
         action="store_true",
         help="Do not write to gzipped files",
     )
-    p.add_option(
+    p.add_argument(
         "--log",
         default=None,
         dest="trimlog",
@@ -648,21 +583,21 @@ def correct(args):
     from jcvi.assembly.base import FastqNamings
 
     p = OptionParser(correct.__doc__ + FastqNamings)
-    p.add_option("--dir", default="data", help="Working directory")
-    p.add_option(
+    p.add_argument("--dir", default="data", help="Working directory")
+    p.add_argument(
         "--fragsdedup",
         default=False,
         action="store_true",
         help="Don't deduplicate the fragment reads",
     )
-    p.add_option("--ploidy", default="2", choices=("1", "2"), help="Ploidy")
-    p.add_option(
+    p.add_argument("--ploidy", default="2", choices=("1", "2"), help="Ploidy")
+    p.add_argument(
         "--haploidify",
         default=False,
         action="store_true",
         help="Set HAPLOIDIFY=True",
     )
-    p.add_option(
+    p.add_argument(
         "--suffix",
         default=False,
         action="store_true",

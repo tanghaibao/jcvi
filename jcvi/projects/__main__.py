@@ -4,7 +4,7 @@
 Compilation of project specific scripts, used to execute specific analysis routines and generate publication-ready figures
 """
 
-from jcvi.apps.base import dmain
+from ..apps.base import dmain
 
 
 if __name__ == "__main__":

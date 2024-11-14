@@ -7,14 +7,14 @@
 Parses obo_file and plot GO lineage
 """
 import sys
-import logging
 
 from collections import deque
 from functools import partial
 from typing import IO, Optional
 
 from goatools.obo_parser import GODag
-from jcvi.apps.base import OptionParser
+
+from ..apps.base import OptionParser, logger
 
 GO_URL = "http://purl.obolibrary.org/obo/go/go-basic.obo"
 SO_URL = (
@@ -64,17 +64,17 @@ def validate_term(term, so=None, method="verify"):
             if term is None:
                 return None
         else:
-            logging.error("Term `{0}` does not exist".format(term))
+            logger.error("Term `%s` does not exist", term)
             sys.exit(1)
 
     if oterm != term:
-        logging.debug("Resolved term `{0}` to `{1}`".format(oterm, term))
+        logger.debug("Resolved term `%s` to `%s`", oterm, term)
     return term
 
 
 if __name__ == "__main__":
     p = OptionParser(__doc__)
-    p.add_option(
+    p.add_argument(
         "--term",
         help="Write the parents and children of this query term",
     )

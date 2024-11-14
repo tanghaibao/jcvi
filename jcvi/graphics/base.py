@@ -5,16 +5,17 @@ from os import remove
 import copy
 import logging
 import os.path as op
+import re
 import sys
 
-logging.getLogger("matplotlib").setLevel(logging.WARNING)
-logging.getLogger("numexpr").setLevel(logging.WARNING)
-logging.getLogger("PIL").setLevel(logging.INFO)
+from os import remove
 
 from functools import partial
+from typing import Optional, List, Tuple, Union
 
 import numpy as np
 import matplotlib as mpl
+import seaborn as sns
 
 mpl.use("Agg")
 
@@ -23,6 +24,7 @@ import matplotlib.ticker as ticker
 
 from brewer2mpl import get_map
 from matplotlib import cm, rc, rcParams
+from matplotlib.colors import Colormap
 from matplotlib.patches import (
     Rectangle,
     Polygon,
@@ -33,14 +35,12 @@ from matplotlib.patches import (
     FancyArrowPatch,
     FancyBboxPatch,
 )
-from matplotlib.path import Path
-from typing import Optional
 
-from jcvi.formats.base import LineFile
-from jcvi.apps.base import glob, listify, datadir, sample_N, which
+from ..apps.base import datadir, glob, logger, sample_N, which
+from ..formats.base import LineFile
+from ..utils.cbook import human_size
 
-logging.getLogger().setLevel(logging.DEBUG)
-
+Extent = Tuple[float, float, float, float]
 
 CHARS = {
     "&": r"\&",
@@ -75,7 +75,7 @@ class ImageOptions(object):
         self.w, self.h = [int(x) for x in opts.figsize.split("x")]
         self.dpi = opts.dpi
         self.format = opts.format
-        self.cmap = cm.get_cmap(opts.cmap)
+        self.cmap = mpl.colormaps[opts.cmap]
         self.seed = opts.seed
         self.usetex = is_tex_available() and not opts.notex
         self.opts = opts
@@ -95,10 +95,8 @@ class TextHandler(object):
         try:
             self.build_height_array(fig, usetex=usetex)
         except ValueError as e:
-            logging.debug(
-                "Failed to init heights (error: {}). Variable label sizes skipped.".format(
-                    e
-                )
+            logger.debug(
+                "Failed to init heights (error: %s). Variable label sizes skipped.", e
             )
 
     @classmethod
@@ -133,7 +131,7 @@ class AbstractLayout(LineFile):
     """
 
     def __init__(self, filename):
-        super(AbstractLayout, self).__init__(filename)
+        super().__init__(filename)
 
     def assign_array(self, attrib, array):
         assert len(array) == len(self)
@@ -156,6 +154,15 @@ class AbstractLayout(LineFile):
 
     def __str__(self):
         return "\n".join(str(x) for x in self)
+
+
+def adjust_extent(extent: Extent, root_extent: Extent) -> Extent:
+    """
+    Adjust the extent of the root axes.
+    """
+    rx, ry, rw, rh = root_extent
+    ex, ey, ew, eh = extent
+    return rx + ex * rw, ry + ey * rh, ew * rw, eh * rh
 
 
 def linear_blend(from_color, to_color, fraction=0.5):
@@ -195,7 +202,10 @@ def linear_shade(from_color, fraction=0.5):
     return linear_blend(from_color, "w", fraction)
 
 
-def load_image(filename):
+def load_image(filename: str) -> np.ndarray:
+    """
+    Load an image file and return as numpy array.
+    """
     img = plt.imread(filename)
     if len(img.shape) == 2:  # Gray-scale image, convert to RGB
         # http://www.socouldanyone.com/2013/03/converting-grayscale-to-rgb-with-numpy.html
@@ -204,8 +214,8 @@ def load_image(filename):
         ret[:, :, 2] = ret[:, :, 1] = ret[:, :, 0] = img
         img = ret
     else:
-        h, w, c = img.shape
-    logging.debug("Image `{0}` loaded ({1}px x {2}px).".format(filename, w, h))
+        h, w, _ = img.shape
+    logger.debug("Image `%s` loaded (%dpx x %dpx).", filename, w, h)
     return img
 
 
@@ -276,15 +286,20 @@ def prettyplot():
 blues_r, reds, blue_red, green_purple, red_purple = prettyplot()
 
 
-def normalize_axes(axes):
-    axes = listify(axes)
+def normalize_axes(*axes):
+    """
+    Normalize the axes to have the same scale.
+    """
     for ax in axes:
         ax.set_xlim(0, 1)
         ax.set_ylim(0, 1)
         ax.set_axis_off()
 
 
-def panel_labels(ax, labels, size=16):
+def panel_labels(ax, labels, size: int = 16):
+    """
+    Add panel labels (A, B, ...) to a figure.
+    """
     for xx, yy, panel_label in labels:
         if rcParams["text.usetex"]:
             panel_label = r"$\textbf{{{0}}}$".format(panel_label)
@@ -337,27 +352,25 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
         logging.debug(f"Attempting save as: {figname}")
         plt.savefig(figname, dpi=dpi, format=format, transparent=transparent)
     except Exception as e:
-        message = "savefig failed with message:"
-        message += "\n{0}".format(str(e))
-        logging.error(message)
-        logging.info("Try running again with --notex option to disable latex.")
+        logger.error("savefig failed with message:\n%s", e)
+        logger.info("Try running again with --notex option to disable latex.")
         if op.exists(figname):
             if op.getsize(figname) < 1000:
-                logging.debug(f"Cleaning up empty file: {figname}")
+                logger.debug("Cleaning up empty file: %s", figname)
                 remove(figname)
         sys.exit(1)
 
-    msg = "Figure saved to `{0}`".format(figname)
+    msg = f"Figure saved to `{figname}`"
     if iopts:
-        msg += " {0}".format(iopts)
-    logging.debug(msg)
+        msg += f" {iopts}"
+    logger.debug(msg)
 
     if cleanup:
         plt.rcdefaults()
 
 
 # human readable size (Kb, Mb, Gb)
-def human_readable(x, pos, base=False):
+def human_readable(x: Union[str, int], _, base=False):
     x = str(int(x))
     if x.endswith("000000000"):
         x = x[:-9] + "G"
@@ -410,18 +423,21 @@ def fontprop(ax, name, size=12):
     fname = op.join(datadir, name)
     prop = fm.FontProperties(fname=fname, size=size)
 
-    logging.debug("Set font to `{0}` (`{1}`).".format(name, prop.get_file()))
+    logger.debug("Set font to `%s` (`%s`)", name, prop.get_file())
     for text in ax.texts:
         text.set_fontproperties(prop)
 
     return prop
 
 
-def markup(s):
+def markup(s: str):
+    """
+    Change the string to latex format, and italicize the text between *.
+    """
+    if not rcParams["text.usetex"]:
+        return s
     if "$" in s:
         return s
-    import re
-
     s = latex(s)
     s = re.sub(r"\*(.*)\*", r"\\textit{\1}", s)
     return s
@@ -443,23 +459,19 @@ def setup_theme(
     usetex: bool = True,
 ):
     try:
-        import seaborn as sns
-
         extra_rc = {
             "lines.linewidth": 1,
             "lines.markeredgewidth": 1,
             "patch.edgecolor": "k",
         }
-        sns.set(context=context, style=style, palette=palette, rc=extra_rc)
+        sns.set_theme(context=context, style=style, palette=palette, rc=extra_rc)
     except (ImportError, SyntaxError):
         pass
 
     if usetex:
         rc("text", usetex=True)
     else:
-        logging.info(
-            "Set text.usetex={}. Font styles may be inconsistent.".format(usetex)
-        )
+        logger.info("Set text.usetex=%s. Font styles may be inconsistent.", usetex)
         rc("text", usetex=False)
 
     if font == "Helvetica":
@@ -524,6 +536,67 @@ def print_colors(palette, outfile="Palette.png"):
     ax.set_axis_off()
 
     savefig(outfile)
+
+
+def plot_heatmap(
+    ax,
+    M: np.ndarray,
+    breaks: List[int],
+    groups: List[Tuple[int, int, List[Tuple[int, str]], str]] = [],
+    plot_breaks: bool = False,
+    cmap: Optional[Union[str, Colormap]] = None,
+    binsize: Optional[int] = None,
+):
+    """Plot heatmap illustrating the contact probabilities in Hi-C data.
+
+    Args:
+        ax (pyplot.axes): Matplotlib axis
+        M (np.array): 2D numpy-array
+        breaks (List[int]): Positions of chromosome starts. Can be None.
+        iopts (OptionParser options): Graphical options passed in from commandline
+        groups (List, optional): [(start, end, [(position, seqid)], color)]. Defaults to [].
+        plot_breaks (bool): Whether to plot white breaks. Defaults to False.
+        cmap (str | Colormap, optional): Colormap. Defaults to None, which uses cubehelix.
+        binsize (int, optional): Resolution of the heatmap.
+    """
+    cmap = cmap or sns.cubehelix_palette(rot=0.5, as_cmap=True)
+    ax.imshow(M, cmap=cmap, interpolation="none")
+    _, xmax = ax.get_xlim()
+    xlim = (0, xmax)
+    if plot_breaks:
+        for b in breaks[:-1]:
+            ax.plot([b, b], xlim, "w-")
+            ax.plot(xlim, [b, b], "w-")
+
+    def simplify_seqid(seqid):
+        seqid = seqid.replace("_", "")
+        if seqid[:3].lower() == "chr":
+            seqid = seqid[3:]
+        return seqid.lstrip("0")
+
+    for start, end, position_seqids, color in groups:
+        # Plot a square
+        ax.plot([start, start], [start, end], "-", color=color)
+        ax.plot([start, end], [start, start], "-", color=color)
+        ax.plot([start, end], [end, end], "-", color=color)
+        ax.plot([end, end], [start, end], "-", color=color)
+        for position, seqid in position_seqids:
+            seqid = simplify_seqid(seqid)
+            ax.text(position, end, seqid, ha="center", va="top")
+
+    ax.set_xlim(xlim)
+    ax.set_ylim((xlim[1], xlim[0]))  # Flip the y-axis so the origin is at the top
+    ax.set_xticklabels(ax.get_xticks(), family="Helvetica", color="gray")
+    ax.set_yticklabels(ax.get_yticks(), family="Helvetica", color="gray", rotation=90)
+    ax.tick_params(left=True, bottom=True, labelleft=True, labelbottom=True)
+    if binsize is not None:
+        formatter = ticker.FuncFormatter(
+            lambda x, pos: human_readable(int(x) * binsize, pos, base=True)
+        )
+        ax.xaxis.set_major_formatter(formatter)
+        ax.yaxis.set_major_formatter(formatter)
+        title = f"Resolution = {human_size(binsize, precision=0)} per bin"
+        ax.set_xlabel(title)
 
 
 def discrete_rainbow(N=7, cmap=cm.Set1, usepreset=True, shuffle=False, plot=False):
@@ -656,7 +729,7 @@ def draw_cmap(ax, cmap_text, vmin, vmax, cmap=None, reverse=False):
         ax.text(x, ymin - 0.005, "%.1f" % v, ha="center", va="top", size=10)
 
 
-def write_messages(ax, messages, ypad=0.04):
+def write_messages(ax, messages: List[str], ypad: float = 0.04):
     """
     Write text on canvas, usually on the top right corner.
     """
@@ -664,7 +737,7 @@ def write_messages(ax, messages, ypad=0.04):
     axt = ax.transAxes
     yy = 0.95
     for msg in messages:
-        ax.text(0.95, yy, msg, color=tc, transform=axt, ha="right")
+        ax.text(0.95, yy, markup(msg), color=tc, transform=axt, ha="right")
         yy -= ypad
 
 

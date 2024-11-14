@@ -8,13 +8,13 @@ import os.path as op
 import sys
 
 from math import log
-
-import numpy as np
 from bisect import bisect
 
-from jcvi.formats.base import must_open
-from jcvi.formats.fasta import Fasta
-from jcvi.apps.base import OptionParser, ActionDispatcher, glob
+import numpy as np
+
+from ..formats.base import must_open
+from ..formats.fasta import Fasta
+from ..apps.base import ActionDispatcher, OptionParser, glob
 
 ln2 = log(2)
 
@@ -104,7 +104,7 @@ def calculate_A50(ctgsizes, cutoff=0, percent=50):
     Given an array of contig sizes, produce A50, N50, and L50 values
     """
 
-    ctgsizes = np.array(ctgsizes, dtype="int")
+    ctgsizes = np.array(ctgsizes, dtype=int)
     ctgsizes = np.sort(ctgsizes)[::-1]
     ctgsizes = ctgsizes[ctgsizes >= cutoff]
 
@@ -156,7 +156,7 @@ def n50(args):
     from jcvi.graphics.histogram import loghistogram
 
     p = OptionParser(n50.__doc__)
-    p.add_option(
+    p.add_argument(
         "--print0",
         default=False,
         action="store_true",

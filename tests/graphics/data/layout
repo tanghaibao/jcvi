@@ -1,0 +1,5 @@
+# y, xstart, xend, rotation, color, label, va,  bed
+ .6,     .1,    .8,       0, #ff000080, *Grape*, top, grape.bed
+ .4,     .1,    .8,       0, #00ff0080, Peach, top, peach.bed
+# edges
+e, 0, 1, grape.peach.anchors.simple

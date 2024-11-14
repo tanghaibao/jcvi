@@ -13,47 +13,55 @@ the positions of tracks. For example:
 
 With the row ordering corresponding to the column ordering in the MCscan output.
 
-For "ha" (horizontal alignment), accepted values are: left|right|leftalign|rightalign|center|""(empty)
+For "ha" (horizontal alignment), accepted values are: left|right|leftalign|rightalign|center|""
 For "va" (vertical alignment), accepted values are: top|bottom|center|""(empty)
 """
 
 import sys
-import logging
+
+from typing import List, Optional
+
 import numpy as np
 
-from typing import Optional
+from matplotlib import transforms
+from matplotlib.path import Path
 
-from jcvi.compara.synteny import BlockFile
-from jcvi.formats.bed import Bed
-from jcvi.formats.base import DictFile
-from jcvi.utils.cbook import human_size
-from jcvi.utils.validator import validate_in_choices, validate_in_range
-from jcvi.apps.base import OptionParser
+from ..apps.base import OptionParser, logger
+from ..compara.synteny import BlockFile
+from ..formats.base import DictFile
+from ..formats.bed import Bed
+from ..utils.cbook import human_size
+from ..utils.validator import validate_in_choices, validate_in_range
 
-from jcvi.graphics.glyph import (
+from .base import (
+    AbstractLayout,
+    PathPatch,
+    markup,
+    plt,
+    savefig,
+)
+from .glyph import (
     BasePalette,
     Glyph,
     OrientationPalette,
     OrthoGroupPalette,
     RoundLabel,
 )
-from jcvi.graphics.base import (
-    markup,
-    mpl,
-    plt,
-    savefig,
-    Path,
-    PathPatch,
-    AbstractLayout,
-)
+from .tree import draw_tree, read_trees
 
 
 HorizontalAlignments = ("left", "right", "leftalign", "rightalign", "center", "")
 VerticalAlignments = ("top", "bottom", "center", "")
-CanvasSize = 0.65
+CANVAS_SIZE = 0.65
 
 
 class LayoutLine(object):
+    """
+    Parse a line in the layout file. The line is in the following format:
+
+    *0.5, 0.6, 0, left, center, g, 1, chr1
+    """
+
     def __init__(self, row, delimiter=","):
         self.hidden = row[0] == "*"
         if self.hidden:
@@ -79,12 +87,20 @@ class LayoutLine(object):
             self.label = args[7].strip()
         else:
             self.label = None
+        if len(args) > 8:
+            self.label_fontsize = float(args[8])
+        else:
+            self.label_fontsize = 10
 
 
 class Layout(AbstractLayout):
+    """
+    Parse the layout file.
+    """
+
     def __init__(self, filename, delimiter=",", seed: Optional[int] = None):
-        super(Layout, self).__init__(filename)
-        fp = open(filename)
+        super().__init__(filename)
+        fp = open(filename, encoding="utf-8")
         self.edges = []
         for row in fp:
             if row[0] == "#":
@@ -111,6 +127,10 @@ class Layout(AbstractLayout):
 
 
 class Shade(object):
+    """
+    Draw a shade between two tracks.
+    """
+
     Styles = ("curve", "line")
 
     def __init__(
@@ -144,7 +164,7 @@ class Shade(object):
             zorder (int, optional): Z-order. Defaults to 1.
         """
         fc = fc or "gainsboro"  # Default block color is grayish
-        assert style in self.Styles, "style must be one of {}".format(self.Styles)
+        assert style in self.Styles, f"style must be one of {self.Styles}"
         a1, a2 = a
         b1, b2 = b
         ax1, ay1 = a1
@@ -152,7 +172,6 @@ class Shade(object):
         bx1, by1 = b1
         bx2, by2 = b2
         if ax1 is None or ax2 is None or bx1 is None or bx2 is None:
-            logging.warning("Shade: None found in coordinates, skipping")
             return
         M, C4, L, CP = Path.MOVETO, Path.CURVE4, Path.LINETO, Path.CLOSEPOLY
         if style == "curve":
@@ -181,6 +200,10 @@ class Shade(object):
 
 
 class Region(object):
+    """
+    Draw a region of synteny.
+    """
+
     def __init__(
         self,
         ax,
@@ -193,6 +216,7 @@ class Region(object):
         loc_label=True,
         gene_labels: Optional[set] = None,
         genelabelsize=0,
+        genelabelrotation=25,
         pad=0.05,
         vpad=0.015,
         extra_features=None,
@@ -204,10 +228,10 @@ class Region(object):
         scale /= ratio
         self.y = y
         lr = layout.rotation
-        tr = mpl.transforms.Affine2D().rotate_deg_around(x, y, lr) + ax.transAxes
+        tr = transforms.Affine2D().rotate_deg_around(x, y, lr) + ax.transAxes
         inv = ax.transAxes.inverted()
 
-        start, end, si, ei, chr, orientation, span = ext
+        start, end, si, ei, chrom, orientation, span = ext
         flank = span / scale / 2
         xstart, xend = x - flank, x + flank
         self.xstart, self.xend = xstart, xend
@@ -225,9 +249,9 @@ class Region(object):
             startbp, endbp = endbp, startbp
 
         if switch:
-            chr = switch.get(chr, chr)
+            chrom = switch.get(chrom, chrom)
         if layout.label:
-            chr = layout.label
+            chrom = layout.label
 
         label = "-".join(
             (
@@ -272,12 +296,18 @@ class Region(object):
             )
             gp.set_transform(tr)
             if genelabelsize and (not gene_labels or gene_name in gene_labels):
+                if genelabelrotation == 0:
+                    text_x = x1 if x1 > x2 else x2
+                    text_y = y
+                else:
+                    text_x = (x1 + x2) / 2
+                    text_y = y + height / 2 + genelabelsize * vpad / 3
                 ax.text(
-                    (x1 + x2) / 2,
-                    y + height / 2 + genelabelsize * vpad / 3,
+                    text_x,
+                    text_y,
                     markup(gene_name),
                     size=genelabelsize,
-                    rotation=25,
+                    rotation=genelabelrotation,
                     ha="left",
                     va="center",
                     color="lightslategray",
@@ -308,13 +338,13 @@ class Region(object):
             xx = xstart - hpad
             ha = "right"
         elif ha == "leftalign":
-            xx = 0.5 - CanvasSize / 2 - hpad
+            xx = 0.5 - CANVAS_SIZE / 2 - hpad
             ha = "right"
         elif ha == "right":
             xx = xend + hpad
             ha = "left"
         elif ha == "rightalign":
-            xx = 0.5 + CanvasSize / 2 + hpad
+            xx = 0.5 + CANVAS_SIZE / 2 + hpad
             ha = "left"
         else:
             xx = x
@@ -341,30 +371,33 @@ class Region(object):
                 ha=ha, va="center", rotation=trans_angle, bbox=bbox, zorder=10
             )
 
-            # TODO: I spent several hours on trying to make this work - with no
-            # good solutions. To generate labels on multiple lines, each line
-            # with a different style is difficult in matplotlib. The only way,
-            # if you can tolerate an extra dot (.), is to use the recipe below.
-            # chr_label = r"\noindent " + markup(chr) + r" \\ ." if chr_label else None
-            # loc_label = r"\noindent . \\ " + label if loc_label else None
-
-            chr_label = markup(chr) if chr_label else None
+            chr_label = markup(chrom) if chr_label else None
             loc_label = label if loc_label else None
             if chr_label:
                 if loc_label:
-                    ax.text(lx, ly + vpad, chr_label, color=layout.color, **kwargs)
+                    ax.text(
+                        lx,
+                        ly + vpad,
+                        chr_label,
+                        size=layout.label_fontsize,
+                        color=layout.color,
+                        **kwargs,
+                    )
                     ax.text(
                         lx,
                         ly - vpad,
                         loc_label,
                         color="lightslategrey",
-                        size=10,
+                        size=layout.label_fontsize,
                         **kwargs,
                     )
                 else:
                     ax.text(lx, ly, chr_label, color=layout.color, **kwargs)
 
     def get_coordinates(self, gstart, gend, y, cv, tr, inv):
+        """
+        Get coordinates of a gene.
+        """
         x1, x2 = cv(gstart), cv(gend)
         a, b = tr.transform((x1, y)), tr.transform((x2, y))
         a, b = inv.transform(a), inv.transform(b)
@@ -388,6 +421,10 @@ def ymid_offset(samearc: Optional[str], pad: float = 0.05):
 
 
 class Synteny(object):
+    """
+    Draw the synteny plot.
+    """
+
     def __init__(
         self,
         fig,
@@ -398,17 +435,19 @@ class Synteny(object):
         switch=None,
         tree=None,
         extra_features=None,
-        chr_label=True,
-        loc_label=True,
+        chr_label: bool = True,
+        loc_label: bool = True,
         gene_labels: Optional[set] = None,
-        genelabelsize=0,
-        pad=0.05,
-        vpad=0.015,
-        scalebar=False,
-        shadestyle="curve",
-        glyphstyle="arrow",
-        glyphcolor: BasePalette = OrientationPalette(),
+        genelabelsize: int = 0,
+        genelabelrotation: int = 25,
+        pad: float = 0.05,
+        vpad: float = 0.015,
+        scalebar: bool = False,
+        shadestyle: str = "curve",
+        glyphstyle: str = "arrow",
+        glyphcolor: str = "orientation",
         seed: Optional[int] = None,
+        prune_features=True,
     ):
         _, h = fig.get_figwidth(), fig.get_figheight()
         bed = Bed(bedfile)
@@ -425,21 +464,25 @@ class Synteny(object):
             ext = bf.get_extent(i, order)
             exts.append(ext)
             if extra_features:
-                start, end, si, ei, chr, orientation, span = ext
+                start, end, _, _, chrom, _, span = ext
                 start, end = start.start, end.end  # start, end coordinates
-                ef = list(extra_features.extract(chr, start, end))
+                ef = list(extra_features.extract(chrom, start, end))
 
                 # Pruning removes minor features with < 0.1% of the region
-                ef_pruned = [x for x in ef if x.span >= span / 1000]
-                print(
-                    "Extracted {0} features "
-                    "({1} after pruning)".format(len(ef), len(ef_pruned)),
-                    file=sys.stderr,
-                )
-                extras.append(ef_pruned)
+                if prune_features:
+                    ef_pruned = [x for x in ef if x.span >= span / 1000]
+                    logger.info(
+                        "Extracted %d features (%d after pruning)",
+                        len(ef),
+                        len(ef_pruned),
+                    )
+                    extras.append(ef_pruned)
+                else:
+                    logger.info("Extracted %d features", len(ef))
+                    extras.append(ef)
 
         maxspan = max(exts, key=lambda x: x[-1])[-1]
-        scale = maxspan / CanvasSize
+        scale = maxspan / CANVAS_SIZE
 
         self.gg = gg = {}
         self.rr = []
@@ -461,6 +504,7 @@ class Synteny(object):
                 switch,
                 gene_labels=gene_labels,
                 genelabelsize=genelabelsize,
+                genelabelrotation=genelabelrotation,
                 chr_label=chr_label,
                 loc_label=loc_label,
                 vpad=vpad,
@@ -495,7 +539,7 @@ class Synteny(object):
                 )
 
         if scalebar:
-            print("Build scalebar (scale={})".format(scale), file=sys.stderr)
+            logger.info("Build scalebar (scale=%.3f)", scale)
             # Find the best length of the scalebar
             ar = [1, 2, 5]
             candidates = (
@@ -522,11 +566,9 @@ class Synteny(object):
             )
 
         if tree:
-            from jcvi.graphics.tree import draw_tree, read_trees
-
             trees = read_trees(tree)
             ntrees = len(trees)
-            logging.debug("A total of {0} trees imported.".format(ntrees))
+            logger.debug("A total of %d trees imported.", ntrees)
             xiv = 1.0 / ntrees
             yiv = 0.3
             xstart = 0
@@ -550,14 +592,17 @@ class Synteny(object):
 
 def draw_gene_legend(
     ax,
-    x1,
-    x2,
-    ytop,
-    d=0.04,
-    text=False,
-    repeat=False,
-    glyphstyle="box",
+    x1: float,
+    x2: float,
+    ytop: float,
+    d: float = 0.04,
+    text: bool = False,
+    repeat: bool = False,
+    glyphstyle: str = "box",
 ):
+    """
+    Draw a legend for gene glyphs.
+    """
     forward, backward = OrientationPalette.forward, OrientationPalette.backward
     ax.plot([x1, x1 + d], [ytop, ytop], ":", color=forward, lw=2)
     ax.plot([x1 + d], [ytop], ">", color=forward, mec=forward)
@@ -582,48 +627,65 @@ def draw_gene_legend(
         ax.text(xr, ytop + d / 2, "repeat", ha="center")
 
 
-def main():
+def main(args: List[str]):
     p = OptionParser(__doc__)
-    p.add_option("--switch", help="Rename the seqid with two-column file")
-    p.add_option("--tree", help="Display trees on the bottom of the figure")
-    p.add_option("--extra", help="Extra features in BED format")
-    p.add_option(
+    p.add_argument("--switch", help="Rename the seqid with two-column file")
+    p.add_argument("--tree", help="Display trees on the bottom of the figure")
+    p.add_argument("--extra", help="Extra features in BED format")
+    p.add_argument(
         "--genelabels",
         help='Show only these gene labels, separated by comma. Example: "At1g12340,At5g54690"',
     )
-    p.add_option(
+    p.add_argument(
         "--genelabelsize",
         default=0,
-        type="int",
+        type=int,
         help="Show gene labels at this font size, useful for debugging. "
         + "However, plot may appear visually crowded. "
         + "Reasonably good values are 2 to 6 [Default: disabled]",
     )
-    p.add_option(
+    p.add_argument(
+        "--genelabelrotation",
+        default=25,
+        type=int,
+        help="Rotate gene labels at this angle (anti-clockwise), useful for debugging.",
+    )
+    p.add_argument(
         "--scalebar",
         default=False,
         action="store_true",
         help="Add scale bar to the plot",
     )
-    p.add_option(
+    p.add_argument(
         "--glyphstyle",
         default="box",
         choices=Glyph.Styles,
         help="Style of feature glyphs",
     )
-    p.add_option(
+    p.add_argument(
         "--glyphcolor",
         default="orientation",
         choices=Glyph.Palette,
         help="Glyph coloring based on",
     )
-    p.add_option(
+    p.add_argument(
         "--shadestyle",
         default="curve",
         choices=Shade.Styles,
         help="Style of syntenic wedges",
     )
-    opts, args, iopts = p.set_image_options(figsize="8x7")
+    p.add_argument(
+        "--outputprefix",
+        default="",
+        help="Prefix for the output file",
+    )
+    p.add_argument(
+        "--noprune",
+        default=False,
+        action="store_true",
+        help="If set, do not exclude small features from annotation track (<1%% of region)",
+    )
+    opts, args, iopts = p.set_image_options(args, figsize="8x7")
 
     if len(args) != 3:
         sys.exit(not p.print_help())
@@ -632,10 +694,11 @@ def main():
     switch = opts.switch
     tree = opts.tree
     gene_labels = None if not opts.genelabels else set(opts.genelabels.split(","))
+    prune_features = not opts.noprune
 
     pf = datafile.rsplit(".", 1)[0]
     fig = plt.figure(1, (iopts.w, iopts.h))
-    root = fig.add_axes([0, 0, 1, 1])
+    root = fig.add_axes((0, 0, 1, 1))
     Synteny(
         fig,
         root,
@@ -647,20 +710,27 @@ def main():
         extra_features=opts.extra,
         gene_labels=gene_labels,
         genelabelsize=opts.genelabelsize,
+        genelabelrotation=opts.genelabelrotation,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
         glyphstyle=opts.glyphstyle,
         glyphcolor=opts.glyphcolor,
         seed=iopts.seed,
+        prune_features=prune_features,
     )
 
     root.set_xlim(0, 1)
     root.set_ylim(0, 1)
     root.set_axis_off()
 
+    outputprefix = opts.outputprefix
+    if outputprefix:
+        pf = outputprefix
     image_name = pf + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
+    return image_name
+
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

@@ -10,20 +10,21 @@
 import csv
 import sys
 
-from jcvi.apps.base import OptionParser
-from jcvi.graphics.base import (
+from ..apps.base import OptionParser
+
+from .base import (
     Rectangle,
+    load_image,
     markup,
     normalize_axes,
     plt,
     savefig,
-    load_image,
 )
 
 
 class CsvTable(list):
     def __init__(self, csvfile="table.csv"):
-        super(CsvTable, self).__init__()
+        super().__init__()
         with open(csvfile) as csvfile:
             reader = csv.reader(csvfile, skipinitialspace=True)
             self.header = [markup(x) for x in next(reader)]

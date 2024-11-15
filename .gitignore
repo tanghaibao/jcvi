@@ -2,11 +2,11 @@
 .DS_Store
 
 # Versioning
-jcvi/version.py
+src/jcvi/version.py
 
 # Ignore Cython generated C files
-jcvi/assembly/chic.c
-jcvi/formats/cblast.c
+src/jcvi/assembly/chic.c
+src/jcvi/formats/cblast.c
 
 ### Python ###
 # Byte-compiled / optimized / DLL files
@@ -63,3 +63,4 @@ docs/_build/
 
 # gffutils temp DB file
 *.db
+src/jcvi/version.py

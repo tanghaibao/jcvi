@@ -1,0 +1,11 @@
+name: jcvi-osx64
+channels:
+  - conda-forge/osx-64
+  - bioconda/osx-64
+dependencies:
+  - python 3.12
+  - ImageMagick
+  - pip
+  - pip:
+      - hatch
+      - pytest

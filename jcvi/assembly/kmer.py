@@ -1286,8 +1286,8 @@ def draw_ks_histogram(
     Kmer_coverage = ks.lambda_ if not coverage else coverage
     Genome_size = int(round(Total_Kmers * 1.0 / Kmer_coverage))
 
-    Total_Kmers_msg = f"Total {K}-mers: {thousands(Total_Kmers)}"
-    Kmer_coverage_msg = f"{K}-mer coverage: {Kmer_coverage:.1f}x"
+    Total_Kmers_msg = f"Total {K}-kmers: {thousands(Total_Kmers)}"
+    Kmer_coverage_msg = f"{K}-kmer coverage: {Kmer_coverage:.1f}x"
     Genome_size_msg = f"Estimated genome size: {Genome_size / 1e6:.1f} Mb"
     Repetitive_msg = ks.repetitive
     SNPrate_msg = ks.snprate
@@ -1303,7 +1303,7 @@ def draw_ks_histogram(
         print(msg, file=sys.stderr)
 
     x, y = ks.get_xy(vmin, vmax)
-    title = f"{species} {K}-mer histogram"
+    title = f"{species} {K}-kmer histogram"
 
     ax.bar(x, y, fc="#b2df8a", lw=0)
 

@@ -1,7 +1,7 @@
-name: Ruff Formatting
+name: Black Formatting
 on: [pull_request]
 jobs:
-  ruff:
+  black:
     if: ${{ github.actor != 'dependabot[bot]' }} # Do not run on commits created by dependabot
     runs-on: ubuntu-latest
     permissions:
@@ -13,11 +13,10 @@ jobs:
         with:
           ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: chartboost/ruff-action@v1
+      - uses: psf/black@stable
         with:
-          src: './jcvi ./tests'
-          args: 'format --target-version py310'
+          path: "./jcvi ./tests"
       - uses: stefanzweifel/git-auto-commit-action@v5
         id: auto-commit-action
         with:
-          commit_message: 'Style fixes by Ruff'
+          commit_message: 'Style fixes by Black'

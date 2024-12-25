@@ -3,7 +3,8 @@
 requires = [
     "hatchling",  # Build backend
     "hatch-vcs",  # Version control system plugin for dynamic versioning
-    "Cython",     # Cython for compiling C extensions
+    "hatch-cython",  # Cython plugin for compiling C extensions
+    "cython",     # Cython for compiling C extensions
     "numpy",      # NumPy for numerical operations and C extension includes
 ]
 
@@ -66,7 +67,7 @@ dynamic = ["version"]
 
 # Optional dependencies for testing
 [project.optional-dependencies]
-test = [
+tests = [
     "PyYAML",
     "pytest",
     "pytest-cov",
@@ -84,8 +85,9 @@ allow-direct-references = true
 
 # Hatch build configuration
 [tool.hatch.build]
+source = "src"  # Source directory
 include = [
-    "jcvi/**",  # Include all files in the jcvi directory
+    "src/jcvi/**",  # Include all files in the jcvi directory
     "README.md",
 ]
 exclude = [
@@ -101,28 +103,28 @@ source = "vcs"  # Use version control system for versioning
 
 # Version file location for VCS
 [tool.hatch.build.hooks.vcs]
-version-file = "jcvi/version.py"  # Path to write the version information
+version-file = "src/jcvi/version.py"  # Path to write the version information
 
 # Version control system (VCS) versioning
 [tool.hatch.version.vcs]
 tag-pattern = "v*"  # Git tags starting with 'v' will be used for versioning
 fallback-version = "0.0.0"
 
-# Hatch build targets for source distribution
+# Cython build configuration
+[tool.hatch.build.hooks.cython]
+extensions = [
+    {name = "jcvi_assembly_chic", sources = ["src/jcvi/assembly/chic.pyx"], include-dirs = ["{numpy_include}"], extra-compile-args = ["-O3"]},
+    {name = "jcvi_formats_cblast", sources = ["src/jcvi/formats/cblast.pyx"], extra-compile-args = ["-O3"]}
+]
+
 [tool.hatch.build.targets.sdist]
 include = [
-    "jcvi/**",
+    "src/**",
     "README.md",
 ]
 
-# Hatch build targets for wheel distribution
 [tool.hatch.build.targets.wheel]
 include = [
-    "jcvi/**",
+    "src/**",
     "README.md",
 ]
-
-# Cython extensions to be built
-[tool.hatch.build.targets.wheel.ext_modules]
-jcvi.assembly.chic = {sources = ["jcvi/assembly/chic.pyx"], include-dirs = ["{numpy.get_include()}"], extra-compile-args = ["-O3"]}
-jcvi.formats.cblast = {sources = ["jcvi/formats/cblast.pyx"], extra-compile-args = ["-O3"]}

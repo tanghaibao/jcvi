@@ -1,7 +1,7 @@
 # Created by http://www.gitignore.io
 
-# Ribbon testing
-ribbon_test/
+# Dev testing
+dev
 
 ### Python ###
 # Byte-compiled / optimized / DLL files

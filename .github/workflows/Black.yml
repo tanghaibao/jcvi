@@ -13,10 +13,16 @@ jobs:
         with:
           ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
-      - uses: psf/black@stable
+
+      - name: Black Code Formatter
+        uses: psf/black@stable
         with:
-          path: "./jcvi ./tests"
-      - uses: stefanzweifel/git-auto-commit-action@v5
+          options: "--verbose"
+          src: "."
+      
+      - name: Commit changes
+        if: success()
+        uses: stefanzweifel/git-auto-commit-action@v5
         id: auto-commit-action
         with:
           commit_message: 'Style fixes by Black'

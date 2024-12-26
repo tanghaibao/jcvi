@@ -1,0 +1,28 @@
+name: Black Formatting
+on: [pull_request]
+jobs:
+  black:
+    if: ${{ github.actor != 'dependabot[bot]' }} # Do not run on commits created by dependabot
+    runs-on: ubuntu-latest
+    permissions:
+      # Give the default GITHUB_TOKEN write permission to commit and push the changed files.
+      contents: write # Allows reading and writing repository contents (e.g., commits)
+      pull-requests: write # Allows reading and writing pull requests
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Black Code Formatter
+        uses: psf/black@stable
+        with:
+          options: "--verbose"
+          src: "."
+      
+      - name: Commit changes
+        if: success()
+        uses: stefanzweifel/git-auto-commit-action@v5
+        id: auto-commit-action
+        with:
+          commit_message: 'Style fixes by Black'

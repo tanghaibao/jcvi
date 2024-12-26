@@ -2,75 +2,27 @@ name: Black Formatting
 on: [pull_request]
 jobs:
   black:
-    if: ${{ github.actor != 'dependabot[bot]' }}
+    # Only run if not from dependabot AND not from a fork
+    if: ${{ github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.fork != true }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
       pull-requests: write
-      issues: write
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install Black
-        run: pip install black
-
-      - name: Check if PR is from fork
-        id: check_fork
-        run: |
-          if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
-            echo "is_fork=true" >> $GITHUB_OUTPUT
-          else
-            echo "is_fork=false" >> $GITHUB_OUTPUT
-          fi
-
-      # For PRs from the same repository - run Black and commit changes
-      - name: Run Black and commit (non-fork PRs)
-        if: steps.check_fork.outputs.is_fork == 'false'
+      - name: Black Code Formatter
         uses: psf/black@stable
         with:
           options: "--verbose"
           src: "."
-
-      - name: Commit changes (non-fork PRs)
-        if: steps.check_fork.outputs.is_fork == 'false' && success()
+      
+      - name: Commit changes
+        if: success()
         uses: stefanzweifel/git-auto-commit-action@v5
+        id: auto-commit-action
         with:
           commit_message: 'Style fixes by Black'
-          commit_options: '--no-verify'
-          file_pattern: '*.py'
-
-      # For PRs from forks - run Black in check mode and comment
-      - name: Run Black in check mode (fork PRs)
-        if: steps.check_fork.outputs.is_fork == 'true'
-        run: |
-          black_output=$(black --check --diff . 2>&1) || true
-          echo "BLACK_OUTPUT<<EOF" >> $GITHUB_ENV
-          echo "$black_output" >> $GITHUB_ENV
-          echo "EOF" >> $GITHUB_ENV
-
-      - name: Comment on PR (fork PRs)
-        if: steps.check_fork.outputs.is_fork == 'true'
-        uses: peter-evans/create-or-update-comment@v3
-        with:
-          issue-number: ${{ github.event.pull_request.number }}
-          body: |
-            ⚠️ Black formatting suggestions:
-
-            ```diff
-            ${{ env.BLACK_OUTPUT }}
-            ```
-
-            Please format your code using Black before merging. You can do this locally by running:
-            ```bash
-            pip install black
-            black .
-            ```

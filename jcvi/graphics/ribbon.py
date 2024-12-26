@@ -18,15 +18,14 @@ e, 1, 2
 With the row ordering corresponding to the column ordering in the alignment blockfile.
 """
 
-import logging
 import numpy as np
 import sys
 
-from jcvi.apps.base import OptionParser
+from jcvi.apps.base import OptionParser, logger
 from jcvi.compara.synteny import BlockFile
-from jcvi.formats.base import DictFile
+#from jcvi.formats.base import DictFile
 from jcvi.formats.bed import Bed
-from jcvi.graphics.glyph import Glyph, RoundLabel, GeneGlyph
+from jcvi.graphics.glyph import Glyph, RoundLabel #, GeneGlyph
 from jcvi.utils.cbook import human_size
 from jcvi.graphics.base import (
     AbstractLayout,
@@ -37,17 +36,6 @@ from jcvi.graphics.base import (
     plt,
     savefig,
 )
-
-# Backwards compatibility with Python 2
-try:
-    # If running Py2 and xrange() exists, use for all instances of Py3 range()
-    range = xrange
-except NameError:
-    pass
-
-# All code below uses Py2 -> Py3 conversions:
-# range() -> list(range())
-# xrange() -> range()
 
 # Default colours for ribbons with different orientations
 forward, backward = "#1f77b4", "#2ca02c"
@@ -152,7 +140,7 @@ class Shade(object):
             lw (int, optional): Line width. Defaults to 1.
             zorder (int, optional): Z-order. Defaults to 1.
         """
-        assert style in Shade.Styles, "style must be one of {}".format(Styles)
+        assert style in Shade.Styles, "style must be one of {}".format(self.Styles)
 
         # a1, a2 = a
         # b1, b2 = b
@@ -233,7 +221,8 @@ class Region(object):
         xstart, xend = x - flank, x + flank
         self.xstart, self.xend = xstart, xend
 
-        cv = lambda t: xstart + abs(t - startbp) / scale
+        def cv(t):
+            return xstart + abs(t - startbp) / scale
         hidden = layout.hidden
 
         # Plot Chromosome Bar
@@ -476,7 +465,7 @@ class Synteny(object):
         # Check correct number of orientation values
         if orientation:
             if lo.lines != len(orientation):
-                logging.error("Incorrect number of orientation instructions")
+                logger.error("Incorrect number of orientation instructions")
                 sys.exit(0)
 
         # Import features track
@@ -525,7 +514,7 @@ class Synteny(object):
                 # Pruning removes minor features with < 0.1% of the region
                 if prune_features:
                     fe_pruned = [x for x in fe if x.span >= span / 1000]
-                    logging.info(
+                    logger.info(
                         "Extracted {0} features "
                         "({1} after pruning)".format(len(fe), len(fe_pruned)),
                         file=sys.stderr,
@@ -576,7 +565,7 @@ class Synteny(object):
             for ga, gb, h in bf.iter_pairs(i, j):
                 # Coords in gg should be correctly trimmed from Region processing
                 # Need to skip annotations in blockfile that are outside plotted region in layout file
-                if not (i, ga) in list(gg.keys()) or not (j, gb) in list(gg.keys()):
+                if (i, ga) not in list(gg.keys()) or (j, gb) not in list(gg.keys()):
                     continue
                 # Skip ribbons that will later be plotted with a hightlight color
                 if h:
@@ -609,7 +598,7 @@ class Synteny(object):
 
             # Paint ribbons for which a highlight colour was set
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
-                if not (i, ga) in list(gg.keys()) or not (j, gb) in list(gg.keys()):
+                if (i, ga) not in list(gg.keys()) or (j, gb) not in list(gg.keys()):
                     continue
                 if h == "hide":
                     continue
@@ -630,7 +619,7 @@ class Synteny(object):
                 )
 
         if scalebar:
-            logging.info("Build scalebar (scale={})".format(scale), file=sys.stderr)
+            logger.info("Build scalebar (scale={})".format(scale), file=sys.stderr)
             # Find the best length of the scalebar
             ar = [1, 2, 5]
             candidates = (
@@ -661,7 +650,7 @@ class Synteny(object):
 
             trees = read_trees(tree)
             ntrees = len(trees)
-            logging.debug("A total of {0} trees imported.".format(ntrees))
+            logger.debug("A total of {0} trees imported.".format(ntrees))
             xiv = 1.0 / ntrees
             yiv = 0.3
             xstart = 0
@@ -828,7 +817,7 @@ def main():
 
     # Check for data files
     if len(args) != 3:
-        logging.error('Requires 3 data file args.')
+        logger.error('Requires 3 data file args.')
         sys.exit(not p.print_help())
 
     # Unpack data file paths

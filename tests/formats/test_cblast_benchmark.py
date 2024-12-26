@@ -5,6 +5,7 @@
 import pytest
 import time
 
+
 # Benchmark cblast vs blast module
 @pytest.mark.benchmark(
     group="CBlastLine vs PyBlastLine", timer=time.time, disable_gc=True, warmup=False

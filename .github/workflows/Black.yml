@@ -11,7 +11,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
@@ -44,6 +45,8 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'Style fixes by Black'
+          commit_options: '--no-verify'
+          file_pattern: '*.py'
 
       # For PRs from forks - run Black in check mode and comment
       - name: Run Black in check mode (fork PRs)

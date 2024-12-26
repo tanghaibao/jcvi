@@ -1,7 +1,0 @@
-# x,   y, rotation,     ha,     va, color, ratio,            label, ChrmName, rStart, rEnd, chrmMax
-0.5, 0.6,  0, center, top,   ,    1.0, Bsor Chrm8,     CS10_Chromosome_08, 1870000, 2050000, 2108098
-0.3, 0.4,  0, center, bottom,   ,    0.7, Ptr sc1.4 (Rev),      supercont1.4, 1420000, 1770000, 2787645 
-0.75, 0.4,  0, center, bottom,   ,    0.7, Pnod Chrm5, SN15_SOL_Chromosome_05, 300000,   750000, 2046703 
-# edges
-e, 0, 1
-e, 0, 2

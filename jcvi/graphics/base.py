@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+from os import remove
 import copy
+import logging
 import os.path as op
 import re
 import sys
@@ -322,14 +324,33 @@ def update_figname(figname: str, format: str) -> str:
     return figname + "." + format
 
 
-def savefig(figname, dpi=150, iopts=None, cleanup=True):
+def update_figname(figname: str, format: str) -> str:
+    """Update the name of a figure to include the format.
+
+    Args:
+        figname (str): Path to the figure
+        format (str): Figure format, must be one of GRAPHIC_FORMATS
+
+    Returns:
+        str: New file path
+    """
+    _, ext = op.splitext(figname)
+    if ext.strip(".") in GRAPHIC_FORMATS:  # User suffix has precedence
+        return figname
+    # When the user has not supplied a format in the filename, use the requested format
+    assert format in GRAPHIC_FORMATS, "Invalid format"
+    return figname + "." + format
+
+
+def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
     try:
         format = figname.rsplit(".", 1)[-1].lower()
     except:
         format = "pdf"
     try:
-        logger.debug("Matplotlib backend is: %s", mpl.get_backend())
-        plt.savefig(figname, dpi=dpi, format=format)
+        logging.debug(f"Matplotlib backend is: {mpl.get_backend()}")
+        logging.debug(f"Attempting save as: {figname}")
+        plt.savefig(figname, dpi=dpi, format=format, transparent=transparent)
     except Exception as e:
         logger.error("savefig failed with message:\n%s", e)
         logger.info("Try running again with --notex option to disable latex.")

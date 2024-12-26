@@ -1,5 +1,8 @@
 # Created by http://www.gitignore.io
 
+# Dev testing
+dev
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/

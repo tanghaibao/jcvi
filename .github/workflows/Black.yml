@@ -2,12 +2,12 @@ name: Black Formatting
 on: [pull_request]
 jobs:
   black:
-    if: ${{ github.actor != 'dependabot[bot]' }} # Do not run on commits created by dependabot
+    # Only run if not from dependabot AND not from a fork
+    if: ${{ github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.fork != true }}
     runs-on: ubuntu-latest
     permissions:
-      # Give the default GITHUB_TOKEN write permission to commit and push the changed files.
-      contents: write # Allows reading and writing repository contents (e.g., commits)
-      pull-requests: write # Allows reading and writing pull requests
+      contents: write
+      pull-requests: write
     steps:
       - uses: actions/checkout@v4
         with:

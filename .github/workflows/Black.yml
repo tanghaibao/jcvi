@@ -10,19 +10,72 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.head_ref }}
-          repository: ${{ github.event.pull_request.head.repo.full_name }}
-          token: ${{ secrets.PAT_TOKEN }}  # Use a PAT with repo scope
+          ref: ${{ github.sha }}
+          token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Black Code Formatter
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+
+      - name: Install Black
+        run: pip install black
+
+      - name: Check if PR is from fork
+        id: check_fork
+        run: |
+          if [ "${{ github.event.pull_request.head.repo.fork }}" = "true" ]; then
+            echo "is_fork=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_fork=false" >> $GITHUB_OUTPUT
+          fi
+
+      # For PRs from the same repository - run Black and commit changes
+      - name: Run Black and commit (non-fork PRs)
+        if: steps.check_fork.outputs.is_fork == 'false'
         uses: psf/black@stable
         with:
           options: "--verbose"
           src: "."
-      
-      - name: Commit changes
-        if: success()
+
+      - name: Commit changes (non-fork PRs)
+        if: steps.check_fork.outputs.is_fork == 'false' && success()
         uses: stefanzweifel/git-auto-commit-action@v5
-        id: auto-commit-action
         with:
           commit_message: 'Style fixes by Black'
+
+      # For PRs from forks - run Black in check mode and comment
+      - name: Run Black in check mode (fork PRs)
+        if: steps.check_fork.outputs.is_fork == 'true'
+        run: |
+          black_output=$(black --check --diff . 2>&1) || true
+          echo "BLACK_OUTPUT<<EOF" >> $GITHUB_ENV
+          echo "$black_output" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
+
+      - name: Comment on PR (fork PRs)
+        if: steps.check_fork.outputs.is_fork == 'true'
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const blackOutput = process.env.BLACK_OUTPUT;
+            if (blackOutput && !blackOutput.includes('All done!')) {
+              const body = `⚠️ Black formatting suggestions:
+              
+              \`\`\`diff
+              ${blackOutput}
+              \`\`\`
+              
+              Please format your code using Black before merging. You can do this locally by running:
+              \`\`\`bash
+              pip install black
+              black .
+              \`\`\``;
+              
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: body
+              });
+            }

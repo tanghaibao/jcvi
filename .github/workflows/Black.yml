@@ -7,10 +7,11 @@ jobs:
     permissions:
       contents: write
       pull-requests: write
+      issues: write
     steps:
       - uses: actions/checkout@v4
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ github.head_ref }}
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Python
@@ -55,27 +56,18 @@ jobs:
 
       - name: Comment on PR (fork PRs)
         if: steps.check_fork.outputs.is_fork == 'true'
-        uses: actions/github-script@v6
+        uses: peter-evans/create-or-update-comment@v3
         with:
-          script: |
-            const blackOutput = process.env.BLACK_OUTPUT;
-            if (blackOutput && !blackOutput.includes('All done!')) {
-              const body = `⚠️ Black formatting suggestions:
-              
-              \`\`\`diff
-              ${blackOutput}
-              \`\`\`
-              
-              Please format your code using Black before merging. You can do this locally by running:
-              \`\`\`bash
-              pip install black
-              black .
-              \`\`\``;
-              
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: context.issue.number,
-                body: body
-              });
-            }
+          issue-number: ${{ github.event.pull_request.number }}
+          body: |
+            ⚠️ Black formatting suggestions:
+
+            ```diff
+            ${{ env.BLACK_OUTPUT }}
+            ```
+
+            Please format your code using Black before merging. You can do this locally by running:
+            ```bash
+            pip install black
+            black .
+            ```

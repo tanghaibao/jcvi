@@ -12,7 +12,7 @@ jobs:
         with:
           ref: ${{ github.head_ref }}
           repository: ${{ github.event.pull_request.head.repo.full_name }}
-          token: ${{ secrets.GITHUB_TOKEN }}  # Use a PAT with repo scope
+          token: ${{ secrets.PAT_TOKEN }}  # Use a PAT with repo scope
 
       - name: Black Code Formatter
         uses: psf/black@stable

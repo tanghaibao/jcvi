@@ -3,11 +3,10 @@
 requires = [
     "hatchling",  # Build backend
     "hatch-vcs",  # Version control system plugin for dynamic versioning
-    "hatch-cython",  # Cython plugin for compiling C extensions
-    "cython",     # Cython for compiling C extensions
+    "setuptools",  # Setuptools for compiling C extensions
+    "cython",  # Cython for compiling C extensions
     "numpy",      # NumPy for numerical operations and C extension includes
 ]
-
 build-backend = "hatchling.build"
 
 # Project metadata and configuration
@@ -62,10 +61,8 @@ dependencies = [
     "webcolors"
 ]
 
-# Indicates that the version is dynamically determined
 dynamic = ["version"]
 
-# Optional dependencies for testing
 [project.optional-dependencies]
 tests = [
     "PyYAML",
@@ -75,56 +72,32 @@ tests = [
     "mock"
 ]
 
-# Project URLs
 [project.urls]
 homepage = "http://github.com/tanghaibao/jcvi"
 
-# Hatch metadata configuration
 [tool.hatch.metadata]
 allow-direct-references = true
 
-# Hatch build configuration
 [tool.hatch.build]
-source = "src"  # Source directory
-include = [
-    "src/jcvi/**",  # Include all files in the jcvi directory
-    "README.md",
-]
-exclude = [
-    ".github/*",  # Exclude GitHub workflows and configurations
-    "docker/*",   # Exclude Docker-related files
-    "tests/*",    # Exclude test files
-    ".*"          # Exclude hidden files
-]
+packages = ["jcvi"]
+source = "src"
 
-# Hatch version configuration using VCS
 [tool.hatch.version]
-source = "vcs"  # Use version control system for versioning
+source = "vcs"
 
-# Version file location for VCS
 [tool.hatch.build.hooks.vcs]
-version-file = "src/jcvi/version.py"  # Path to write the version information
+version-file = "src/jcvi/version.py"
 
-# Version control system (VCS) versioning
 [tool.hatch.version.vcs]
-tag-pattern = "v*"  # Git tags starting with 'v' will be used for versioning
+tag-pattern = "v*"
 fallback-version = "0.0.0"
-
-# Cython build configuration
-[tool.hatch.build.hooks.cython]
-extensions = [
-    {name = "jcvi_assembly_chic", sources = ["src/jcvi/assembly/chic.pyx"], include-dirs = ["{numpy_include}"], extra-compile-args = ["-O3"]},
-    {name = "jcvi_formats_cblast", sources = ["src/jcvi/formats/cblast.pyx"], extra-compile-args = ["-O3"]}
-]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "src/**",
+    "src/**/*.py",
+    "src/**/*.pyx",
     "README.md",
 ]
 
 [tool.hatch.build.targets.wheel]
-include = [
-    "src/**",
-    "README.md",
-]
+packages = ["jcvi"]

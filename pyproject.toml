@@ -89,7 +89,7 @@ packages = ["src/jcvi"]
 source = "vcs"
 
 [tool.hatch.build.hooks.vcs]
-version-file = "src/jcvi/version.py"
+version-file = "src/jcvi/_version.py"
 
 [tool.hatch.version.vcs]
 tag-pattern = "v*"

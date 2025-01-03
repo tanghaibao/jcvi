@@ -5,7 +5,7 @@
 dev/
 
 # Versioning
-src/jcvi/version.py
+src/jcvi/_version.py
 
 # Ignore Cython generated C files
 src/jcvi/assembly/chic.c

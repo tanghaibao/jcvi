@@ -1232,7 +1232,7 @@ def setup_magick_home():
             if op.isdir(magick_home):
                 os.environ["MAGICK_HOME"] = magick_home
         else:
-            logger.error("MAGICK_HOME not set")
+            logger.warning("MAGICK_HOME not set")
 
 
 def popen(cmd, debug=True, shell="/bin/bash"):

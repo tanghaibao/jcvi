@@ -1,6 +1,9 @@
 # Mac stuff
 .DS_Store
 
+# Development
+dev/
+
 # Versioning
 src/jcvi/version.py
 

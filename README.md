@@ -117,24 +117,48 @@ best way is to install them via `pip install` when you see
 
 ## Installation
 
-The easiest way is to install it via PyPI:
+**Installing jcvi in a Conda environment:**
 
-```console
-pip install jcvi
+You can create a Python 3.12 environment with basic dependencies for JCVI using the YAML files in this repo.
+
+```bash
+conda env create -f environment.yml
+
+conda activate jcvi
 ```
 
-To install the development version:
+Note: If you are using a Mac with an ARM64 (Apple Silicon) processor, some dependencies are not currently available from Bioconda for this architecture. 
+
+You can instead create a virtual OSX64 env like this:
+
+```bash
+conda env create -f env_osx64.yml
+
+conda activate jcvi-osx64
+```
+
+After activating the Conda environment install JCVI using one of the following options.
+
+**Installation options:**  
+
+pip install the latest development version directly from this repo.
 
 ```console
 pip install git+git://github.com/tanghaibao/jcvi.git
+```
+
+Install latest release from PyPi.
+
+```console
+pip install jcvi
 ```
 
 Alternatively, if you want to install manually:
 
 ```console
 cd ~/code  # or any directory of your choice
-git clone git://github.com/tanghaibao/jcvi.git
-pip install -e .
+git clone git://github.com/tanghaibao/jcvi.git && cd jcvi
+pip install -e '.[tests]'
 ```
 
 In addition, a few module might ask for locations of external programs,

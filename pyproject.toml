@@ -9,6 +9,9 @@ requires = [
 ]
 build-backend = "hatchling.build"
 
+[tool.hatch.build.hooks.custom]
+path = "build.py"
+
 # Project metadata and configuration
 [project]
 name = "jcvi"
@@ -79,8 +82,8 @@ homepage = "http://github.com/tanghaibao/jcvi"
 allow-direct-references = true
 
 [tool.hatch.build]
-packages = ["jcvi"]
-source = "src"
+packages = ["src/jcvi"]
+#source = "src"
 
 [tool.hatch.version]
 source = "vcs"
@@ -100,4 +103,4 @@ include = [
 ]
 
 [tool.hatch.build.targets.wheel]
-packages = ["jcvi"]
+packages = ["src/jcvi"]

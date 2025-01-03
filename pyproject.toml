@@ -17,7 +17,7 @@ path = "build.py"
 name = "jcvi"
 description = "Python utility libraries on genome assembly, annotation and comparative genomics"
 readme = "README.md"
-requires-python = ">=3.6"
+requires-python = ">=3.8"
 license = {text = "BSD"}
 authors = [
     {name = "Haibao Tang", email = "tanghaibao@gmail.com"},
@@ -34,17 +34,16 @@ classifiers = [
 ]
 
 dependencies = [
-    "CrossMap",
-    "Wand",
     "biopython",
     "boto3",
     "brewer2mpl",
+    "CrossMap",
     "deap",
     "ete3",
     "ftpretty",
+    "genomepy",
     "gffutils",
     "goatools",
-    "genomepy",
     "graphviz",
     "jinja2",
     "matplotlib",
@@ -61,6 +60,7 @@ dependencies = [
     "scikit-image",
     "scipy",
     "seaborn",
+    "Wand",
     "webcolors"
 ]
 
@@ -68,11 +68,11 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 tests = [
-    "PyYAML",
-    "pytest",
-    "pytest-cov",
+    "mock",
     "pytest-benchmark",
-    "mock"
+    "pytest-cov",
+    "pytest",
+    "PyYAML",
 ]
 
 [project.urls]

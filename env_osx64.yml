@@ -4,7 +4,10 @@ channels:
   - bioconda/osx-64
 dependencies:
   - python 3.12
-  - ImageMagick
+  - bedtools
+  - imagemagick
+  - libmagic  # System-level magic library
+  - wand  # Python bindings for ImageMagick
   - pip
   - pip:
       - hatch

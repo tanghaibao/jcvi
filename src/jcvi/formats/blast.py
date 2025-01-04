@@ -23,10 +23,11 @@ from .sizes import Sizes
 
 try:
     from .cblast import BlastLine
-except:
+except ImportError as e:
+    logger.error(f"Failed to import cblast: {e}")
     from .pyblast import BlastLine
 
-    logger.error("Fall back to Python implementation of BlastLine")
+    logger.warning("Fall back to Python implementation of BlastLine")
 
 
 class BlastSlow(LineFile):

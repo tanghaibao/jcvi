@@ -1,0 +1,14 @@
+name: jcvi
+channels:
+  - conda-forge
+  - bioconda
+dependencies:
+  - python 3.12
+  - bedtools
+  - imagemagick
+  - libmagic  # System-level magic library
+  - wand  # Python bindings for ImageMagick
+  - pip
+  - pip:
+      - pytest
+      - hatch

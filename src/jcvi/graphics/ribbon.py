@@ -21,11 +21,12 @@ With the row ordering corresponding to the column ordering in the alignment bloc
 import numpy as np
 import sys
 
-#from jcvi.formats.base import DictFile
+# from jcvi.formats.base import DictFile
 from jcvi.apps.base import OptionParser, logger
 from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
-from jcvi.graphics.base import (AbstractLayout,
+from jcvi.graphics.base import (
+    AbstractLayout,
     markup,
     mpl,
     Path,
@@ -33,7 +34,7 @@ from jcvi.graphics.base import (AbstractLayout,
     plt,
     savefig,
 )
-from jcvi.graphics.glyph import Glyph, RoundLabel #, GeneGlyph
+from jcvi.graphics.glyph import Glyph, RoundLabel  # , GeneGlyph
 from jcvi.utils.cbook import human_size
 
 
@@ -223,6 +224,7 @@ class Region(object):
 
         def cv(t):
             return xstart + abs(t - startbp) / scale
+
         hidden = layout.hidden
 
         # Plot Chromosome Bar
@@ -368,7 +370,7 @@ class Region(object):
                         loc_label,
                         color="lightslategrey",
                         size=10,
-                        **kwargs
+                        **kwargs,
                     )
                 else:
                     ax.text(lx, ly, chr_label, color=layout.color, **kwargs)
@@ -817,7 +819,7 @@ def main():
 
     # Check for data files
     if len(args) != 3:
-        logger.error('Requires 3 data file args.')
+        logger.error("Requires 3 data file args.")
         sys.exit(not p.print_help())
 
     # Unpack data file paths

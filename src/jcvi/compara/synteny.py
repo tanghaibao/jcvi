@@ -41,7 +41,7 @@ class BlockFile(BaseFile):
         data = []
         highlight = []
         for row in fp:
-            if row[0] == '#':
+            if row[0] == "#":
                 continue
             hl = "*" in row
             # r* highlights the block in red color

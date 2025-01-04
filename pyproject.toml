@@ -79,12 +79,15 @@ tests = [
 [project.urls]
 homepage = "http://github.com/tanghaibao/jcvi"
 
+# Command-line script entry point
+[project.scripts]
+jcvi = "jcvi.cli:main"
+
 [tool.hatch.metadata]
 allow-direct-references = true
 
 [tool.hatch.build]
 packages = ["src/jcvi"]
-#source = "src"
 
 [tool.hatch.version]
 source = "vcs"

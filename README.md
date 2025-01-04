@@ -124,11 +124,9 @@ The external programs that are often used are:
 - [BEDTOOLS](http://code.google.com/p/bedtools/)
 - [EMBOSS](http://emboss.sourceforge.net/)
 
-## Installation
+### Managing dependencies with Conda
 
-**Installing JCVI in a Conda environment:**
-
-You can create a Conda environment with Python 3.12 and basic dependencies for JCVI using the YAML files in this repo.
+You can use the the YAML files in this repo to create an environment with basic JCVI dependencies.
 
 If you are new to Conda, we recommend the [Miniforge](https://conda-forge.org/download/) distribution.
 
@@ -151,8 +149,9 @@ conda activate jcvi-osx64
 
 After activating the Conda environment install JCVI using one of the following options.
 
+## Installation
 
-**Installation options:**  
+### Installation options
 
 1) Use pip to install the latest development version directly from this repo.
 
@@ -173,13 +172,15 @@ git clone git://github.com/tanghaibao/jcvi.git && cd jcvi
 pip install -e '.[tests]'
 ```
 
-**Test Installation:**  
+### Test Installation
 
 If installed successfully, you can check the version with:
 
 ```bash
 jcvi --version
 ```
+
+## Usage 
 
 Use `python -m` to call any of the modules installed with JCVI.
 

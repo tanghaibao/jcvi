@@ -38,6 +38,7 @@ dependencies = [
     "boto3",
     "brewer2mpl",
     "CrossMap",
+    "cython",
     "deap",
     "ete3",
     "ftpretty",

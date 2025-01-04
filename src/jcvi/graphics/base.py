@@ -322,16 +322,39 @@ def update_figname(figname: str, format: str) -> str:
     return figname + "." + format
 
 
-def savefig(figname, dpi=150, iopts=None, cleanup=True):
+def update_figname(figname: str, format: str) -> str:
+    """Update the name of a figure to include the format.
+
+    Args:
+        figname (str): Path to the figure
+        format (str): Figure format, must be one of GRAPHIC_FORMATS
+
+    Returns:
+        str: New file path
+    """
+    _, ext = op.splitext(figname)
+    if ext.strip(".") in GRAPHIC_FORMATS:  # User suffix has precedence
+        return figname
+    # When the user has not supplied a format in the filename, use the requested format
+    assert format in GRAPHIC_FORMATS, "Invalid format"
+    return figname + "." + format
+
+
+def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
     try:
         format = figname.rsplit(".", 1)[-1].lower()
     except:
         format = "pdf"
     try:
-        logger.debug("Matplotlib backend is: %s", mpl.get_backend())
-        plt.savefig(figname, dpi=dpi, format=format)
+        logger.debug(f"Matplotlib backend is: {mpl.get_backend()}")
+        logger.debug(f"Attempting save as: {figname}")
+        plt.savefig(figname, dpi=dpi, format=format, transparent=transparent)
     except Exception as e:
-        logger.error("savefig failed with message:\n%s", e)
+        message = "savefig failed with message:"
+        message += "\n{0}".format(str(e))
+        logger.error(message)
+        logger.debug(f"Matplotlib backend is: {mpl.get_backend()}")
+        logger.debug(f"Attempted save as: {format}")
         logger.info("Try running again with --notex option to disable latex.")
         if op.exists(figname):
             if op.getsize(figname) < 1000:

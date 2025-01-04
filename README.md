@@ -104,23 +104,25 @@ full-fledged applications.
 
 ## Dependencies
 
-Following are a list of third-party python packages that are used by
-some routines in the library. These dependencies are _not_ mandatory
-since they are only used by a few modules.
+JCVI requires Python3 between v3.8 and v3.12.
 
-- [Biopython](http://www.biopython.org)
-- [numpy](http://numpy.scipy.org)
-- [matplotlib](http://matplotlib.org/)
+A few modules may ask for locations of external programs,
+if the executable cannot be found in your `PATH`. 
 
-There are other Python modules here and there in various scripts. The
-best way is to install them via `pip install` when you see
-`ImportError`.
+The external programs that are often used are:
+
+- [Kent tools](http://hgdownload.cse.ucsc.edu/admin/jksrc.zip)
+- [BEDTOOLS](http://code.google.com/p/bedtools/)
+- [EMBOSS](http://emboss.sourceforge.net/)
 
 ## Installation
 
-**Installing jcvi in a Conda environment:**
+**Installing JCVI in a Conda environment:**
 
-You can create a Python 3.12 environment with basic dependencies for JCVI using the YAML files in this repo.
+You can create a Conda environment with Python 3.12 and basic dependencies for JCVI using the YAML files in this repo.
+
+If you are new to Conda, we recommend the [Miniforge](https://conda-forge.org/download/) distribution.
+
 
 ```bash
 conda env create -f environment.yml
@@ -130,7 +132,7 @@ conda activate jcvi
 
 Note: If you are using a Mac with an ARM64 (Apple Silicon) processor, some dependencies are not currently available from Bioconda for this architecture. 
 
-You can instead create a virtual OSX64 env like this:
+You can instead create a virtual OSX64 (intel) env like this:
 
 ```bash
 conda env create -f env_osx64.yml
@@ -140,37 +142,39 @@ conda activate jcvi-osx64
 
 After activating the Conda environment install JCVI using one of the following options.
 
+
 **Installation options:**  
 
-pip install the latest development version directly from this repo.
+1) Use pip to install the latest development version directly from this repo.
 
-```console
+```bash
 pip install git+git://github.com/tanghaibao/jcvi.git
 ```
 
-Install latest release from PyPi.
+2) Install latest release from PyPi.
 
-```console
+```bash
 pip install jcvi
 ```
 
-Alternatively, if you want to install manually:
+3) Alternatively, if you want to install in development mode.
 
-```console
-cd ~/code  # or any directory of your choice
+```bash
 git clone git://github.com/tanghaibao/jcvi.git && cd jcvi
 pip install -e '.[tests]'
 ```
 
-In addition, a few module might ask for locations of external programs,
-if the extended cannot be found in your `PATH`. The external programs
-that are often used are:
+**Test Installation:**  
 
-- [Kent tools](http://hgdownload.cse.ucsc.edu/admin/jksrc.zip)
-- [BEDTOOLS](http://code.google.com/p/bedtools/)
-- [EMBOSS](http://emboss.sourceforge.net/)
+If installed successfully, you can check the version with:
 
-Most of the scripts in this package contains multiple actions. To use
+```bash
+jcvi --version
+```
+
+Use `python -m` to call any of the modules installed with JCVI.
+
+Most of the modules in this package contains multiple actions. To use
 the `fasta` example:
 
 ```console

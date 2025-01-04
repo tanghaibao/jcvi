@@ -1,15 +1,110 @@
+# Specifies the build system requirements and backend
 [build-system]
 requires = [
-    "Cython",
-    "numpy",
-    "setuptools",
-    "setuptools_scm[toml]",
-    "setuptools_scm_git_archive",
-    "wheel",
+    "hatchling",  # Build backend
+    "hatch-vcs",  # Version control system plugin for dynamic versioning
+    "setuptools",  # Setuptools for compiling C extensions
+    "cython",  # Cython for compiling C extensions
+    "numpy",      # NumPy for numerical operations and C extension includes
 ]
-build-backend = "setuptools.build_meta"
+build-backend = "hatchling.build"
 
-[tool.setuptools_scm]
-write_to = "jcvi/version.py"
-git_describe_command = "git describe --dirty --tags --long --match v* --first-parent"
-version_scheme = "no-guess-dev"
+[tool.hatch.build.hooks.custom]
+path = "build.py"
+
+# Project metadata and configuration
+[project]
+name = "jcvi"
+description = "Python utility libraries on genome assembly, annotation and comparative genomics"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "BSD"}
+authors = [
+    {name = "Haibao Tang", email = "tanghaibao@gmail.com"},
+    {name = "Vivek Krishnakumar"},
+    {name = "Jingping Li"}
+]
+
+classifiers = [
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: BSD License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Bio-Informatics"
+]
+
+dependencies = [
+    "biopython",
+    "boto3",
+    "brewer2mpl",
+    "CrossMap",
+    "cython",
+    "deap",
+    "ete3",
+    "ftpretty",
+    "genomepy",
+    "gffutils",
+    "goatools",
+    "graphviz",
+    "jinja2",
+    "matplotlib",
+    "more-itertools",
+    "natsort",
+    "networkx",
+    "numpy<2",
+    "ortools",
+    "pybedtools",
+    "pyefd",
+    "pypdf",
+    "pytesseract",
+    "rich",
+    "scikit-image",
+    "scipy",
+    "seaborn",
+    "Wand",
+    "webcolors"
+]
+
+dynamic = ["version"]
+
+[project.optional-dependencies]
+tests = [
+    "mock",
+    "pytest-benchmark",
+    "pytest-cov",
+    "pytest",
+    "PyYAML",
+]
+
+[project.urls]
+homepage = "http://github.com/tanghaibao/jcvi"
+
+# Command-line script entry point
+[project.scripts]
+jcvi = "jcvi.cli:main"
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.build]
+packages = ["src/jcvi"]
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/jcvi/_version.py"
+
+[tool.hatch.version.vcs]
+tag-pattern = "v*"
+fallback-version = "0.0.0"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "src/**/*.py",
+    "src/**/*.pyx",
+    "README.md",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/jcvi"]

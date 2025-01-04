@@ -1,4 +1,0 @@
-recursive-exclude .github *
-recursive-exclude docker *
-recursive-exclude tests *
-exclude .*

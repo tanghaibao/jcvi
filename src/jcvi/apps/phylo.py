@@ -106,7 +106,7 @@ class FfitchCommandline(AbstractCommandline):
         outtreefile,
         command=FPHYLIP_BIN("ffitch"),
         intreefile=None,
-        **kwargs
+        **kwargs,
     ):
 
         self.datafile = datafile
@@ -144,7 +144,7 @@ class TreeFixCommandline(AbstractCommandline):
         a_ext,
         command=TREEFIX_BIN("treefix"),
         r=False,
-        **kwargs
+        **kwargs,
     ):
 
         self.input = input
@@ -175,7 +175,7 @@ def run_treefix(
     a_ext=".fasta",
     o_ext=".dnd",
     n_ext=".treefix.dnd",
-    **kwargs
+    **kwargs,
 ):
     """
     get the ML tree closest to the species tree
@@ -187,7 +187,7 @@ def run_treefix(
         a_ext=a_ext,
         o=o_ext,
         n=n_ext,
-        **kwargs
+        **kwargs,
     )
     outtreefile = input.rsplit(o_ext, 1)[0] + n_ext
     print("TreeFix:", cl, file=sys.stderr)
@@ -435,7 +435,7 @@ def build_ml_raxml(alignment, outfile, work_dir=".", **kwargs):
         num_replicates=100,
         name="aln",
         working_dir=raxml_work,
-        **kwargs
+        **kwargs,
     )
 
     logger.debug("Building ML tree using RAxML: %s" % raxml_cl)
@@ -1048,7 +1048,7 @@ def _draw_trees(
                 reroot=False,
                 supportcolor="r",
                 SH=SH,
-                **kwargs
+                **kwargs,
             )
 
         root.set_xlim(0, 1)

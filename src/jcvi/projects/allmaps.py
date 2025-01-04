@@ -256,7 +256,7 @@ def estimategaps(args):
         sum(markers) / 2,
         ypos + pad,
         "Distance: 1.29cM $\Leftrightarrow$ 211,824bp (6.1 cM/Mb)",
-        **fontprop
+        **fontprop,
     )
 
     ypos = y - pad

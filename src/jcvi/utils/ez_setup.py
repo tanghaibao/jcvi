@@ -101,7 +101,9 @@ def has_wget():
     try:
         try:
             subprocess.check_call(cmd, stdout=devnull, stderr=devnull)
-        except FileNotFoundError:
+        except (FileNotFoundError, NotADirectoryError):
+            return False
+        except subprocess.CalledProcessError:
             return False
     finally:
         devnull.close()

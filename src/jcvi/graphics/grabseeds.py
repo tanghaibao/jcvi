@@ -18,6 +18,7 @@ import numpy as np
 
 from ..apps.base import setup_magick_home
 
+# Attempt to set MACICK_HOME ENV variable if imagemagick installed with homebrew on Mac
 setup_magick_home()
 
 from PIL.Image import open as iopen

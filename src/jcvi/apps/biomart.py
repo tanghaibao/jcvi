@@ -133,7 +133,7 @@ class Mart(dict):
         port="80",
         name="ensembl",
         virtual_schema="default",
-        **attrib
+        **attrib,
     ):
 
         self.__dict__ = attrib.copy()

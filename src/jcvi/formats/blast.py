@@ -26,6 +26,7 @@ try:
 except ImportError as e:
     logger.error(f"Failed to import cblast: {e}")
     from .pyblast import BlastLine
+
     logger.warning("Fall back to Python implementation of BlastLine")
 
 

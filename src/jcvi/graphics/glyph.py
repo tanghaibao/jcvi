@@ -76,7 +76,7 @@ class RoundLabel(object):
             t,
             ha="center",
             bbox=dict(boxstyle="round", fill=fill, fc=fc, lw=lw),
-            **kwargs
+            **kwargs,
         )
 
 
@@ -167,7 +167,7 @@ class TextCircle(object):
         size=12,
         zorder=4,
         fontweight="bold",
-        **kwargs
+        **kwargs,
     ):
         width, height = get_asymmetry(ax, radius)
         circle = Ellipse((x, y), width, height, fc=fc, ec=fc, zorder=zorder, **kwargs)
@@ -182,7 +182,7 @@ class TextCircle(object):
             size=size,
             zorder=zorder + 1,
             fontweight=fontweight,
-            **kwargs
+            **kwargs,
         )
 
 
@@ -273,7 +273,7 @@ class Glyph(BaseGlyph):
         ec="gainsboro",
         lw=0,
         style="box",
-        **kwargs
+        **kwargs,
     ):
         """Draw a region that represent an interval feature, e.g. gene or repeat
 
@@ -302,7 +302,7 @@ class Glyph(BaseGlyph):
                 fc=fc,
                 ec=ec,
                 lw=lw,
-                **kwargs
+                **kwargs,
             )
         else:
             patch = Rectangle(p1, width, height, fc=fc, ec=ec, lw=lw, **kwargs)
@@ -320,7 +320,7 @@ class Glyph(BaseGlyph):
                         fc="w",
                         lw=0,
                         alpha=0.1,
-                        **kwargs
+                        **kwargs,
                     )
                 )
 
@@ -357,7 +357,7 @@ class GeneGlyph(BaseGlyph):
         tip=0.0025,
         color="k",
         shadow=False,
-        **kwargs
+        **kwargs,
     ):
         super().__init__(ax)
         # Figure out the polygon vertices first

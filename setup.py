@@ -14,9 +14,9 @@ ext_modules = [
         extra_compile_args=["-O3"],
     ),
     Extension(
-        "jcvi.formats.cblast", 
-        ["src/jcvi/formats/cblast.pyx"], 
-        extra_compile_args=["-O3"]
+        "jcvi.formats.cblast",
+        ["src/jcvi/formats/cblast.pyx"],
+        extra_compile_args=["-O3"],
     ),
 ]
 

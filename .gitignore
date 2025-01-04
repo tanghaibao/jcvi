@@ -11,6 +11,9 @@ src/jcvi/_version.py
 src/jcvi/assembly/chic.c
 src/jcvi/formats/cblast.c
 
+# Dev testing
+dev
+
 ### Python ###
 # Byte-compiled / optimized / DLL files
 __pycache__/

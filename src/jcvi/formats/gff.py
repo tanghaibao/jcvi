@@ -2850,9 +2850,7 @@ def note(args):
             continue
         if AED is not None and float(g.attributes["_AED"][0]) > AED:
             continue
-        keyval = [g.accn] + [
-            ",".join(g.attributes.get(x, ["nan"])) for x in attrib
-        ]
+        keyval = [g.accn] + [",".join(g.attributes.get(x, ["nan"])) for x in attrib]
         if exoncounts:
             nexons = exoncounts.get(g.accn, 0)
             keyval.append(str(nexons))

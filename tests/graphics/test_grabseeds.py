@@ -17,7 +17,7 @@ def test_main():
     # Test calibrate
     json_file = "calibrate.json"
     cleanup(json_file, output_image)
-    json_file = calibrate(["calibrate.JPG", "1"]) # `1` for the boxsize arg
+    json_file = calibrate(["calibrate.JPG", "1"])  # `1` for the boxsize arg
     assert op.exists(json_file)
     seeds(["test.JPG", "--calibrate", json_file])
 

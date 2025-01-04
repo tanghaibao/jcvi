@@ -85,7 +85,7 @@ jcvi = "jcvi.cli:main"
 allow-direct-references = true
 
 [tool.hatch.build]
-packages = ["src/jcvi"]
+packages = ["src"]
 artifacts = [
     "src/jcvi/**/*.so",  # Linux/Mac shared objects
     "src/jcvi/**/*.pyd", # Windows shared objects

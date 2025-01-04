@@ -106,6 +106,15 @@ full-fledged applications.
 
 JCVI requires Python3 between v3.8 and v3.12.
 
+Some graphics modules require the [ImageMagick](https://imagemagick.org/index.php) library. 
+
+On MacOS this can be installed using Conda (see next section). If you are using a linux system (i.e. Ubuntu) you can install ImageMagick using apt-get:
+
+```bash
+sudo apt-get update
+sudo apt-get install libmagickwand-dev
+```
+
 A few modules may ask for locations of external programs,
 if the executable cannot be found in your `PATH`. 
 

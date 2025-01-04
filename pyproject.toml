@@ -3,8 +3,8 @@
 requires = [
     "hatchling",  # Build backend
     "hatch-vcs",  # Version control system plugin for dynamic versioning
-    "setuptools",  # Setuptools for compiling C extensions
-    "cython",  # Cython for compiling C extensions
+    "setuptools", # Setuptools for compiling C extensions
+    "cython",     # Cython for compiling C extensions
     "numpy",      # NumPy for numerical operations and C extension includes
 ]
 build-backend = "hatchling.build"
@@ -16,11 +16,11 @@ name = "jcvi"
 description = "Python utility libraries on genome assembly, annotation and comparative genomics"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "BSD"}
+license = { text = "BSD" }
 authors = [
-    {name = "Haibao Tang", email = "tanghaibao@gmail.com"},
-    {name = "Vivek Krishnakumar"},
-    {name = "Jingping Li"}
+    { name = "Haibao Tang", email = "tanghaibao@gmail.com" },
+    { name = "Vivek Krishnakumar" },
+    { name = "Adam Taranto" },
 ]
 
 classifiers = [
@@ -28,7 +28,7 @@ classifiers = [
     "License :: OSI Approved :: BSD License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
-    "Topic :: Scientific/Engineering :: Bio-Informatics"
+    "Topic :: Scientific/Engineering :: Bio-Informatics",
 ]
 
 dependencies = [
@@ -60,19 +60,13 @@ dependencies = [
     "scipy",
     "seaborn",
     "Wand",
-    "webcolors"
+    "webcolors",
 ]
 
 dynamic = ["version"]
 
 [project.optional-dependencies]
-tests = [
-    "mock",
-    "pytest-benchmark",
-    "pytest-cov",
-    "pytest",
-    "PyYAML",
-]
+tests = ["mock", "pytest-benchmark", "pytest-cov", "pytest", "PyYAML"]
 
 [project.urls]
 homepage = "http://github.com/tanghaibao/jcvi"
@@ -86,11 +80,6 @@ allow-direct-references = true
 
 [tool.hatch.build]
 packages = ["src"]
-artifacts = [
-    "src/jcvi/**/*.so",  # Linux/Mac shared objects
-    "src/jcvi/**/*.pyd", # Windows shared objects
-    "src/jcvi/**/*.c"    # Generated C files
-]
 
 [tool.hatch.build.hooks.custom]
 path = "build.py"
@@ -106,13 +95,14 @@ tag-pattern = "v*"
 fallback-version = "0.0.0"
 
 [tool.hatch.build.targets.sdist]
-include = [
-    "src/**/*.py",
-    "src/**/*.pyx",
-    "README.md",
-]
-
-force-include = { "build.py" = "build.py", "setup.py" = "setup.py"}
+include = ["src/**/*.py", "src/**/*.pyx", "README.md"]
+force-include = { "build.py" = "build.py", "setup.py" = "setup.py" }
+exclude = ["src/jcvi/**/*.so", "src/jcvi/**/*.pyd", "src/jcvi/**/*.c"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jcvi"]
+artifacts = [
+    "src/jcvi/**/*.so",  # Linux/Mac shared objects
+    "src/jcvi/**/*.pyd", # Windows shared objects
+    "src/jcvi/**/*.c",   # Generated C files
+]

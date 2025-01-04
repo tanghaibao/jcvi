@@ -12,6 +12,7 @@ computation related to assembly, annotation, and comparative genomics.
 | ------- | ---------------------------------------------------------------- |
 | Authors | Haibao Tang ([tanghaibao](http://github.com/tanghaibao))         |
 |         | Vivek Krishnakumar ([vivekkrish](https://github.com/vivekkrish)) |
+|         | Adam Taranto ([Adamtaranto](https://github.com/Adamtaranto))     |
 |         | Xingtan Zhang ([tangerzhang](https://github.com/tangerzhang))    |
 |         | Won Cheol Yim ([wyim-pgl](https://github.com/wyim-pgl))          |
 | Email   | <tanghaibao@gmail.com>                                           |
@@ -106,7 +107,7 @@ full-fledged applications.
 
 JCVI requires Python3 between v3.8 and v3.12.
 
-Some graphics modules require the [ImageMagick](https://imagemagick.org/index.php) library. 
+Some graphics modules require the [ImageMagick](https://imagemagick.org/index.php) library.
 
 On MacOS this can be installed using Conda (see next section). If you are using a linux system (i.e. Ubuntu) you can install ImageMagick using apt-get:
 
@@ -116,7 +117,7 @@ sudo apt-get install libmagickwand-dev
 ```
 
 A few modules may ask for locations of external programs,
-if the executable cannot be found in your `PATH`. 
+if the executable cannot be found in your `PATH`.
 
 The external programs that are often used are:
 
@@ -137,7 +138,7 @@ conda env create -f environment.yml
 conda activate jcvi
 ```
 
-Note: If you are using a Mac with an ARM64 (Apple Silicon) processor, some dependencies are not currently available from Bioconda for this architecture. 
+Note: If you are using a Mac with an ARM64 (Apple Silicon) processor, some dependencies are not currently available from Bioconda for this architecture.
 
 You can instead create a virtual OSX64 (intel) env like this:
 
@@ -180,7 +181,7 @@ If installed successfully, you can check the version with:
 jcvi --version
 ```
 
-## Usage 
+## Usage
 
 Use `python -m` to call any of the modules installed with JCVI.
 

@@ -16,25 +16,26 @@ jobs:
       # Checkout the latest commit associated with the PR
       - uses: actions/checkout@v4
       
-      - name: Debug matrix value
-        run: echo "Python version is ${{ matrix.python-version }}"
-
-      # Set up Miniconda
-      - name: Set up Miniconda
-        uses: conda-incubator/setup-miniconda@v2
+      # Set up Miniforge
+      - name: Set up Miniforge Python ${{ matrix.python-version }}
+        uses: conda-incubator/setup-miniconda@v3
         with:
-          auto-update-conda: true  # Optional: update Conda to the latest version
+          miniforge-version: "latest"
           python-version: ${{ matrix.python-version }}
+          auto-activate-base: true
+          channels: conda-forge,bioconda
 
       # Install any additional dependencies not included in the pyproject.toml file
       - name: Install additional dependencies
+        shell: bash -l {0}
         run: |
           conda install -y -c conda-forge -c bioconda bedtools imagemagick libmagic wand
           pip install '.[tests]'  # Install all dependencies, including test-specific ones
-        shell: bash -l {0}
+        
 
       # Run pytest on the specified directory
       - name: Run tests
+        shell: bash -l {0}  
         run: |
-          pytest -p no:warnings tests 
-        shell: bash -l {0}
+          pytest -p no:warnings tests/ 
+        

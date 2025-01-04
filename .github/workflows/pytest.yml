@@ -1,0 +1,40 @@
+name: Python Tests
+
+on: [pull_request]
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      max-parallel: 4
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        python-version: ["3.8", "3.12"]
+
+    steps:
+      # Checkout the latest commit associated with the PR
+      - uses: actions/checkout@v4
+      
+      - name: Debug matrix value
+        run: echo "Python version is ${{ matrix.python-version }}"
+
+      # Set up Miniconda
+      - name: Set up Miniconda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true  # Optional: update Conda to the latest version
+          python-version: ${{ matrix.python-version }}
+
+      # Install any additional dependencies not included in the pyproject.toml file
+      - name: Install additional dependencies
+        run: |
+          conda install -y -c conda-forge -c bioconda bedtools imagemagick libmagic wand
+          pip install '.[tests]'  # Install all dependencies, including test-specific ones
+        shell: bash -l {0}
+
+      # Run pytest on the specified directory
+      - name: Run tests
+        run: |
+          pytest -p no:warnings tests 
+        shell: bash -l {0}

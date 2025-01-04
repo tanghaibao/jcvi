@@ -9,8 +9,6 @@ requires = [
 ]
 build-backend = "hatchling.build"
 
-[tool.hatch.build.hooks.custom]
-path = "build.py"
 
 # Project metadata and configuration
 [project]
@@ -88,12 +86,20 @@ allow-direct-references = true
 
 [tool.hatch.build]
 packages = ["src/jcvi"]
+artifacts = [
+    "src/jcvi/**/*.so",  # Linux/Mac shared objects
+    "src/jcvi/**/*.pyd", # Windows shared objects
+    "src/jcvi/**/*.c"    # Generated C files
+]
 
-[tool.hatch.version]
-source = "vcs"
+[tool.hatch.build.hooks.custom]
+path = "build.py"
 
 [tool.hatch.build.hooks.vcs]
 version-file = "src/jcvi/_version.py"
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.version.vcs]
 tag-pattern = "v*"
@@ -105,6 +111,8 @@ include = [
     "src/**/*.pyx",
     "README.md",
 ]
+
+force-include = { "build.py" = "build.py", "setup.py" = "setup.py"}
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/jcvi"]

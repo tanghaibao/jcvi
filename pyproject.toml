@@ -51,7 +51,7 @@ dependencies = [
     "more-itertools",
     "natsort",
     "networkx",
-    "numpy<2",
+    "numpy",
     "ortools",
     "pybedtools",
     "pyefd",

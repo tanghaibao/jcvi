@@ -469,7 +469,7 @@ def consolidate(args):
         gene = "gene_{0:0{pad}}".format(i, pad=6) if mode == "coords" else None
 
         for elem in locus:
-            if type(elem) == tuple:
+            if isinstance(elem, tuple):
                 _gene, dbn = elem
                 if gene is None:
                     gene = _gene

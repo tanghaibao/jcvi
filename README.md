@@ -116,6 +116,8 @@ sudo apt-get update
 sudo apt-get install libmagickwand-dev
 ```
 
+See the [Wand](https://docs.wand-py.org/en/0.2.4/guide/install.html) docs for instructions on installing ImageMagick on other systems.
+
 A few modules may ask for locations of external programs,
 if the executable cannot be found in your `PATH`.
 
@@ -130,7 +132,6 @@ The external programs that are often used are:
 You can use the the YAML files in this repo to create an environment with basic JCVI dependencies.
 
 If you are new to Conda, we recommend the [Miniforge](https://conda-forge.org/download/) distribution.
-
 
 ```bash
 conda env create -f environment.yml

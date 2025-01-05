@@ -8,12 +8,8 @@ using layout file as guide.
 
 from collections import namedtuple
 from jcvi.graphics.base import AbstractLayout
-from operator import attrgetter
 import argparse
-import glob
-import os
-import shutil
-import sys
+
 
 
 def mainArgs():

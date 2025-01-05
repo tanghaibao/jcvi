@@ -322,24 +322,6 @@ def update_figname(figname: str, format: str) -> str:
     return figname + "." + format
 
 
-def update_figname(figname: str, format: str) -> str:
-    """Update the name of a figure to include the format.
-
-    Args:
-        figname (str): Path to the figure
-        format (str): Figure format, must be one of GRAPHIC_FORMATS
-
-    Returns:
-        str: New file path
-    """
-    _, ext = op.splitext(figname)
-    if ext.strip(".") in GRAPHIC_FORMATS:  # User suffix has precedence
-        return figname
-    # When the user has not supplied a format in the filename, use the requested format
-    assert format in GRAPHIC_FORMATS, "Invalid format"
-    return figname + "." + format
-
-
 def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
     try:
         format = figname.rsplit(".", 1)[-1].lower()
@@ -507,7 +489,7 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     ay = np.array(y)
 
     if title:
-        print("[bold white]".format(title), file=sys.stderr)
+        print("[bold white]{}".format(title), file=sys.stderr)
 
     az = ay * width // ay.max()
     tx = [asciiaxis(x, digit=digit) for x in ax]

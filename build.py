@@ -1,7 +1,7 @@
 import subprocess
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
-from wheel._bdist_wheel import get_abi_tag, get_platform, tags
+from setuptools.command.bdist_wheel import get_abi_tag, get_platform, tags
 
 
 class CustomBuildHook(BuildHookInterface):

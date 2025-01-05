@@ -1,7 +1,7 @@
 import subprocess
-import sysconfig
 
 from hatchling.builders.hooks.plugin.interface import BuildHookInterface
+from wheel._bdist_wheel import get_abi_tag, get_platform, tags
 
 
 class CustomBuildHook(BuildHookInterface):
@@ -15,8 +15,8 @@ class CustomBuildHook(BuildHookInterface):
 
     def _get_wheel_tag(self):
         # Without the tag, the wheel will be named jcvi-0.0.0-py3-none-any.whl
-        platform_tag = sysconfig.get_platform().replace("-", "_").replace(".", "_")
-        python_version = sysconfig.get_python_version().replace(".", "")  # e.g., "310"
-        python_impl = "cp"  # Assuming CPython. Modify if using PyPy or others.
-        abi_tag = f"{python_impl}{python_version}"
-        return f"{python_impl}{python_version}-{abi_tag}-{platform_tag}"
+        impl_name = tags.interpreter_name()
+        impl_ver = tags.interpreter_version()
+        abi_tag = get_abi_tag()
+        plat_tag = get_platform(None)
+        return f"{impl_name}{impl_ver}-{abi_tag}-{plat_tag}"

@@ -4,6 +4,7 @@ requires = [
     "hatchling",  # Build backend
     "hatch-vcs",  # Version control system plugin for dynamic versioning
     "setuptools", # Setuptools for compiling C extensions
+    "wheel",      # Wheel for packaging
     "cython",     # Cython for compiling C extensions
     "numpy",      # NumPy for numerical operations and C extension includes
 ]

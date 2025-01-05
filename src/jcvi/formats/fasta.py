@@ -1596,7 +1596,7 @@ def diff(args):
                 printf("[green]Two sequence size match ({})".format(asize))
             else:
                 printf(
-                    "[red]Two sequence size do not match ({}, {}})".format(asize, bsize)
+                    "[red]Two sequence size do not match ({}, {})".format(asize, bsize)
                 )
 
         # print out the first place the two sequences diff

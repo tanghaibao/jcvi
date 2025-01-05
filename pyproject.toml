@@ -56,7 +56,7 @@ dependencies = [
     "pybedtools",
     "pyefd",
     "pyfasta",
-    "pygraphviz",
+   #"pygraphviz",
     "pyliftover",
     "pypdf",
     "pysam",

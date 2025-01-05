@@ -3,6 +3,7 @@ from datetime import datetime
 __author__ = (
     "Haibao Tang",
     "Vivek Krishnakumar",
+    "Adam Taranto",
     "Xingtan Zhang",
     "Won Cheol Yim",
 )

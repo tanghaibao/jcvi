@@ -421,12 +421,11 @@ def has_ortools() -> bool:
         bool: True if installed
     """
     import importlib.util
-    
+
     if importlib.util.find_spec("ortools.linear_solver.pywraplp") is not None:
         return True
     else:
         return False
-
 
 
 def summation(incident_edges):

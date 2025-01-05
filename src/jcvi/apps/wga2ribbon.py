@@ -11,7 +11,6 @@ from jcvi.graphics.base import AbstractLayout
 import argparse
 
 
-
 def mainArgs():
     """Parse command line arguments."""
     parser = argparse.ArgumentParser(

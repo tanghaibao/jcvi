@@ -19,4 +19,7 @@ class CustomBuildHook(BuildHookInterface):
         impl_ver = tags.interpreter_version()
         abi_tag = get_abi_tag()
         plat_tag = get_platform(None)
+        plat_tag = (  # macosx_11.0 => macosx_11_0
+            plat_tag.lower().replace("-", "_").replace(".", "_").replace(" ", "_")
+        )
         return f"{impl_name}{impl_ver}-{abi_tag}-{plat_tag}"

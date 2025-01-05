@@ -1257,9 +1257,9 @@ def fix(args):
         ntotal += 1
 
     if nfixed:
-        logger.debug("Total fixed: %s".format(percentage(nfixed, ntotal)))
+        logger.debug("Total fixed: %s", percentage(nfixed, ntotal))
     if nfiltered:
-        logger.debug("Total filtered: %s".format(percentage(nfiltered, ntotal)))
+        logger.debug("Total filtered: %s", percentage(nfiltered, ntotal))
 
 
 def some(args):
@@ -1307,7 +1307,7 @@ def some(args):
             print(b, file=fw)
 
     fw.close()
-    logger.debug("Stats: %s features kept.".format(percentage(nkeep, ntotal)))
+    logger.debug(f"Stats: {percentage(nkeep, ntotal)} features kept.")
 
 
 def uniq(args):

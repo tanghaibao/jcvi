@@ -34,6 +34,7 @@ classifiers = [
 
 dependencies = [
     "biopython",
+    "bitarray",
     "boto3",
     "brewer2mpl",
     "CrossMap",
@@ -54,14 +55,30 @@ dependencies = [
     "ortools",
     "pybedtools",
     "pyefd",
+    "pyfasta",
+    "pygraphviz",
+    "pyliftover",
     "pypdf",
+    "pysam",
     "pytesseract",
     "rich",
     "scikit-image",
     "scipy",
     "seaborn",
+    "segment_anything",
     "Wand",
     "webcolors",
+    #"BCBio",
+    #"BeautifulSoup",
+    #"cyvcf2",
+    #"gurobipy",
+    #"hmmlearn",
+    #"holoviews",
+    #"hvplot",
+    #"matplotlib_venn",
+    #"sklearn",
+    #"xlrd",
+    #"xlwt",
 ]
 
 dynamic = ["version"]

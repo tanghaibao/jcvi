@@ -26,11 +26,8 @@ from http.client import HTTPSConnection
 from socket import gethostname
 from subprocess import CalledProcessError, PIPE, call, check_output
 from time import ctime
-from typing import Any, Collection, List, Optional, Tuple, Union
+from typing import Collection, List, Optional, Tuple, Union
 from urllib.parse import urlencode
-
-# from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
-
 
 from natsort import natsorted
 from rich.console import Console
@@ -122,7 +119,7 @@ class ActionDispatcher(object):
 
         action = sys.argv[1]
 
-        if not action in self.valid_actions:
+        if action not in self.valid_actions:
             print("[error] {0} not a valid {1}\n".format(action, meta), file=sys.stderr)
             alt = get_close_matches(action, self.valid_actions)
             print(
@@ -1000,7 +997,7 @@ class OptionParser(ArgumentParser):
         if default is None:  # Last attempt at guessing the path
             try:
                 default = op.dirname(which(prog))
-            except:
+            except Exception:
                 default = None
         else:
             default = op.expanduser(default)
@@ -1029,7 +1026,7 @@ def ConfigSectionMap(Config, section):
             cfg[option] = Config.get(section, option)
             if cfg[option] == -1:
                 logger.debug("Skip: %s", option)
-        except:
+        except Exception:
             logger.error("Exception on %s", option)
             cfg[option] = None
     return cfg
@@ -1318,7 +1315,7 @@ def mkdir(dirname, overwrite=False):
     else:
         try:
             os.mkdir(dirname)
-        except:
+        except Exception:
             os.makedirs(dirname)
         logger.debug("`%s` not found. Creating new.", dirname)
 

@@ -199,8 +199,6 @@ def enrich(args):
             (k, [x for x in leftover if info[x] == k]) for k in missing_taxa
         )
 
-        # print genes, leftover
-        # print leftover_sorted_by_taxa
         solutions = []
         for solution in product(*leftover_sorted_by_taxa.values()):
             score = sum(weights.get((a, b), 0) for a in solution for b in genes)
@@ -619,6 +617,12 @@ def ortholog(args):
         action="store_true",
         help="Run in full 1x1 mode, including blocks and RBH",
     )
+    p.add_argument(
+        "--tandem_Nmax",
+        type=int,
+        default=10,
+        help="merge tandem genes within distance",
+    )
     p.add_argument("--cscore", default=0.7, type=float, help="C-score cutoff")
     p.add_argument(
         "--dist", default=20, type=int, help="Extent of flanking regions to search"
@@ -714,8 +718,11 @@ def ortholog(args):
 
     filtered_last = last + ".filtered"
     if need_update(last, filtered_last, warn=True):
-        # If we are doing filtering based on another file then we don't run cscore anymore
-        dargs = [last, "--cscore={}".format(ccscore)]
+        dargs = [
+            last,
+            f"--cscore={ccscore}",
+            f"--tandem_Nmax={opts.tandem_Nmax}",
+        ]
         if exclude:
             dargs += ["--exclude={}".format(exclude)]
         if opts.no_strip_names:

@@ -307,7 +307,7 @@ def main(args):
         type=float,
         default=0.7,
         help="retain hits that have good bitscore. a value of 0.5 means "
-        "keep all values that are 50% or greater of the best hit. "
+        "keep all values that are 50%% or greater of the best hit. "
         "higher is more stringent",
     )
     p.add_argument("--exclude", help="Remove anchors from a previous run")

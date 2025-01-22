@@ -157,6 +157,14 @@ class Genome:
             gamete_chromosomes += sorted(sample(chromosomes, halfn))
         return Genome.make(self.name + " gamete", gamete_chromosomes)
 
+    @property
+    def gamete_fdr(self):
+        return self.chromosomes
+
+    @property
+    def gamete_sdr(self):
+        raise NotImplementedError("gamete_sdr not yet supported")
+
     def mate_nplusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
@@ -184,7 +192,7 @@ class Genome:
                 f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_FDR)",
                 file=sys.stderr,
             )
-        f1_chromosomes = sorted(self.chromosomes + other_genome.gamete.chromosomes)
+        f1_chromosomes = sorted(self.gamete_fdr + other_genome.gamete.chromosomes)
         return Genome.make(name, f1_chromosomes)
 
     def mate_2nplusn_SDR(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -193,7 +201,8 @@ class Genome:
                 f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_SDR)",
                 file=sys.stderr,
             )
-        raise NotImplementedError("2n+n_SDR not yet supported")
+        f1_chromosomes = sorted(self.gamete_sdr + other_genome.gamete.chromosomes)
+        return Genome.make(name, f1_chromosomes)
 
     @property
     def summary(self):
@@ -561,6 +570,8 @@ def simulate(args):
         mode_title = r"$2n + n$ (FDR)"
     elif mode == CrossMode.twoplusnSDR:
         mode_title = r"$n_1*\times2 + n$ (SDR)"
+    else:
+        mode_title = "Unknown"
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)

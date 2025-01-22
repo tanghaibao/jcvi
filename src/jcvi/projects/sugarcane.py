@@ -298,15 +298,6 @@ def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
     return SO_SS_F1
 
 
-def simulate_F1intercross(SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
-    SO_SS_F1_1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
-    SO_SS_F1_2 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
-    SO_SS_F1intercross_nplusn = SO_SS_F1_1.mate_nplusn(
-        "SOxSS F1 intercross", SO_SS_F1_2, verbose=verbose
-    )
-    return SO_SS_F1intercross_nplusn
-
-
 def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
     SS_SO_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SS_SO_BC1, SS_SO_BC2_nplusn, SS_SO_BC3_nplusn, SS_SO_BC4_nplusn = (

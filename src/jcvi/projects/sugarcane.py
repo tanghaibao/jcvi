@@ -15,6 +15,7 @@ import os.path as op
 import sys
 
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from enum import Enum
 from itertools import combinations, groupby, product
 from random import random, sample
@@ -31,6 +32,7 @@ from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
+HAPLOID_GENE_COUNT = 30000
 
 
 class CrossMode(Enum):
@@ -44,50 +46,69 @@ class CrossMode(Enum):
     twoplusnSDR = "2n+n_SDR"
 
 
-# Computed using prepare(), corrected with real sizes
-ChrSizes = {
-    "SO-chr01": 148750011,
-    "SO-chr02": 119865146,
-    "SO-chr03": 103845728,
-    "SO-chr04": 104559946,
-    "SO-chr05": 93134056,
-    "SO-chr06": 74422021,
-    "SO-chr07": 81308893,
-    "SO-chr08": 71010813,
-    "SO-chr09": 86380266,
-    "SO-chr10": 73923121,
-    "SS-chr01": 114519418,
-    "SS-chr02": 119157314,
-    "SS-chr03": 85009228,
-    "SS-chr04": 79762909,
-    "SS-chr05": 90584537,
-    "SS-chr06": 95848354,
-    "SS-chr07": 83589369,
-    "SS-chr08": 64028871,
-}
+@dataclass
+class Gene:
+    """
+    A gene in a chromosome.
+    """
+
+    chrom: str
+    haplotype: str
+    idx: int
+
+
+class Chromosome(list):
+    """
+    A chromosome with genes.
+    """
+
+    chrom: str
+    genes: List[Gene]
+
+    def __init__(self, chrom: str, haplotype: str, gene_count: int):
+        self.chrom = chrom
+        self.genes = [Gene(chrom, haplotype, i + 1) for i in range(gene_count)]
+
+    def __str__(self):
+        # Merge genes into consecutive ranges
+        ranges = []
+        for haplotype, genes in groupby(self.genes, key=lambda x: x.haplotype):
+            genes = list(genes)
+            start, end = genes[0].idx, genes[-1].idx
+            ranges.append(f"{haplotype}{start}-{end}")
+        return f"{self.chrom}|{','.join(ranges)}"
 
 
 # Simulate genome composition
 class Genome:
     def __init__(
-        self, name: str, prefix: str, ploidy: int, haploid_chromosome_count: int
+        self,
+        name: str,
+        prefix: str,
+        ploidy: int,
+        haploid_chromosome_count: int,
+        haploid_gene_count: int,
     ):
         """
         Simulate a genome with given ploidy and haploid_chromosome_count. Example:
 
-        >>> print(Genome("t", "pf", 2, 3))
-        test: pf-chr01_a,pf-chr01_b,pf-chr02_a,pf-chr02_b,pf-chr03_a,pf-chr03_b
+        >>> print(Genome("test", "pf", 2, 3, 90))
+        test: pf-chr01|a1-30;pf-chr01|b1-30;pf-chr02|a1-30;pf-chr02|b1-30;pf-chr03|a1-30;pf-chr03|b1-30
         """
         self.name = name
+        chrom_gene_count = haploid_gene_count // haploid_chromosome_count
         chromosomes = []
         for i in range(haploid_chromosome_count):
             chromosomes += [
-                f"{prefix}-chr{i + 1:02d}_{chr(ord('a') + j)}" for j in range(ploidy)
+                Chromosome(
+                    f"{prefix}-chr{i + 1:02d}", chr(ord("a") + j), chrom_gene_count
+                )
+                for j in range(ploidy)
             ]
         self.chromosomes = chromosomes
 
-    def __len__(self):
-        return len(self.chromosomes)
+    def __str__(self):
+        return self.name + ": " + ";".join(str(_) for _ in self.chromosomes)
 
     @classmethod
     def make(cls, name: str, chromosomes: List[str]):
@@ -97,7 +118,7 @@ class Genome:
 
     @property
     def gamete(self):
-        """Randomly generate a gamete from current genome that"""
+        """Randomly generate a gamete from current genome."""
         self.chromosomes.sort()
         gamete_chromosomes = []
 
@@ -165,9 +186,6 @@ class Genome:
                 file=sys.stderr,
             )
         raise NotImplementedError("2n+n_SDR not yet supported")
-
-    def __str__(self):
-        return self.name + ": " + ",".join(self.chromosomes)
 
     @property
     def summary(self):
@@ -475,8 +493,8 @@ def simulate(args):
 
     # Prepare the simulated data
     # Simulate two parents
-    SS = Genome("SS", "SS", 10, 8)
-    SO = Genome("SO", "SO", 8, 10)
+    SS = Genome("SS", "SS", 16, 8, HAPLOID_GENE_COUNT)
+    SO = Genome("SO", "SO", 8, 10, HAPLOID_GENE_COUNT)
 
     verbose = opts.verbose
     N = opts.N

@@ -263,14 +263,6 @@ def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
     return SO_SS_F1
 
 
-def simulate_F2(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
-    SO_SS_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
-    SO_SS_F2_nplusn = SO_SS_F1.mate_nplusn("SOxSS F2", SO_SS_F1, verbose=verbose)
-    if verbose:
-        SO_SS_F2_nplusn.print_summary()
-    return SO_SS_F2_nplusn
-
-
 def simulate_F1intercross(SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
     SO_SS_F1_1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SO_SS_F1_2 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
@@ -431,13 +423,13 @@ def simulate(args):
     """
     %prog simulate [2n+n_FDR|2n+n_SDR|nx2+n]
 
-    Run simulation on female restitution. There are two modes:
+    Run simulation on female restitution. There are several modes:
     - 2n+n_FDR: merger between a somatic and a germline
     - 2n+n_SDR: merger between a recombined germline and a germline (not yet supported)
     - nx2+n: merger between a doubled germline and a germline
 
-    These two modes would impact the sequence diversity in the progeny
-    genome in F1, F2, BCn ... the goal of this simulation, is thus to
+    These modes would impact the sequence diversity in the progeny
+    genome in F1, BCn ... the goal of this simulation, is thus to
     understand the mode and the spread of such diversity in the hybrid
     progenies.
     """
@@ -462,7 +454,7 @@ def simulate(args):
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    rows = 6
+    rows = 5
     ypad = 0.05
     yinterval = (1 - 2 * ypad) / (rows + 1)
     yy = 1 - ypad
@@ -479,7 +471,7 @@ def simulate(args):
         if idx != rows - 1:
             plt.setp(ax.get_xticklabels(), visible=False)
         axes.append(ax)
-    ax1, ax2, ax3, ax4, ax5, ax6 = axes
+    ax1, ax2, ax3, ax4, ax5 = axes
 
     # Prepare the simulated data
     # Simulate two parents
@@ -489,7 +481,6 @@ def simulate(args):
     verbose = opts.verbose
     N = opts.N
     all_F1s = [simulate_F1(SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_F2s = [simulate_F2(SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
     all_BC1s = [simulate_BCn(1, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
     all_BC2s = [simulate_BCn(2, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
     all_BC3s = [simulate_BCn(3, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
@@ -497,18 +488,16 @@ def simulate(args):
 
     # Plotting
     all_F1s_summary = plot_summary(ax1, all_F1s)
-    all_F2s_summary = plot_summary(ax2, all_F2s)
-    plot_summary(ax3, all_BC1s)
-    plot_summary(ax4, all_BC2s)
-    plot_summary(ax5, all_BC3s)
-    plot_summary(ax6, all_BC4s)
+    plot_summary(ax2, all_BC1s)
+    plot_summary(ax3, all_BC2s)
+    plot_summary(ax4, all_BC3s)
+    plot_summary(ax5, all_BC4s)
 
     # Show title to the left
     xx = xpad / 2
     for (title, subtitle), yy in zip(
         (
             (r"$\mathrm{F_1}$", None),
-            (r"$\mathrm{F_2}$", None),
             (r"$\mathrm{BC_1}$", None),
             (r"$\mathrm{BC_2}$", None),
             (r"$\mathrm{BC_3}$", None),
@@ -545,7 +534,7 @@ def simulate(args):
     elif mode == CrossMode.twoplusnFDR:
         mode_title = r"$2n + n$ (FDR)"
     elif mode == CrossMode.twoplusnSDR:
-        mode_title = r"$2n + n$ (SDR)"
+        mode_title = r"$n_1*\times2 + n$ (SDR)"
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)
@@ -555,7 +544,6 @@ def simulate(args):
     # Write chromosomes to disk
     for genomes, filename in (
         (all_F1s, "all_F1s"),
-        (all_F2s, "all_F2s"),
         (all_BC1s, "all_BC1s"),
         (all_BC2s, "all_BC2s"),
         (all_BC3s, "all_BC3s"),
@@ -564,10 +552,7 @@ def simulate(args):
         write_chromosomes(genomes, op.join(outdir, filename))
 
     # Write the SO percent in simulated samples so that we can compute P-value
-    for summary, SO_percent_filename in (
-        (all_F1s_summary, "all_F1s_SO_percent"),
-        (all_F2s_summary, "all_F2s_SO_percent"),
-    ):
+    for summary, SO_percent_filename in ((all_F1s_summary, "all_F1s_SO_percent"),):
         write_SO_percent(summary, op.join(outdir, SO_percent_filename))
 
 

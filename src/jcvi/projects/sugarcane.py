@@ -57,6 +57,7 @@ class Gene:
     idx: int
 
 
+@dataclass
 class Chromosome(list):
     """
     A chromosome with genes.
@@ -81,6 +82,13 @@ class Chromosome(list):
 
 # Simulate genome composition
 class Genome:
+    """
+    A genome with a collection of chromosomes.
+    """
+
+    name: str
+    chromosomes: List[Chromosome]
+
     def __init__(
         self,
         name: str,
@@ -112,7 +120,7 @@ class Genome:
 
     @classmethod
     def make(cls, name: str, chromosomes: List[str]):
-        genome = Genome(name, "", 0, 0)
+        genome = Genome(name, "", 0, 0, 0)
         genome.chromosomes = chromosomes
         return genome
 

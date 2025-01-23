@@ -34,7 +34,7 @@ from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
-HAPLOID_GENE_COUNT = 100
+HAPLOID_GENE_COUNT = 160
 SO_PLOIDY = 8
 SS_PLOIDY = 16
 SO_GENE_COUNT = SO_PLOIDY * HAPLOID_GENE_COUNT
@@ -479,25 +479,38 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     ax.bar(np.array(x), y, color=SsColor, ec=SsColor)
     x, y = zip(*sorted(SO_counter.items()))
     ax.bar(np.array(x), y, color=SoColor, ec=SoColor)
+    ymax = len(samples) * 0.8
     ax.set_xlim(80, 0)
-    ax.set_ylim(0, len(samples) * 2 / 3)
+    ax.set_ylim(0, ymax)
     ax.set_yticks([])
     summary = GenomeSummary(SO_data, SS_data, percent_SO_data, percent_SS_data)
 
     # Write the stats summary within the plot
-    summary_style = dict(
-        size=9,
-        ha="center",
-        va="center",
-        transform=ax.transAxes,
-    )
-    ax.text(0.75, 0.85, markup(summary.SS_summary), color=SsColor, **summary_style)
+    summary_style = dict(size=9, ha="center", va="center")
+    SO_peak = SO_counter.most_common(1)[0][0]
+    SS_peak = SS_counter.most_common(1)[0][0]
+    if abs(SO_peak - SS_peak) < 20:
+        SO_peak -= 8
+        SS_peak += 8
     ax.text(
-        0.75, 0.65, markup(summary.percent_SS_summary), color=SsColor, **summary_style
+        SO_peak, ymax * 0.85, markup(summary.SO_summary), color=SoColor, **summary_style
     )
-    ax.text(0.25, 0.85, markup(summary.SO_summary), color=SoColor, **summary_style)
     ax.text(
-        0.25, 0.65, markup(summary.percent_SO_summary), color=SoColor, **summary_style
+        SO_peak,
+        ymax * 0.65,
+        markup(summary.percent_SO_summary),
+        color=SoColor,
+        **summary_style,
+    )
+    ax.text(
+        SS_peak, ymax * 0.85, markup(summary.SS_summary), color=SsColor, **summary_style
+    )
+    ax.text(
+        SS_peak,
+        ymax * 0.65,
+        markup(summary.percent_SS_summary),
+        color=SsColor,
+        **summary_style,
     )
 
     return summary

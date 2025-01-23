@@ -20,6 +20,7 @@ from enum import Enum
 from itertools import combinations, groupby, product
 from random import randint, random
 from typing import Dict, List, Tuple
+from uuid import uuid4
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -67,11 +68,13 @@ class Chromosome(list):
     subgenome: str
     chrom: str
     genes: List[Gene]
+    uuid: str
 
     def __init__(self, subgenome: str, chrom: str, haplotype: str, gene_count: int):
         self.subgenome = subgenome
         self.chrom = chrom
         self.genes = [Gene(chrom, haplotype, i + 1) for i in range(gene_count)]
+        self.uuid = str(uuid4())
 
     def __str__(self):
         """Merge genes into consecutive ranges."""
@@ -81,6 +84,12 @@ class Chromosome(list):
             start, end = genes[0].idx, genes[-1].idx
             ranges.append(f"{haplotype}{start}-{end}")
         return f"{self.chrom}|{','.join(ranges)}"
+
+    @classmethod
+    def make(cls, subgenome: str, chrom: str, genes: List[Gene]):
+        chromosome = Chromosome(subgenome, chrom, "", 0)
+        chromosome.genes = genes
+        return chromosome
 
     def num_matching_genes(self, other: "Chromosome") -> int:
         """Count the number of matching genes between two chromosomes"""
@@ -111,7 +120,11 @@ class Genome:
         test: pf-chr01|a1-30;pf-chr01|b1-30;pf-chr02|a1-30;pf-chr02|b1-30;pf-chr03|a1-30;pf-chr03|b1-30
         """
         self.name = name
-        chrom_gene_count = haploid_gene_count // haploid_chromosome_count
+        chrom_gene_count = (
+            haploid_gene_count // haploid_chromosome_count
+            if haploid_chromosome_count
+            else 0
+        )
         chromosomes = []
         for i in range(haploid_chromosome_count):
             chromosomes += [
@@ -143,11 +156,19 @@ class Genome:
         for _, chromosomes in groupby(self.chromosomes, key=self._sort_key):
             for a, b in combinations(chromosomes, 2):
                 weight = a.num_matching_genes(b)
-                G.add_edge(a, b, weight=weight)
+                G.add_edge(a.uuid, b.uuid, weight=weight)
         # Find the maximum matching
-        pairs = nx.max_weight_matching(G)
-        singletons = set(self.chromosomes) - set(flatten(pairs))
-        return pairs, list(singletons)
+        matching = nx.max_weight_matching(G)
+        # Partition the chromosomes into paired and singleton
+        paired = set()
+        pairs = []
+        for a, b in matching:
+            paired.add(a)
+            paired.add(b)
+            pair = [x for x in self.chromosomes if x.uuid in (a, b)]
+            pairs.append(pair)
+        singletons = [x for x in self.chromosomes if x.uuid not in paired]
+        return pairs, singletons
 
     def _crossover_chromosomes(
         self, a: Chromosome, b: Chromosome, sdr: bool
@@ -165,6 +186,8 @@ class Genome:
             crossover_point = randint(len(a.genes) // 2, len(a.genes) - 1)
             recombinant = a.genes[:crossover_point] + b.genes[crossover_point:]
             non_recombinant = a.genes
+        recombinant = Chromosome.make(a.subgenome, a.chrom, recombinant)
+        non_recombinant = Chromosome.make(b.subgenome, b.chrom, non_recombinant)
         return [recombinant, non_recombinant] if sdr else [recombinant]
 
     def _gamete(self, sdr: bool):

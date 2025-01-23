@@ -48,7 +48,7 @@ class CrossMode(Enum):
     twoplusnSDR = "2n+n_SDR"
 
 
-@dataclass
+@dataclass(frozen=True)
 class Gene:
     """
     A gene in a chromosome.
@@ -83,7 +83,7 @@ class Chromosome(list):
             genes = list(genes)
             start, end = genes[0].idx, genes[-1].idx
             ranges.append(f"{haplotype}{start}-{end}")
-        return f"{self.chrom}|{','.join(ranges)}"
+        return f"{self.subgenome}-{self.chrom}|{','.join(ranges)}"
 
     @classmethod
     def make(cls, subgenome: str, chrom: str, genes: List[Gene]):
@@ -231,7 +231,7 @@ class Genome:
     def mate_nx2plusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
-                f"Crossing '{self.name}' x '{other_genome.name}' (2xn+n)",
+                f"Crossing '{self.name}' x '{other_genome.name}' (nx2+n)",
                 file=sys.stderr,
             )
         f1_chromosomes = sorted(
@@ -264,15 +264,17 @@ class Genome:
         total_so_size = 0
         total_ss_size = 0
 
-        self.chromosome.sort(key=self._sort_key)
+        self.chromosomes.sort(key=self._sort_key)
         for (subgenome, chrom), chromosomes in groupby(
             self.chromosomes, key=self._sort_key
         ):
-            uniq_genes = set(flatten(chrom.genes for chrom in chromosomes))
+            uniq_genes = set(flatten(x.genes for x in chromosomes))
             group_count = len(uniq_genes)
             group_so_size = group_count if subgenome == "SO" else 0
             group_ss_size = group_count if subgenome == "SS" else 0
-            ans.append((chrom, group_count, group_so_size, group_ss_size))
+            ans.append(
+                (f"{subgenome}-{chrom}", group_count, group_so_size, group_ss_size)
+            )
             total_so_size += group_so_size
             total_ss_size += group_ss_size
         ans.append(("Total", total_count, total_so_size, total_ss_size))
@@ -280,8 +282,10 @@ class Genome:
 
     def print_summary(self):
         print("[SUMMARY]")
-        for group, group_count, group_unique in self.summary:
-            print(f"{group}: count={group_count}, unique={group_unique}")
+        for group, group_count, group_so_size, group_ss_size in self.summary:
+            print(
+                f"{group}: count={group_count}, SO={group_so_size}, SS={group_ss_size}"
+            )
 
 
 class GenomeSummary:

@@ -41,6 +41,14 @@ SO_GENE_COUNT = SO_PLOIDY * HAPLOID_GENE_COUNT
 SS_GENE_COUNT = SS_PLOIDY * HAPLOID_GENE_COUNT
 SO_CHROM_COUNT = 10
 SS_CHROM_COUNT = 8
+CROSSES = ("F1", "BC1", "BC2", "BC3", "BC4")
+TITLES = (
+    (r"$\mathrm{F_1}$", None),
+    (r"$\mathrm{BC_1}$", None),
+    (r"$\mathrm{BC_2}$", None),
+    (r"$\mathrm{BC_3}$", None),
+    (r"$\mathrm{BC_4}$", None),
+)
 
 
 class CrossMode(Enum):
@@ -171,8 +179,8 @@ class Genome:
                 haplotype = genes[0]
                 start, end = [int(x) for x in genes[1:].split("-")]
                 cgenes += [Gene(chrom, haplotype, i) for i in range(start, end + 1)]
-            chromosome = Chromosome.make(subgenome, chrom, cgenes)
-            chromosomes.append(chromosome)
+            chrom = Chromosome.make(subgenome, chrom, cgenes)
+            chromosomes.append(chrom)
         genome.chromosomes = chromosomes
         return genome
 
@@ -568,6 +576,21 @@ def write_chromosomes(genomes: list[Genome], filename: str):
             print(genome, file=fw)
 
 
+def get_mode_title(mode: CrossMode) -> str:
+    """
+    Get the title of the mode.
+    """
+    if mode == CrossMode.nx2plusn:
+        mode_title = r"$n_1\times2 + n_2$"
+    elif mode == CrossMode.twoplusnFDR:
+        mode_title = r"$2n + n$ (FDR)"
+    elif mode == CrossMode.twoplusnSDR:
+        mode_title = r"$n_1^*\times2 + n$ (SDR)"
+    else:
+        mode_title = "Unknown"
+    return mode_title
+
+
 def simulate(args):
     """
     %prog simulate [2n+n_FDR|2n+n_SDR|nx2+n]
@@ -591,7 +614,7 @@ def simulate(args):
         action="store_true",
         help="Verbose logging during simulation",
     )
-    p.add_argument("-N", default=10000, type=int, help="Number of simulated samples")
+    p.add_argument("-N", default=1000, type=int, help="Number of simulated samples")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -612,7 +635,7 @@ def simulate(args):
 
     # Axes are vertically stacked, and share x-axis
     axes = []
-    yy_positions = []  # Save yy positions so we can show details to the right laterr
+    yy_positions = []  # Save yy positions so we can show details to the right later
     for idx in range(rows):
         yy_positions.append(yy)
         yy -= yinterval
@@ -644,16 +667,7 @@ def simulate(args):
 
     # Show title to the left
     xx = xpad / 2
-    for (title, subtitle), yy in zip(
-        (
-            (r"$\mathrm{F_1}$", None),
-            (r"$\mathrm{BC_1}$", None),
-            (r"$\mathrm{BC_2}$", None),
-            (r"$\mathrm{BC_3}$", None),
-            (r"$\mathrm{BC_4}$", None),
-        ),
-        yy_positions,
-    ):
+    for (title, subtitle), yy in zip(TITLES, yy_positions):
         if subtitle:
             yy -= 0.06
         else:
@@ -678,14 +692,7 @@ def simulate(args):
     normalize_axes(root)
 
     # Title
-    if mode == CrossMode.nx2plusn:
-        mode_title = r"$n_1\times2 + n_2$"
-    elif mode == CrossMode.twoplusnFDR:
-        mode_title = r"$2n + n$ (FDR)"
-    elif mode == CrossMode.twoplusnSDR:
-        mode_title = r"$n_1^*\times2 + n$ (SDR)"
-    else:
-        mode_title = "Unknown"
+    mode_title = get_mode_title(mode)
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)
@@ -693,14 +700,10 @@ def simulate(args):
     outdir = f"simulations_{mode}"
     mkdir(outdir)
     # Write chromosomes to disk
-    for genomes, filename in (
-        (all_F1s, "all_F1s"),
-        (all_BC1s, "all_BC1s"),
-        (all_BC2s, "all_BC2s"),
-        (all_BC3s, "all_BC3s"),
-        (all_BC4s, "all_BC4s"),
+    for genomes, cross in zip(
+        [all_F1s, all_BC1s, all_BC2s, all_BC3s, all_BC4s], CROSSES
     ):
-        write_chromosomes(genomes, op.join(outdir, filename))
+        write_chromosomes(genomes, op.join(outdir, f"all_{cross}"))
 
 
 def _get_sizes(filename, prefix_length, tag, target_size=None):
@@ -923,11 +926,80 @@ def divergence(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def chromosome(args):
+    """
+    %prog chromosome [2n+n_FDR|2n+n_SDR|nx2+n]
+    """
+    p = OptionParser(simulate.__doc__)
+    opts, args, iopts = p.set_image_options(args, figsize="6x6")
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (mode,) = args
+    mode = CrossMode(mode)
+    logger.info("Transmission: %s", mode)
+
+    # Construct a composite figure with 6 tracks
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    rows = 5
+    ypad = 0.05
+    yinterval = (1 - 2 * ypad) / (rows + 1)
+    yy = 1 - ypad
+    xpad = 0.2
+
+    SS = Genome("SS", "SS", SS_PLOIDY, SS_CHROM_COUNT, HAPLOID_GENE_COUNT)
+    SO = Genome("SO", "SO", SO_PLOIDY, SO_CHROM_COUNT, HAPLOID_GENE_COUNT)
+
+    indir = f"simulations_{mode}"
+    for cross in CROSSES:
+        filename = op.join(indir, f"all_{cross}s")
+        genomes = []
+        with open(filename, encoding="utf-8") as fp:
+            for row in fp:
+                genome = Genome.from_str(row)
+                break
+            genomes.append((cross, genome))
+            print(cross)
+            print(genome)
+
+    yy_positions = []  # Save yy positions so we can show details to the right later
+    for idx in range(rows + 1):
+        yy_positions.append(yy)
+        yy -= yinterval
+        if idx != rows:
+            root.plot([0, 1], [yy, yy], lw=0.5, color="gray")
+
+    # Show title to the left
+    xx = xpad / 2
+    titles = (("Progenitors", None),) + TITLES
+    for (title, _), yy in zip(titles, yy_positions):
+        yy -= 0.07
+        root.text(
+            xx,
+            yy,
+            markup(title),
+            color="darkslategray",
+            ha="center",
+            va="center",
+            fontweight="semibold",
+        )
+
+    # Title
+    mode_title = get_mode_title(mode)
+    root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
+    normalize_axes(root)
+
+    savefig(f"{mode}.chromosome.pdf", dpi=120)
+
+
 def main():
 
     actions = (
         ("prepare", "Calculate lengths from real sugarcane data"),
         ("simulate", "Run simulation on female restitution"),
+        # Plot the simulated chromosomes
+        ("chromosome", "Plot the chromosomes of the simulated genomes"),
         # Plotting scripts to illustrate divergence between and within genomes
         ("divergence", "Plot divergence between and within SS/SR/SO genomes"),
     )

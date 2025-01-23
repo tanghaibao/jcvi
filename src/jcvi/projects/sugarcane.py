@@ -94,6 +94,10 @@ class Chromosome(list):
     def __len__(self) -> int:
         return len(self.genes)
 
+    def duplicate(self) -> "Chromosome":
+        """Duplicate the chromosome."""
+        return Chromosome.make(self.subgenome, self.chrom, self.genes)
+
     @classmethod
     def make(cls, subgenome: str, chrom: str, genes: List[Gene]) -> "Chromosome":
         chromosome = Chromosome(subgenome, chrom, "", 0)
@@ -242,9 +246,9 @@ class Genome:
                 f"Crossing '{self.name}' x '{other_genome.name}' (nx2+n)",
                 file=sys.stderr,
             )
-        f1_chromosomes = sorted(
-            2 * self.gamete.chromosomes + other_genome.gamete.chromosomes
-        )
+        gamete = self.gamete.chromosomes
+        duplicate = [x.duplicate() for x in gamete]
+        f1_chromosomes = sorted(gamete + duplicate + other_genome.gamete.chromosomes)
         return Genome.make(name, f1_chromosomes)
 
     def mate_2nplusn_FDR(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -421,16 +425,16 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     for s in samples:
         summary = s.summary
         try:
-            _, _, group_unique, _, _ = [x for x in summary if x[0] == "SO"][0]
+            _, group_unique, _, _ = [x for x in summary if x[0] == "SO"][0]
         except:
             group_unique = 0
         SO_data.append(group_unique)
         try:
-            _, _, group_unique, _, _ = [x for x in summary if x[0] == "SS"][0]
+            _, group_unique, _, _ = [x for x in summary if x[0] == "SS"][0]
         except:
             group_unique = 0
         SS_data.append(group_unique)
-        total_tag, _, _, total_so_size, total_size = summary[-1]
+        total_tag, _, total_so_size, total_size = summary[-1]
         assert total_tag == "Total"
         percent_SO = total_so_size * 100.0 / total_size
         percent_SO_data.append(percent_SO)

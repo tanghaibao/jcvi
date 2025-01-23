@@ -516,18 +516,6 @@ def write_chromosomes(genomes: list[Genome], filename: str):
             print(genome, file=fw)
 
 
-def write_SO_percent(summary: GenomeSummary, filename: str):
-    """Write SO % to file
-
-    Args:
-        summary (GenomeSummary): List of simulated genomes.
-        filename (str): File path to write to.
-    """
-    print(f"Write SO percent to `{filename}`", file=sys.stderr)
-    with open(filename, "w", encoding="utf-8") as fw:
-        print("\n".join(str(x) for x in sorted(summary.percent_SO_data)), file=fw)
-
-
 def simulate(args):
     """
     %prog simulate [2n+n_FDR|2n+n_SDR|nx2+n]
@@ -661,10 +649,6 @@ def simulate(args):
         (all_BC4s, "all_BC4s"),
     ):
         write_chromosomes(genomes, op.join(outdir, filename))
-
-    # Write the SO percent in simulated samples so that we can compute P-value
-    for summary, SO_percent_filename in ((all_F1s_summary, "all_F1s_SO_percent"),):
-        write_SO_percent(summary, op.join(outdir, SO_percent_filename))
 
 
 def _get_sizes(filename, prefix_length, tag, target_size=None):

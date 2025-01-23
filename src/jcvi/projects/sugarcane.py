@@ -432,15 +432,15 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     percent_SS_data = []
     for s in samples:
         summary = s.summary
-        try:
-            _, group_unique, _, _ = [x for x in summary if x[0] == "SO"][0]
-        except:
-            group_unique = 0
+        SO_summary = [x for x in summary if x[0] == "SO"]
+        group_unique = 0
+        if SO_summary:
+            _, group_unique, _, _ = SO_summary[0]
         SO_data.append(round(group_unique))
-        try:
-            _, group_unique, _, _ = [x for x in summary if x[0] == "SS"][0]
-        except:
-            group_unique = 0
+        SS_summary = [x for x in summary if x[0] == "SS"]
+        group_unique = 0
+        if SS_summary:
+            _, group_unique, _, _ = SS_summary[0]
         SS_data.append(round(group_unique))
         total_tag, _, total_so_size, total_ss_size = summary[-1]
         assert total_tag == "Total"
@@ -480,7 +480,7 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     x, y = zip(*sorted(SO_counter.items()))
     ax.bar(np.array(x), y, color=SoColor, ec=SoColor)
     ax.set_xlim(80, 0)
-    ax.set_ylim(0, len(samples) / 2)
+    ax.set_ylim(0, len(samples) * 2 / 3)
     ax.set_yticks([])
     summary = GenomeSummary(SO_data, SS_data, percent_SO_data, percent_SS_data)
 
@@ -584,7 +584,7 @@ def simulate(args):
     all_BC4s = [simulate_BCn(4, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
 
     # Plotting
-    all_F1s_summary = plot_summary(ax1, all_F1s)
+    plot_summary(ax1, all_F1s)
     plot_summary(ax2, all_BC1s)
     plot_summary(ax3, all_BC2s)
     plot_summary(ax4, all_BC3s)
@@ -631,7 +631,7 @@ def simulate(args):
     elif mode == CrossMode.twoplusnFDR:
         mode_title = r"$2n + n$ (FDR)"
     elif mode == CrossMode.twoplusnSDR:
-        mode_title = r"$n_1*\times2 + n$ (SDR)"
+        mode_title = r"$n_1^*\times2 + n$ (SDR)"
     else:
         mode_title = "Unknown"
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")

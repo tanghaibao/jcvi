@@ -276,8 +276,9 @@ class Genome:
         total_so_size = 0
         total_ss_size = 0
 
-        for (subgenome, chrom), chromosomes in groupby(
-            self.chromosomes, key=self._sort_key
+        self.chromosomes.sort(key=lambda x: x.subgenome)
+        for subgenome, chromosomes in groupby(
+            self.chromosomes, key=lambda x: x.subgenome
         ):
             chromosomes = list(chromosomes)
             uniq_genes = set(flatten(x.genes for x in chromosomes))
@@ -286,12 +287,13 @@ class Genome:
             group_ss_size = group_count if subgenome == "SS" else 0
             ans.append(
                 (
-                    f"{subgenome}-{chrom}",
+                    subgenome,
                     group_count / len(chromosomes[0]),
                     group_so_size / SO_GENE_COUNT,
                     group_ss_size / SS_GENE_COUNT,
                 )
             )
+            total_count += group_count
             total_so_size += group_so_size
             total_ss_size += group_ss_size
         ans.append(

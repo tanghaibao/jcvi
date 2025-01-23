@@ -168,7 +168,7 @@ class Genome:
         self.chromosomes.sort(key=self._sort_key)
         for _, chromosomes in groupby(self.chromosomes, key=self._sort_key):
             for a, b in combinations(chromosomes, 2):
-                weight = a.num_matching_genes(b)
+                weight = a.num_matching_genes(b) + 1  # +1 so we don't have zero weight
                 G.add_edge(a.uuid, b.uuid, weight=weight)
         # Find the maximum matching
         matching = nx.max_weight_matching(G)
@@ -215,7 +215,7 @@ class Genome:
             if random() < 0.5:
                 gamete_chromosomes.append(a)
 
-        tag = "gamete" if sdr else "fdr gamete"
+        tag = "sdr gamete" if sdr else "gamete"
         return Genome.make(f"{self.name} {tag}", gamete_chromosomes)
 
     @property
@@ -224,7 +224,7 @@ class Genome:
 
     @property
     def gamete_fdr(self):
-        return self.chromosomes
+        return Genome.make(f"{self.name} fdr gamete", self.chromosomes)
 
     @property
     def gamete_sdr(self):
@@ -489,9 +489,23 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     summary_style = dict(size=9, ha="center", va="center")
     SO_peak = SO_counter.most_common(1)[0][0]
     SS_peak = SS_counter.most_common(1)[0][0]
-    if abs(SO_peak - SS_peak) < 20:
-        SO_peak -= 8
-        SS_peak += 8
+    SO_single = len(SO_counter) == 1
+    SS_single = len(SS_counter) == 1
+
+    # Offset the text to avoid overlapping
+    if SO_peak < SS_peak:
+        if SO_single:
+            SO_peak -= 8
+        if SS_single:
+            SS_peak += 8
+    else:
+        if SO_single:
+            if SO_peak > 79:
+                SO_peak -= 8
+            else:
+                SO_peak += 8
+        if SS_single:
+            SS_peak -= 8
     ax.text(
         SO_peak, ymax * 0.85, markup(summary.SO_summary), color=SoColor, **summary_style
     )

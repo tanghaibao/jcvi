@@ -18,7 +18,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from itertools import combinations, groupby, product
-from random import randint, random, sample
+from random import randint, random
 from typing import Dict, List, Tuple
 
 import matplotlib.pyplot as plt
@@ -64,10 +64,12 @@ class Chromosome(list):
     A chromosome with genes.
     """
 
+    subgenome: str
     chrom: str
     genes: List[Gene]
 
-    def __init__(self, chrom: str, haplotype: str, gene_count: int):
+    def __init__(self, subgenome: str, chrom: str, haplotype: str, gene_count: int):
+        self.subgenome = subgenome
         self.chrom = chrom
         self.genes = [Gene(chrom, haplotype, i + 1) for i in range(gene_count)]
 
@@ -97,7 +99,7 @@ class Genome:
     def __init__(
         self,
         name: str,
-        prefix: str,
+        subgenome: str,
         ploidy: int,
         haploid_chromosome_count: int,
         haploid_gene_count: int,
@@ -114,7 +116,7 @@ class Genome:
         for i in range(haploid_chromosome_count):
             chromosomes += [
                 Chromosome(
-                    f"{prefix}-chr{i + 1:02d}", chr(ord("a") + j), chrom_gene_count
+                    subgenome, f"chr{i + 1:02d}", chr(ord("a") + j), chrom_gene_count
                 )
                 for j in range(ploidy)
             ]
@@ -129,13 +131,16 @@ class Genome:
         genome.chromosomes = chromosomes
         return genome
 
+    def _sort_key(self, x: Chromosome):
+        return x.subgenome, x.chrom
+
     def _pair_chromsomosomes(self) -> Tuple[List[List[Chromosome]], List[Chromosome]]:
         """
         Pair chromosomes by similarity.
         """
         G = nx.Graph()
-        self.chromosomes.sort(key=lambda x: x.chrom)
-        for chrom, chromosomes in groupby(self.chromosomes, key=lambda x: x.chrom):
+        self.chromosomes.sort(key=self._sort_key)
+        for _, chromosomes in groupby(self.chromosomes, key=self._sort_key):
             for a, b in combinations(chromosomes, 2):
                 weight = a.num_matching_genes(b)
                 G.add_edge(a, b, weight=weight)
@@ -175,6 +180,7 @@ class Genome:
                 gamete_chromosomes.append(a)
 
         tag = "gamete" if sdr else "fdr gamete"
+        gamete_chromosomes.sort(key=self._sort_key)
         return Genome.make(f"{self.name} {tag}", gamete_chromosomes)
 
     @property
@@ -229,32 +235,24 @@ class Genome:
         return Genome.make(name, f1_chromosomes)
 
     @property
-    def summary(self):
-        def prefix(x, sep="-"):
-            return x.split(sep, 1)[0]
-
-        def size(chromosomes):
-            return sum(ChrSizes[prefix(x, sep="_")] for x in chromosomes)
-
-        # Chromosome count
-        total_count = 0
-        total_unique = 0
-        total_size = 0
-        total_so_size = 0
+    def summary(self) -> List[Tuple[str, int, int, int]]:
         ans = []
-        for group, chromosomes in groupby(self.chromosomes, prefix):
-            chromosomes = list(chromosomes)
-            uniq_chromosomes = set(chromosomes)
-            group_count = len(chromosomes)
-            group_unique = len(uniq_chromosomes)
-            group_so_size = size({x for x in uniq_chromosomes if x[:2] == "SO"})
-            group_size = size(uniq_chromosomes)
-            total_count += group_count
-            total_unique += group_unique
+        total_count = 0
+        total_so_size = 0
+        total_ss_size = 0
+
+        self.chromosome.sort(key=self._sort_key)
+        for (subgenome, chrom), chromosomes in groupby(
+            self.chromosomes, key=self._sort_key
+        ):
+            uniq_genes = set(flatten(chrom.genes for chrom in chromosomes))
+            group_count = len(uniq_genes)
+            group_so_size = group_count if subgenome == "SO" else 0
+            group_ss_size = group_count if subgenome == "SS" else 0
+            ans.append((chrom, group_count, group_so_size, group_ss_size))
             total_so_size += group_so_size
-            total_size += group_size
-            ans.append((group, group_count, group_unique, group_so_size, group_size))
-        ans.append(("Total", total_count, total_unique, total_so_size, total_size))
+            total_ss_size += group_ss_size
+        ans.append(("Total", total_count, total_so_size, total_ss_size))
         return ans
 
     def print_summary(self):

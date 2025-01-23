@@ -257,7 +257,9 @@ class Genome:
                 f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_FDR)",
                 file=sys.stderr,
             )
-        f1_chromosomes = sorted(self.gamete_fdr + other_genome.gamete.chromosomes)
+        f1_chromosomes = sorted(
+            self.gamete_fdr.chromosomes + other_genome.gamete.chromosomes
+        )
         return Genome.make(name, f1_chromosomes)
 
     def mate_2nplusn_SDR(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -266,13 +268,15 @@ class Genome:
                 f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_SDR)",
                 file=sys.stderr,
             )
-        f1_chromosomes = sorted(self.gamete_sdr + other_genome.gamete.chromosomes)
+        f1_chromosomes = sorted(
+            self.gamete_sdr.chromosomes + other_genome.gamete.chromosomes
+        )
         return Genome.make(name, f1_chromosomes)
 
     @property
     def summary(self) -> List[Tuple[str, int, int, int]]:
         ans = []
-        total_count = 0
+        total_chrom_count = 0
         total_so_size = 0
         total_ss_size = 0
 
@@ -283,23 +287,24 @@ class Genome:
             chromosomes = list(chromosomes)
             uniq_genes = set(flatten(x.genes for x in chromosomes))
             group_count = len(uniq_genes)
+            group_chrom_count = group_count / len(chromosomes[0])
             group_so_size = group_count if subgenome == "SO" else 0
             group_ss_size = group_count if subgenome == "SS" else 0
             ans.append(
                 (
                     subgenome,
-                    group_count / len(chromosomes[0]),
+                    group_chrom_count,
                     group_so_size / SO_GENE_COUNT,
                     group_ss_size / SS_GENE_COUNT,
                 )
             )
-            total_count += group_count
+            total_chrom_count += group_chrom_count
             total_so_size += group_so_size
             total_ss_size += group_ss_size
         ans.append(
             (
                 "Total",
-                total_count,
+                total_chrom_count,
                 total_so_size / SO_GENE_COUNT,
                 total_ss_size / SS_GENE_COUNT,
             )
@@ -308,9 +313,9 @@ class Genome:
 
     def print_summary(self):
         print("[SUMMARY]")
-        for group, group_count, group_so_size, group_ss_size in self.summary:
+        for group, group_chrom_count, group_so_size, group_ss_size in self.summary:
             print(
-                f"{group}: count={group_count}, SO={group_so_size}, SS={group_ss_size}"
+                f"{group}: chrom_count={group_chrom_count}, SO={group_so_size}, SS={group_ss_size}"
             )
 
 

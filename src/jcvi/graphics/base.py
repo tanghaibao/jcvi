@@ -17,6 +17,7 @@ import seaborn as sns
 
 mpl.use("Agg")
 
+import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 
@@ -675,6 +676,31 @@ def get_intensity(octal):
     r, g, b = int(r, 16), int(g, 16), int(b, 16)
     intensity = sqrt((r * r + g * g + b * b) / 3)
     return intensity
+
+
+def get_shades(base_color: str, n: int) -> np.array:
+    """
+    Generate N shades of a base color by blending with white and black. The base
+    color is in hex format, e.g., '#FF0000' for red.
+    """
+    base_rgb = np.array(mcolors.to_rgb(base_color))  # Convert hex to RGB (normalized)
+    lighter = n // 2
+    darker = n - lighter - 1
+
+    # Generate lighter shades by blending with white
+    white = np.array([1, 1, 1])  # White color as a NumPy array
+    lighter_shades = [
+        (white * (1 - i) + base_rgb * i) for i in np.linspace(0.3, 1, lighter + 1)
+    ][:-1]
+
+    # Generate darker shades by blending with black
+    black = np.array([0, 0, 0])  # Black color as a NumPy array
+    darker_shades = [
+        (base_rgb * i + black * (1 - i)) for i in np.linspace(1, 0.2, darker + 1)
+    ][1:]
+
+    # Combine all shades with the base color in the middle
+    return lighter_shades + [base_rgb] + darker_shades
 
 
 def adjust_spines(ax, spines, outward=False, color="lightslategray"):

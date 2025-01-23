@@ -449,7 +449,7 @@ def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False)
     ][n]
 
 
-def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
+def plot_summary(ax, samples: List[Genome]) -> GenomeSummary:
     """Plot the distribution of chromosome numbers given simulated samples.
 
     Args:

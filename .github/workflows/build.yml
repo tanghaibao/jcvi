@@ -21,7 +21,9 @@ jobs:
           cache: 'pip'
 
       - name: Install BEDTools (Linux)
-        run: sudo apt-get install bedtools libmagickwand-dev
+        run: |
+            sudo apt-get update
+            sudo apt-get install --fix-missing bedtools libmagickwand-dev
         if: matrix.os == 'ubuntu-latest'
 
       - name: Install BEDTools (macOS)

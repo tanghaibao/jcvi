@@ -931,7 +931,7 @@ def chromosome(args):
     %prog chromosome [2n+n_FDR|2n+n_SDR|nx2+n]
     """
     p = OptionParser(simulate.__doc__)
-    opts, args, iopts = p.set_image_options(args, figsize="6x6")
+    _, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
 

@@ -436,18 +436,20 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
             _, group_unique, _, _ = [x for x in summary if x[0] == "SO"][0]
         except:
             group_unique = 0
-        SO_data.append(group_unique)
+        SO_data.append(round(group_unique))
         try:
             _, group_unique, _, _ = [x for x in summary if x[0] == "SS"][0]
         except:
             group_unique = 0
-        SS_data.append(group_unique)
+        SS_data.append(round(group_unique))
         total_tag, _, total_so_size, total_ss_size = summary[-1]
         assert total_tag == "Total"
         percent_SO_data.append(total_so_size * 100)
         percent_SS_data.append(total_ss_size * 100)
     # Avoid overlapping bars
     SS_counter, SO_counter = Counter(SS_data), Counter(SO_data)
+    print(SS_counter, sum(SS_counter.values()))
+    print(SO_counter, sum(SO_counter.values()))
     overlaps = SS_counter.keys() & SO_counter.keys()
     shift = 0.5  # used to offset bars a bit to avoid cluttering
     if overlaps:

@@ -18,15 +18,16 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from itertools import combinations, groupby, product
-from random import random, sample
-from typing import Dict, List
+from random import randint, random, sample
+from typing import Dict, List, Tuple
 
-import numpy as np
 import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
 import seaborn as sns
 import pandas as pd
 
-from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir
+from ..apps.base import ActionDispatcher, OptionParser, flatten, logger, mkdir
 from ..formats.blast import Blast
 from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
 
@@ -71,13 +72,17 @@ class Chromosome(list):
         self.genes = [Gene(chrom, haplotype, i + 1) for i in range(gene_count)]
 
     def __str__(self):
-        # Merge genes into consecutive ranges
+        """Merge genes into consecutive ranges."""
         ranges = []
         for haplotype, genes in groupby(self.genes, key=lambda x: x.haplotype):
             genes = list(genes)
             start, end = genes[0].idx, genes[-1].idx
             ranges.append(f"{haplotype}{start}-{end}")
         return f"{self.chrom}|{','.join(ranges)}"
+
+    def num_matching_genes(self, other: "Chromosome") -> int:
+        """Count the number of matching genes between two chromosomes"""
+        return sum(1 for x, y in zip(self.genes, other.genes) if x == y)
 
 
 # Simulate genome composition
@@ -124,38 +129,57 @@ class Genome:
         genome.chromosomes = chromosomes
         return genome
 
-    @property
-    def gamete(self):
+    def _pair_chromsomosomes(self) -> Tuple[List[List[Chromosome]], List[Chromosome]]:
+        """
+        Pair chromosomes by similarity.
+        """
+        G = nx.Graph()
+        self.chromosomes.sort(key=lambda x: x.chrom)
+        for chrom, chromosomes in groupby(self.chromosomes, key=lambda x: x.chrom):
+            for a, b in combinations(chromosomes, 2):
+                weight = a.num_matching_genes(b)
+                G.add_edge(a, b, weight=weight)
+        # Find the maximum matching
+        pairs = nx.max_weight_matching(G)
+        singletons = set(self.chromosomes) - set(flatten(pairs))
+        return pairs, list(singletons)
+
+    def _crossover_chromosomes(
+        self, a: Chromosome, b: Chromosome, sdr: bool
+    ) -> List[Chromosome]:
+        """
+        Crossover two chromosomes.
+        """
+        if random() < 0.5:
+            a, b = b, a
+        if random() < 0.5:
+            crossover_point = randint(0, len(a.genes) // 2 - 1)
+            recombinant = a.genes[:crossover_point] + b.genes[crossover_point:]
+            non_recombinant = b.genes
+        else:
+            crossover_point = randint(len(a.genes) // 2, len(a.genes) - 1)
+            recombinant = a.genes[:crossover_point] + b.genes[crossover_point:]
+            non_recombinant = a.genes
+        return [recombinant, non_recombinant] if sdr else [recombinant]
+
+    def _gamete(self, sdr: bool):
         """Randomly generate a gamete from current genome."""
-        self.chromosomes.sort()
         gamete_chromosomes = []
-
-        # Check for any chromosome that have 2 identical copies, if so, we will assume disomic
-        # inheritance for that chromosome and always keep one and only copy
-        duplicate_chromosomes = []
-        singleton_chromosomes = []
-        for chromosome, chromosomes in groupby(self.chromosomes):
-            chromosomes = list(chromosomes)
-            ncopies = len(chromosomes)
-            duplicate_chromosomes += [chromosome] * (ncopies // 2)
-            if ncopies % 2 == 1:
-                singleton_chromosomes.append(chromosome)
-
-        # Get one copy of each duplicate chromosome first
-        gamete_chromosomes += duplicate_chromosomes
-
-        def prefix(x):
-            return x.split("_", 1)[0]
+        paired_chromosomes, singleton_chromosomes = self._pair_chromsomosomes()
+        for a, b in paired_chromosomes:
+            gamete_chromosomes += self._crossover_chromosomes(a, b, sdr=sdr)
 
         # Randomly assign the rest, singleton chromosomes
-        for _, chromosomes in groupby(singleton_chromosomes, key=prefix):
-            chromosomes = list(chromosomes)
-            halfn = len(chromosomes) // 2
-            # Odd number, e.g. 5, equal chance to be 2 or 3
-            if len(chromosomes) % 2 != 0 and random() < 0.5:
-                halfn += 1
-            gamete_chromosomes += sorted(sample(chromosomes, halfn))
-        return Genome.make(self.name + " gamete", gamete_chromosomes)
+        for a in singleton_chromosomes:
+            if random() < 0.5:
+                gamete_chromosomes.append(a)
+
+        tag = "gamete" if sdr else "fdr gamete"
+        return Genome.make(f"{self.name} {tag}", gamete_chromosomes)
+
+    @property
+    def gamete(self):
+        return self._gamete(sdr=False)
 
     @property
     def gamete_fdr(self):
@@ -163,7 +187,7 @@ class Genome:
 
     @property
     def gamete_sdr(self):
-        raise NotImplementedError("gamete_sdr not yet supported")
+        return self._gamete(sdr=True)
 
     def mate_nplusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:

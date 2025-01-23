@@ -34,7 +34,7 @@ from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
-HAPLOID_GENE_COUNT = 300
+HAPLOID_GENE_COUNT = 100
 SO_PLOIDY = 8
 SS_PLOIDY = 16
 SO_GENE_COUNT = SO_PLOIDY * HAPLOID_GENE_COUNT
@@ -315,11 +315,11 @@ class Genome:
 
 
 class GenomeSummary:
-    def __init__(self, SO_data, SS_data, percent_SO_data):
+    def __init__(self, SO_data, SS_data, percent_SO_data, percent_SS_data):
         self.SO_data = SO_data
         self.SS_data = SS_data
         self.percent_SO_data = percent_SO_data
-        self.percent_SS_data = [100 - x for x in percent_SO_data]
+        self.percent_SS_data = percent_SS_data
 
     def _summary(self, a, tag, precision=0):
         mean, mn, mx = (
@@ -424,6 +424,7 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     SO_data = []
     SS_data = []
     percent_SO_data = []
+    percent_SS_data = []
     for s in samples:
         summary = s.summary
         try:
@@ -436,10 +437,10 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
         except:
             group_unique = 0
         SS_data.append(group_unique)
-        total_tag, _, total_so_size, total_size = summary[-1]
+        total_tag, _, total_so_size, total_ss_size = summary[-1]
         assert total_tag == "Total"
-        percent_SO = total_so_size * 100.0 / total_size
-        percent_SO_data.append(percent_SO)
+        percent_SO_data.append(total_so_size * 100)
+        percent_SS_data.append(total_ss_size * 100)
     # Avoid overlapping bars
     SS_counter, SO_counter = Counter(SS_data), Counter(SO_data)
     overlaps = SS_counter.keys() & SO_counter.keys()
@@ -474,7 +475,7 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     ax.set_xlim(80, 0)
     ax.set_ylim(0, len(samples) / 2)
     ax.set_yticks([])
-    summary = GenomeSummary(SO_data, SS_data, percent_SO_data)
+    summary = GenomeSummary(SO_data, SS_data, percent_SO_data, percent_SS_data)
 
     # Write the stats summary within the plot
     summary_style = dict(

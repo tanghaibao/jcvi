@@ -152,6 +152,31 @@ class Genome:
         return self.name + ": " + ";".join(str(_) for _ in self.chromosomes)
 
     @classmethod
+    def from_str(cls, s: str) -> "Genome":
+        """
+        Parse a string representation of a genome.
+
+        >>> s = "test: pf-chr01|a1-30;pf-chr01|b1-30;pf-chr02|a1-30;pf-chr02|b1-30;pf-chr03|a1-30;pf-chr03|b1-30"
+        >>> str(Genome.from_str(s)) == s
+        True
+        """
+        name, chroms = s.split(": ")
+        genome = Genome(name, "", 0, 0, 0)
+        chromosomes = []
+        for x in chroms.split(";"):
+            chrom, genes = x.split("|")
+            subgenome, chrom = chrom.split("-")
+            cgenes = []
+            for genes in genes.split(","):
+                haplotype = genes[0]
+                start, end = [int(x) for x in genes[1:].split("-")]
+                cgenes += [Gene(chrom, haplotype, i) for i in range(start, end + 1)]
+            chromosome = Chromosome.make(subgenome, chrom, cgenes)
+            chromosomes.append(chromosome)
+        genome.chromosomes = chromosomes
+        return genome
+
+    @classmethod
     def make(cls, name: str, chromosomes: List[Chromosome]) -> "Genome":
         genome = Genome(name, "", 0, 0, 0)
         genome.chromosomes = sorted(chromosomes, key=genome._sort_key)

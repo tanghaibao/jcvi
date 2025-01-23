@@ -15,22 +15,32 @@ import os.path as op
 import sys
 
 from collections import Counter, defaultdict
+from dataclasses import dataclass
 from enum import Enum
 from itertools import combinations, groupby, product
-from random import random, sample
-from typing import Dict, List
+from random import randint, random
+from typing import Dict, List, Tuple
+from uuid import uuid4
 
-import numpy as np
 import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
 import seaborn as sns
 import pandas as pd
 
-from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir
+from ..apps.base import ActionDispatcher, OptionParser, flatten, logger, mkdir
 from ..formats.blast import Blast
 from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
+HAPLOID_GENE_COUNT = 160
+SO_PLOIDY = 8
+SS_PLOIDY = 16
+SO_GENE_COUNT = SO_PLOIDY * HAPLOID_GENE_COUNT
+SS_GENE_COUNT = SS_PLOIDY * HAPLOID_GENE_COUNT
+SO_CHROM_COUNT = 10
+SS_CHROM_COUNT = 8
 
 
 class CrossMode(Enum):
@@ -44,89 +54,181 @@ class CrossMode(Enum):
     twoplusnSDR = "2n+n_SDR"
 
 
-# Computed using prepare(), corrected with real sizes
-ChrSizes = {
-    "SO-chr01": 148750011,
-    "SO-chr02": 119865146,
-    "SO-chr03": 103845728,
-    "SO-chr04": 104559946,
-    "SO-chr05": 93134056,
-    "SO-chr06": 74422021,
-    "SO-chr07": 81308893,
-    "SO-chr08": 71010813,
-    "SO-chr09": 86380266,
-    "SO-chr10": 73923121,
-    "SS-chr01": 114519418,
-    "SS-chr02": 119157314,
-    "SS-chr03": 85009228,
-    "SS-chr04": 79762909,
-    "SS-chr05": 90584537,
-    "SS-chr06": 95848354,
-    "SS-chr07": 83589369,
-    "SS-chr08": 64028871,
-}
+@dataclass(frozen=True)
+class Gene:
+    """
+    A gene in a chromosome.
+    """
+
+    chrom: str
+    haplotype: str
+    idx: int
+
+
+@dataclass
+class Chromosome(list):
+    """
+    A chromosome with genes.
+    """
+
+    subgenome: str
+    chrom: str
+    genes: List[Gene]
+    uuid: str
+
+    def __init__(self, subgenome: str, chrom: str, haplotype: str, gene_count: int):
+        self.subgenome = subgenome
+        self.chrom = chrom
+        self.genes = [Gene(chrom, haplotype, i + 1) for i in range(gene_count)]
+        self.uuid = str(uuid4())
+
+    def __str__(self) -> str:
+        """Merge genes into consecutive ranges."""
+        ranges = []
+        for haplotype, genes in groupby(self.genes, key=lambda x: x.haplotype):
+            genes = list(genes)
+            start, end = genes[0].idx, genes[-1].idx
+            ranges.append(f"{haplotype}{start}-{end}")
+        return f"{self.subgenome}-{self.chrom}|{','.join(ranges)}"
+
+    def __len__(self) -> int:
+        return len(self.genes)
+
+    def duplicate(self) -> "Chromosome":
+        """Duplicate the chromosome."""
+        return Chromosome.make(self.subgenome, self.chrom, self.genes)
+
+    @classmethod
+    def make(cls, subgenome: str, chrom: str, genes: List[Gene]) -> "Chromosome":
+        chromosome = Chromosome(subgenome, chrom, "", 0)
+        chromosome.genes = genes
+        return chromosome
+
+    def num_matching_genes(self, other: "Chromosome") -> int:
+        """Count the number of matching genes between two chromosomes"""
+        return sum(1 for x, y in zip(self.genes, other.genes) if x == y)
 
 
 # Simulate genome composition
 class Genome:
+    """
+    A genome with a collection of chromosomes.
+    """
+
+    name: str
+    chromosomes: List[Chromosome]
+
     def __init__(
-        self, name: str, prefix: str, ploidy: int, haploid_chromosome_count: int
+        self,
+        name: str,
+        subgenome: str,
+        ploidy: int,
+        haploid_chromosome_count: int,
+        haploid_gene_count: int,
     ):
         """
         Simulate a genome with given ploidy and haploid_chromosome_count. Example:
 
-        >>> print(Genome("t", "pf", 2, 3))
-        test: pf-chr01_a,pf-chr01_b,pf-chr02_a,pf-chr02_b,pf-chr03_a,pf-chr03_b
+        >>> print(Genome("test", "pf", 2, 3, 90))
+        test: pf-chr01|a1-30;pf-chr01|b1-30;pf-chr02|a1-30;pf-chr02|b1-30;pf-chr03|a1-30;pf-chr03|b1-30
         """
         self.name = name
+        chrom_gene_count = (
+            haploid_gene_count // haploid_chromosome_count
+            if haploid_chromosome_count
+            else 0
+        )
         chromosomes = []
         for i in range(haploid_chromosome_count):
             chromosomes += [
-                f"{prefix}-chr{i + 1:02d}_{chr(ord('a') + j)}" for j in range(ploidy)
+                Chromosome(
+                    subgenome, f"chr{i + 1:02d}", chr(ord("a") + j), chrom_gene_count
+                )
+                for j in range(ploidy)
             ]
         self.chromosomes = chromosomes
 
-    def __len__(self):
-        return len(self.chromosomes)
+    def __str__(self):
+        return self.name + ": " + ";".join(str(_) for _ in self.chromosomes)
 
     @classmethod
-    def make(cls, name: str, chromosomes: List[str]):
-        genome = Genome(name, "", 0, 0)
-        genome.chromosomes = chromosomes
+    def make(cls, name: str, chromosomes: List[Chromosome]) -> "Genome":
+        genome = Genome(name, "", 0, 0, 0)
+        genome.chromosomes = sorted(chromosomes, key=genome._sort_key)
         return genome
+
+    def _sort_key(self, x: Chromosome):
+        return x.subgenome, x.chrom
+
+    def _pair_chromsomosomes(self) -> Tuple[List[List[Chromosome]], List[Chromosome]]:
+        """
+        Pair chromosomes by similarity.
+        """
+        G = nx.Graph()
+        self.chromosomes.sort(key=self._sort_key)
+        for _, chromosomes in groupby(self.chromosomes, key=self._sort_key):
+            for a, b in combinations(chromosomes, 2):
+                weight = a.num_matching_genes(b) + 1  # +1 so we don't have zero weight
+                G.add_edge(a.uuid, b.uuid, weight=weight)
+        # Find the maximum matching
+        matching = nx.max_weight_matching(G)
+        # Partition the chromosomes into paired and singleton
+        paired = set()
+        pairs = []
+        for a, b in matching:
+            paired.add(a)
+            paired.add(b)
+            pair = [x for x in self.chromosomes if x.uuid in (a, b)]
+            pairs.append(pair)
+        singletons = [x for x in self.chromosomes if x.uuid not in paired]
+        return pairs, singletons
+
+    def _crossover_chromosomes(
+        self, a: Chromosome, b: Chromosome, sdr: bool
+    ) -> List[Chromosome]:
+        """
+        Crossover two chromosomes.
+        """
+        if random() < 0.5:
+            a, b = b, a
+        if random() < 0.5:
+            crossover_point = randint(0, len(a.genes) // 2 - 1)
+            recombinant = a.genes[:crossover_point] + b.genes[crossover_point:]
+            non_recombinant = b.genes
+        else:
+            crossover_point = randint(len(a.genes) // 2, len(a.genes) - 1)
+            recombinant = a.genes[:crossover_point] + b.genes[crossover_point:]
+            non_recombinant = a.genes
+        recombinant = Chromosome.make(a.subgenome, a.chrom, recombinant)
+        non_recombinant = Chromosome.make(b.subgenome, b.chrom, non_recombinant)
+        return [recombinant, non_recombinant] if sdr else [recombinant]
+
+    def _gamete(self, sdr: bool):
+        """Randomly generate a gamete from current genome."""
+        gamete_chromosomes = []
+        paired_chromosomes, singleton_chromosomes = self._pair_chromsomosomes()
+        for a, b in paired_chromosomes:
+            gamete_chromosomes += self._crossover_chromosomes(a, b, sdr=sdr)
+
+        # Randomly assign the rest, singleton chromosomes
+        for a in singleton_chromosomes:
+            if random() < 0.5:
+                gamete_chromosomes.append(a)
+
+        tag = "sdr gamete" if sdr else "gamete"
+        return Genome.make(f"{self.name} {tag}", gamete_chromosomes)
 
     @property
     def gamete(self):
-        """Randomly generate a gamete from current genome that"""
-        self.chromosomes.sort()
-        gamete_chromosomes = []
+        return self._gamete(sdr=False)
 
-        # Check for any chromosome that have 2 identical copies, if so, we will assume disomic
-        # inheritance for that chromosome and always keep one and only copy
-        duplicate_chromosomes = []
-        singleton_chromosomes = []
-        for chromosome, chromosomes in groupby(self.chromosomes):
-            chromosomes = list(chromosomes)
-            ncopies = len(chromosomes)
-            duplicate_chromosomes += [chromosome] * (ncopies // 2)
-            if ncopies % 2 == 1:
-                singleton_chromosomes.append(chromosome)
+    @property
+    def gamete_fdr(self):
+        return Genome.make(f"{self.name} fdr gamete", self.chromosomes)
 
-        # Get one copy of each duplicate chromosome first
-        gamete_chromosomes += duplicate_chromosomes
-
-        def prefix(x):
-            return x.split("_", 1)[0]
-
-        # Randomly assign the rest, singleton chromosomes
-        for _, chromosomes in groupby(singleton_chromosomes, key=prefix):
-            chromosomes = list(chromosomes)
-            halfn = len(chromosomes) // 2
-            # Odd number, e.g. 5, equal chance to be 2 or 3
-            if len(chromosomes) % 2 != 0 and random() < 0.5:
-                halfn += 1
-            gamete_chromosomes += sorted(sample(chromosomes, halfn))
-        return Genome.make(self.name + " gamete", gamete_chromosomes)
+    @property
+    def gamete_sdr(self):
+        return self._gamete(sdr=True)
 
     def mate_nplusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
@@ -141,12 +243,12 @@ class Genome:
     def mate_nx2plusn(self, name: str, other_genome: "Genome", verbose: bool = True):
         if verbose:
             print(
-                f"Crossing '{self.name}' x '{other_genome.name}' (2xn+n)",
+                f"Crossing '{self.name}' x '{other_genome.name}' (nx2+n)",
                 file=sys.stderr,
             )
-        f1_chromosomes = sorted(
-            2 * self.gamete.chromosomes + other_genome.gamete.chromosomes
-        )
+        gamete = self.gamete.chromosomes
+        duplicate = [x.duplicate() for x in gamete]
+        f1_chromosomes = sorted(gamete + duplicate + other_genome.gamete.chromosomes)
         return Genome.make(name, f1_chromosomes)
 
     def mate_2nplusn_FDR(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -155,7 +257,9 @@ class Genome:
                 f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_FDR)",
                 file=sys.stderr,
             )
-        f1_chromosomes = sorted(self.chromosomes + other_genome.gamete.chromosomes)
+        f1_chromosomes = sorted(
+            self.gamete_fdr.chromosomes + other_genome.gamete.chromosomes
+        )
         return Genome.make(name, f1_chromosomes)
 
     def mate_2nplusn_SDR(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -164,52 +268,63 @@ class Genome:
                 f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_SDR)",
                 file=sys.stderr,
             )
-        raise NotImplementedError("2n+n_SDR not yet supported")
-
-    def __str__(self):
-        return self.name + ": " + ",".join(self.chromosomes)
+        f1_chromosomes = sorted(
+            self.gamete_sdr.chromosomes + other_genome.gamete.chromosomes
+        )
+        return Genome.make(name, f1_chromosomes)
 
     @property
-    def summary(self):
-        def prefix(x, sep="-"):
-            return x.split(sep, 1)[0]
-
-        def size(chromosomes):
-            return sum(ChrSizes[prefix(x, sep="_")] for x in chromosomes)
-
-        # Chromosome count
-        total_count = 0
-        total_unique = 0
-        total_size = 0
-        total_so_size = 0
+    def summary(self) -> List[Tuple[str, int, int, int]]:
         ans = []
-        for group, chromosomes in groupby(self.chromosomes, prefix):
+        total_chrom_count = 0
+        total_so_size = 0
+        total_ss_size = 0
+
+        self.chromosomes.sort(key=lambda x: x.subgenome)
+        for subgenome, chromosomes in groupby(
+            self.chromosomes, key=lambda x: x.subgenome
+        ):
             chromosomes = list(chromosomes)
-            uniq_chromosomes = set(chromosomes)
-            group_count = len(chromosomes)
-            group_unique = len(uniq_chromosomes)
-            group_so_size = size({x for x in uniq_chromosomes if x[:2] == "SO"})
-            group_size = size(uniq_chromosomes)
-            total_count += group_count
-            total_unique += group_unique
+            uniq_genes = set(flatten(x.genes for x in chromosomes))
+            group_count = len(uniq_genes)
+            group_chrom_count = group_count / len(chromosomes[0])
+            group_so_size = group_count if subgenome == "SO" else 0
+            group_ss_size = group_count if subgenome == "SS" else 0
+            ans.append(
+                (
+                    subgenome,
+                    group_chrom_count,
+                    group_so_size / SO_GENE_COUNT,
+                    group_ss_size / SS_GENE_COUNT,
+                )
+            )
+            total_chrom_count += group_chrom_count
             total_so_size += group_so_size
-            total_size += group_size
-            ans.append((group, group_count, group_unique, group_so_size, group_size))
-        ans.append(("Total", total_count, total_unique, total_so_size, total_size))
+            total_ss_size += group_ss_size
+        ans.append(
+            (
+                "Total",
+                total_chrom_count,
+                total_so_size / SO_GENE_COUNT,
+                total_ss_size / SS_GENE_COUNT,
+            )
+        )
         return ans
 
     def print_summary(self):
         print("[SUMMARY]")
-        for group, group_count, group_unique in self.summary:
-            print(f"{group}: count={group_count}, unique={group_unique}")
+        for group, group_chrom_count, group_so_size, group_ss_size in self.summary:
+            print(
+                f"{group}: chrom_count={group_chrom_count}, SO={group_so_size}, SS={group_ss_size}"
+            )
 
 
 class GenomeSummary:
-    def __init__(self, SO_data, SS_data, percent_SO_data):
+    def __init__(self, SO_data, SS_data, percent_SO_data, percent_SS_data):
         self.SO_data = SO_data
         self.SS_data = SS_data
         self.percent_SO_data = percent_SO_data
-        self.percent_SS_data = [100 - x for x in percent_SO_data]
+        self.percent_SS_data = percent_SS_data
 
     def _summary(self, a, tag, precision=0):
         mean, mn, mx = (
@@ -263,23 +378,6 @@ def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
     return SO_SS_F1
 
 
-def simulate_F2(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
-    SO_SS_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
-    SO_SS_F2_nplusn = SO_SS_F1.mate_nplusn("SOxSS F2", SO_SS_F1, verbose=verbose)
-    if verbose:
-        SO_SS_F2_nplusn.print_summary()
-    return SO_SS_F2_nplusn
-
-
-def simulate_F1intercross(SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
-    SO_SS_F1_1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
-    SO_SS_F1_2 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
-    SO_SS_F1intercross_nplusn = SO_SS_F1_1.mate_nplusn(
-        "SOxSS F1 intercross", SO_SS_F1_2, verbose=verbose
-    )
-    return SO_SS_F1intercross_nplusn
-
-
 def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
     SS_SO_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
     SS_SO_BC1, SS_SO_BC2_nplusn, SS_SO_BC3_nplusn, SS_SO_BC4_nplusn = (
@@ -291,23 +389,23 @@ def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False)
     # BC1
     if n >= 1:
         if mode == CrossMode.nx2plusn:
-            SS_SO_BC1 = SO.mate_nx2plusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
+            SS_SO_BC1 = SO.mate_nx2plusn("SOxSS BC1", SS_SO_F1, verbose=verbose)
         elif mode == CrossMode.twoplusnFDR:
-            SS_SO_BC1 = SO.mate_2nplusn_FDR("SSxSO BC1", SS_SO_F1, verbose=verbose)
+            SS_SO_BC1 = SO.mate_2nplusn_FDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
         elif mode == CrossMode.twoplusnSDR:
-            SS_SO_BC1 = SO.mate_2nplusn_SDR("SSxSO BC1", SS_SO_F1, verbose=verbose)
+            SS_SO_BC1 = SO.mate_2nplusn_SDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
     # BC2
     if n >= 2:
-        SS_SO_BC2_nplusn = SO.mate_nplusn("SSxSO BC2", SS_SO_BC1, verbose=verbose)
+        SS_SO_BC2_nplusn = SO.mate_nplusn("SOxSS BC2", SS_SO_BC1, verbose=verbose)
     # BC3
     if n >= 3:
         SS_SO_BC3_nplusn = SO.mate_nplusn(
-            "SSxSO BC3", SS_SO_BC2_nplusn, verbose=verbose
+            "SOxSS BC3", SS_SO_BC2_nplusn, verbose=verbose
         )
     # BC4
     if n >= 4:
         SS_SO_BC4_nplusn = SO.mate_nplusn(
-            "SSxSO BC4", SS_SO_BC3_nplusn, verbose=verbose
+            "SOxSS BC4", SS_SO_BC3_nplusn, verbose=verbose
         )
     return [
         None,
@@ -331,24 +429,27 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     SO_data = []
     SS_data = []
     percent_SO_data = []
+    percent_SS_data = []
     for s in samples:
         summary = s.summary
-        try:
-            _, _, group_unique, _, _ = [x for x in summary if x[0] == "SO"][0]
-        except:
-            group_unique = 0
-        SO_data.append(group_unique)
-        try:
-            _, _, group_unique, _, _ = [x for x in summary if x[0] == "SS"][0]
-        except:
-            group_unique = 0
-        SS_data.append(group_unique)
-        total_tag, _, _, total_so_size, total_size = summary[-1]
+        SO_summary = [x for x in summary if x[0] == "SO"]
+        group_unique = 0
+        if SO_summary:
+            _, group_unique, _, _ = SO_summary[0]
+        SO_data.append(round(group_unique))
+        SS_summary = [x for x in summary if x[0] == "SS"]
+        group_unique = 0
+        if SS_summary:
+            _, group_unique, _, _ = SS_summary[0]
+        SS_data.append(round(group_unique))
+        total_tag, _, total_so_size, total_ss_size = summary[-1]
         assert total_tag == "Total"
-        percent_SO = total_so_size * 100.0 / total_size
-        percent_SO_data.append(percent_SO)
+        percent_SO_data.append(total_so_size * 100)
+        percent_SS_data.append(total_ss_size * 100)
     # Avoid overlapping bars
     SS_counter, SO_counter = Counter(SS_data), Counter(SO_data)
+    print(SS_counter, sum(SS_counter.values()))
+    print(SO_counter, sum(SO_counter.values()))
     overlaps = SS_counter.keys() & SO_counter.keys()
     shift = 0.5  # used to offset bars a bit to avoid cluttering
     if overlaps:
@@ -378,25 +479,52 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     ax.bar(np.array(x), y, color=SsColor, ec=SsColor)
     x, y = zip(*sorted(SO_counter.items()))
     ax.bar(np.array(x), y, color=SoColor, ec=SoColor)
+    ymax = len(samples) * 0.8
     ax.set_xlim(80, 0)
-    ax.set_ylim(0, len(samples) / 2)
+    ax.set_ylim(0, ymax)
     ax.set_yticks([])
-    summary = GenomeSummary(SO_data, SS_data, percent_SO_data)
+    summary = GenomeSummary(SO_data, SS_data, percent_SO_data, percent_SS_data)
 
     # Write the stats summary within the plot
-    summary_style = dict(
-        size=9,
-        ha="center",
-        va="center",
-        transform=ax.transAxes,
-    )
-    ax.text(0.75, 0.85, markup(summary.SS_summary), color=SsColor, **summary_style)
+    summary_style = dict(size=9, ha="center", va="center")
+    SO_peak = SO_counter.most_common(1)[0][0]
+    SS_peak = SS_counter.most_common(1)[0][0]
+    SO_single = len(SO_counter) == 1
+    SS_single = len(SS_counter) == 1
+
+    # Offset the text to avoid overlapping
+    if SO_peak < SS_peak:
+        if SO_single:
+            SO_peak -= 8
+        if SS_single:
+            SS_peak += 8
+    else:
+        if SO_single:
+            if SO_peak > 79:
+                SO_peak -= 8
+            else:
+                SO_peak += 8
+        if SS_single:
+            SS_peak -= 8
     ax.text(
-        0.75, 0.65, markup(summary.percent_SS_summary), color=SsColor, **summary_style
+        SO_peak, ymax * 0.85, markup(summary.SO_summary), color=SoColor, **summary_style
     )
-    ax.text(0.25, 0.85, markup(summary.SO_summary), color=SoColor, **summary_style)
     ax.text(
-        0.25, 0.65, markup(summary.percent_SO_summary), color=SoColor, **summary_style
+        SO_peak,
+        ymax * 0.65,
+        markup(summary.percent_SO_summary),
+        color=SoColor,
+        **summary_style,
+    )
+    ax.text(
+        SS_peak, ymax * 0.85, markup(summary.SS_summary), color=SsColor, **summary_style
+    )
+    ax.text(
+        SS_peak,
+        ymax * 0.65,
+        markup(summary.percent_SS_summary),
+        color=SsColor,
+        **summary_style,
     )
 
     return summary
@@ -415,29 +543,17 @@ def write_chromosomes(genomes: list[Genome], filename: str):
             print(genome, file=fw)
 
 
-def write_SO_percent(summary: GenomeSummary, filename: str):
-    """Write SO % to file
-
-    Args:
-        summary (GenomeSummary): List of simulated genomes.
-        filename (str): File path to write to.
-    """
-    print(f"Write SO percent to `{filename}`", file=sys.stderr)
-    with open(filename, "w", encoding="utf-8") as fw:
-        print("\n".join(str(x) for x in sorted(summary.percent_SO_data)), file=fw)
-
-
 def simulate(args):
     """
     %prog simulate [2n+n_FDR|2n+n_SDR|nx2+n]
 
-    Run simulation on female restitution. There are two modes:
+    Run simulation on female restitution. There are several modes:
     - 2n+n_FDR: merger between a somatic and a germline
     - 2n+n_SDR: merger between a recombined germline and a germline (not yet supported)
     - nx2+n: merger between a doubled germline and a germline
 
-    These two modes would impact the sequence diversity in the progeny
-    genome in F1, F2, BCn ... the goal of this simulation, is thus to
+    These modes would impact the sequence diversity in the progeny
+    genome in F1, BCn ... the goal of this simulation, is thus to
     understand the mode and the spread of such diversity in the hybrid
     progenies.
     """
@@ -462,7 +578,7 @@ def simulate(args):
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
-    rows = 6
+    rows = 5
     ypad = 0.05
     yinterval = (1 - 2 * ypad) / (rows + 1)
     yy = 1 - ypad
@@ -479,36 +595,33 @@ def simulate(args):
         if idx != rows - 1:
             plt.setp(ax.get_xticklabels(), visible=False)
         axes.append(ax)
-    ax1, ax2, ax3, ax4, ax5, ax6 = axes
+    ax1, ax2, ax3, ax4, ax5 = axes
 
     # Prepare the simulated data
     # Simulate two parents
-    SS = Genome("SS", "SS", 10, 8)
-    SO = Genome("SO", "SO", 8, 10)
+    SS = Genome("SS", "SS", SS_PLOIDY, SS_CHROM_COUNT, HAPLOID_GENE_COUNT)
+    SO = Genome("SO", "SO", SO_PLOIDY, SO_CHROM_COUNT, HAPLOID_GENE_COUNT)
 
     verbose = opts.verbose
     N = opts.N
     all_F1s = [simulate_F1(SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_F2s = [simulate_F2(SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
     all_BC1s = [simulate_BCn(1, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
     all_BC2s = [simulate_BCn(2, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
     all_BC3s = [simulate_BCn(3, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
     all_BC4s = [simulate_BCn(4, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
 
     # Plotting
-    all_F1s_summary = plot_summary(ax1, all_F1s)
-    all_F2s_summary = plot_summary(ax2, all_F2s)
-    plot_summary(ax3, all_BC1s)
-    plot_summary(ax4, all_BC2s)
-    plot_summary(ax5, all_BC3s)
-    plot_summary(ax6, all_BC4s)
+    plot_summary(ax1, all_F1s)
+    plot_summary(ax2, all_BC1s)
+    plot_summary(ax3, all_BC2s)
+    plot_summary(ax4, all_BC3s)
+    plot_summary(ax5, all_BC4s)
 
     # Show title to the left
     xx = xpad / 2
     for (title, subtitle), yy in zip(
         (
             (r"$\mathrm{F_1}$", None),
-            (r"$\mathrm{F_2}$", None),
             (r"$\mathrm{BC_1}$", None),
             (r"$\mathrm{BC_2}$", None),
             (r"$\mathrm{BC_3}$", None),
@@ -545,7 +658,9 @@ def simulate(args):
     elif mode == CrossMode.twoplusnFDR:
         mode_title = r"$2n + n$ (FDR)"
     elif mode == CrossMode.twoplusnSDR:
-        mode_title = r"$2n + n$ (SDR)"
+        mode_title = r"$n_1^*\times2 + n$ (SDR)"
+    else:
+        mode_title = "Unknown"
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)
@@ -555,20 +670,12 @@ def simulate(args):
     # Write chromosomes to disk
     for genomes, filename in (
         (all_F1s, "all_F1s"),
-        (all_F2s, "all_F2s"),
         (all_BC1s, "all_BC1s"),
         (all_BC2s, "all_BC2s"),
         (all_BC3s, "all_BC3s"),
         (all_BC4s, "all_BC4s"),
     ):
         write_chromosomes(genomes, op.join(outdir, filename))
-
-    # Write the SO percent in simulated samples so that we can compute P-value
-    for summary, SO_percent_filename in (
-        (all_F1s_summary, "all_F1s_SO_percent"),
-        (all_F2s_summary, "all_F2s_SO_percent"),
-    ):
-        write_SO_percent(summary, op.join(outdir, SO_percent_filename))
 
 
 def _get_sizes(filename, prefix_length, tag, target_size=None):

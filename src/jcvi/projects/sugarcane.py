@@ -384,23 +384,23 @@ def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False)
     # BC1
     if n >= 1:
         if mode == CrossMode.nx2plusn:
-            SS_SO_BC1 = SO.mate_nx2plusn("SSxSO BC1", SS_SO_F1, verbose=verbose)
+            SS_SO_BC1 = SO.mate_nx2plusn("SOxSS BC1", SS_SO_F1, verbose=verbose)
         elif mode == CrossMode.twoplusnFDR:
-            SS_SO_BC1 = SO.mate_2nplusn_FDR("SSxSO BC1", SS_SO_F1, verbose=verbose)
+            SS_SO_BC1 = SO.mate_2nplusn_FDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
         elif mode == CrossMode.twoplusnSDR:
-            SS_SO_BC1 = SO.mate_2nplusn_SDR("SSxSO BC1", SS_SO_F1, verbose=verbose)
+            SS_SO_BC1 = SO.mate_2nplusn_SDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
     # BC2
     if n >= 2:
-        SS_SO_BC2_nplusn = SO.mate_nplusn("SSxSO BC2", SS_SO_BC1, verbose=verbose)
+        SS_SO_BC2_nplusn = SO.mate_nplusn("SOxSS BC2", SS_SO_BC1, verbose=verbose)
     # BC3
     if n >= 3:
         SS_SO_BC3_nplusn = SO.mate_nplusn(
-            "SSxSO BC3", SS_SO_BC2_nplusn, verbose=verbose
+            "SOxSS BC3", SS_SO_BC2_nplusn, verbose=verbose
         )
     # BC4
     if n >= 4:
         SS_SO_BC4_nplusn = SO.mate_nplusn(
-            "SSxSO BC4", SS_SO_BC3_nplusn, verbose=verbose
+            "SOxSS BC4", SS_SO_BC3_nplusn, verbose=verbose
         )
     return [
         None,

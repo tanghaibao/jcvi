@@ -34,7 +34,13 @@ from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
-HAPLOID_GENE_COUNT = 30000
+HAPLOID_GENE_COUNT = 300
+SO_PLOIDY = 8
+SS_PLOIDY = 16
+SO_GENE_COUNT = SO_PLOIDY * HAPLOID_GENE_COUNT
+SS_GENE_COUNT = SS_PLOIDY * HAPLOID_GENE_COUNT
+SO_CHROM_COUNT = 10
+SS_CHROM_COUNT = 8
 
 
 class CrossMode(Enum):
@@ -76,7 +82,7 @@ class Chromosome(list):
         self.genes = [Gene(chrom, haplotype, i + 1) for i in range(gene_count)]
         self.uuid = str(uuid4())
 
-    def __str__(self):
+    def __str__(self) -> str:
         """Merge genes into consecutive ranges."""
         ranges = []
         for haplotype, genes in groupby(self.genes, key=lambda x: x.haplotype):
@@ -85,8 +91,11 @@ class Chromosome(list):
             ranges.append(f"{haplotype}{start}-{end}")
         return f"{self.subgenome}-{self.chrom}|{','.join(ranges)}"
 
+    def __len__(self) -> int:
+        return len(self.genes)
+
     @classmethod
-    def make(cls, subgenome: str, chrom: str, genes: List[Gene]):
+    def make(cls, subgenome: str, chrom: str, genes: List[Gene]) -> "Chromosome":
         chromosome = Chromosome(subgenome, chrom, "", 0)
         chromosome.genes = genes
         return chromosome
@@ -139,9 +148,9 @@ class Genome:
         return self.name + ": " + ";".join(str(_) for _ in self.chromosomes)
 
     @classmethod
-    def make(cls, name: str, chromosomes: List[str]):
+    def make(cls, name: str, chromosomes: List[Chromosome]) -> "Genome":
         genome = Genome(name, "", 0, 0, 0)
-        genome.chromosomes = chromosomes
+        genome.chromosomes = sorted(chromosomes, key=genome._sort_key)
         return genome
 
     def _sort_key(self, x: Chromosome):
@@ -203,7 +212,6 @@ class Genome:
                 gamete_chromosomes.append(a)
 
         tag = "gamete" if sdr else "fdr gamete"
-        gamete_chromosomes.sort(key=self._sort_key)
         return Genome.make(f"{self.name} {tag}", gamete_chromosomes)
 
     @property
@@ -264,20 +272,32 @@ class Genome:
         total_so_size = 0
         total_ss_size = 0
 
-        self.chromosomes.sort(key=self._sort_key)
         for (subgenome, chrom), chromosomes in groupby(
             self.chromosomes, key=self._sort_key
         ):
+            chromosomes = list(chromosomes)
             uniq_genes = set(flatten(x.genes for x in chromosomes))
             group_count = len(uniq_genes)
             group_so_size = group_count if subgenome == "SO" else 0
             group_ss_size = group_count if subgenome == "SS" else 0
             ans.append(
-                (f"{subgenome}-{chrom}", group_count, group_so_size, group_ss_size)
+                (
+                    f"{subgenome}-{chrom}",
+                    group_count / len(chromosomes[0]),
+                    group_so_size / SO_GENE_COUNT,
+                    group_ss_size / SS_GENE_COUNT,
+                )
             )
             total_so_size += group_so_size
             total_ss_size += group_ss_size
-        ans.append(("Total", total_count, total_so_size, total_ss_size))
+        ans.append(
+            (
+                "Total",
+                total_count,
+                total_so_size / SO_GENE_COUNT,
+                total_ss_size / SS_GENE_COUNT,
+            )
+        )
         return ans
 
     def print_summary(self):
@@ -550,8 +570,8 @@ def simulate(args):
 
     # Prepare the simulated data
     # Simulate two parents
-    SS = Genome("SS", "SS", 16, 8, HAPLOID_GENE_COUNT)
-    SO = Genome("SO", "SO", 8, 10, HAPLOID_GENE_COUNT)
+    SS = Genome("SS", "SS", SS_PLOIDY, SS_CHROM_COUNT, HAPLOID_GENE_COUNT)
+    SO = Genome("SO", "SO", SO_PLOIDY, SO_CHROM_COUNT, HAPLOID_GENE_COUNT)
 
     verbose = opts.verbose
     N = opts.N

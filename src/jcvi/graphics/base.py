@@ -690,7 +690,7 @@ def get_shades(base_color: str, n: int) -> np.array:
     # Generate lighter shades by blending with white
     white = np.array([1, 1, 1])  # White color as a NumPy array
     lighter_shades = [
-        (white * (1 - i) + base_rgb * i) for i in np.linspace(0.3, 1, lighter + 1)
+        (white * (1 - i) + base_rgb * i) for i in np.linspace(0.2, 1, lighter + 1)
     ][:-1]
 
     # Generate darker shades by blending with black

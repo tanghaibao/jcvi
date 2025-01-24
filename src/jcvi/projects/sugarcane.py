@@ -42,7 +42,7 @@ from ..graphics.chromosome import Chromosome as ChromosomePlot
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
-HAPLOID_GENE_COUNT = 160
+HAPLOID_GENE_COUNT = 320
 SO_PLOIDY = 8
 SS_PLOIDY = 16
 SO_GENE_COUNT = SO_PLOIDY * HAPLOID_GENE_COUNT
@@ -434,42 +434,31 @@ def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
     return SO_SS_F1
 
 
-def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
+def simulate_BC1(SO: Genome, SS_SO_F1: Genome, mode: CrossMode, verbose=False):
+    if mode == CrossMode.nx2plusn:
+        SS_SO_BC1 = SO.mate_nx2plusn("SOxSS BC1", SS_SO_F1, verbose=verbose)
+    elif mode == CrossMode.twoplusnFDR:
+        SS_SO_BC1 = SO.mate_2nplusn_FDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
+    elif mode == CrossMode.twoplusnSDR:
+        SS_SO_BC1 = SO.mate_2nplusn_SDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
+    return SS_SO_BC1
+
+
+def simulate_F1_to_BC4(
+    SO: Genome, SS: Genome, mode: CrossMode, verbose=False
+) -> List[Genome]:
     SS_SO_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
-    SS_SO_BC1, SS_SO_BC2_nplusn, SS_SO_BC3_nplusn, SS_SO_BC4_nplusn = (
-        None,
-        None,
-        None,
-        None,
-    )
-    # BC1
-    if n >= 1:
-        if mode == CrossMode.nx2plusn:
-            SS_SO_BC1 = SO.mate_nx2plusn("SOxSS BC1", SS_SO_F1, verbose=verbose)
-        elif mode == CrossMode.twoplusnFDR:
-            SS_SO_BC1 = SO.mate_2nplusn_FDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
-        elif mode == CrossMode.twoplusnSDR:
-            SS_SO_BC1 = SO.mate_2nplusn_SDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
-    # BC2
-    if n >= 2:
-        SS_SO_BC2_nplusn = SO.mate_nplusn("SOxSS BC2", SS_SO_BC1, verbose=verbose)
-    # BC3
-    if n >= 3:
-        SS_SO_BC3_nplusn = SO.mate_nplusn(
-            "SOxSS BC3", SS_SO_BC2_nplusn, verbose=verbose
-        )
-    # BC4
-    if n >= 4:
-        SS_SO_BC4_nplusn = SO.mate_nplusn(
-            "SOxSS BC4", SS_SO_BC3_nplusn, verbose=verbose
-        )
+    SS_SO_BC1 = simulate_BC1(SO, SS_SO_F1, mode=mode, verbose=verbose)
+    SS_SO_BC2_nplusn = SO.mate_nplusn("SOxSS BC2", SS_SO_BC1, verbose=verbose)
+    SS_SO_BC3_nplusn = SO.mate_nplusn("SOxSS BC3", SS_SO_BC2_nplusn, verbose=verbose)
+    SS_SO_BC4_nplusn = SO.mate_nplusn("SOxSS BC4", SS_SO_BC3_nplusn, verbose=verbose)
     return [
-        None,
+        SS_SO_F1,
         SS_SO_BC1,
         SS_SO_BC2_nplusn,
         SS_SO_BC3_nplusn,
         SS_SO_BC4_nplusn,
-    ][n]
+    ]
 
 
 def plot_summary(ax, samples: List[Genome]) -> GenomeSummary:
@@ -675,11 +664,9 @@ def simulate(args):
 
     verbose = opts.verbose
     N = opts.N
-    all_F1s = [simulate_F1(SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_BC1s = [simulate_BCn(1, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_BC2s = [simulate_BCn(2, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_BC3s = [simulate_BCn(3, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_BC4s = [simulate_BCn(4, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
+    all_F1s, all_BC1s, all_BC2s, all_BC3s, all_BC4s = zip(
+        *[simulate_F1_to_BC4(SO, SS, mode, verbose) for _ in range(N)]
+    )
 
     # Plotting
     plot_summary(ax1, all_F1s)

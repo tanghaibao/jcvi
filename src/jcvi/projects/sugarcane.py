@@ -43,7 +43,7 @@ from ..graphics.chromosome import Chromosome as ChromosomePlot
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
-HAPLOID_GENE_COUNT = 320
+HAPLOID_GENE_COUNT = 160
 SO_PLOIDY = 8
 SS_PLOIDY = 16
 SO_GENE_COUNT = SO_PLOIDY * HAPLOID_GENE_COUNT
@@ -255,18 +255,22 @@ class Genome:
         """
         Crossover two chromosomes.
         """
+        if a.subgenome != b.subgenome or a.chrom != b.chrom or len(a) != len(b):
+            raise ValueError("Incompatible chromosomes. Crossover failed.")
+        subgenome, chrom = a.subgenome, a.chrom
+        n = len(a)
         if random() < 0.5:
             a, b = b, a
         if random() < 0.5:
-            crossover_point = randint(0, len(a.genes) // 2 - 1)
+            crossover_point = randint(0, n // 2 - 1)
             recombinant = a.genes[:crossover_point] + b.genes[crossover_point:]
             non_recombinant = b.genes
         else:
-            crossover_point = randint(len(a.genes) // 2, len(a.genes) - 1)
+            crossover_point = randint(n // 2, n - 1)
             recombinant = a.genes[:crossover_point] + b.genes[crossover_point:]
             non_recombinant = a.genes
-        recombinant = Chromosome.make(a.subgenome, a.chrom, recombinant)
-        non_recombinant = Chromosome.make(b.subgenome, b.chrom, non_recombinant)
+        recombinant = Chromosome.make(subgenome, chrom, recombinant)
+        non_recombinant = Chromosome.make(subgenome, chrom, non_recombinant)
         return [recombinant, non_recombinant] if sdr else [recombinant]
 
     def _gamete(self, sdr: bool):
@@ -966,6 +970,9 @@ def plot_genome(
     xx = x - total_width / 2
     if pair:
         genome.pair_chromosomes(inplace=True)
+        print(
+            genome.name, ":", [str(x) for x in genome.chromosomes if x.chrom == target]
+        )
     for chrom in genome.chromosomes:
         if chrom.chrom != target:
             continue

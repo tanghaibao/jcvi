@@ -26,11 +26,8 @@ from http.client import HTTPSConnection
 from socket import gethostname
 from subprocess import CalledProcessError, PIPE, call, check_output
 from time import ctime
-from typing import Any, Collection, List, Optional, Tuple, Union
+from typing import Collection, List, Optional, Tuple, Union
 from urllib.parse import urlencode
-
-# from optparse import OptionParser as OptionP, OptionGroup, SUPPRESS_HELP
-
 
 from natsort import natsorted
 from rich.console import Console

@@ -18,6 +18,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from itertools import combinations, groupby, product
+from multiprocessing import Pool, cpu_count
 from random import randint, random
 from typing import Dict, List, Tuple
 from uuid import uuid4
@@ -30,7 +31,15 @@ import pandas as pd
 
 from ..apps.base import ActionDispatcher, OptionParser, flatten, logger, mkdir
 from ..formats.blast import Blast
-from ..graphics.base import adjust_spines, markup, normalize_axes, savefig
+from ..graphics.base import (
+    Rectangle,
+    adjust_spines,
+    get_shades,
+    markup,
+    normalize_axes,
+    savefig,
+)
+from ..graphics.chromosome import Chromosome as ChromosomePlot
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
@@ -41,6 +50,14 @@ SO_GENE_COUNT = SO_PLOIDY * HAPLOID_GENE_COUNT
 SS_GENE_COUNT = SS_PLOIDY * HAPLOID_GENE_COUNT
 SO_CHROM_COUNT = 10
 SS_CHROM_COUNT = 8
+CROSSES = ("F1", "BC1", "BC2", "BC3", "BC4")
+TITLES = (
+    (r"$\mathrm{F_1}$", None),
+    (r"$\mathrm{BC_1}$", None),
+    (r"$\mathrm{BC_2}$", None),
+    (r"$\mathrm{BC_3}$", None),
+    (r"$\mathrm{BC_4}$", None),
+)
 
 
 class CrossMode(Enum):
@@ -100,9 +117,9 @@ class Chromosome(list):
 
     @classmethod
     def make(cls, subgenome: str, chrom: str, genes: List[Gene]) -> "Chromosome":
-        chromosome = Chromosome(subgenome, chrom, "", 0)
-        chromosome.genes = genes
-        return chromosome
+        chrom = Chromosome(subgenome, chrom, "", 0)
+        chrom.genes = genes
+        return chrom
 
     def num_matching_genes(self, other: "Chromosome") -> int:
         """Count the number of matching genes between two chromosomes"""
@@ -151,6 +168,37 @@ class Genome:
     def __str__(self):
         return self.name + ": " + ";".join(str(_) for _ in self.chromosomes)
 
+    def ploidy(self, chrom: str) -> int:
+        """
+        Return the ploidy of a chromosome.
+        """
+        return sum(1 for x in self.chromosomes if x.chrom == chrom)
+
+    @classmethod
+    def from_str(cls, s: str) -> "Genome":
+        """
+        Parse a string representation of a genome.
+
+        >>> s = "test: pf-chr01|a1-30;pf-chr01|b1-30;pf-chr02|a1-30;pf-chr02|b1-30;pf-chr03|a1-30;pf-chr03|b1-30"
+        >>> str(Genome.from_str(s)) == s
+        True
+        """
+        name, chroms = s.split(": ")
+        genome = Genome(name, "", 0, 0, 0)
+        chromosomes = []
+        for x in chroms.split(";"):
+            chrom, genes = x.split("|")
+            subgenome, chrom = chrom.split("-")
+            cgenes = []
+            for genes in genes.split(","):
+                haplotype = genes[0]
+                start, end = [int(x) for x in genes[1:].split("-")]
+                cgenes += [Gene(chrom, haplotype, i) for i in range(start, end + 1)]
+            chrom = Chromosome.make(subgenome, chrom, cgenes)
+            chromosomes.append(chrom)
+        genome.chromosomes = chromosomes
+        return genome
+
     @classmethod
     def make(cls, name: str, chromosomes: List[Chromosome]) -> "Genome":
         genome = Genome(name, "", 0, 0, 0)
@@ -160,18 +208,29 @@ class Genome:
     def _sort_key(self, x: Chromosome):
         return x.subgenome, x.chrom
 
-    def _pair_chromsomosomes(self) -> Tuple[List[List[Chromosome]], List[Chromosome]]:
+    def pair_with_weights(self) -> List[List[str]]:
         """
-        Pair chromosomes by similarity.
+        Pair chromosomes by similarity, results are sorted in descending similarity.
         """
         G = nx.Graph()
+        scores = {}
         self.chromosomes.sort(key=self._sort_key)
         for _, chromosomes in groupby(self.chromosomes, key=self._sort_key):
             for a, b in combinations(chromosomes, 2):
                 weight = a.num_matching_genes(b) + 1  # +1 so we don't have zero weight
                 G.add_edge(a.uuid, b.uuid, weight=weight)
+                scores[tuple(sorted((a.uuid, b.uuid)))] = weight
         # Find the maximum matching
         matching = nx.max_weight_matching(G)
+        return sorted(matching, key=lambda x: scores[tuple(sorted(x))], reverse=True)
+
+    def pair_chromosomes(
+        self, inplace=False
+    ) -> Tuple[List[List[Chromosome]], List[Chromosome]]:
+        """
+        Pair chromosomes by similarity.
+        """
+        matching = self.pair_with_weights()
         # Partition the chromosomes into paired and singleton
         paired = set()
         pairs = []
@@ -181,6 +240,13 @@ class Genome:
             pair = [x for x in self.chromosomes if x.uuid in (a, b)]
             pairs.append(pair)
         singletons = [x for x in self.chromosomes if x.uuid not in paired]
+        if inplace:
+            reordered = []
+            for a, b in pairs:
+                reordered += [a, b]
+            reordered += singletons
+            reordered.sort(key=self._sort_key)
+            self.chromosomes = reordered
         return pairs, singletons
 
     def _crossover_chromosomes(
@@ -189,24 +255,28 @@ class Genome:
         """
         Crossover two chromosomes.
         """
+        if a.subgenome != b.subgenome or a.chrom != b.chrom or len(a) != len(b):
+            raise ValueError("Incompatible chromosomes. Crossover failed.")
+        subgenome, chrom = a.subgenome, a.chrom
+        n = len(a)
         if random() < 0.5:
             a, b = b, a
         if random() < 0.5:
-            crossover_point = randint(0, len(a.genes) // 2 - 1)
+            crossover_point = randint(0, n // 2 - 1)
             recombinant = a.genes[:crossover_point] + b.genes[crossover_point:]
             non_recombinant = b.genes
         else:
-            crossover_point = randint(len(a.genes) // 2, len(a.genes) - 1)
+            crossover_point = randint(n // 2, n - 1)
             recombinant = a.genes[:crossover_point] + b.genes[crossover_point:]
             non_recombinant = a.genes
-        recombinant = Chromosome.make(a.subgenome, a.chrom, recombinant)
-        non_recombinant = Chromosome.make(b.subgenome, b.chrom, non_recombinant)
+        recombinant = Chromosome.make(subgenome, chrom, recombinant)
+        non_recombinant = Chromosome.make(subgenome, chrom, non_recombinant)
         return [recombinant, non_recombinant] if sdr else [recombinant]
 
     def _gamete(self, sdr: bool):
         """Randomly generate a gamete from current genome."""
         gamete_chromosomes = []
-        paired_chromosomes, singleton_chromosomes = self._pair_chromsomosomes()
+        paired_chromosomes, singleton_chromosomes = self.pair_chromosomes()
         for a, b in paired_chromosomes:
             gamete_chromosomes += self._crossover_chromosomes(a, b, sdr=sdr)
 
@@ -235,9 +305,7 @@ class Genome:
             print(
                 f"Crossing '{self.name}' x '{other_genome.name}' (n+n)", file=sys.stderr
             )
-        f1_chromosomes = sorted(
-            self.gamete.chromosomes + other_genome.gamete.chromosomes
-        )
+        f1_chromosomes = self.gamete.chromosomes + other_genome.gamete.chromosomes
         return Genome.make(name, f1_chromosomes)
 
     def mate_nx2plusn(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -248,7 +316,7 @@ class Genome:
             )
         gamete = self.gamete.chromosomes
         duplicate = [x.duplicate() for x in gamete]
-        f1_chromosomes = sorted(gamete + duplicate + other_genome.gamete.chromosomes)
+        f1_chromosomes = gamete + duplicate + other_genome.gamete.chromosomes
         return Genome.make(name, f1_chromosomes)
 
     def mate_2nplusn_FDR(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -257,9 +325,7 @@ class Genome:
                 f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_FDR)",
                 file=sys.stderr,
             )
-        f1_chromosomes = sorted(
-            self.gamete_fdr.chromosomes + other_genome.gamete.chromosomes
-        )
+        f1_chromosomes = self.gamete_fdr.chromosomes + other_genome.gamete.chromosomes
         return Genome.make(name, f1_chromosomes)
 
     def mate_2nplusn_SDR(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -378,50 +444,39 @@ def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
     return SO_SS_F1
 
 
-def simulate_BCn(n: int, SO: Genome, SS: Genome, mode: CrossMode, verbose=False):
+def simulate_BC1(SO: Genome, SS_SO_F1: Genome, mode: CrossMode, verbose=False):
+    if mode == CrossMode.nx2plusn:
+        SS_SO_BC1 = SO.mate_nx2plusn("SOxSS BC1", SS_SO_F1, verbose=verbose)
+    elif mode == CrossMode.twoplusnFDR:
+        SS_SO_BC1 = SO.mate_2nplusn_FDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
+    elif mode == CrossMode.twoplusnSDR:
+        SS_SO_BC1 = SO.mate_2nplusn_SDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
+    return SS_SO_BC1
+
+
+def simulate_F1_to_BC4(
+    SO: Genome, SS: Genome, mode: CrossMode, verbose=False
+) -> List[Genome]:
     SS_SO_F1 = simulate_F1(SO, SS, mode=mode, verbose=verbose)
-    SS_SO_BC1, SS_SO_BC2_nplusn, SS_SO_BC3_nplusn, SS_SO_BC4_nplusn = (
-        None,
-        None,
-        None,
-        None,
-    )
-    # BC1
-    if n >= 1:
-        if mode == CrossMode.nx2plusn:
-            SS_SO_BC1 = SO.mate_nx2plusn("SOxSS BC1", SS_SO_F1, verbose=verbose)
-        elif mode == CrossMode.twoplusnFDR:
-            SS_SO_BC1 = SO.mate_2nplusn_FDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
-        elif mode == CrossMode.twoplusnSDR:
-            SS_SO_BC1 = SO.mate_2nplusn_SDR("SOxSS BC1", SS_SO_F1, verbose=verbose)
-    # BC2
-    if n >= 2:
-        SS_SO_BC2_nplusn = SO.mate_nplusn("SOxSS BC2", SS_SO_BC1, verbose=verbose)
-    # BC3
-    if n >= 3:
-        SS_SO_BC3_nplusn = SO.mate_nplusn(
-            "SOxSS BC3", SS_SO_BC2_nplusn, verbose=verbose
-        )
-    # BC4
-    if n >= 4:
-        SS_SO_BC4_nplusn = SO.mate_nplusn(
-            "SOxSS BC4", SS_SO_BC3_nplusn, verbose=verbose
-        )
+    SS_SO_BC1 = simulate_BC1(SO, SS_SO_F1, mode=mode, verbose=verbose)
+    SS_SO_BC2_nplusn = SO.mate_nplusn("SOxSS BC2", SS_SO_BC1, verbose=verbose)
+    SS_SO_BC3_nplusn = SO.mate_nplusn("SOxSS BC3", SS_SO_BC2_nplusn, verbose=verbose)
+    SS_SO_BC4_nplusn = SO.mate_nplusn("SOxSS BC4", SS_SO_BC3_nplusn, verbose=verbose)
     return [
-        None,
+        SS_SO_F1,
         SS_SO_BC1,
         SS_SO_BC2_nplusn,
         SS_SO_BC3_nplusn,
         SS_SO_BC4_nplusn,
-    ][n]
+    ]
 
 
-def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
+def plot_summary(ax, samples: List[Genome]) -> GenomeSummary:
     """Plot the distribution of chromosome numbers given simulated samples.
 
     Args:
         ax (Axes): Matplotlib axes.
-        samples (list[Genome]): Summarized genomes.
+        samples (List[Genome]): Summarized genomes.
 
     Returns:
         GenomeSummary: Summary statistics of simulated genomes.
@@ -530,17 +585,32 @@ def plot_summary(ax, samples: list[Genome]) -> GenomeSummary:
     return summary
 
 
-def write_chromosomes(genomes: list[Genome], filename: str):
+def write_chromosomes(genomes: List[Genome], filename: str):
     """Write simulated chromosomes to file
 
     Args:
-        genomes (list[Genome]): List of simulated genomes.
+        genomes (List[Genome]): List of simulated genomes.
         filename (str): File path to write to.
     """
     print(f"Write chromosomes to `{filename}`", file=sys.stderr)
     with open(filename, "w", encoding="utf-8") as fw:
         for genome in genomes:
             print(genome, file=fw)
+
+
+def get_mode_title(mode: CrossMode) -> str:
+    """
+    Get the title of the mode.
+    """
+    if mode == CrossMode.nx2plusn:
+        mode_title = r"$n_1\times2 + n_2$"
+    elif mode == CrossMode.twoplusnFDR:
+        mode_title = r"$2n + n$ (FDR)"
+    elif mode == CrossMode.twoplusnSDR:
+        mode_title = r"$n_1^*\times2 + n$ (SDR)"
+    else:
+        mode_title = "Unknown"
+    return mode_title
 
 
 def simulate(args):
@@ -566,7 +636,7 @@ def simulate(args):
         action="store_true",
         help="Verbose logging during simulation",
     )
-    p.add_argument("-N", default=10000, type=int, help="Number of simulated samples")
+    p.add_argument("-N", default=1000, type=int, help="Number of simulated samples")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -587,7 +657,7 @@ def simulate(args):
 
     # Axes are vertically stacked, and share x-axis
     axes = []
-    yy_positions = []  # Save yy positions so we can show details to the right laterr
+    yy_positions = []  # Save yy positions so we can show details to the right later
     for idx in range(rows):
         yy_positions.append(yy)
         yy -= yinterval
@@ -604,11 +674,9 @@ def simulate(args):
 
     verbose = opts.verbose
     N = opts.N
-    all_F1s = [simulate_F1(SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_BC1s = [simulate_BCn(1, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_BC2s = [simulate_BCn(2, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_BC3s = [simulate_BCn(3, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
-    all_BC4s = [simulate_BCn(4, SO, SS, mode=mode, verbose=verbose) for _ in range(N)]
+    with Pool(cpu_count()) as pool:
+        results = pool.starmap(simulate_F1_to_BC4, [(SO, SS, mode, verbose)] * N)
+    all_F1s, all_BC1s, all_BC2s, all_BC3s, all_BC4s = zip(*results)
 
     # Plotting
     plot_summary(ax1, all_F1s)
@@ -619,16 +687,7 @@ def simulate(args):
 
     # Show title to the left
     xx = xpad / 2
-    for (title, subtitle), yy in zip(
-        (
-            (r"$\mathrm{F_1}$", None),
-            (r"$\mathrm{BC_1}$", None),
-            (r"$\mathrm{BC_2}$", None),
-            (r"$\mathrm{BC_3}$", None),
-            (r"$\mathrm{BC_4}$", None),
-        ),
-        yy_positions,
-    ):
+    for (title, subtitle), yy in zip(TITLES, yy_positions):
         if subtitle:
             yy -= 0.06
         else:
@@ -653,14 +712,7 @@ def simulate(args):
     normalize_axes(root)
 
     # Title
-    if mode == CrossMode.nx2plusn:
-        mode_title = r"$n_1\times2 + n_2$"
-    elif mode == CrossMode.twoplusnFDR:
-        mode_title = r"$2n + n$ (FDR)"
-    elif mode == CrossMode.twoplusnSDR:
-        mode_title = r"$n_1^*\times2 + n$ (SDR)"
-    else:
-        mode_title = "Unknown"
+    mode_title = get_mode_title(mode)
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
     savefig(f"{mode}.pdf", dpi=120)
@@ -668,14 +720,10 @@ def simulate(args):
     outdir = f"simulations_{mode}"
     mkdir(outdir)
     # Write chromosomes to disk
-    for genomes, filename in (
-        (all_F1s, "all_F1s"),
-        (all_BC1s, "all_BC1s"),
-        (all_BC2s, "all_BC2s"),
-        (all_BC3s, "all_BC3s"),
-        (all_BC4s, "all_BC4s"),
+    for genomes, cross in zip(
+        [all_F1s, all_BC1s, all_BC2s, all_BC3s, all_BC4s], CROSSES
     ):
-        write_chromosomes(genomes, op.join(outdir, filename))
+        write_chromosomes(genomes, op.join(outdir, f"all_{cross}"))
 
 
 def _get_sizes(filename, prefix_length, tag, target_size=None):
@@ -898,11 +946,168 @@ def divergence(args):
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 
+def plot_genome(
+    ax,
+    x: float,
+    y: float,
+    height: float,
+    genome: Genome,
+    haplotype_colors: Dict[str, str],
+    chrom_width: float = 0.012,
+    gap_width: float = 0.008,
+    pair: bool = False,
+):
+    """
+    Plot the genome in the axes, centered around (x, y).
+    """
+    target = "chr01"  # Arbitrary target chromosome
+    ploidy = genome.ploidy(target)
+    total_width = ploidy * (chrom_width + gap_width) - gap_width
+    xx = x - total_width / 2
+    if pair:
+        genome.pair_chromosomes(inplace=True)
+        print(
+            genome.name, ":", [str(x) for x in genome.chromosomes if x.chrom == target]
+        )
+    for chrom in genome.chromosomes:
+        if chrom.chrom != target:
+            continue
+        ChromosomePlot(ax, xx, y, y - height, ec="lightslategray")
+        gene_height = height / len(chrom)
+        yy = y
+        subgenome = chrom.subgenome
+        for haplotype, genes in groupby(chrom.genes, key=lambda x: x.haplotype):
+            genes = list(genes)
+            g1, g2 = genes[0].idx - 1, genes[-1].idx
+            patch_height = gene_height * (g2 - g1)
+            color = haplotype_colors[subgenome, haplotype]
+            ax.add_patch(
+                Rectangle(
+                    (xx - chrom_width / 2, yy - patch_height),
+                    chrom_width,
+                    patch_height,
+                    fc=color,
+                    lw=0,
+                )
+            )
+            yy -= patch_height
+        xx += chrom_width + gap_width
+
+
+def chromosome(args):
+    """
+    %prog chromosome [2n+n_FDR|2n+n_SDR|nx2+n]
+    """
+    p = OptionParser(simulate.__doc__)
+    p.add_argument("-k", default=0, type=int, help="Plot k-th simulated genomes")
+    opts, args, iopts = p.set_image_options(args, figsize="6x6")
+    if len(args) != 1:
+        sys.exit(not p.print_help())
+
+    (mode,) = args
+    mode = CrossMode(mode)
+    logger.info("Transmission: %s", mode)
+
+    # Construct a composite figure with 6 tracks
+    fig = plt.figure(1, (iopts.w, iopts.h))
+    root = fig.add_axes([0, 0, 1, 1])
+    rows = 5
+    ypad = 0.05
+    yinterval = (1 - 2 * ypad) / (rows + 1)
+    yy = 1 - ypad
+    xpad = 0.2
+
+    SS = Genome("SS", "SS", SS_PLOIDY, SS_CHROM_COUNT, HAPLOID_GENE_COUNT)
+    SO = Genome("SO", "SO", SO_PLOIDY, SO_CHROM_COUNT, HAPLOID_GENE_COUNT)
+
+    indir = f"simulations_{mode}"
+    genomes = []
+    for cross in CROSSES:
+        filename = op.join(indir, f"all_{cross}")
+        with open(filename, encoding="utf-8") as fp:
+            for i, row in enumerate(fp):
+                if i != opts.k:
+                    continue
+                genome = Genome.from_str(row)
+                break
+        genomes.append((cross, genome))
+
+    yy_positions = []  # Save yy positions so we can show details to the right later
+    for idx in range(rows + 1):
+        yy_positions.append(yy)
+        yy -= yinterval
+        if idx != rows:
+            root.plot([0, 1], [yy, yy], lw=0.5, color="gray")
+
+    # Show title to the left
+    xx = xpad / 2
+    titles = (("Progenitors", None),) + TITLES
+    for (title, _), yy in zip(titles, yy_positions):
+        yy -= 0.07
+        root.text(
+            xx,
+            yy,
+            markup(title),
+            color="darkslategray",
+            ha="center",
+            va="center",
+            fontweight="semibold",
+        )
+
+    SO_colors = get_shades(SoColor, SO_PLOIDY)
+    SS_colors = get_shades(SsColor, SS_PLOIDY)
+    SO_haplotypes = [("SO", chr(ord("a") + i)) for i in range(SO_PLOIDY)]
+    SS_haplotypes = [("SS", chr(ord("a") + i)) for i in range(SS_PLOIDY)]
+    SO_haplotype_colors = dict(zip(SO_haplotypes, SO_colors))
+    SS_haplotype_colors = dict(zip(SS_haplotypes, SS_colors))
+    haplotype_colors = {**SO_haplotype_colors, **SS_haplotype_colors}
+
+    # Plotting
+    chrom_height = 0.1
+    yy = 0.92
+    plot_genome(root, 0.35, yy, chrom_height, SO, haplotype_colors)
+    plot_genome(root, 0.75, yy, chrom_height, SS, haplotype_colors)
+    # Plot big cross sign
+    root.text(
+        0.5, yy - chrom_height / 2, r"$\times$", ha="center", va="center", fontsize=36
+    )
+    # Genome labels
+    root.text(
+        0.215,
+        yy - chrom_height / 2,
+        markup("*So*\n(8x)"),
+        ha="center",
+        va="center",
+        color=SoColor,
+    )
+    root.text(
+        0.945,
+        yy - chrom_height / 2,
+        markup("*Ss*\n(16x)"),
+        ha="center",
+        va="center",
+        color=SsColor,
+    )
+
+    for _, genome in genomes:
+        yy -= yinterval
+        plot_genome(root, 0.5, yy, chrom_height, genome, haplotype_colors, pair=True)
+
+    # Title
+    mode_title = get_mode_title(mode)
+    root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
+    normalize_axes(root)
+
+    savefig(f"{mode}.chromosome.pdf", dpi=120)
+
+
 def main():
 
     actions = (
         ("prepare", "Calculate lengths from real sugarcane data"),
         ("simulate", "Run simulation on female restitution"),
+        # Plot the simulated chromosomes
+        ("chromosome", "Plot the chromosomes of the simulated genomes"),
         # Plotting scripts to illustrate divergence between and within genomes
         ("divergence", "Plot divergence between and within SS/SR/SO genomes"),
     )

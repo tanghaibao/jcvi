@@ -9,7 +9,7 @@ import sys
 
 from itertools import groupby
 from math import ceil
-from typing import Optional, Tuple
+from typing import List, Optional, Tuple
 
 import numpy as np
 
@@ -43,15 +43,15 @@ class Chromosome(BaseGlyph):
     def __init__(
         self,
         ax,
-        x,
-        y1,
-        y2,
-        width=0.015,
-        ec="k",
-        patch=None,
-        patchcolor="lightgrey",
-        lw=1,
-        zorder=2,
+        x: float,
+        y1: float,
+        y2: float,
+        width: float = 0.015,
+        ec: str = "k",
+        patch: Optional[List[float]] = None,
+        patchcolor: str = "lightgrey",
+        lw: int = 1,
+        zorder: int = 2,
     ):
         """
         Chromosome with positions given in (x, y1) => (x, y2)

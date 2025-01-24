@@ -18,6 +18,7 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from itertools import combinations, groupby, product
+from multiprocessing import Pool, cpu_count
 from random import randint, random
 from typing import Dict, List, Tuple
 from uuid import uuid4
@@ -664,9 +665,9 @@ def simulate(args):
 
     verbose = opts.verbose
     N = opts.N
-    all_F1s, all_BC1s, all_BC2s, all_BC3s, all_BC4s = zip(
-        *[simulate_F1_to_BC4(SO, SS, mode, verbose) for _ in range(N)]
-    )
+    with Pool(cpu_count()) as pool:
+        results = pool.starmap(simulate_F1_to_BC4, [(SO, SS, mode, verbose)] * N)
+    all_F1s, all_BC1s, all_BC2s, all_BC3s, all_BC4s = zip(*results)
 
     # Plotting
     plot_summary(ax1, all_F1s)
@@ -1009,7 +1010,7 @@ def chromosome(args):
     indir = f"simulations_{mode}"
     genomes = []
     for cross in CROSSES:
-        filename = op.join(indir, f"all_{cross}s")
+        filename = op.join(indir, f"all_{cross}")
         with open(filename, encoding="utf-8") as fp:
             for row in fp:
                 genome = Genome.from_str(row)

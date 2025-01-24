@@ -207,7 +207,9 @@ class Genome:
     def _sort_key(self, x: Chromosome):
         return x.subgenome, x.chrom
 
-    def _pair_chromsomosomes(self) -> Tuple[List[List[Chromosome]], List[Chromosome]]:
+    def _pair_chromosomes(
+        self, inplace=False
+    ) -> Tuple[List[List[Chromosome]], List[Chromosome]]:
         """
         Pair chromosomes by similarity.
         """
@@ -228,6 +230,9 @@ class Genome:
             pair = [x for x in self.chromosomes if x.uuid in (a, b)]
             pairs.append(pair)
         singletons = [x for x in self.chromosomes if x.uuid not in paired]
+        if inplace:
+            self.chromosomes = flatten(pairs) + singletons
+            print([str(x) for x in self.chromosomes])
         return pairs, singletons
 
     def _crossover_chromosomes(
@@ -253,7 +258,7 @@ class Genome:
     def _gamete(self, sdr: bool):
         """Randomly generate a gamete from current genome."""
         gamete_chromosomes = []
-        paired_chromosomes, singleton_chromosomes = self._pair_chromsomosomes()
+        paired_chromosomes, singleton_chromosomes = self._pair_chromosomes()
         for a, b in paired_chromosomes:
             gamete_chromosomes += self._crossover_chromosomes(a, b, sdr=sdr)
 
@@ -949,6 +954,7 @@ def plot_genome(
     haplotype_colors: Dict[str, str],
     chrom_width: float = 0.012,
     gap_width: float = 0.008,
+    pair: bool = False,
 ):
     """
     Plot the genome in the axes, centered around (x, y).
@@ -957,17 +963,20 @@ def plot_genome(
     ploidy = genome.ploidy(target)
     total_width = ploidy * (chrom_width + gap_width) - gap_width
     xx = x - total_width / 2
+    if pair:
+        genome._pair_chromosomes(inplace=True)
     for chrom in genome.chromosomes:
         if chrom.chrom != target:
             continue
         ChromosomePlot(ax, xx, y, y - height, ec="lightslategray")
         gene_height = height / len(chrom)
         yy = y
+        subgenome = chrom.subgenome
         for haplotype, genes in groupby(chrom.genes, key=lambda x: x.haplotype):
             genes = list(genes)
             g1, g2 = genes[0].idx - 1, genes[-1].idx
             patch_height = gene_height * (g2 - g1)
-            color = haplotype_colors[haplotype]
+            color = haplotype_colors[subgenome, haplotype]
             ax.add_patch(
                 Rectangle(
                     (xx - chrom_width / 2, yy - patch_height),
@@ -1007,16 +1016,14 @@ def chromosome(args):
     SO = Genome("SO", "SO", SO_PLOIDY, SO_CHROM_COUNT, HAPLOID_GENE_COUNT)
 
     indir = f"simulations_{mode}"
+    genomes = []
     for cross in CROSSES:
         filename = op.join(indir, f"all_{cross}s")
-        genomes = []
         with open(filename, encoding="utf-8") as fp:
             for row in fp:
                 genome = Genome.from_str(row)
                 break
-            genomes.append((cross, genome))
-            print(cross)
-            print(genome)
+        genomes.append((cross, genome))
 
     yy_positions = []  # Save yy positions so we can show details to the right later
     for idx in range(rows + 1):
@@ -1042,16 +1049,21 @@ def chromosome(args):
 
     SO_colors = get_shades(SoColor, SO_PLOIDY)
     SS_colors = get_shades(SsColor, SS_PLOIDY)
-    SO_haplotypes = [chr(ord("a") + i) for i in range(SO_PLOIDY)]
-    SS_haplotypes = [chr(ord("a") + i) for i in range(SS_PLOIDY)]
+    SO_haplotypes = [("SO", chr(ord("a") + i)) for i in range(SO_PLOIDY)]
+    SS_haplotypes = [("SS", chr(ord("a") + i)) for i in range(SS_PLOIDY)]
     SO_haplotype_colors = dict(zip(SO_haplotypes, SO_colors))
     SS_haplotype_colors = dict(zip(SS_haplotypes, SS_colors))
+    haplotype_colors = {**SO_haplotype_colors, **SS_haplotype_colors}
 
     # Plotting
     chrom_height = 0.1
     yy = 0.92
-    plot_genome(root, 0.35, yy, chrom_height, SO, SO_haplotype_colors)
-    plot_genome(root, 0.75, yy, chrom_height, SS, SS_haplotype_colors)
+    plot_genome(root, 0.35, yy, chrom_height, SO, haplotype_colors)
+    plot_genome(root, 0.75, yy, chrom_height, SS, haplotype_colors)
+
+    for _, genome in genomes:
+        yy -= yinterval
+        plot_genome(root, 0.5, yy, chrom_height, genome, haplotype_colors, pair=True)
 
     # Title
     mode_title = get_mode_title(mode)

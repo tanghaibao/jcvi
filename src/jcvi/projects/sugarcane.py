@@ -999,7 +999,8 @@ def chromosome(args):
     %prog chromosome [2n+n_FDR|2n+n_SDR|nx2+n]
     """
     p = OptionParser(simulate.__doc__)
-    _, args, iopts = p.set_image_options(args, figsize="6x6")
+    p.add_argument("-k", default=0, type=int, help="Plot k-th simulated genomes")
+    opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
 
@@ -1024,7 +1025,9 @@ def chromosome(args):
     for cross in CROSSES:
         filename = op.join(indir, f"all_{cross}")
         with open(filename, encoding="utf-8") as fp:
-            for row in fp:
+            for i, row in enumerate(fp):
+                if i != opts.k:
+                    continue
                 genome = Genome.from_str(row)
                 break
         genomes.append((cross, genome))
@@ -1067,6 +1070,23 @@ def chromosome(args):
     # Plot big cross sign
     root.text(
         0.5, yy - chrom_height / 2, r"$\times$", ha="center", va="center", fontsize=36
+    )
+    # Genome labels
+    root.text(
+        0.215,
+        yy - chrom_height / 2,
+        markup("*So*\n(8x)"),
+        ha="center",
+        va="center",
+        color=SoColor,
+    )
+    root.text(
+        0.945,
+        yy - chrom_height / 2,
+        markup("*Ss*\n(16x)"),
+        ha="center",
+        va="center",
+        color=SsColor,
     )
 
     for _, genome in genomes:

@@ -231,8 +231,12 @@ class Genome:
             pairs.append(pair)
         singletons = [x for x in self.chromosomes if x.uuid not in paired]
         if inplace:
-            self.chromosomes = flatten(pairs) + singletons
-            print([str(x) for x in self.chromosomes])
+            reordered = []
+            for a, b in pairs:
+                reordered += [a, b]
+            reordered += singletons
+            reordered.sort(key=self._sort_key)
+            self.chromosomes = reordered
         return pairs, singletons
 
     def _crossover_chromosomes(
@@ -1060,6 +1064,10 @@ def chromosome(args):
     yy = 0.92
     plot_genome(root, 0.35, yy, chrom_height, SO, haplotype_colors)
     plot_genome(root, 0.75, yy, chrom_height, SS, haplotype_colors)
+    # Plot big cross sign
+    root.text(
+        0.5, yy - chrom_height / 2, r"$\times$", ha="center", va="center", fontsize=36
+    )
 
     for _, genome in genomes:
         yy -= yinterval

@@ -328,16 +328,15 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
         format = figname.rsplit(".", 1)[-1].lower()
     except:
         format = "pdf"
+    logger.debug("Matplotlib backend is: %s", mpl.get_backend())
     try:
-        logger.debug(f"Matplotlib backend is: {mpl.get_backend()}")
-        logger.debug(f"Attempting save as: {figname}")
+        logger.debug("Attempting save as: `%s`", figname)
         plt.savefig(figname, dpi=dpi, format=format, transparent=transparent)
     except Exception as e:
         message = "savefig failed with message:"
         message += "\n{0}".format(str(e))
         logger.error(message)
-        logger.debug(f"Matplotlib backend is: {mpl.get_backend()}")
-        logger.debug(f"Attempted save as: {format}")
+        logger.debug("Attempted save as: %s", format)
         logger.info("Try running again with --notex option to disable latex.")
         if op.exists(figname):
             if op.getsize(figname) < 1000:

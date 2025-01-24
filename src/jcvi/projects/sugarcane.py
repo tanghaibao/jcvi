@@ -208,20 +208,29 @@ class Genome:
     def _sort_key(self, x: Chromosome):
         return x.subgenome, x.chrom
 
+    def pair_with_weights(self) -> List[List[str]]:
+        """
+        Pair chromosomes by similarity, results are sorted in descending similarity.
+        """
+        G = nx.Graph()
+        scores = {}
+        self.chromosomes.sort(key=self._sort_key)
+        for _, chromosomes in groupby(self.chromosomes, key=self._sort_key):
+            for a, b in combinations(chromosomes, 2):
+                weight = a.num_matching_genes(b) + 1  # +1 so we don't have zero weight
+                G.add_edge(a.uuid, b.uuid, weight=weight)
+                scores[tuple(sorted((a.uuid, b.uuid)))] = weight
+        # Find the maximum matching
+        matching = nx.max_weight_matching(G)
+        return sorted(matching, key=lambda x: scores[tuple(sorted(x))], reverse=True)
+
     def pair_chromosomes(
         self, inplace=False
     ) -> Tuple[List[List[Chromosome]], List[Chromosome]]:
         """
         Pair chromosomes by similarity.
         """
-        G = nx.Graph()
-        self.chromosomes.sort(key=self._sort_key)
-        for _, chromosomes in groupby(self.chromosomes, key=self._sort_key):
-            for a, b in combinations(chromosomes, 2):
-                weight = a.num_matching_genes(b) + 1  # +1 so we don't have zero weight
-                G.add_edge(a.uuid, b.uuid, weight=weight)
-        # Find the maximum matching
-        matching = nx.max_weight_matching(G)
+        matching = self.pair_with_weights()
         # Partition the chromosomes into paired and singleton
         paired = set()
         pairs = []

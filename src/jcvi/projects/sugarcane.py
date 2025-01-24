@@ -305,9 +305,7 @@ class Genome:
             print(
                 f"Crossing '{self.name}' x '{other_genome.name}' (n+n)", file=sys.stderr
             )
-        f1_chromosomes = sorted(
-            self.gamete.chromosomes + other_genome.gamete.chromosomes
-        )
+        f1_chromosomes = self.gamete.chromosomes + other_genome.gamete.chromosomes
         return Genome.make(name, f1_chromosomes)
 
     def mate_nx2plusn(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -318,7 +316,7 @@ class Genome:
             )
         gamete = self.gamete.chromosomes
         duplicate = [x.duplicate() for x in gamete]
-        f1_chromosomes = sorted(gamete + duplicate + other_genome.gamete.chromosomes)
+        f1_chromosomes = gamete + duplicate + other_genome.gamete.chromosomes
         return Genome.make(name, f1_chromosomes)
 
     def mate_2nplusn_FDR(self, name: str, other_genome: "Genome", verbose: bool = True):
@@ -327,9 +325,7 @@ class Genome:
                 f"Crossing '{self.name}' x '{other_genome.name}' (2n+n_FDR)",
                 file=sys.stderr,
             )
-        f1_chromosomes = sorted(
-            self.gamete_fdr.chromosomes + other_genome.gamete.chromosomes
-        )
+        f1_chromosomes = self.gamete_fdr.chromosomes + other_genome.gamete.chromosomes
         return Genome.make(name, f1_chromosomes)
 
     def mate_2nplusn_SDR(self, name: str, other_genome: "Genome", verbose: bool = True):

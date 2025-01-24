@@ -454,7 +454,7 @@ def plot_summary(ax, samples: List[Genome]) -> GenomeSummary:
 
     Args:
         ax (Axes): Matplotlib axes.
-        samples (list[Genome]): Summarized genomes.
+        samples (List[Genome]): Summarized genomes.
 
     Returns:
         GenomeSummary: Summary statistics of simulated genomes.
@@ -563,11 +563,11 @@ def plot_summary(ax, samples: List[Genome]) -> GenomeSummary:
     return summary
 
 
-def write_chromosomes(genomes: list[Genome], filename: str):
+def write_chromosomes(genomes: List[Genome], filename: str):
     """Write simulated chromosomes to file
 
     Args:
-        genomes (list[Genome]): List of simulated genomes.
+        genomes (List[Genome]): List of simulated genomes.
         filename (str): File path to write to.
     """
     print(f"Write chromosomes to `{filename}`", file=sys.stderr)

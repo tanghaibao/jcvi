@@ -116,9 +116,9 @@ class Chromosome(list):
 
     @classmethod
     def make(cls, subgenome: str, chrom: str, genes: List[Gene]) -> "Chromosome":
-        chromosome = Chromosome(subgenome, chrom, "", 0)
-        chromosome.genes = genes
-        return chromosome
+        chrom = Chromosome(subgenome, chrom, "", 0)
+        chrom.genes = genes
+        return chrom
 
     def num_matching_genes(self, other: "Chromosome") -> int:
         """Count the number of matching genes between two chromosomes"""
@@ -207,7 +207,7 @@ class Genome:
     def _sort_key(self, x: Chromosome):
         return x.subgenome, x.chrom
 
-    def _pair_chromosomes(
+    def pair_chromosomes(
         self, inplace=False
     ) -> Tuple[List[List[Chromosome]], List[Chromosome]]:
         """
@@ -262,7 +262,7 @@ class Genome:
     def _gamete(self, sdr: bool):
         """Randomly generate a gamete from current genome."""
         gamete_chromosomes = []
-        paired_chromosomes, singleton_chromosomes = self._pair_chromosomes()
+        paired_chromosomes, singleton_chromosomes = self.pair_chromosomes()
         for a, b in paired_chromosomes:
             gamete_chromosomes += self._crossover_chromosomes(a, b, sdr=sdr)
 
@@ -955,7 +955,7 @@ def plot_genome(
     total_width = ploidy * (chrom_width + gap_width) - gap_width
     xx = x - total_width / 2
     if pair:
-        genome._pair_chromosomes(inplace=True)
+        genome.pair_chromosomes(inplace=True)
     for chrom in genome.chromosomes:
         if chrom.chrom != target:
             continue

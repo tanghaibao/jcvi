@@ -726,63 +726,6 @@ def simulate(args):
         write_chromosomes(genomes, op.join(outdir, f"all_{cross}"))
 
 
-def _get_sizes(filename, prefix_length, tag, target_size=None):
-    """Returns a dictionary of chromome lengths from a given file.
-
-    Args:
-        filename ([str]): Path to the input file. Input file is 2-column file
-        with rows `seqid length`.
-        prefix_length (int): Extract first N characters.
-        tag (str): Prepend `tag-` to the seqid.
-        target_size (int): Expected genome size. Defaults to None.
-    """
-    sizes_list = defaultdict(list)
-    with open(filename, encoding="utf-8") as fp:
-        for row in fp:
-            if not row.startswith("Chr"):
-                continue
-            name, size = row.split()
-            idx = int(name[3:prefix_length])
-            size = int(size)
-            name = f"{tag}-chr{idx:02d}"
-            sizes_list[name].append(size)
-
-    # Get the average length
-    sizes = dict(
-        (name, int(round(np.mean(size_list)))) for name, size_list in sizes_list.items()
-    )
-    print(sizes)
-    if target_size is None:
-        return sizes
-
-    total_size = sum(sizes.values())
-    correction_factor = target_size / total_size
-    print(
-        f"{tag} total:{total_size} target:{target_size} correction:{correction_factor:.2f}x"
-    )
-    return dict(
-        (name, int(round(correction_factor * size))) for name, size in sizes.items()
-    )
-
-
-def prepare(args):
-    """
-    %prog SoChrLen.txt SsChrLen.txt
-
-    Calculate lengths from real sugarcane data.
-    """
-    p = OptionParser(prepare.__doc__)
-    _, args = p.parse_args(args)
-    if len(args) != 2:
-        sys.exit(not p.print_help())
-
-    solist, sslist = args
-    # The haploid set of LA Purple is 957.2 Mb and haploid set of US56-14-4 is 732.5 Mb
-    sizes = _get_sizes(solist, 5, "SO", target_size=int(957.2 * 1e6))
-    sizes.update(_get_sizes(sslist, 4, "SS", target_size=int(732.5 * 1e6)))
-    print(sizes)
-
-
 def get_genome_wide_pct(summary: str) -> Dict[tuple, list]:
     """Collect genome-wide ungapped percent identity.
     Specifically, from file `SS_SR_SO.summary.txt`.
@@ -1104,7 +1047,6 @@ def chromosome(args):
 def main():
 
     actions = (
-        ("prepare", "Calculate lengths from real sugarcane data"),
         ("simulate", "Run simulation on female restitution"),
         # Plot the simulated chromosomes
         ("chromosome", "Plot the chromosomes of the simulated genomes"),

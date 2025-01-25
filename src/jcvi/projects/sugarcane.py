@@ -395,7 +395,7 @@ class GenomeSummary:
         self.percent_SO_data = percent_SO_data
         self.percent_SS_data = percent_SS_data
 
-    def _summary(self, a, tag, precision=0):
+    def _summary(self, a, tag, precision=0) -> Tuple[str, str]:
         mean, mn, mx = (
             round(np.mean(a), precision),
             round(np.min(a), precision),
@@ -403,10 +403,10 @@ class GenomeSummary:
         )
         s = f"*{tag}* chr: {mean:.0f}"
         if mn == mean and mx == mean:
-            return s
-        return s + f" ({mn:.0f}-{mx:.0f})"
+            return s, ""
+        return s, f" ({mn:.0f}-{mx:.0f})"
 
-    def _percent_summary(self, a, tag, precision=1):
+    def _percent_summary(self, a, tag, precision=1) -> Tuple[str, str]:
         mean, mn, mx = (
             round(np.mean(a), precision),
             round(np.min(a), precision),
@@ -415,39 +415,41 @@ class GenomeSummary:
         s = f"*{tag}*%: {short_float(mean, precision)}%"
         print(s)
         if mn == mean and mx == mean:
-            return s
-        return s + f" ({short_float(mn, precision)}-{short_float(mx, precision)}%)"
+            return s, ""
+        return s, f"({short_float(mn, precision)}-{short_float(mx, precision)}%)"
 
     @property
-    def percent_SO_summary(self):
+    def percent_SO_summary(self) -> Tuple[str, str]:
         return self._percent_summary(self.percent_SO_data, "So")
 
     @property
-    def percent_SS_summary(self):
+    def percent_SS_summary(self) -> Tuple[str, str]:
         return self._percent_summary(self.percent_SS_data, "Ss")
 
     @property
-    def SO_summary(self):
+    def SO_summary(self) -> Tuple[str, str]:
         return self._summary(self.SO_data, "So")
 
     @property
-    def SS_summary(self):
+    def SS_summary(self) -> Tuple[str, str]:
         return self._summary(self.SS_data, "Ss")
 
 
 def simulate_F1(SO: Genome, SS: Genome, mode: CrossMode, verbose: bool = False):
+    SO_SS_F1 = None
     if mode == CrossMode.nx2plusn:
         SO_SS_F1 = SO.mate_nx2plusn("SOxSS F1", SS, verbose=verbose)
     elif mode == CrossMode.twoplusnFDR:
         SO_SS_F1 = SO.mate_2nplusn_FDR("SOxSS F1", SS, verbose=verbose)
     elif mode == CrossMode.twoplusnSDR:
         SO_SS_F1 = SO.mate_2nplusn_SDR("SOxSS F1", SS, verbose=verbose)
-    if verbose:
+    if verbose and SO_SS_F1:
         SO_SS_F1.print_summary()
     return SO_SS_F1
 
 
 def simulate_BC1(SO: Genome, SS_SO_F1: Genome, mode: CrossMode, verbose=False):
+    SS_SO_BC1 = None
     if mode == CrossMode.nx2plusn:
         SS_SO_BC1 = SO.mate_nx2plusn("SOxSS BC1", SS_SO_F1, verbose=verbose)
     elif mode == CrossMode.twoplusnFDR:
@@ -544,47 +546,32 @@ def plot_summary(ax, samples: List[Genome]) -> GenomeSummary:
     summary = GenomeSummary(SO_data, SS_data, percent_SO_data, percent_SS_data)
 
     # Write the stats summary within the plot
-    summary_style = dict(size=9, ha="center", va="center")
+    summary_style = dict(size=8, va="center")
     SO_peak = SO_counter.most_common(1)[0][0]
     SS_peak = SS_counter.most_common(1)[0][0]
     SO_single = len(SO_counter) == 1
     SS_single = len(SS_counter) == 1
 
-    # Offset the text to avoid overlapping
-    if SO_peak < SS_peak:
-        if SO_single:
-            SO_peak -= 8
-        if SS_single:
-            SS_peak += 8
-    else:
-        if SO_single:
-            if SO_peak > 79:
-                SO_peak -= 8
-            else:
-                SO_peak += 8
-        if SS_single:
-            SS_peak -= 8
-    ax.text(
-        SO_peak, ymax * 0.85, markup(summary.SO_summary), color=SoColor, **summary_style
-    )
-    ax.text(
-        SO_peak,
-        ymax * 0.65,
-        markup(summary.percent_SO_summary),
-        color=SoColor,
-        **summary_style,
-    )
-    ax.text(
-        SS_peak, ymax * 0.85, markup(summary.SS_summary), color=SsColor, **summary_style
-    )
-    ax.text(
-        SS_peak,
-        ymax * 0.65,
-        markup(summary.percent_SS_summary),
-        color=SsColor,
-        **summary_style,
-    )
-
+    for xpos, ypos, single, text, color, ha in zip(
+        [SO_peak] * 4 + [SS_peak] * 4,
+        ([ymax * 0.85] * 2 + [ymax * 0.65] * 2) * 2,
+        [SO_single] * 4 + [SS_single] * 4,
+        summary.SO_summary
+        + summary.percent_SO_summary
+        + summary.SS_summary
+        + summary.percent_SS_summary,
+        [SoColor] * 4 + [SsColor] * 4,
+        ["right", "left"] * 4,
+    ):
+        # Offset some text to avoid overlapping
+        if abs(SS_peak - SO_peak) < 15 and xpos == SO_peak:
+            xpos -= 11
+        PAD = 1 if single else 0.25
+        if ha == "left":
+            xpos -= PAD
+        else:
+            xpos += PAD
+        ax.text(xpos, ypos, markup(text), color=color, ha=ha, **summary_style)
     return summary
 
 

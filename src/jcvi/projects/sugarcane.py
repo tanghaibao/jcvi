@@ -564,8 +564,8 @@ def plot_summary(ax, samples: List[Genome]) -> GenomeSummary:
         ["right", "left"] * 4,
     ):
         # Offset some text to avoid overlapping
-        if abs(SS_peak - SO_peak) < 15 and xpos == SO_peak:
-            xpos -= 11
+        if abs(SS_peak - SO_peak) < 16 and xpos == SO_peak:
+            xpos -= 12
         PAD = 1 if single else 0.25
         if ha == "left":
             xpos -= PAD

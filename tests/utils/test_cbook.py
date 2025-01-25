@@ -2,7 +2,7 @@ import os.path as op
 import pytest
 
 from jcvi.apps.base import cleanup
-from jcvi.utils.cbook import autoscale, depends, gene_name, seqid_parse
+from jcvi.utils.cbook import autoscale, depends, gene_name, seqid_parse, short_float
 
 
 @pytest.mark.parametrize(
@@ -52,3 +52,16 @@ def test_depends():
     func1(infile="a", outfile="b")
     assert op.exists("b")
     cleanup("a", "b")
+
+
+@pytest.mark.parametrize(
+    "f,precision,trim_zeros,output",
+    [
+        (0.123456, 3, True, "0.123"),
+        (0.0000, 2, True, "0"),
+        (3.1000, 2, False, "3.10"),
+        (3.0, 2, True, "3"),
+    ],
+)
+def test_short_float(f, precision, trim_zeros, output):
+    assert short_float(f, precision, trim_zeros) == output

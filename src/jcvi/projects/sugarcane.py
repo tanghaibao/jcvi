@@ -40,6 +40,7 @@ from ..graphics.base import (
     savefig,
 )
 from ..graphics.chromosome import Chromosome as ChromosomePlot
+from ..utils.cbook import short_float
 
 SoColor = "#7436a4"  # Purple
 SsColor = "#5a8340"  # Green
@@ -356,23 +357,25 @@ class Genome:
             group_chrom_count = group_count / len(chromosomes[0])
             group_so_size = group_count if subgenome == "SO" else 0
             group_ss_size = group_count if subgenome == "SS" else 0
+            group_size = group_so_size + group_ss_size
             ans.append(
                 (
                     subgenome,
                     group_chrom_count,
-                    group_so_size / SO_GENE_COUNT,
-                    group_ss_size / SS_GENE_COUNT,
+                    group_so_size / group_size,
+                    group_ss_size / group_size,
                 )
             )
             total_chrom_count += group_chrom_count
             total_so_size += group_so_size
             total_ss_size += group_ss_size
+        total_size = total_so_size + total_ss_size
         ans.append(
             (
                 "Total",
                 total_chrom_count,
-                total_so_size / SO_GENE_COUNT,
-                total_ss_size / SS_GENE_COUNT,
+                total_so_size / total_size,
+                total_ss_size / total_size,
             )
         )
         return ans
@@ -409,11 +412,11 @@ class GenomeSummary:
             round(np.min(a), precision),
             round(np.max(a), precision),
         )
-        s = f"*{tag}*%: {mean:.1f}%"
+        s = f"*{tag}*%: {short_float(mean, precision)}%"
         print(s)
         if mn == mean and mx == mean:
             return s
-        return s + f" ({mn:.1f}-{mx:.1f}%)"
+        return s + f" ({short_float(mn, precision)}-{short_float(mx, precision)}%)"
 
     @property
     def percent_SO_summary(self):

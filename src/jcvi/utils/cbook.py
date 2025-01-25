@@ -199,6 +199,22 @@ def percentage(a, b, precision=1, mode: Optional[int] = 0):
     return pct
 
 
+def short_float(f, precision=1, trim_zeros=True):
+    """
+    Format a float to a string with a fixed precision, and optionally trim
+    trailing zeros.
+
+    >>> short_float(3.1415926)
+    '3.1'
+    >>> short_float(3.002)
+    '3'
+    """
+    f = f"{f:.{precision}f}"
+    if trim_zeros:
+        f = f.rstrip("0").rstrip(".")
+    return f
+
+
 def thousands(x):
     """
     >>> thousands(12345)

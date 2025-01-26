@@ -708,7 +708,7 @@ def simulate(args):
     mode_title = get_mode_title(mode)
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
-    savefig(f"{mode}.pdf", dpi=120)
+    savefig(f"{mode}.ss_ploidy_{SS_PLOIDY}.pdf", dpi=120)
 
     outdir = f"simulations_{mode}"
     mkdir(outdir)
@@ -1039,7 +1039,7 @@ def chromosome(args):
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
     normalize_axes(root)
 
-    savefig(f"{mode}.chromosome.pdf", dpi=120)
+    savefig(f"{mode}.chromosome.ss_ploidy_{SS_PLOIDY}.pdf", dpi=120)
 
 
 def main():

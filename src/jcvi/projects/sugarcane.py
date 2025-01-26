@@ -936,11 +936,14 @@ def chromosome(args):
     """
     p = OptionParser(simulate.__doc__)
     p.add_argument("-k", default=0, type=int, help="Plot k-th simulated genomes")
+    p.add_argument("--ss-ploidy", default=16, type=int, help="SS ploidy")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (mode,) = args
+    SS_PLOIDY = opts.ss_ploidy
+    SS_GENE_COUNT = SS_PLOIDY * HAPLOID_GENE_COUNT
     mode = CrossMode(mode)
     logger.info("Transmission: %s", mode)
 
@@ -1002,7 +1005,9 @@ def chromosome(args):
     chrom_height = 0.1
     yy = 0.92
     plot_genome(root, 0.35, yy, chrom_height, SO, haplotype_colors)
-    plot_genome(root, 0.75, yy, chrom_height, SS, haplotype_colors)
+    plot_genome(
+        root, 0.75 if SS_PLOIDY == 16 else 0.66, yy, chrom_height, SS, haplotype_colors
+    )
     # Plot big cross sign
     root.text(
         0.5, yy - chrom_height / 2, r"$\times$", ha="center", va="center", fontsize=36
@@ -1011,15 +1016,15 @@ def chromosome(args):
     root.text(
         0.215,
         yy - chrom_height / 2,
-        markup("*So*\n(8x)"),
+        markup(f"*So*\n({SO_PLOIDY}x)"),
         ha="center",
         va="center",
         color=SoColor,
     )
     root.text(
-        0.945,
+        0.945 if SS_PLOIDY == 16 else 1 - 0.215,
         yy - chrom_height / 2,
-        markup("*Ss*\n(16x)"),
+        markup(f"*Ss*\n({SS_PLOIDY}x)"),
         ha="center",
         va="center",
         color=SsColor,

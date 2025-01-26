@@ -564,8 +564,8 @@ def plot_summary(ax, samples: List[Genome]) -> GenomeSummary:
         ["right", "left"] * 4,
     ):
         # Offset some text to avoid overlapping
-        if abs(SS_peak - SO_peak) < 16 and xpos == SO_peak:
-            xpos -= 12
+        if abs(SS_peak - SO_peak) < 20 and xpos == SO_peak:
+            xpos += 12 if SO_peak > SS_peak else -12
         PAD = 1 if single else 0.25
         if ha == "left":
             xpos -= PAD
@@ -627,11 +627,14 @@ def simulate(args):
         help="Verbose logging during simulation",
     )
     p.add_argument("-N", default=1000, type=int, help="Number of simulated samples")
+    p.add_argument("--ss-ploidy", default=16, type=int, help="SS ploidy")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (mode,) = args
+    SS_PLOIDY = opts.ss_ploidy
+    SS_GENE_COUNT = SS_PLOIDY * HAPLOID_GENE_COUNT
     mode = CrossMode(mode)
     logger.info("Transmission: %s", mode)
 

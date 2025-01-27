@@ -126,6 +126,17 @@ class Chromosome(list):
         """Count the number of matching genes between two chromosomes"""
         return sum(1 for x, y in zip(self.genes, other.genes) if x == y)
 
+    def truncate_n(self, n: int):
+        """Truncate the chromosome to n genes."""
+        self.genes = self.genes[:n]
+
+    def truncate(self, ratio: float):
+        """Truncate the chromosome to a ratio of genes."""
+        before = str(self)
+        n = round(len(self) * ratio)
+        self.truncate_n(n)
+        logger.info("Truncate %s to %s (%d)", before, str(self), n)
+
 
 # Simulate genome composition
 class Genome:
@@ -386,6 +397,14 @@ class Genome:
             print(
                 f"{group}: chrom_count={group_chrom_count}, SO={group_so_size}, SS={group_ss_size}"
             )
+
+    def truncate_chromosome(self, subgenome: str, chrom: str, ratio: float):
+        """
+        Truncate the specified chromosome.
+        """
+        for c in self.chromosomes:
+            if c.subgenome == subgenome and c.chrom == chrom:
+                c.truncate(ratio)
 
 
 class GenomeSummary:
@@ -930,6 +949,24 @@ def plot_genome(
         xx += chrom_width + gap_width
 
 
+def truncate_SS_chromosome(genome: Genome, cross: str, ss_ploidy: int) -> Genome:
+    """
+    Truncate the last SS chromosome to illustrate half/quarter ploidy.
+    """
+    subgenome, chrom = "SS", "chr01"
+    if ss_ploidy == 8:
+        if cross == "BC3":
+            genome.truncate_chromosome(subgenome, chrom, 0.5)
+        elif cross == "BC4":
+            genome.truncate_chromosome(subgenome, chrom, 0.25)
+    elif ss_ploidy == 16:
+        if cross == "BC4":
+            genome.truncate_chromosome(subgenome, chrom, 0.5)
+    else:
+        raise ValueError("Unsupported SS ploidy for custom mode")
+    return genome
+
+
 def chromosome(args):
     """
     %prog chromosome [2n+n_FDR|2n+n_SDR|nx2+n]
@@ -937,6 +974,12 @@ def chromosome(args):
     p = OptionParser(simulate.__doc__)
     p.add_argument("-k", default=0, type=int, help="Plot k-th simulated genomes")
     p.add_argument("--ss-ploidy", default=16, type=int, help="SS ploidy")
+    p.add_argument(
+        "--custom",
+        default=False,
+        action="store_true",
+        help="Custom mode to truncate BC3/4 SS chromosome",
+    )
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -946,6 +989,8 @@ def chromosome(args):
     SS_GENE_COUNT = SS_PLOIDY * HAPLOID_GENE_COUNT
     mode = CrossMode(mode)
     logger.info("Transmission: %s", mode)
+    if opts.custom:
+        logger.info("Custom mode: truncate SS chromosome")
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -968,6 +1013,8 @@ def chromosome(args):
                 if i != opts.k:
                     continue
                 genome = Genome.from_str(row)
+                if opts.custom:
+                    truncate_SS_chromosome(genome, cross, opts.ss_ploidy)
                 break
         genomes.append((cross, genome))
 

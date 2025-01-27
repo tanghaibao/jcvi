@@ -126,6 +126,17 @@ class Chromosome(list):
         """Count the number of matching genes between two chromosomes"""
         return sum(1 for x, y in zip(self.genes, other.genes) if x == y)
 
+    def truncate_n(self, n: int):
+        """Truncate the chromosome to n genes."""
+        self.genes = self.genes[:n]
+
+    def truncate(self, ratio: float):
+        """Truncate the chromosome to a ratio of genes."""
+        before = str(self)
+        n = round(len(self) * ratio)
+        self.truncate_n(n)
+        logger.info("Truncate %s to %s (%d)", before, str(self), n)
+
 
 # Simulate genome composition
 class Genome:
@@ -387,6 +398,14 @@ class Genome:
                 f"{group}: chrom_count={group_chrom_count}, SO={group_so_size}, SS={group_ss_size}"
             )
 
+    def truncate_chromosome(self, subgenome: str, chrom: str, ratio: float):
+        """
+        Truncate the specified chromosome.
+        """
+        for c in self.chromosomes:
+            if c.subgenome == subgenome and c.chrom == chrom:
+                c.truncate(ratio)
+
 
 class GenomeSummary:
     def __init__(self, SO_data, SS_data, percent_SO_data, percent_SS_data):
@@ -564,8 +583,8 @@ def plot_summary(ax, samples: List[Genome]) -> GenomeSummary:
         ["right", "left"] * 4,
     ):
         # Offset some text to avoid overlapping
-        if abs(SS_peak - SO_peak) < 16 and xpos == SO_peak:
-            xpos -= 12
+        if abs(SS_peak - SO_peak) < 20 and xpos == SO_peak:
+            xpos += 12 if SO_peak > SS_peak else -12
         PAD = 1 if single else 0.25
         if ha == "left":
             xpos -= PAD
@@ -627,11 +646,14 @@ def simulate(args):
         help="Verbose logging during simulation",
     )
     p.add_argument("-N", default=1000, type=int, help="Number of simulated samples")
+    p.add_argument("--ss-ploidy", default=16, type=int, help="SS ploidy")
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (mode,) = args
+    SS_PLOIDY = opts.ss_ploidy
+    SS_GENE_COUNT = SS_PLOIDY * HAPLOID_GENE_COUNT
     mode = CrossMode(mode)
     logger.info("Transmission: %s", mode)
 
@@ -705,7 +727,7 @@ def simulate(args):
     mode_title = get_mode_title(mode)
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
 
-    savefig(f"{mode}.pdf", dpi=120)
+    savefig(f"{mode}.ss_ploidy_{SS_PLOIDY}.pdf", dpi=120)
 
     outdir = f"simulations_{mode}"
     mkdir(outdir)
@@ -883,8 +905,8 @@ def plot_genome(
     ax,
     x: float,
     y: float,
-    height: float,
     genome: Genome,
+    haplotype_gene_height: Dict[str, float],
     haplotype_colors: Dict[str, str],
     chrom_width: float = 0.012,
     gap_width: float = 0.008,
@@ -905,8 +927,9 @@ def plot_genome(
     for chrom in genome.chromosomes:
         if chrom.chrom != target:
             continue
+        gene_height = haplotype_gene_height[chrom.subgenome]
+        height = gene_height * len(chrom)
         ChromosomePlot(ax, xx, y, y - height, ec="lightslategray")
-        gene_height = height / len(chrom)
         yy = y
         subgenome = chrom.subgenome
         for haplotype, genes in groupby(chrom.genes, key=lambda x: x.haplotype):
@@ -927,19 +950,48 @@ def plot_genome(
         xx += chrom_width + gap_width
 
 
+def truncate_SS_chromosome(genome: Genome, cross: str, ss_ploidy: int) -> Genome:
+    """
+    Truncate the last SS chromosome to illustrate half/quarter ploidy.
+    """
+    subgenome, chrom = "SS", "chr01"
+    if ss_ploidy == 8:
+        if cross == "BC3":
+            genome.truncate_chromosome(subgenome, chrom, 0.5)
+        elif cross == "BC4":
+            genome.truncate_chromosome(subgenome, chrom, 0.25)
+    elif ss_ploidy == 16:
+        if cross == "BC4":
+            genome.truncate_chromosome(subgenome, chrom, 0.5)
+    else:
+        raise ValueError("Unsupported SS ploidy for custom mode")
+    return genome
+
+
 def chromosome(args):
     """
     %prog chromosome [2n+n_FDR|2n+n_SDR|nx2+n]
     """
     p = OptionParser(simulate.__doc__)
     p.add_argument("-k", default=0, type=int, help="Plot k-th simulated genomes")
+    p.add_argument("--ss-ploidy", default=16, type=int, help="SS ploidy")
+    p.add_argument(
+        "--custom",
+        default=False,
+        action="store_true",
+        help="Custom mode to truncate BC3/4 SS chromosome",
+    )
     opts, args, iopts = p.set_image_options(args, figsize="6x6")
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (mode,) = args
+    SS_PLOIDY = opts.ss_ploidy
+    SS_GENE_COUNT = SS_PLOIDY * HAPLOID_GENE_COUNT
     mode = CrossMode(mode)
     logger.info("Transmission: %s", mode)
+    if opts.custom:
+        logger.info("Custom mode: truncate SS chromosome")
 
     # Construct a composite figure with 6 tracks
     fig = plt.figure(1, (iopts.w, iopts.h))
@@ -962,6 +1014,8 @@ def chromosome(args):
                 if i != opts.k:
                     continue
                 genome = Genome.from_str(row)
+                if opts.custom:
+                    truncate_SS_chromosome(genome, cross, opts.ss_ploidy)
                 break
         genomes.append((cross, genome))
 
@@ -997,9 +1051,19 @@ def chromosome(args):
 
     # Plotting
     chrom_height = 0.1
+    SO_GENE_HEIGHT = chrom_height / (HAPLOID_GENE_COUNT // SO_CHROM_COUNT)
+    SS_GENE_HEIGHT = chrom_height / (HAPLOID_GENE_COUNT // SS_CHROM_COUNT)
+    haplotype_gene_height = {"SO": SO_GENE_HEIGHT, "SS": SS_GENE_HEIGHT}
     yy = 0.92
-    plot_genome(root, 0.35, yy, chrom_height, SO, haplotype_colors)
-    plot_genome(root, 0.75, yy, chrom_height, SS, haplotype_colors)
+    plot_genome(root, 0.35, yy, SO, haplotype_gene_height, haplotype_colors)
+    plot_genome(
+        root,
+        0.75 if SS_PLOIDY == 16 else 0.66,
+        yy,
+        SS,
+        haplotype_gene_height,
+        haplotype_colors,
+    )
     # Plot big cross sign
     root.text(
         0.5, yy - chrom_height / 2, r"$\times$", ha="center", va="center", fontsize=36
@@ -1008,15 +1072,15 @@ def chromosome(args):
     root.text(
         0.215,
         yy - chrom_height / 2,
-        markup("*So*\n(8x)"),
+        markup(f"*So*\n({SO_PLOIDY}x)"),
         ha="center",
         va="center",
         color=SoColor,
     )
     root.text(
-        0.945,
+        0.945 if SS_PLOIDY == 16 else 1 - 0.215,
         yy - chrom_height / 2,
-        markup("*Ss*\n(16x)"),
+        markup(f"*Ss*\n({SS_PLOIDY}x)"),
         ha="center",
         va="center",
         color=SsColor,
@@ -1024,14 +1088,16 @@ def chromosome(args):
 
     for _, genome in genomes:
         yy -= yinterval
-        plot_genome(root, 0.5, yy, chrom_height, genome, haplotype_colors, pair=True)
+        plot_genome(
+            root, 0.5, yy, genome, haplotype_gene_height, haplotype_colors, pair=True
+        )
 
     # Title
     mode_title = get_mode_title(mode)
     root.text(0.5, 0.95, f"Transmission: {mode_title}", ha="center")
     normalize_axes(root)
 
-    savefig(f"{mode}.chromosome.pdf", dpi=120)
+    savefig(f"{mode}.chromosome.ss_ploidy_{SS_PLOIDY}.pdf", dpi=120)
 
 
 def main():

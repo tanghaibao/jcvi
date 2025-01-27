@@ -905,8 +905,8 @@ def plot_genome(
     ax,
     x: float,
     y: float,
-    height: float,
     genome: Genome,
+    haplotype_gene_height: Dict[str, float],
     haplotype_colors: Dict[str, str],
     chrom_width: float = 0.012,
     gap_width: float = 0.008,
@@ -927,8 +927,9 @@ def plot_genome(
     for chrom in genome.chromosomes:
         if chrom.chrom != target:
             continue
+        gene_height = haplotype_gene_height[chrom.subgenome]
+        height = gene_height * len(chrom)
         ChromosomePlot(ax, xx, y, y - height, ec="lightslategray")
-        gene_height = height / len(chrom)
         yy = y
         subgenome = chrom.subgenome
         for haplotype, genes in groupby(chrom.genes, key=lambda x: x.haplotype):
@@ -1050,10 +1051,18 @@ def chromosome(args):
 
     # Plotting
     chrom_height = 0.1
+    SO_GENE_HEIGHT = chrom_height / (HAPLOID_GENE_COUNT // SO_CHROM_COUNT)
+    SS_GENE_HEIGHT = chrom_height / (HAPLOID_GENE_COUNT // SS_CHROM_COUNT)
+    haplotype_gene_height = {"SO": SO_GENE_HEIGHT, "SS": SS_GENE_HEIGHT}
     yy = 0.92
-    plot_genome(root, 0.35, yy, chrom_height, SO, haplotype_colors)
+    plot_genome(root, 0.35, yy, SO, haplotype_gene_height, haplotype_colors)
     plot_genome(
-        root, 0.75 if SS_PLOIDY == 16 else 0.66, yy, chrom_height, SS, haplotype_colors
+        root,
+        0.75 if SS_PLOIDY == 16 else 0.66,
+        yy,
+        SS,
+        haplotype_gene_height,
+        haplotype_colors,
     )
     # Plot big cross sign
     root.text(
@@ -1079,7 +1088,9 @@ def chromosome(args):
 
     for _, genome in genomes:
         yy -= yinterval
-        plot_genome(root, 0.5, yy, chrom_height, genome, haplotype_colors, pair=True)
+        plot_genome(
+            root, 0.5, yy, genome, haplotype_gene_height, haplotype_colors, pair=True
+        )
 
     # Title
     mode_title = get_mode_title(mode)

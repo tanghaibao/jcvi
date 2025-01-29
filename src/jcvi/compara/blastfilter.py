@@ -54,7 +54,7 @@ def blastfilter_main(blast_file, p, opts):
     nwarnings = 0
     for b in blasts:
         query, subject = b.query, b.subject
-        if query == subject:
+        if is_self and query == subject:
             continue
 
         if ostrip:

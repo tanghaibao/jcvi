@@ -286,6 +286,8 @@ def draw_depth(
     draw_seqids: bool = True,
     calculate_coverage: bool = False,
     roi: Optional[List[Tuple[str, int]]] = None,
+    left_margin: float = 0.1,
+    right_margin: float = 0.15,
 ):
     """Draw depth plot on the given axes, using data from bed
 
@@ -378,9 +380,10 @@ def draw_depth(
 
     median_depth_y = 0.88
     chr_label_y = 0.08
+    width = 1 - left_margin - right_margin
     rotation = 20 if len(label_positions) > 10 else 0
     for seqid, position in label_positions:
-        xpos = 0.1 + position * 0.8 / xsize
+        xpos = left_margin + position * width / xsize
         c = chrinfo[seqid].color if seqid in chrinfo else defaultcolor
         newseqid = chrinfo[seqid].new_name if seqid in chrinfo else seqid
         if draw_seqids:
@@ -417,16 +420,17 @@ def draw_depth(
     # Add an arrow to the right of the plot, indicating these are median depths
     if median_line:
         root.text(
-            0.91,
+            1 - right_margin + 0.01,
             0.88,
             r"$\leftarrow$median",
             color="lightslategray",
             va="center",
         )
 
+    title_pos = 1 - right_margin / 2
     if title:
         root.text(
-            0.95,
+            title_pos,
             0.5,
             markup(title),
             color="darkslategray",
@@ -436,8 +440,8 @@ def draw_depth(
         )
     if subtitle:
         root.text(
-            0.95,
-            0.375,
+            title_pos,
+            0.3,
             markup(subtitle),
             color="darkslategray",
             ha="center",
@@ -447,8 +451,8 @@ def draw_depth(
     if calculate_coverage:
         cov_pct = percentage(covered_bp, total_bp, precision=0, mode=None)
         root.text(
-            0.95,
-            0.25,
+            title_pos,
+            0.1,
             latex(f"cov: {cov_pct}"),
             color="darkslategray",
             ha="center",
@@ -464,7 +468,7 @@ def draw_depth(
     ax.set_ylabel("Depth")
 
     set_human_axis(ax)
-    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=10)
+    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=12)
     normalize_axes(root)
 
 
@@ -496,6 +500,8 @@ def draw_multi_depth(
     median_line: bool = True,
     calculate_coverage: bool = False,
     roi: Optional[str] = None,
+    left_margin: float = 0.1,
+    right_margin: float = 0.15,
 ):
     """
     Draw multiple depth plots on the same canvas.
@@ -535,6 +541,8 @@ def draw_multi_depth(
             draw_seqids=draw_seqids,
             calculate_coverage=calculate_coverage,
             roi=roi.get(bedfile),
+            left_margin=left_margin,
+            right_margin=right_margin,
         )
         ypos -= yinterval
 
@@ -593,8 +601,10 @@ def depth(args):
         "--roi",
         help="File that contains regions of interest, format: filename, chr:start-end",
     )
+    p.add_argument("--left-margin", default=0.1, type=float, help="Left margin")
+    p.add_argument("--right-margin", default=0.15, type=float, help="Right margin")
     p.set_outfile("depth.pdf")
-    opts, args, iopts = p.set_image_options(args, style="dark", figsize="14x4")
+    opts, args, iopts = p.set_image_options(args, style="dark", figsize="10x8")
 
     if len(args) < 1:
         sys.exit(not p.print_help())
@@ -608,9 +618,13 @@ def depth(args):
     yinterval = 1.0 / npanels
     ypos = 1 - yinterval
     panel_roots, panel_axes = [], []
+    left_margin, right_margin = opts.left_margin, opts.right_margin
+    width = 1 - left_margin - right_margin
     for _ in range(npanels):
         panel_root = root if npanels == 1 else fig.add_axes((0, ypos, 1, yinterval))
-        panel_ax = fig.add_axes((0.1, ypos + 0.2 * yinterval, 0.8, 0.65 * yinterval))
+        panel_ax = fig.add_axes(
+            (left_margin, ypos + 0.2 * yinterval, width, 0.65 * yinterval)
+        )
         panel_roots.append(panel_root)
         panel_axes.append(panel_ax)
         ypos -= yinterval
@@ -627,6 +641,8 @@ def depth(args):
         median_line=not opts.no_median_line,
         calculate_coverage=opts.calculate_coverage,
         roi=opts.roi,
+        left_margin=left_margin,
+        right_margin=right_margin,
     )
 
     image_name = opts.outfile

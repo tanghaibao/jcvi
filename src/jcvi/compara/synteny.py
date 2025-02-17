@@ -564,7 +564,6 @@ def assemble(args):
     Contents after the 3rd field (end gene) are ignored. Using the example
     above, the final .blocks file will contain 5 columns, one column for each line.
     """
-    import shutil
     from tempfile import mkdtemp, mkstemp
 
     from jcvi.apps.align import last

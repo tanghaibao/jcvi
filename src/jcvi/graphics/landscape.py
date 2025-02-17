@@ -287,7 +287,7 @@ def draw_depth(
     calculate_coverage: bool = False,
     roi: Optional[List[Tuple[str, int]]] = None,
     left_margin: float = 0.1,
-    right_margin: float = 0.16,
+    right_margin: float = 0.15,
 ):
     """Draw depth plot on the given axes, using data from bed
 
@@ -468,7 +468,7 @@ def draw_depth(
     ax.set_ylabel("Depth")
 
     set_human_axis(ax)
-    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=10)
+    plt.setp(ax.get_xticklabels() + ax.get_yticklabels(), color="gray", size=12)
     normalize_axes(root)
 
 
@@ -501,7 +501,7 @@ def draw_multi_depth(
     calculate_coverage: bool = False,
     roi: Optional[str] = None,
     left_margin: float = 0.1,
-    right_margin: float = 0.16,
+    right_margin: float = 0.15,
 ):
     """
     Draw multiple depth plots on the same canvas.
@@ -602,9 +602,9 @@ def depth(args):
         help="File that contains regions of interest, format: filename, chr:start-end",
     )
     p.add_argument("--left-margin", default=0.1, type=float, help="Left margin")
-    p.add_argument("--right-margin", default=0.16, type=float, help="Right margin")
+    p.add_argument("--right-margin", default=0.15, type=float, help="Right margin")
     p.set_outfile("depth.pdf")
-    opts, args, iopts = p.set_image_options(args, style="dark", figsize="9x9")
+    opts, args, iopts = p.set_image_options(args, style="dark", figsize="10x8")
 
     if len(args) < 1:
         sys.exit(not p.print_help())

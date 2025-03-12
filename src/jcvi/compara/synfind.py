@@ -131,7 +131,7 @@ def find_synteny_region(query, sbed, data, window, cutoff, colinear=False):
 def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
 
     cutoff = int(opts.cutoff * opts.window)
-    window = opts.window / 2
+    window = opts.window // 2
     colinear = opts.scoring == "collinear"
     qnote, snote = opts.qnote, opts.snote
     if qnote == "null" or snote == "null":
@@ -183,7 +183,7 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
                 right_dist = (
                     abs(anchor_pos - right_pos) if anchor_chr == right_chr else 0
                 )
-                flank_dist = (max(left_dist, right_dist) / 10000 + 1) * 10000
+                flank_dist = (max(left_dist, right_dist) // 10000 + 1) * 10000
 
                 far_syntelog = sbed[far_syntelog].accn
 

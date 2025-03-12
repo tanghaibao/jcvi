@@ -40,7 +40,7 @@ from .synteny import check_beds, read_blast
 
 def transposed(data):
     x, y = zip(*data)
-    return zip(y, x)
+    return list(zip(y, x))
 
 
 def get_flanker(group, query):
@@ -151,7 +151,7 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
 
     qsimplebed = qbed.simple_bed
 
-    for seqid, ranks in groupby(qsimplebed, key=lambda x: x[0]):
+    for _, ranks in groupby(qsimplebed, key=lambda x: x[0]):
         ranks = [x[1] for x in ranks]
         for r in ranks:
             rmin = max(r - window, ranks[0])
@@ -203,7 +203,7 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
                 c.execute("insert into synteny values (?,?,?,?,?,?,?,?)", pdata)
 
 
-def main(blastfile, p, opts):
+def synfind(blastfile, p, opts):
 
     sqlite = opts.sqlite
     qbed, sbed, qorder, sorder, is_self = check_beds(blastfile, p, opts)
@@ -240,8 +240,7 @@ def main(blastfile, p, opts):
         fw.close()
 
 
-if __name__ == "__main__":
-
+def main(args):
     p = OptionParser(__doc__)
     p.set_beds()
     p.set_stripnames()
@@ -270,10 +269,14 @@ if __name__ == "__main__":
         help="Scoring scheme",
     )
 
-    opts, args = p.parse_args()
+    opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (blastfile,) = args
-    main(blastfile, p, opts)
+    synfind(blastfile, p, opts)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

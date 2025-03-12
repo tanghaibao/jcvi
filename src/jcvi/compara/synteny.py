@@ -1,8 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-"""Syntenty inference in comparative genomics
-"""
+"""Syntenty inference in comparative genomics"""
 
 import os.path as op
 import sys

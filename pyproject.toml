@@ -1,7 +1,7 @@
 # Specifies the build system requirements and backend
 [build-system]
 requires = [
-    "hatchling",  # Build backend
+    "hatchling>=1.27.0",  # Build backend
     "hatch-vcs",  # Version control system plugin for dynamic versioning
     "setuptools", # Setuptools for compiling C extensions
     "wheel",      # Wheel for packaging

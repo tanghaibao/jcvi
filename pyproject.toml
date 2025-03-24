@@ -66,7 +66,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-tests = ["mock", "pytest-benchmark", "pytest-cov", "pytest", "PyYAML"]
+tests = ["hatch>=1.14.0", "mock", "pytest-benchmark", "pytest-cov", "pytest", "PyYAML"]
 
 [project.urls]
 homepage = "http://github.com/tanghaibao/jcvi"

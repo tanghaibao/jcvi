@@ -1,7 +1,7 @@
 # Specifies the build system requirements and backend
 [build-system]
 requires = [
-    "hatchling>=1.27.0",  # Build backend
+    "hatchling",  # Build backend
     "hatch-vcs",  # Version control system plugin for dynamic versioning
     "setuptools", # Setuptools for compiling C extensions
     "wheel",      # Wheel for packaging
@@ -66,7 +66,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-tests = ["hatch>=1.14.0", "mock", "pytest-benchmark", "pytest-cov", "pytest", "PyYAML"]
+tests = ["hatch", "mock", "pytest-benchmark", "pytest-cov", "pytest", "PyYAML"]
 
 [project.urls]
 homepage = "http://github.com/tanghaibao/jcvi"

@@ -17,7 +17,7 @@ name = "jcvi"
 description = "Python utility libraries on genome assembly, annotation and comparative genomics"
 readme = "README.md"
 requires-python = ">=3.8"
-license = { text = "BSD" }
+license = { text = "BSD-3-Clause" } # Note: Setuptools will not support dict format from Feb 2026, BUT hatchling requires it!
 authors = [
     { name = "Haibao Tang", email = "tanghaibao@gmail.com" },
     { name = "Vivek Krishnakumar" },
@@ -26,7 +26,6 @@ authors = [
 
 classifiers = [
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: BSD License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -67,7 +66,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-tests = ["mock", "pytest-benchmark", "pytest-cov", "pytest", "PyYAML"]
+tests = ["hatch", "mock", "pytest-benchmark", "pytest-cov", "pytest", "PyYAML"]
 
 [project.urls]
 homepage = "http://github.com/tanghaibao/jcvi"

@@ -26,7 +26,7 @@ from ..apps.base import (
     popen,
     sh,
 )
-from ..utils.cbook import SummaryStats, percentage, thousands
+from ..utils.cbook import SummaryStats, human_size, percentage, thousands
 from ..utils.grouper import Grouper
 from ..utils.range import (
     Range,
@@ -473,6 +473,7 @@ def main():
         ("mates", "print paired reads from bedfile"),
         ("merge", "merge bed files"),
         ("mergebydepth", "returns union of features beyond certain depth"),
+        ("overlap", "estimate the overlap between two bed files"),
         ("pairs", "estimate insert size between paired reads from bedfile"),
         ("pile", "find the ids that intersect"),
         ("random", "extract a random subset of features"),
@@ -1088,6 +1089,53 @@ def mergebydepth(args):
     merged = bedgraphfiltered + ".merge.fasta"
     if need_update(bedgraphfiltered, merged):
         mergeBed(bedgraphfiltered, sorted=True)
+
+
+def overlap(args):
+    """
+    %prog overlap bedfile1 bedfile2
+
+    Estimate the overlap between two bed files. This is a wrapper around
+    `bedtools intersect` and `bedtools merge`. It also estimates the Jaccard
+    index between the two bed files.
+    """
+    from pybedtools import BedTool
+
+    p = OptionParser(overlap.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 2:
+        sys.exit(not p.print_help())
+
+    bedfile1, bedfile2 = args
+    a = BedTool(bedfile1).merge()
+    b = BedTool(bedfile2).merge()
+    a_length = sum(int(interval.length) for interval in a)
+    b_length = sum(int(interval.length) for interval in b)
+
+    # Compute the intersection of the two merged files
+    intersect = a.intersect(b, wo=True)
+    intersection_length = sum(int(interval.count) for interval in intersect)
+
+    # Compute the union by concatenating the two and merging overlapping intervals
+    union = a.cat(b)
+    union_length = sum(interval.length for interval in union)
+
+    # Calculate the Jaccard index
+    jaccard_index = intersection_length / union_length if union_length > 0 else 0
+    print(
+        f"{bedfile1}\t{human_size(a_length)}\t{human_size(intersection_length)}/{human_size(union_length)} ({jaccard_index * 100:.1f}%)"
+    )
+
+    return {
+        "bedfile1": bedfile1,
+        "bedfile2": bedfile2,
+        "a_length": a_length,
+        "b_length": b_length,
+        "intersection_length": intersection_length,
+        "union_length": union_length,
+        "jaccard_index": jaccard_index,
+    }
 
 
 def depth(args):

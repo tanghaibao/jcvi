@@ -76,6 +76,7 @@ def fuse(args):
 
     Fuse gene orders based on anchors file.
     """
+    # TODO: BiGraph is not used
     from jcvi.algorithms.graph import BiGraph
 
     p = OptionParser(fuse.__doc__)

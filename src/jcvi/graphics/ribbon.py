@@ -20,7 +20,7 @@ With the row ordering corresponding to the column ordering in the alignment bloc
 
 # TODO: Check old version for extra annotation features.
 # TODO: Do not plot ribbons to * masked targets
-# TODO: Fix add_argument 
+# TODO: Fix add_argument
 # TODO: Fix contig flipping and orientation correction for individual blocks
 # TODO: support arbitraty number of additional bed files for annotation features
 # TODO: raise ribbon end point so as not to overlap with annotation features
@@ -342,7 +342,7 @@ class Region(object):
                 )
                 gp.set_transform(tr)
 
-         # Plot extra feature track - below chromosome
+        # Plot extra feature track - below chromosome
         if extra_features:
             for g in extra_features:
                 gstart, gend, outofrange = self.clip2range(
@@ -560,7 +560,9 @@ class Synteny(object):
                 start, end, chrm = (lo[i].rStart, lo[i].rEnd, lo[i].chrmName)
                 span = end - (start + 1)
                 customSpans.append(span)
-                logger.debug(f"start is {start}, end is {end}, chrm is {chrm}, orientation is {orientation[i]}, span is {span}")
+                logger.debug(
+                    f"start is {start}, end is {end}, chrm is {chrm}, orientation is {orientation[i]}, span is {span}"
+                )
             else:
                 # TODO: Check what ori is doing here
                 start, end, si, ei, chrm, ori, span = ext
@@ -568,7 +570,9 @@ class Synteny(object):
                 start, end = start.start, end.end
                 customSpans.append(span)
 
-                logger.debug(f"start is {start}, end is {end}, si is {si}, ei is {ei}, chrm is {chrm}, orientation is {orientation[i]}, span is {span}")
+                logger.debug(
+                    f"start is {start}, end is {end}, si is {si}, ei is {ei}, chrm is {chrm}, orientation is {orientation[i]}, span is {span}"
+                )
 
             if features:
                 # Unpack coords from 'features' bed object
@@ -595,7 +599,9 @@ class Synteny(object):
                     extra_fe_pruned = [x for x in extra_fe if x.span >= span / 1000]
                     logger.info(
                         "Extracted {0} extra features "
-                        "({1} after pruning)".format(len(extra_fe), len(extra_fe_pruned)),
+                        "({1} after pruning)".format(
+                            len(extra_fe), len(extra_fe_pruned)
+                        ),
                         file=sys.stderr,
                     )
                     extra_feats.append(extra_fe_pruned)

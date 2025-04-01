@@ -28,9 +28,8 @@ import numpy as np
 from jcvi.apps.base import OptionParser, logger
 from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
-from jcvi.graphics.base import (AbstractLayout, PathPatch, markup, mpl, plt,
-                                savefig)
-from jcvi.graphics.glyph import Glyph, RoundLabel  #, GeneGlyph
+from jcvi.graphics.base import AbstractLayout, PathPatch, markup, mpl, plt, savefig
+from jcvi.graphics.glyph import Glyph, RoundLabel  # , GeneGlyph
 from jcvi.utils.cbook import human_size
 from matplotlib.path import Path
 

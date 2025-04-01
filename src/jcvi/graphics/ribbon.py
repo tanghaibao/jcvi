@@ -32,6 +32,7 @@ With the row ordering corresponding to the column ordering in the alignment bloc
 import numpy as np
 import sys
 from matplotlib.path import Path
+from typing import List
 
 # from jcvi.formats.base import DictFile
 from jcvi.apps.base import OptionParser, logger
@@ -812,36 +813,39 @@ def set_strand_colors(colorCodes):
     forward, backward = colorCodes.strip().split(",")
 
 
-def main():
+def main(args: List[str]):
     # Get cmd line args
     p = OptionParser(__doc__)
     p.add_argument("--outfile", default=None, help="Prefix for output graphic.")
     p.add_argument(
         "--annotations",
-        help="Feature annotations in BED format. \n \
+        help=
+        """
+        Feature annotations in BED format. \n \
         [1] seqid \n \
         [2] start \n \
         [3] end \n \
         [4] accn \n \
         [5] score \n \
         [6] strand \n \
-        [7] Custom color. i.e. '.' = use default color, else any pyplot compatible color code: 'g', 'green, '#02ab2e', etc. \n \
+        [7] Custom color. i.e. '.' = use default color, else any pyplot compatible color code: 'g', 'green', '#02ab2e', etc. \n \
         [8] Vertical offset multiplier. i.e. 0 = plot on chrm line, -1 = plot below chrm, 1 = plot above chrm \n \
-        [9] Feature height multiplier. i.e. 1 = default, 2 = double height ",
+        [9] Feature height multiplier. i.e. 1 = default, 2 = double height 
+        """,
     )
     p.add_argument(
         "--extra-annotations",
         default=None,
-        help="Extra annotations in BED format. \n \
+        help="""Extra annotations in BED format. \n \
         [1] seqid \n \
         [2] start \n \
         [3] end \n \
         [4] accn \n \
         [5] score \n \
         [6] strand \n \
-        [7] Custom color. i.e. '.' = use default color, else any pyplot compatible color code: 'g', 'green, '#02ab2e', etc. \n \
+        [7] Custom color. i.e. '.' = use default color, else any pyplot compatible color code: 'g', 'green', '#02ab2e', etc. \n \
         [8] Vertical offset multiplier. i.e. 0 = plot on chrm line, -1 = plot below chrm, 1 = plot above chrm \n \
-        [9] Feature height multiplier. i.e. 1 = default, 2 = double height ",
+        [9] Feature height multiplier. i.e. 1 = default, 2 = double height """,
     )
     p.add_argument(
         "--noprune",
@@ -855,7 +859,7 @@ def main():
         help="Comma delimited string of 'F' or 'R' characters. Must be same number and order as tracks in layout file. \n i.e. F,F,R will flip the third track. Default: All Forward.",
     )
     p.add_argument(
-        "--tree", help="Display trees on the bottom of the figure [default: %default]"
+        "--tree", help="Display trees on the bottom of the figure."
     )
     p.add_argument(
         "--scalebar",
@@ -895,7 +899,7 @@ def main():
         "--scaleAlpha",
         default=False,
         action="store_true",
-        help="If set, ribbon alpha values will be rescaled from 0.5-1 to 0.15-0.95 Note: Assumes 50% min identity in alignments.",
+        help="If set, ribbon alpha values will be rescaled from 0.5-1 to 0.15-0.95 Note: Assumes 50%% min identity in alignments.",
     )
     p.add_argument(
         "--transparent",
@@ -919,7 +923,7 @@ def main():
     # opts = {'style': 'darkgrid', 'format': 'pdf', 'scalebar': False, 'extra': 'grape_peach_cacao.bed', 'tree': None, 'diverge': 'PiYG', 'cmap': 'jet', 'figsize': '8x7', 'font': 'Helvetica', 'dpi': 300}
     # args = positional args, data files
     # iopts = (2400px x 2100px)
-    opts, args, iopts = p.set_image_options(figsize="20x20")
+    opts, args, iopts = p.set_image_options(args, figsize="20x20")
 
     # Check for data files
     if len(args) != 3:
@@ -981,4 +985,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    main(sys.argv[1:])

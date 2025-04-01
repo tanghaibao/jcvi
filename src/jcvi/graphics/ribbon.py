@@ -819,8 +819,7 @@ def main(args: List[str]):
     p.add_argument("--outfile", default=None, help="Prefix for output graphic.")
     p.add_argument(
         "--annotations",
-        help=
-        """
+        help="""
         Feature annotations in BED format. \n \
         [1] seqid \n \
         [2] start \n \
@@ -858,9 +857,7 @@ def main(args: List[str]):
         default=None,
         help="Comma delimited string of 'F' or 'R' characters. Must be same number and order as tracks in layout file. \n i.e. F,F,R will flip the third track. Default: All Forward.",
     )
-    p.add_argument(
-        "--tree", help="Display trees on the bottom of the figure."
-    )
+    p.add_argument("--tree", help="Display trees on the bottom of the figure.")
     p.add_argument(
         "--scalebar",
         default=False,

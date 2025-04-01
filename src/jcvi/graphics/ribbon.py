@@ -18,37 +18,21 @@ e, 1, 2
 With the row ordering corresponding to the column ordering in the alignment blockfile.
 """
 
-# TODO: Check old version for extra annotation features.
-# TODO: Do not plot ribbons to * masked targets
-# TODO: Fix add_argument
-# TODO: Fix contig flipping and orientation correction for individual blocks
-# TODO: support arbitraty number of additional bed files for annotation features
-# TODO: raise ribbon end point so as not to overlap with annotation features
-# TODO: Add version option.
 # TODO: Use more informative variable names.
-# TODO: Add debug logging. Check how base.logger works.
 # TODO: If not rStart use 1, if not rEnd use chrmMax, if not chrmMax use end of last feature.
 
-import numpy as np
 import sys
-from matplotlib.path import Path
 from typing import List
 
-# from jcvi.formats.base import DictFile
+import numpy as np
 from jcvi.apps.base import OptionParser, logger
 from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
-from jcvi.graphics.base import (
-    AbstractLayout,
-    markup,
-    mpl,
-    PathPatch,
-    plt,
-    savefig,
-)
-from jcvi.graphics.glyph import Glyph, RoundLabel  # , GeneGlyph
+from jcvi.graphics.base import (AbstractLayout, PathPatch, markup, mpl, plt,
+                                savefig)
+from jcvi.graphics.glyph import Glyph, RoundLabel  #, GeneGlyph
 from jcvi.utils.cbook import human_size
-
+from matplotlib.path import Path
 
 # Default colours for ribbons with different orientations
 forward, backward = "#1f77b4", "#2ca02c"

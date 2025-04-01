@@ -18,8 +18,20 @@ e, 1, 2
 With the row ordering corresponding to the column ordering in the alignment blockfile.
 """
 
+# TODO: Check old version for extra annotation features.
+# TODO: Do not plot ribbons to * masked targets
+# TODO: Fix add_argument 
+# TODO: Fix contig flipping and orientation correction for individual blocks
+# TODO: support arbitraty number of additional bed files for annotation features
+# TODO: raise ribbon end point so as not to overlap with annotation features
+# TODO: Add version option.
+# TODO: Use more informative variable names.
+# TODO: Add debug logging. Check how base.logger works.
+# TODO: If not rStart use 1, if not rEnd use chrmMax, if not chrmMax use end of last feature.
+
 import numpy as np
 import sys
+from matplotlib.path import Path
 
 # from jcvi.formats.base import DictFile
 from jcvi.apps.base import OptionParser, logger
@@ -29,7 +41,6 @@ from jcvi.graphics.base import (
     AbstractLayout,
     markup,
     mpl,
-    Path,
     PathPatch,
     plt,
     savefig,
@@ -190,8 +201,10 @@ class Region(object):
         pad=0.05,
         vpad=0.015,
         features=None,
+        extra_features=None,
         plotRibbonBlocks=False,
         annotcolor="g",
+        extra_annotcolor="r",
     ):
         x, y = layout.x, layout.y
         ratio = layout.ratio
@@ -275,6 +288,7 @@ class Region(object):
             # TODO: Create separate dict for (gstart, gend, strand, g.score) so that we don't have to tweak downstream functions that only want (a,b).
             self.gg[g.accn] = (a, b, gstart, gend, strand, g.score)
             # Filp feature orientation if Parent track has been flipped
+            # TODO: Check if this is needs to happen before or after the gg update
             if parent_ori == "R":
                 strand = "+" if strand == "-" else "-"
             color = forward if strand == "+" else backward
@@ -285,8 +299,14 @@ class Region(object):
         # Set default feature colour
         feat_col = annotcolor.strip()
 
+        # Set default feature colour for extra annotations
+        extra_feat_col = extra_annotcolor.strip()
+
         # Add annotation track offset
         offset = 0.005
+
+        # Set negative offset for extra annotations (below chromosome line)
+        extra_offset = -offset
 
         # Set default annotation feature height
         feat_height = height * 0.3
@@ -315,6 +335,33 @@ class Region(object):
                     x1,
                     x2,
                     y + annot_offset,
+                    annot_height,
+                    gradient=False,
+                    fc=annot_col,
+                    zorder=4,
+                )
+                gp.set_transform(tr)
+
+         # Plot extra feature track - below chromosome
+        if extra_features:
+            for g in extra_features:
+                gstart, gend, outofrange = self.clip2range(
+                    g.start, g.end, startbp, endbp
+                )
+                if outofrange:
+                    continue
+                if orientation == "R":
+                    gstart, gend = self.flip(gstart, gend, startbp, endbp)
+                x1, x2, a, b = self.get_coordinates(gstart, gend, y, cv, tr, inv)
+                # Set custom annotation color / y-offset / height
+                annot_col, annot_offset, annot_height = self.annotFormat(
+                    g.extra, extra_offset, extra_feat_col, feat_height
+                )
+                gp = Glyph(
+                    ax,
+                    x1,
+                    x2,
+                    y + annot_offset,  # Below chromosome with negative offset
                     annot_height,
                     gradient=False,
                     fc=annot_col,
@@ -438,6 +485,7 @@ class Synteny(object):
         orientation=None,
         tree=None,
         features=None,
+        extra_features=None,  # Add parameter for extra annotations
         chr_label=True,
         loc_label=True,
         pad=0.05,
@@ -448,6 +496,7 @@ class Synteny(object):
         prune_features=True,
         plotRibbonBlocks=False,
         annotcolor="g",
+        extra_annotcolor="r",  # Add color parameter for extra annotations
         scaleAlpha=False,
         noline=False,
         shadestyle="curve",
@@ -466,6 +515,7 @@ class Synteny(object):
 
         # Check correct number of orientation values
         if orientation:
+            logger.debug(f"Set track orientations {orientation}")
             if lo.lines != len(orientation):
                 logger.error("Incorrect number of orientation instructions")
                 sys.exit(0)
@@ -474,14 +524,21 @@ class Synteny(object):
         if features:
             features = Bed(features)
 
+        # Import extra features track
+        if extra_features:
+            extra_features = Bed(extra_features)
+
         # Init list for track extent, features, and extra features
         exts = []
         feats = []
+        extra_feats = []
 
         # Collect span for any tracks with custom range coords
         customSpans = []
 
         # For each track (by index)
+        logger.debug(f"bf.ncols is {bf.ncols}")
+
         for i in range(bf.ncols):
             # Set range coord containing all annotations
             ext = bf.get_extent(i, order)
@@ -503,11 +560,15 @@ class Synteny(object):
                 start, end, chrm = (lo[i].rStart, lo[i].rEnd, lo[i].chrmName)
                 span = end - (start + 1)
                 customSpans.append(span)
+                logger.debug(f"start is {start}, end is {end}, chrm is {chrm}, orientation is {orientation[i]}, span is {span}")
             else:
-                start, end, si, ei, chrm, orientation, span = ext
+                # TODO: Check what ori is doing here
+                start, end, si, ei, chrm, ori, span = ext
                 # Get start/end of first/last features from blockfile
                 start, end = start.start, end.end
                 customSpans.append(span)
+
+                logger.debug(f"start is {start}, end is {end}, si is {si}, ei is {ei}, chrm is {chrm}, orientation is {orientation[i]}, span is {span}")
 
             if features:
                 # Unpack coords from 'features' bed object
@@ -526,6 +587,25 @@ class Synteny(object):
                     fe_all = [x for x in fe]
                     feats.append(fe_all)
 
+            # Process extra annotations
+            if extra_features:
+                # Extract features for this chromosome
+                extra_fe = list(extra_features.extract(chrm, start, end))
+                if prune_features:
+                    extra_fe_pruned = [x for x in extra_fe if x.span >= span / 1000]
+                    logger.info(
+                        "Extracted {0} extra features "
+                        "({1} after pruning)".format(len(extra_fe), len(extra_fe_pruned)),
+                        file=sys.stderr,
+                    )
+                    extra_feats.append(extra_fe_pruned)
+                else:
+                    extra_fe_all = [x for x in extra_fe]
+                    extra_feats.append(extra_fe_all)
+            else:
+                # Add empty list if no extra features
+                extra_feats.append([])
+
         # Find largest coord range for any track
         # maxspan = max(exts, key=lambda x: x[-1])[-1]
         maxspan = max(customSpans)
@@ -539,6 +619,8 @@ class Synteny(object):
         for i in range(bf.ncols):
             ext = exts[i]
             fe = feats[i] if feats else None
+            extra_fe = extra_feats[i] if extra_feats else None
+            logger.debug(f"annotation {i} orientation is {orientation[i]}")
             ori = orientation[i] if orientation else None
             parent_ori = orientation[i - 1] if orientation and i >= 1 else None
             r = Region(
@@ -553,8 +635,10 @@ class Synteny(object):
                 loc_label=loc_label,
                 vpad=vpad,
                 features=fe,
+                extra_features=extra_fe,  # Pass extra features to Region
                 plotRibbonBlocks=plotRibbonBlocks,
                 annotcolor=annotcolor,
+                extra_annotcolor=extra_annotcolor,  # Pass extra color to Region
             )
             self.rr.append(r)
             # Use tid and accn to store gene positions
@@ -725,8 +809,8 @@ def set_strand_colors(colorCodes):
 def main():
     # Get cmd line args
     p = OptionParser(__doc__)
-    p.add_option("--outfile", default=None, help="Prefix for output graphic.")
-    p.add_option(
+    p.add_argument("--outfile", default=None, help="Prefix for output graphic.")
+    p.add_argument(
         "--annotations",
         help="Feature annotations in BED format. \n \
         [1] seqid \n \
@@ -739,73 +823,87 @@ def main():
         [8] Vertical offset multiplier. i.e. 0 = plot on chrm line, -1 = plot below chrm, 1 = plot above chrm \n \
         [9] Feature height multiplier. i.e. 1 = default, 2 = double height ",
     )
-    p.add_option(
+    p.add_argument(
+        "--extra-annotations",
+        default=None,
+        help="Extra annotations in BED format. \n \
+        [1] seqid \n \
+        [2] start \n \
+        [3] end \n \
+        [4] accn \n \
+        [5] score \n \
+        [6] strand \n \
+        [7] Custom color. i.e. '.' = use default color, else any pyplot compatible color code: 'g', 'green, '#02ab2e', etc. \n \
+        [8] Vertical offset multiplier. i.e. 0 = plot on chrm line, -1 = plot below chrm, 1 = plot above chrm \n \
+        [9] Feature height multiplier. i.e. 1 = default, 2 = double height ",
+    )
+    p.add_argument(
         "--noprune",
         default=True,
         action="store_false",
         help="If set, do not exclude small features from annotation track. ",
     )
-    p.add_option(
+    p.add_argument(
         "--reorient",
         default=None,
         help="Comma delimited string of 'F' or 'R' characters. Must be same number and order as tracks in layout file. \n i.e. F,F,R will flip the third track. Default: All Forward.",
     )
-    p.add_option(
+    p.add_argument(
         "--tree", help="Display trees on the bottom of the figure [default: %default]"
     )
-    p.add_option(
+    p.add_argument(
         "--scalebar",
         default=False,
         action="store_true",
         help="Add scale bar to the plot",
     )
-    p.add_option(
+    p.add_argument(
         "--paintbyscore",
         default=False,
         action="store_true",
         help="Set ribbon transparancy using score column from ribbon bedfile.",
     )
-    p.add_option(
+    p.add_argument(
         "--paintbystrand",
         default=False,
         action="store_true",
         help="Set ribbon colour by alignment orientation. Red=Inverted, Blue=Same",
     )
-    p.add_option(
+    p.add_argument(
         "--plotHits",
         default=False,
         action="store_true",
         help="If set, plot ribbon features from blockfile also as annotations.",
     )
-    p.add_option(
+    p.add_argument(
         "--strandcolors",
         default=None,
         help="Comma delimited string of color codes for forward or inverted orientation ribbons. Used by paintbystrand. Default: 'b,g' for forward,inverted.",
     )
-    p.add_option(
+    p.add_argument(
         "--annotcolor",
         default="g",
         help="Comma delimited string of color code for 'annotation' feature tracks. Default: 'g'.",
     )
-    p.add_option(
+    p.add_argument(
         "--scaleAlpha",
         default=False,
         action="store_true",
         help="If set, ribbon alpha values will be rescaled from 0.5-1 to 0.15-0.95 Note: Assumes 50% min identity in alignments.",
     )
-    p.add_option(
+    p.add_argument(
         "--transparent",
         default=False,
         action="store_true",
         help="If set, save image with transparent background.",
     )
-    p.add_option(
+    p.add_argument(
         "--noline",
         default=False,
         action="store_true",
         help="If set, do not draw outline on ribbons.",
     )
-    p.add_option(
+    p.add_argument(
         "--shadestyle",
         default="curve",
         choices=Shade.Styles,
@@ -819,7 +917,7 @@ def main():
 
     # Check for data files
     if len(args) != 3:
-        logger.error("Requires 3 data file args.")
+        logger.error(f"Positional args should have 3 items: {args}")
         sys.exit(not p.print_help())
 
     # Unpack data file paths
@@ -830,6 +928,8 @@ def main():
         set_strand_colors(opts.strandcolors)
 
     # Get custom track orientations
+    # TODO: raise error if orientation string is not same length as number of tracks
+    # TODO: raise error if orientation string contains anything other than 'F' or 'R'
     if opts.reorient:
         flip = [x for x in opts.reorient.strip().split(",") if x in ("F", "R")]
     else:
@@ -849,6 +949,7 @@ def main():
         orientation=flip,
         tree=opts.tree,
         features=opts.annotations,
+        extra_features=opts.extra_annotations,
         scalebar=opts.scalebar,
         paintbyscore=opts.paintbyscore,
         paintbystrand=opts.paintbystrand,

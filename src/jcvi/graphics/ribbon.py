@@ -44,12 +44,12 @@ class LayoutLine(object):
         # If hidden, remove first character
         if self.hidden:
             row = row[1:]
-        
+
         # Split row by delimiter
         args = row.rstrip().split(delimiter)
         # Strip whitespace from each arg
         args = [x.strip() for x in args]
-        
+
         # Init layout line attributes
         self.ratio = 1
         self.label = None
@@ -57,21 +57,21 @@ class LayoutLine(object):
         self.rEnd = None
         self.chrmMax = None
         self.chrmName = None
-        
+
         # Set layout line attributes
         self.x = float(args[0])
         self.y = float(args[1])
-        self.rotation = int(args[2]) # rotation
-        self.ha = args[3] # horizontal alignment
-        self.va = args[4] # vertical alignment
-        self.color = args[5] # color
+        self.rotation = int(args[2])  # rotation
+        self.ha = args[3]  # horizontal alignment
+        self.va = args[4]  # vertical alignment
+        self.color = args[5]  # color
         if len(args) > 6 and args[6]:
-            self.ratio = float(args[6]) # Scaling factor
+            self.ratio = float(args[6])  # Scaling factor
         if len(args) > 7 and args[7]:
-            self.label = args[7].strip() # Chromosome label
+            self.label = args[7].strip()  # Chromosome label
         if len(args) > 8 and args[8]:
             self.chrmName = str(args[8])
-        if len(args) > 9 and args[9] and args[10]: # Set rStart and rEnd if provided
+        if len(args) > 9 and args[9] and args[10]:  # Set rStart and rEnd if provided
             # If rStart and rEnd are 0, set to 1
             self.rStart = max(int(args[9]), 1)
             self.rEnd = max(int(args[10]), 1)
@@ -81,7 +81,7 @@ class LayoutLine(object):
 
 class Layout(AbstractLayout):
     def __init__(self, filename, delimiter=","):
-        super(Layout, self).__init__(filename) # Call parent class constructor
+        super(Layout, self).__init__(filename)  # Call parent class constructor
         fp = open(filename)
         self.edges = []
         for row in fp:

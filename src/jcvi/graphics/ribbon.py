@@ -18,20 +18,19 @@ e, 1, 2
 With the row ordering corresponding to the column ordering in the alignment blockfile.
 """
 
-# TODO: Use more informative variable names.
-# TODO: If not rStart use 1, if not rEnd use chrmMax, if not chrmMax use end of last feature.
-
 import sys
 from typing import List
 
 import numpy as np
+from matplotlib.path import Path
+
 from jcvi.apps.base import OptionParser, logger
 from jcvi.compara.synteny import BlockFile
 from jcvi.formats.bed import Bed
 from jcvi.graphics.base import AbstractLayout, PathPatch, markup, mpl, plt, savefig
 from jcvi.graphics.glyph import Glyph, RoundLabel  # , GeneGlyph
 from jcvi.utils.cbook import human_size
-from matplotlib.path import Path
+
 
 # Default colours for ribbons with different orientations
 forward, backward = "#1f77b4", "#2ca02c"
@@ -40,41 +39,49 @@ forward, backward = "#1f77b4", "#2ca02c"
 class LayoutLine(object):
     # 0-11: x,y,rotation,ha,va,color,ratio,label,chrmName,rStart,rEnd,chrmMax
     def __init__(self, row, delimiter=","):
+        # Check if line is hidden (starts with '*')
         self.hidden = row[0] == "*"
+        # If hidden, remove first character
         if self.hidden:
             row = row[1:]
+        
+        # Split row by delimiter
         args = row.rstrip().split(delimiter)
+        # Strip whitespace from each arg
         args = [x.strip() for x in args]
+        
+        # Init layout line attributes
+        self.ratio = 1
+        self.label = None
+        self.rStart = None
+        self.rEnd = None
+        self.chrmMax = None
+        self.chrmName = None
+        
+        # Set layout line attributes
         self.x = float(args[0])
         self.y = float(args[1])
-        self.rotation = int(args[2])
-        self.ha = args[3]
-        self.va = args[4]
-        self.color = args[5]
-        self.ratio = 1
-        if len(args) > 6:
-            self.ratio = float(args[6])
-        if len(args) > 7:
-            self.label = args[7].strip()
-        else:
-            self.label = None
-        if len(args) > 8:
+        self.rotation = int(args[2]) # rotation
+        self.ha = args[3] # horizontal alignment
+        self.va = args[4] # vertical alignment
+        self.color = args[5] # color
+        if len(args) > 6 and args[6]:
+            self.ratio = float(args[6]) # Scaling factor
+        if len(args) > 7 and args[7]:
+            self.label = args[7].strip() # Chromosome label
+        if len(args) > 8 and args[8]:
             self.chrmName = str(args[8])
-        if len(args) > 9:
-            self.rStart = int(args[9])
-            self.rEnd = int(args[10])
-        else:
-            self.rStart = None
-            self.rEnd = None
-        if len(args) > 10:
-            self.chrmMax = int(args[10])
-        else:
-            self.chrmMax = None
+        if len(args) > 9 and args[9] and args[10]: # Set rStart and rEnd if provided
+            # If rStart and rEnd are 0, set to 1
+            self.rStart = max(int(args[9]), 1)
+            self.rEnd = max(int(args[10]), 1)
+        if len(args) > 10 and args[11]:
+            self.chrmMax = int(args[11])
 
 
 class Layout(AbstractLayout):
     def __init__(self, filename, delimiter=","):
-        super(Layout, self).__init__(filename)
+        super(Layout, self).__init__(filename) # Call parent class constructor
         fp = open(filename)
         self.edges = []
         for row in fp:
@@ -85,12 +92,16 @@ class Layout(AbstractLayout):
                     continue
                 # Import edges
                 if row[0] == "e":
+                    # Split row by delimiter
                     args = row.rstrip().split(delimiter)
+                    # Strip whitespace from each arg
                     args = [x.strip() for x in args]
-                    # From index 1 and 2
-                    a, b = args[1:3]
-                    a, b = int(a), int(b)
+                    # Check edge line format
                     assert args[0] == "e"
+                    assert len(args) == 3
+                    # From index 1 and 2 get source and target track indices
+                    a, b = int(args[1]), int(args[2])
+                    # Add edge to layout
                     self.edges.append((a, b))
                 else:
                     # Parse all other lines as sequence tracks
@@ -469,7 +480,7 @@ class Synteny(object):
         orientation=None,
         tree=None,
         features=None,
-        extra_features=None,  # Add parameter for extra annotations
+        extra_features=None,
         chr_label=True,
         loc_label=True,
         pad=0.05,
@@ -480,7 +491,7 @@ class Synteny(object):
         prune_features=True,
         plotRibbonBlocks=False,
         annotcolor="g",
-        extra_annotcolor="r",  # Add color parameter for extra annotations
+        extra_annotcolor="r",
         scaleAlpha=False,
         noline=False,
         shadestyle="curve",

@@ -4,7 +4,6 @@
 """
 Helper functions for Copy Number Variations (CNV).
 """
-import logging
 import os.path as op
 import sys
 

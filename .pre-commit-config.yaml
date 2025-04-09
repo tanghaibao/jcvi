@@ -17,8 +17,8 @@ repos:
       - id: check-executables-have-shebangs
       #- id: debug-statements
       - id: end-of-file-fixer
-      - id: name-tests-test
-        args: [--pytest-test-first]
+      #- id: name-tests-test
+      #  args: [--pytest-test-first]
 
 #  - repo: https://github.com/numpy/numpydoc
 #    rev: v1.8.0

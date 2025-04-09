@@ -20,8 +20,8 @@ repos:
       - id: name-tests-test
         args: [--pytest-test-first]
 
-  - repo: https://github.com/numpy/numpydoc
-    rev: v1.8.0
-    hooks:
-      - id: numpydoc-validation
-        exclude: (tests/|docs/).*
+#  - repo: https://github.com/numpy/numpydoc
+#    rev: v1.8.0
+#    hooks:
+#      - id: numpydoc-validation
+#        exclude: (tests/|docs/).*

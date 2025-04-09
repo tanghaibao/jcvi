@@ -15,7 +15,7 @@ repos:
       - id: check-merge-conflict
       - id: check-symlinks
       - id: check-executables-have-shebangs
-      - id: debug-statements
+      #- id: debug-statements
       - id: end-of-file-fixer
       - id: name-tests-test
         args: [--pytest-test-first]

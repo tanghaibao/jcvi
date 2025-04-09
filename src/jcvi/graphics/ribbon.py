@@ -823,7 +823,7 @@ def main(args: List[str]):
         [6] strand \n \
         [7] Custom color. i.e. '.' = use default color, else any pyplot compatible color code: 'g', 'green', '#02ab2e', etc. \n \
         [8] Vertical offset multiplier. i.e. 0 = plot on chrm line, -1 = plot below chrm, 1 = plot above chrm \n \
-        [9] Feature height multiplier. i.e. 1 = default, 2 = double height 
+        [9] Feature height multiplier. i.e. 1 = default, 2 = double height
         """,
     )
     p.add_argument(

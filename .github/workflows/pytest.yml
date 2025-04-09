@@ -42,8 +42,8 @@ jobs:
       # Get pytest args from pyproject.toml
       - name: Test with pytest
         run: |
-          pytest 
-      
+          pytest
+
       # Upload coverage report to Codecov
       # Only upload coverage for the latest Python version on Ubuntu
       #- name: Upload coverage reports to Codecov

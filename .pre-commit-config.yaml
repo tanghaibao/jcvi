@@ -7,6 +7,7 @@ repos:
       - id: check-toml
       - id: check-yaml
       - id: end-of-file-fixer
+        exclude: ^tests/
       - id: trailing-whitespace
         exclude: ^tests/
       #- id: check-added-large-files
@@ -18,8 +19,6 @@ repos:
       - id: check-symlinks
       - id: check-executables-have-shebangs
       #- id: debug-statements
-      - id: end-of-file-fixer
-        exclude: ^tests/
       #- id: name-tests-test
       #  args: [--pytest-test-first]
 

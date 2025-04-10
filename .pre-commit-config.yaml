@@ -8,15 +8,18 @@ repos:
       - id: check-yaml
       - id: end-of-file-fixer
       - id: trailing-whitespace
+        exclude: ^tests/
       #- id: check-added-large-files
       #  args: [--maxkb=500, --enforce-all]
       - id: check-ast
       - id: check-json
+        exclude: ^tests/
       - id: check-merge-conflict
       - id: check-symlinks
       - id: check-executables-have-shebangs
       #- id: debug-statements
       - id: end-of-file-fixer
+        exclude: ^tests/
       #- id: name-tests-test
       #  args: [--pytest-test-first]
 

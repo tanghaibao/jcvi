@@ -11,15 +11,15 @@ testing. Several aspects of annotation QC are implemented in this script.
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser
+from ..formats.base import must_open
 from ..formats.gff import (
     Gff,
     get_piles,
-    make_index,
     import_feats,
+    make_index,
     populate_children,
     to_range,
 )
-from ..formats.base import must_open
 from ..formats.sizes import Sizes
 from ..utils.range import range_chain, range_minmax, range_overlap
 
@@ -162,6 +162,7 @@ def trimUTR(args):
     to adjust the boundaries of all parent 'gene' features
     """
     import gffutils
+
     from jcvi.formats.base import SetFile
 
     p = OptionParser(trimUTR.__doc__)

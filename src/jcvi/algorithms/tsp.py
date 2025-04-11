@@ -6,19 +6,16 @@ TSP solver using Concorde or OR-tools. This is much faster than the LP-formulati
 algorithms.lpsolve.tsp(). See also:
 https://developers.google.com/optimization/routing/tsp
 """
-import os.path as op
-
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations
-
-import numpy as np
+import os.path as op
 
 from more_itertools import pairwise
+import numpy as np
 
-from jcvi.formats.base import must_open
 from jcvi.apps.base import cleanup, logger, mkdir, sh, which
-
+from jcvi.formats.base import must_open
 
 INF = 10000
 NEG_INF = -INF
@@ -75,8 +72,7 @@ class TSPDataModel:
             return Concorde(self, precision=precision).tour
 
         # Use OR-tools
-        from ortools.constraint_solver import routing_enums_pb2
-        from ortools.constraint_solver import pywrapcp
+        from ortools.constraint_solver import pywrapcp, routing_enums_pb2
 
         D, nodes = self.distance_matrix(precision)
         nnodes = len(nodes)

@@ -10,7 +10,6 @@ import sys
 
 import numpy as np
 import pandas as pd
-
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
@@ -116,14 +115,14 @@ def waterlilyGOM(args):
 
     Customized figure to plot phylogeny and related infographics.
     """
+    from ..graphics.table import CsvTable, draw_table
     from ..graphics.tree import (
         LeafInfoFile,
         WGDInfoFile,
         draw_tree,
-        parse_tree,
         draw_wgd_xy,
+        parse_tree,
     )
-    from ..graphics.table import CsvTable, draw_table
 
     p = OptionParser(waterlilyGOM.__doc__)
     _, args, iopts = p.set_image_options(args, figsize="12x9")

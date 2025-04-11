@@ -4,15 +4,14 @@
 """
 Identify repeat numbers in STR repeats.
 """
-import re
+from collections import Counter, defaultdict
+import json
+from math import ceil, log
+from multiprocessing import Pool
 import os
 import os.path as op
-import json
+import re
 import sys
-
-from math import log, ceil
-from collections import Counter, defaultdict
-from multiprocessing import Pool
 
 import numpy as np
 import pandas as pd
@@ -33,12 +32,10 @@ from ..apps.base import (
     sh,
 )
 from ..apps.grid import MakeManager
-from ..formats.base import LineFile, must_open
-from ..formats.base import timestamp
+from ..formats.base import LineFile, must_open, timestamp
 from ..formats.bed import natsorted
 from ..utils.aws import check_exists_s3, ls_s3, pull_from_s3, push_to_s3
 from ..utils.cbook import percentage, uniqify
-
 
 REF = "hg38"
 REPO = datafile("TREDs.meta.csv")

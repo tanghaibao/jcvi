@@ -8,24 +8,23 @@ Many of the routines in this script is to select among a set of conflicting
 models, either through accuracy (batcheval) or simply the length (longest).
 """
 
+from collections import Counter, defaultdict
 import os
 import os.path as op
 import sys
 
-from collections import Counter, defaultdict
-
-from ..apps.grid import GridProcess, get_grid_engine, PBS_STANZA
 from ..apps.base import (
     ActionDispatcher,
     OptionParser,
+    get_abs_path,
+    glob,
     logger,
+    mkdir,
     need_update,
     popen,
     sh,
-    mkdir,
-    glob,
-    get_abs_path,
 )
+from ..apps.grid import PBS_STANZA, GridProcess, get_grid_engine
 from ..formats.base import BaseFile, LineFile, write_file
 
 

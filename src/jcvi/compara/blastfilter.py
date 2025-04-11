@@ -19,11 +19,10 @@ see supplementary info for sea anemone genome paper, formula::
 
 Finally a blast.filtered file is created.
 """
-import sys
-import os.path as op
-
 from collections import defaultdict
 from itertools import groupby
+import os.path as op
+import sys
 
 from ..apps.base import OptionParser, logger
 from ..compara.synteny import check_beds

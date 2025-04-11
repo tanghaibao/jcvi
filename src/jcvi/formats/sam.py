@@ -7,17 +7,16 @@ This script simply parses the lines in SAM into human readable fields.
 
 http://samtools.sourceforge.net/SAM1.pdf
 """
+from collections import defaultdict
+from itertools import groupby
 import os
 import os.path as op
 import sys
 
-from collections import defaultdict
-from itertools import groupby
-
 from ..apps.base import (
+    PIPE,
     ActionDispatcher,
     OptionParser,
-    PIPE,
     Popen,
     cleanup,
     get_abs_path,
@@ -28,9 +27,8 @@ from ..apps.base import (
     popen,
     sh,
 )
-from ..utils.cbook import fill
 from ..assembly.base import Astat
-
+from ..utils.cbook import fill
 from .base import LineFile, must_open
 from .fasta import Fasta
 from .sizes import Sizes
@@ -669,8 +667,8 @@ def chimera(args):
 
     Parse BAM file from `bwasw` and list multi-hit reads and breakpoints.
     """
-    import pysam
     from natsort import natsorted
+    import pysam
 
     p = OptionParser(chimera.__doc__)
     p.set_verbose()
@@ -771,6 +769,7 @@ def mapped(args):
     Optionally, extract the unmapped reads into a separate file
     """
     import pysam
+
     from jcvi.apps.grid import Jobs
 
     p = OptionParser(mapped.__doc__)

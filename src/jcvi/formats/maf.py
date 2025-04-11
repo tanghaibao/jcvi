@@ -5,21 +5,17 @@
 MAF format specification:
 <http://genome.ucsc.edu/FAQ/FAQformat#format5>
 """
-import sys
-
 from bisect import bisect
 from dataclasses import dataclass
+import sys
 
-from Bio import AlignIO
-from Bio import SeqIO
+from Bio import AlignIO, SeqIO
 from bx import interval_index_file
 from bx.align import maf
 
 from ..apps.base import ActionDispatcher, OptionParser, need_update
-from ..apps.lastz import blastz_score_to_ncbi_expectation, blastz_score_to_ncbi_bits
-
+from ..apps.lastz import blastz_score_to_ncbi_bits, blastz_score_to_ncbi_expectation
 from .base import BaseFile, logger
-
 
 FLANK = 60
 

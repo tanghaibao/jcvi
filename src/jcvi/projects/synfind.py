@@ -4,12 +4,11 @@
 """
 SynFind analyses and visualization.
 """
-import os.path as op
-import sys
-
 from collections import defaultdict
 from copy import deepcopy
 from itertools import groupby
+import os.path as op
+import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir, symlink
 from ..apps.grid import MakeManager
@@ -19,12 +18,12 @@ from ..formats.blast import BlastLine
 from ..formats.gff import Gff, load
 from ..graphics.base import (
     FancyArrow,
-    plt,
-    savefig,
-    panel_labels,
+    latex,
     markup,
     normalize_axes,
-    latex,
+    panel_labels,
+    plt,
+    savefig,
 )
 from ..graphics.glyph import CartoonRegion, RoundRect
 from ..utils.cbook import SummaryStats, gene_name, percentage

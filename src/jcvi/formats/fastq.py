@@ -4,12 +4,11 @@
 """
 Processing fastq files
 """
-import os.path as op
-import sys
-import re
-import json
-
 from itertools import islice
+import json
+import os.path as op
+import re
+import sys
 
 from Bio import SeqIO
 from Bio.SeqIO.QualityIO import FastqGeneralIterator
@@ -24,10 +23,8 @@ from ..apps.base import (
     which,
 )
 from ..utils.cbook import percentage
-
 from .base import DictFile
 from .fasta import must_open, rc
-
 
 qual_offset = lambda x: 33 if x == "sanger" else 64
 allowed_dialect_conversions = {

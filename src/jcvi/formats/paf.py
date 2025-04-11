@@ -11,7 +11,6 @@
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger
-
 from .base import must_open
 
 

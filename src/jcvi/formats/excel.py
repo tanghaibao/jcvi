@@ -160,7 +160,9 @@ def fromcsv(args):
     Convert csv file to EXCEL.
     """
     from csv import reader
+
     from xlwt import Workbook, easyxf
+
     from jcvi.formats.base import flexible_cast
 
     p = OptionParser(fromcsv.__doc__)

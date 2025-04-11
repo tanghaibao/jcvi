@@ -10,7 +10,7 @@ import sys
 from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..apps.grid import MakeManager
 from ..formats.base import must_open
-from ..formats.vcf import VcfLine, CM
+from ..formats.vcf import CM, VcfLine
 from ..utils.cbook import percentage
 
 

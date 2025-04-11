@@ -4,20 +4,18 @@
 """
 AWS-related methods.
 """
+from configparser import NoOptionError, NoSectionError
+from datetime import datetime
 import fnmatch
 import getpass
 import json
+from multiprocessing import Pool
 import os
 import os.path as op
 import sys
 import time
 
-from configparser import NoOptionError, NoSectionError
-from datetime import datetime
-from multiprocessing import Pool
-
 import boto3
-
 from botocore.exceptions import ClientError, ParamValidationError
 
 from ..apps.base import (
@@ -30,9 +28,7 @@ from ..apps.base import (
     sh,
 )
 from ..formats.base import BaseFile, SetFile, timestamp
-
 from .console import console
-
 
 AWS_CREDS_PATH = "%s/.aws/credentials" % (op.expanduser("~"),)
 

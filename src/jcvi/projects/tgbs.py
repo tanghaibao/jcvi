@@ -5,12 +5,11 @@
 Reference-free tGBS related functions.
 """
 
+from collections import Counter
 import os
 import os.path as op
-import sys
-
-from collections import Counter
 from pickle import dump, load
+import sys
 
 from ..apps.base import (
     ActionDispatcher,
@@ -29,7 +28,6 @@ from ..formats.fasta import Fasta, SeqIO
 from ..formats.fastq import iter_fastq
 from ..formats.sam import get_prefix
 from ..graphics.base import normalize_axes, plt, savefig
-
 
 speedupsh = r"""
 cd {0}
@@ -127,9 +125,10 @@ def synteny(args):
 
     Plot MSTmap against reference genome.
     """
-    from jcvi.assembly.geneticmap import bed as geneticmap_bed
     from jcvi.apps.align import blat
-    from jcvi.formats.blast import bed as blast_bed, best
+    from jcvi.assembly.geneticmap import bed as geneticmap_bed
+    from jcvi.formats.blast import bed as blast_bed
+    from jcvi.formats.blast import best
 
     p = OptionParser(synteny.__doc__)
     opts, args = p.parse_args(args)
@@ -336,10 +335,11 @@ def novo(args):
 
     Reference-free tGBS pipeline v1.
     """
-    from jcvi.assembly.kmer import jellyfish, histogram
-    from jcvi.assembly.preprocess import diginorm
-    from jcvi.formats.fasta import filter as fasta_filter, format
     from jcvi.apps.cdhit import filter as cdhit_filter
+    from jcvi.assembly.kmer import histogram, jellyfish
+    from jcvi.assembly.preprocess import diginorm
+    from jcvi.formats.fasta import filter as fasta_filter
+    from jcvi.formats.fasta import format
 
     p = OptionParser(novo.__doc__)
     p.add_argument(

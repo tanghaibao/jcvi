@@ -8,9 +8,8 @@ phytozome data sets.  Certain portion of the codes are ported from R package
 """
 import sys
 import urllib
-
 from urllib.parse import urljoin
-from xml.etree.ElementTree import ElementTree, Element, SubElement, tostring
+from xml.etree.ElementTree import Element, ElementTree, SubElement, tostring
 
 from .base import ActionDispatcher, OptionParser, download, logger
 

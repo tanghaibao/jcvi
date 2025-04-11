@@ -21,7 +21,7 @@
 #     OTHER DEALINGS IN THE SOFTWARE.
 
 from bisect import bisect_left, bisect_right
-from collections import defaultdict, OrderedDict
+from collections import OrderedDict, defaultdict
 from urllib.parse import parse_qsl
 
 try:

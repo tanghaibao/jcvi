@@ -4,12 +4,11 @@
 """
 Deconvolute fastq files according to barcodes.
 """
+from collections import namedtuple
+from itertools import groupby, islice, product
+from multiprocessing import Pool
 import os.path as op
 import sys
-
-from collections import namedtuple
-from itertools import product, groupby, islice
-from multiprocessing import Pool
 
 from Bio.Data.IUPACData import ambiguous_dna_values
 from Bio.SeqIO.QualityIO import FastqGeneralIterator

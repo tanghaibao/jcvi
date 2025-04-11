@@ -4,16 +4,14 @@
 """
 Wheel plot that shows continuous data in radial axes.
 """
-import sys
-
-from math import degrees
 from collections import OrderedDict
 from itertools import groupby
+from math import degrees
+import sys
 
 import numpy as np
 
 from ..apps.base import ActionDispatcher, OptionParser
-
 from .base import normalize_axes, plt, savefig
 
 

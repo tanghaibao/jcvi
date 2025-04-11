@@ -2,12 +2,10 @@
 uses R for statistics and graphics
 """
 
+from string import Template
 import sys
 
-from string import Template
-
 from ..formats.base import must_open
-
 from .base import ActionDispatcher, OptionParser, cleanup, sh
 
 

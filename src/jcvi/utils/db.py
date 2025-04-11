@@ -12,7 +12,6 @@ from ..apps.base import ActionDispatcher, OptionParser, getusername, logger, sh
 from ..formats.base import must_open
 from ..utils.cbook import AutoVivification
 
-
 # set up valid database connection params
 valid_dbconn = AutoVivification()
 for dbconn, port, module, host in zip(

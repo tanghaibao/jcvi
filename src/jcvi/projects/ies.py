@@ -4,18 +4,17 @@
 """
 Locate IES sequences within MIC genome of tetrahymena.
 """
-import os.path as op
-import sys
-
 from collections import Counter
 from itertools import groupby
+import os.path as op
+import sys
 
 from ..algorithms.formula import outlier_cutoff
 from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
 from ..formats.base import must_open
 from ..formats.bed import Bed, depth, mergeBed, some, sort
 from ..utils.cbook import percentage
-from ..utils.range import Range, range_interleave, range_chain
+from ..utils.range import Range, range_chain, range_interleave
 
 
 class EndPoint(object):

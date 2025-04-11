@@ -4,17 +4,16 @@
 """
 Variant call format.
 """
+from collections import defaultdict
+from itertools import groupby
 import os.path as op
 import sys
 
-from collections import defaultdict
-from itertools import groupby
 from pyfaidx import Fasta
 from pyliftover import LiftOver
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
 from ..utils.cbook import percentage
-
 from .base import must_open
 from .sizes import Sizes
 

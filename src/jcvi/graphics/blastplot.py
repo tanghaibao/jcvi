@@ -13,9 +13,8 @@ whether you are BLASTing raw sequences or makers, you need to place --sizes or
 """
 
 import os.path as op
-import sys
-
 from random import sample
+import sys
 
 import numpy as np
 
@@ -24,9 +23,7 @@ from ..formats.base import is_number
 from ..formats.bed import Bed, BedLine
 from ..formats.blast import BlastLine
 from ..formats.sizes import Sizes
-
 from .base import Rectangle, plt, savefig, set_human_base_axis
-
 
 DotStyles = ("line", "circle", "dot")
 

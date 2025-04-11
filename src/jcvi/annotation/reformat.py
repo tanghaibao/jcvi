@@ -7,12 +7,11 @@ Convert common output files from gene prediction software into gff3 format.
 Similar to the utilities in DAWGPAWS.
 <http://dawgpaws.sourceforge.net/man.html>
 """
-import os
-import sys
-import re
-
 from collections import defaultdict
 from itertools import groupby, product
+import os
+import re
+import sys
 
 from ..apps.base import (
     ActionDispatcher,
@@ -23,11 +22,10 @@ from ..apps.base import (
     popen,
     sh,
 )
+from ..formats.base import SetFile, flexible_cast, get_number, must_open
+from ..formats.bed import Bed, BedLine, sort
 from ..utils.cbook import AutoVivification
 from ..utils.grouper import Grouper
-from ..formats.bed import Bed, BedLine, sort
-from ..formats.base import SetFile, flexible_cast, get_number, must_open
-
 
 FRAME, RETAIN, OVERLAP, NEW = "FRAME", "RETAIN", "OVERLAP", "NEW"
 PRIORITY = (FRAME, RETAIN, OVERLAP, NEW)
@@ -1064,10 +1062,11 @@ def reindex(args):
     * decreasing transcript length
     * decreasing support from multiple input datasets used to run pasa.consolidate()
     """
-    from jcvi.formats.gff import make_index
-    from jcvi.formats.fasta import Fasta
-    from jcvi.apps.emboss import needle
     from tempfile import mkstemp
+
+    from jcvi.apps.emboss import needle
+    from jcvi.formats.fasta import Fasta
+    from jcvi.formats.gff import make_index
 
     p = OptionParser(reindex.__doc__)
     p.add_argument(

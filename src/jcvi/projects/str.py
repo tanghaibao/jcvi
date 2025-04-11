@@ -4,22 +4,21 @@
 """
 Related scripts for the HLI-STR (TREDPARSE) paper.
 """
-import os.path as op
-import os
-import csv
-import sys
-import json
-import numpy as np
-import pandas as pd
-
 from collections import defaultdict
+import csv
 from itertools import product
+import json
+import os
+import os.path as op
 from random import sample
+import sys
 
 from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 from natsort import natsorted
+import numpy as np
+import pandas as pd
 from pyfaidx import Fasta
 
 try:
@@ -27,8 +26,16 @@ try:
 except ImportError:
     pass
 
-from ..apps.base import ActionDispatcher, OptionParser, cleanup, iglob, logger, mkdir
-from ..apps.base import datafile, sh
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    cleanup,
+    datafile,
+    iglob,
+    logger,
+    mkdir,
+    sh,
+)
 from ..apps.bwa import align
 from ..apps.grid import Parallel
 from ..assembly.sim import eagle, wgsim
@@ -45,7 +52,6 @@ from ..graphics.base import (
 from ..utils.cbook import percentage
 from ..utils.table import tabulate
 from ..variation.str import TREDsRepo, af_to_counts, read_treds
-
 
 # Huntington risk allele
 infected_thr = 40
@@ -452,8 +458,9 @@ def alts(args):
 
     Build alternative loci based on simulation data.
     """
-    import pysam
     from more_itertools import pairwise
+    import pysam
+
     from jcvi.utils.grouper import Grouper
 
     p = OptionParser(alts.__doc__)

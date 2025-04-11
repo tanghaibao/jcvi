@@ -9,7 +9,7 @@ import os.path as op
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
-from ..formats.base import BaseFile, read_until, must_open
+from ..formats.base import BaseFile, must_open, read_until
 from ..formats.sam import coverage
 from ..utils.aws import ls_s3, push_to_s3
 from ..utils.cbook import percentage
@@ -144,6 +144,7 @@ def mitocompile(args):
     Extract information about deletions in vcf file.
     """
     from urllib.parse import parse_qsl
+
     from jcvi.formats.vcf import VcfLine
 
     p = OptionParser(mitocompile.__doc__)

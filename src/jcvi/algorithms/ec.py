@@ -8,17 +8,15 @@ ordering and orientation problem.
 """
 
 import array
-import random
 import multiprocessing
+import random
 
 from deap import base, creator, tools
 from deap.algorithms import varAnd
 
 from ..apps.base import logger
 from ..utils.console import printf
-
 from .lis import longest_monotonic_subseq_length
-
 
 # This has to be in global space, otherwise runs into error "creator.Individual
 # not found" when runnning on macOS. See also:

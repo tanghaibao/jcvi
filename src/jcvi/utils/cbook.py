@@ -3,11 +3,10 @@ Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
 
+from collections import defaultdict
 import os.path as op
 import re
 import sys
-
-from collections import defaultdict
 from typing import Optional
 
 from ..apps.base import logger
@@ -51,7 +50,7 @@ def depends(func):
     Decorator to perform check on infile and outfile. When infile is not present, issue
     warning, and when outfile is present, skip function calls.
     """
-    from jcvi.apps.base import need_update, listify
+    from jcvi.apps.base import listify, need_update
 
     infile = "infile"
     outfile = "outfile"

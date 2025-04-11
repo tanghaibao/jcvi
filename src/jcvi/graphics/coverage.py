@@ -15,7 +15,6 @@ import numpy as np
 
 from ..apps.base import OptionParser, glob, logger
 from ..formats.sizes import Sizes
-
 from .base import (
     Rectangle,
     adjust_spines,

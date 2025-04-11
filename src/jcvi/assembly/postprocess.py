@@ -9,12 +9,11 @@ include the following components
 + Use minimus2 to combine the contigs through overlaps
 + Map the mates to the contigs and perform scaffolding
 """
+from collections import defaultdict
+from itertools import groupby
 import os
 import os.path as op
 import sys
-
-from collections import defaultdict
-from itertools import groupby
 
 from ..apps.align import run_megablast
 from ..apps.base import (
@@ -40,7 +39,6 @@ from ..formats.fasta import (
 )
 from ..formats.sizes import Sizes
 from ..utils.cbook import depends
-
 from .base import n50
 
 
@@ -321,7 +319,7 @@ def scaffold(args):
 
     Build scaffolds based on ordering in the AGP file.
     """
-    from jcvi.formats.agp import bed, order_to_agp, build
+    from jcvi.formats.agp import bed, build, order_to_agp
     from jcvi.formats.bed import Bed
 
     p = OptionParser(scaffold.__doc__)

@@ -139,18 +139,18 @@ def histogram(args):
     Plot has two axes - corresponding to pdf and cdf, respectively.  Also adding
     number of reads, average/median, N50, and total length.
     """
-    from jcvi.utils.cbook import human_size, thousands, SUFFIXES
     from jcvi.formats.fastq import fasta
-    from jcvi.graphics.histogram import stem_leaf_plot
     from jcvi.graphics.base import (
-        plt,
-        markup,
-        human_formatter,
         human_base_formatter,
+        human_formatter,
+        markup,
+        plt,
         savefig,
         set2,
         set_ticklabels_helvetica,
     )
+    from jcvi.graphics.histogram import stem_leaf_plot
+    from jcvi.utils.cbook import SUFFIXES, human_size, thousands
 
     p = OptionParser(histogram.__doc__)
     p.set_histogram(

@@ -24,20 +24,17 @@ The input lp_data is assumed in .lp format, see below
 >>> print GLPKSolver(lp_data).results
 [0, 1]
 """
-import os.path as op
-
 from dataclasses import dataclass
 from io import StringIO
-from more_itertools import pairwise
+import os.path as op
 
+from more_itertools import pairwise
 import networkx as nx
 
 from ..apps.base import cleanup, logger, mkdir, sh
 from ..formats.base import flexible_cast
 from ..utils.cbook import fill
-
-from .tsp import populate_edge_weights, node_to_edge
-
+from .tsp import node_to_edge, populate_edge_weights
 
 Work_dir = "lpsolve_work"
 
@@ -492,7 +489,7 @@ def tsp_gurobi(edges):
     """
     Modeled using GUROBI python example.
     """
-    from gurobipy import Model, GRB, quicksum
+    from gurobipy import GRB, Model, quicksum
 
     edges = populate_edge_weights(edges)
     incoming, outgoing, nodes = node_to_edge(edges)

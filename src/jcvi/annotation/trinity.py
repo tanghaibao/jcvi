@@ -9,8 +9,8 @@ DN: http://trinityrnaseq.sourceforge.net/
 GG: http://trinityrnaseq.sourceforge.net/genome_guided_trinity.html
 """
 
-import os.path as op
 import os
+import os.path as op
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, iglob, mkdir

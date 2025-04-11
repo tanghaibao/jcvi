@@ -21,13 +21,11 @@ e, 0, 1, athaliana.grape.4x1.simple
 
 
 import sys
-
 from typing import List, Optional
 
 from ..apps.base import OptionParser, logger
 from ..compara.synteny import SimpleFile
 from ..formats.bed import Bed
-
 from .base import (
     AbstractLayout,
     markup,

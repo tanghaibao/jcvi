@@ -7,9 +7,9 @@ Script to write and assist SOAPdenovo assembly.
 import os.path as op
 import sys
 
-from jcvi.formats.fastq import guessoffset, readlen, is_fastq
+from jcvi.apps.base import ActionDispatcher, OptionParser, need_update, sh
 from jcvi.assembly.base import FastqNamings, Library, get_libs
-from jcvi.apps.base import OptionParser, ActionDispatcher, need_update, sh
+from jcvi.formats.fastq import guessoffset, is_fastq, readlen
 
 
 class FillLine(object):

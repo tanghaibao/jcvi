@@ -21,8 +21,8 @@ With the row ordering corresponding to the column ordering in the alignment bloc
 import sys
 from typing import List
 
-import numpy as np
 from matplotlib.path import Path
+import numpy as np
 
 from jcvi.apps.base import OptionParser, logger
 from jcvi.compara.synteny import BlockFile
@@ -30,7 +30,6 @@ from jcvi.formats.bed import Bed
 from jcvi.graphics.base import AbstractLayout, PathPatch, markup, mpl, plt, savefig
 from jcvi.graphics.glyph import Glyph, RoundLabel  # , GeneGlyph
 from jcvi.utils.cbook import human_size
-
 
 # Default colours for ribbons with different orientations
 forward, backward = "#1f77b4", "#2ca02c"

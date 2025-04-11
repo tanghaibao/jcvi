@@ -38,6 +38,7 @@ class Coverage(BaseFile):
 
     def get_plot_data(self, ctg, bins=None):
         import numpy as np
+
         from jcvi.algorithms.matrix import chunk_average
 
         fp = open(self.filename)

@@ -12,19 +12,16 @@ format (use compara.synteny.scan()), then segment the chromosomes and cluster
 segments according to the matching patterns. Finally the putative ancestral
 regions (PAR) are identified and visualized.
 """
+from math import log
 import os.path as op
 import sys
 
-from math import log
-
-import numpy as np
-
 from more_itertools import pairwise
+import numpy as np
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
 from ..formats.bed import Bed
 from ..formats.blast import BlastLine
-
 from .base import AnchorFile
 from .synteny import check_beds
 
@@ -180,7 +177,7 @@ def get_segments(ranges, extra, minsegment=40):
     arbitrary right extension rule. Extra are additional end breaks for
     chromosomes.
     """
-    from jcvi.utils.range import range_chain, LEFT, RIGHT
+    from jcvi.utils.range import LEFT, RIGHT, range_chain
 
     NUL = 2
     selected, score = range_chain(ranges)

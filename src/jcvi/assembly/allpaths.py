@@ -4,16 +4,13 @@
 """
 Subroutines to aid ALLPATHS-LG assembly.
 """
-import os.path as op
-import sys
-
-from struct import pack, unpack
 from itertools import islice
+import os.path as op
+from struct import pack, unpack
+import sys
 
 import numpy as np
 
-from ..formats.base import BaseFile
-from ..apps.grid import Jobs
 from ..apps.base import (
     ActionDispatcher,
     OptionParser,
@@ -23,7 +20,8 @@ from ..apps.base import (
     need_update,
     sh,
 )
-
+from ..apps.grid import Jobs
+from ..formats.base import BaseFile
 from .base import FastqNamings, Library
 
 
@@ -411,9 +409,9 @@ def prepare(args):
     Scan input fastq files (see below) and create `in_groups.csv` and
     `in_libs.csv`. The species name does not really matter.
     """
-    from jcvi.utils.table import write_csv
     from jcvi.formats.base import write_file
     from jcvi.formats.fastq import guessoffset, readlen
+    from jcvi.utils.table import write_csv
 
     p = OptionParser(prepare.__doc__ + FastqNamings)
     p.add_argument(

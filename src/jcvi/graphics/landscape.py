@@ -7,11 +7,10 @@ and sorghum paper.
 """
 
 
+from collections import Counter, OrderedDict, defaultdict
 import os.path as op
 import sys
-
-from collections import Counter, OrderedDict, defaultdict
-from typing import Dict, List, Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 import seaborn as sns
@@ -22,7 +21,6 @@ from ..formats.base import BaseFile, DictFile, LineFile, must_open
 from ..formats.bed import Bed, bins, get_nbins
 from ..formats.sizes import Sizes
 from ..utils.cbook import autoscale, human_size, percentage
-
 from .base import (
     CirclePolygon,
     Colormap,

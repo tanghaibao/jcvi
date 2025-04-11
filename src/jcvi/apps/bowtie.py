@@ -12,16 +12,14 @@ import sys
 from ..formats.base import BaseFile
 from ..formats.sam import get_prefix, get_samfile, output_bam
 from ..utils.cbook import percentage
-
 from .base import (
     ActionDispatcher,
     OptionParser,
+    get_abs_path,
     logger,
     need_update,
     sh,
-    get_abs_path,
 )
-
 
 first_tag = lambda fp: next(fp).split()[0]
 

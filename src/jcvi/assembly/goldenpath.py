@@ -6,14 +6,13 @@ Procedures to validate and update golden path of a genome assembly. This relies
 heavily on formats.agp, and further includes several algorithms, e.g. overlap
 detection.
 """
+from copy import deepcopy
+from functools import lru_cache
+from itertools import groupby
 import os
 import os.path as op
 import shutil
 import sys
-
-from copy import deepcopy
-from functools import lru_cache
-from itertools import groupby
 
 from ..apps.base import (
     ActionDispatcher,
@@ -32,7 +31,6 @@ from ..formats.base import BaseFile, must_open
 from ..formats.blast import BlastLine, BlastSlow
 from ..formats.coords import Overlap_types
 from ..formats.fasta import Fasta, SeqIO
-
 
 GoodPct = 98
 GoodOverlap = 200
@@ -521,8 +519,8 @@ def dedup(args):
     Remove redundant contigs with CD-HIT. This is run prior to
     assembly.sspace.embed().
     """
-    from jcvi.formats.fasta import gaps
     from jcvi.apps.cdhit import deduplicate, ids
+    from jcvi.formats.fasta import gaps
 
     p = OptionParser(dedup.__doc__)
     p.set_align(pctid=GoodPct)

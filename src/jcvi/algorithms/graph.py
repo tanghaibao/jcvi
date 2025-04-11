@@ -4,17 +4,14 @@
 """
 Wrapper for the common graph algorithms.
 """
+from collections import deque
 import sys
 
-from collections import deque
-
-import networkx as nx
-
 from more_itertools import pairwise
+import networkx as nx
 
 from ..apps.base import logger
 from ..formats.base import must_open
-
 
 """
 Bidirectional graph.

@@ -7,13 +7,11 @@ both on the 2D dotplot and 1D-projection
 
 `range_chain` implements the exon-chain algorithm
 """
+from collections import defaultdict, namedtuple
+from itertools import groupby
 import sys
 
-from collections import namedtuple, defaultdict
-from itertools import groupby
-
 from more_itertools import pairwise
-
 
 LEFT, RIGHT = 0, 1
 Range = namedtuple("Range", "seqid start end score id")

@@ -6,13 +6,11 @@ Perform DNA-DNA alignment using BLAST, NUCMER and BLAT. Keep the interface the
 same and does parallelization both in core and on grid.
 """
 import os.path as op
-import sys
 import shutil
-
-from subprocess import CalledProcessError, STDOUT
+from subprocess import STDOUT, CalledProcessError
+import sys
 
 from ..utils.cbook import depends
-
 from .base import (
     ActionDispatcher,
     OptionParser,

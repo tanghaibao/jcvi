@@ -9,11 +9,10 @@ import os
 import os.path as op
 import sys
 
+from jinja2 import Template
 import numpy as np
 import pandas as pd
 import seaborn as sns
-
-from jinja2 import Template
 
 from ..apps.base import ActionDispatcher, OptionParser, iglob, logger
 from ..graphics.base import panel_labels, plt, savefig

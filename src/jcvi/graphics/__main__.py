@@ -6,6 +6,5 @@ Suite of visualization tools for dot-plots, histograms, karytotypes, macro-/micr
 
 from ..apps.base import dmain
 
-
 if __name__ == "__main__":
     dmain(__file__)

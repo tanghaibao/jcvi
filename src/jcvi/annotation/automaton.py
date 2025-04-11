@@ -5,15 +5,11 @@
 Automate genome annotation by iterating processing a set of files, individually.
 """
 
+from functools import partial
 import os.path as op
 import sys
-
-from functools import partial
 from tempfile import mkdtemp
 
-from ..assembly.automaton import iter_project
-from ..apps.grid import Jobs, MakeManager
-from ..formats.base import FileMerger, split
 from ..apps.base import (
     ActionDispatcher,
     OptionParser,
@@ -24,6 +20,9 @@ from ..apps.base import (
     need_update,
     sh,
 )
+from ..apps.grid import Jobs, MakeManager
+from ..assembly.automaton import iter_project
+from ..formats.base import FileMerger, split
 
 
 def main():

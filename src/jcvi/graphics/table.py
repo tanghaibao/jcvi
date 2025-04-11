@@ -11,7 +11,6 @@ import csv
 import sys
 
 from ..apps.base import OptionParser
-
 from .base import (
     Rectangle,
     load_image,

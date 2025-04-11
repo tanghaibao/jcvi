@@ -5,20 +5,17 @@
 Use R ggplot2 library to plot histogram, also contains an ASCII histogram (use
 --text) when invoking histogram().
 """
+from collections import defaultdict
+from math import ceil, log
 import os.path as op
 import sys
-
-from math import log, ceil
-from collections import defaultdict
 
 import numpy as np
 
 from ..apps.base import OptionParser, logger
 from ..apps.r import RTemplate
 from ..formats.base import DictFile
-
 from .base import asciiplot, quickplot
-
 
 histogram_header = """
 library(ggplot2)

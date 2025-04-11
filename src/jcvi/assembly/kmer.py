@@ -4,28 +4,27 @@
 """
 Deals with K-mers and K-mer distribution from reads or genome
 """
+from collections import defaultdict
+import math
 import os.path as op
 import sys
-import math
-
-from collections import defaultdict
 from typing import List
 
-import numpy as np
 from more_itertools import chunked
+import numpy as np
 
-from ..apps.grid import MakeManager
 from ..apps.base import (
+    PIPE,
     ActionDispatcher,
     OptionParser,
-    PIPE,
     Popen,
     logger,
     need_update,
     sh,
 )
+from ..apps.grid import MakeManager
+from ..formats.base import BaseFile, get_number, must_open
 from ..formats.fasta import Fasta
-from ..formats.base import BaseFile, must_open, get_number
 from ..graphics.base import (
     adjust_spines,
     asciiplot,
@@ -38,10 +37,8 @@ from ..graphics.base import (
     set_ticklabels_helvetica,
     write_messages,
 )
-from ..utils.cbook import thousands, percentage
-
+from ..utils.cbook import percentage, thousands
 from .automaton import iter_project
-
 
 KMERYL, KSOAP, KALLPATHS = range(3)
 
@@ -115,9 +112,10 @@ class KmerSpectrum(BaseFile):
         Args:
             K (int, optional): K-mer size used when generating the histogram. Defaults to 23.
         """
-        from scipy.stats import nbinom
-        from scipy.optimize import minimize_scalar
         from functools import lru_cache
+
+        from scipy.optimize import minimize_scalar
+        from scipy.stats import nbinom
 
         method, xopt = "bounded", "xatol"
         MAX_1CN_SIZE = 1e10
@@ -644,7 +642,7 @@ def bed(args):
 
     Map kmers on FASTA.
     """
-    from jcvi.formats.fasta import rc, parse_fasta
+    from jcvi.formats.fasta import parse_fasta, rc
 
     p = OptionParser(bed.__doc__)
     opts, args = p.parse_args(args)
@@ -914,6 +912,7 @@ def logodds(args):
     Compute log likelihood between two db.
     """
     from math import log
+
     from jcvi.formats.base import DictFile
 
     p = OptionParser(logodds.__doc__)
@@ -1004,6 +1003,7 @@ def bincount(args):
     Count K-mers in the bin.
     """
     from bitarray import bitarray
+
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(bincount.__doc__)

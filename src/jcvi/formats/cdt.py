@@ -7,16 +7,13 @@
 Convert the result from Eisen's CLUSTER program: data.gtr and data.cdt into NEWICK format
 """
 
+from collections import namedtuple
 import csv
+from itertools import groupby
 import sys
 
-from collections import namedtuple
-from itertools import groupby
-
 from ..apps.base import OptionParser, logger
-
 from .base import BaseFile
-
 
 GTRLine = namedtuple("GTRLine", "parent left_child right_child dist")
 

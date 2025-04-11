@@ -15,8 +15,7 @@ from ..formats.bed import Bed, BedLine
 from ..formats.fasta import Fasta
 from ..formats.sizes import Sizes
 from ..utils.cbook import thousands
-
-from .base import plt, Rectangle, set_human_base_axis, savefig
+from .base import Rectangle, plt, savefig, set_human_base_axis
 
 
 def main():
@@ -41,6 +40,7 @@ def covlen(args):
     import numpy as np
     import pandas as pd
     import seaborn as sns
+
     from jcvi.formats.base import DictFile
 
     p = OptionParser(covlen.__doc__)
@@ -106,7 +106,7 @@ def coverage(args):
 
     If the bedfiles already contain the clone spans, turn on --spans.
     """
-    from jcvi.formats.bed import mates, bedpe
+    from jcvi.formats.bed import bedpe, mates
 
     p = OptionParser(coverage.__doc__)
     p.add_argument("--ymax", default=None, type=int, help="Limit ymax")
@@ -476,6 +476,7 @@ def A50(args):
         sys.exit(p.print_help())
 
     import numpy as np
+
     from jcvi.utils.table import loadtable
 
     stepsize = opts.stepsize  # use stepsize to speed up drawing

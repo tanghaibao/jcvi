@@ -4,22 +4,20 @@
 """
 Helper functions for Copy Number Variations (CNV).
 """
-import logging
-import os.path as op
-import sys
-
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from itertools import groupby
+import logging
 from multiprocessing import Pool
+import os.path as op
 from random import choice
+import sys
 
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
-import pysam
-
 from pybedtools import BedTool, cleanup, set_tempdir
+import pysam
 
 from ..algorithms.formula import get_kmeans
 from ..apps.base import (
@@ -395,6 +393,7 @@ def gcdepth(args):
     ```
     """
     import hashlib
+
     from jcvi.algorithms.formula import MAD_interval
     from jcvi.graphics.base import latex, plt, savefig, set2
 
@@ -525,6 +524,7 @@ def parse_segments(vcffile):
     SVTYPE=CNV;END=821005;CNVLEN=32126      RC:BC:CN:MCC    157:4:3:2
     """
     from io import StringIO
+
     from cyvcf2 import VCF
 
     output = StringIO()

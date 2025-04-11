@@ -5,11 +5,10 @@
 parses JCVI software NUCMER (http://mummer.sourceforge.net/manual/)
 output - mostly as *.coords file.
 """
-import os.path as op
-import sys
-
 from itertools import groupby
 from math import exp
+import os.path as op
+import sys
 
 from ..apps.base import (
     ActionDispatcher,
@@ -20,10 +19,8 @@ from ..apps.base import (
     sh,
 )
 from ..assembly.base import calculate_A50
-
 from .base import LineFile, must_open
 from .blast import AlignStats
-
 
 Overlap_types = ("none", "a ~ b", "b ~ a", "a in b", "b in a")
 

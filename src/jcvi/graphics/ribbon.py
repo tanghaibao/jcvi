@@ -21,8 +21,8 @@ With the row ordering corresponding to the column ordering in the alignment bloc
 import sys
 from typing import List
 
-import numpy as np
 from matplotlib.path import Path
+import numpy as np
 
 from jcvi.apps.base import OptionParser, logger
 from jcvi.compara.synteny import BlockFile
@@ -30,7 +30,6 @@ from jcvi.formats.bed import Bed
 from jcvi.graphics.base import AbstractLayout, PathPatch, markup, mpl, plt, savefig
 from jcvi.graphics.glyph import Glyph, RoundLabel  # , GeneGlyph
 from jcvi.utils.cbook import human_size
-
 
 # Default colours for ribbons with different orientations
 forward, backward = "#1f77b4", "#2ca02c"
@@ -823,7 +822,7 @@ def main(args: List[str]):
         [6] strand \n \
         [7] Custom color. i.e. '.' = use default color, else any pyplot compatible color code: 'g', 'green', '#02ab2e', etc. \n \
         [8] Vertical offset multiplier. i.e. 0 = plot on chrm line, -1 = plot below chrm, 1 = plot above chrm \n \
-        [9] Feature height multiplier. i.e. 1 = default, 2 = double height 
+        [9] Feature height multiplier. i.e. 1 = default, 2 = double height
         """,
     )
     p.add_argument(

@@ -20,21 +20,19 @@ itself is used to represent the region.  The number in the 4th column is the
 synteny score. For the same query, it is ordered with decreasing synteny score.
 The last column means orientation. "+" is same direction.
 """
+from bisect import bisect_left
+from itertools import groupby, tee
 import os.path as op
 import sqlite3
 import sys
 
-from bisect import bisect_left
-from itertools import groupby, tee
-
 from ..algorithms.lis import (
-    longest_increasing_subsequence,
     longest_decreasing_subsequence,
+    longest_increasing_subsequence,
 )
 from ..apps.base import OptionParser, logger
 from ..formats.base import must_open
 from ..utils.grouper import Grouper
-
 from .synteny import check_beds, read_blast
 
 

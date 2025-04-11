@@ -4,14 +4,13 @@
 """
 Image processing pipelines for phenotyping projects.
 """
+from collections import Counter
+from datetime import date
 import json
+from math import cos, pi, sin
 import os.path as op
 import string
 import sys
-
-from collections import Counter
-from datetime import date
-from math import cos, pi, sin
 from typing import Any, List, Optional, Tuple
 
 import numpy as np
@@ -29,25 +28,24 @@ from scipy.optimize import fmin_bfgs as fmin
 from skimage.color import gray2rgb, rgb2gray
 from skimage.feature import canny, peak_local_max
 from skimage.filters import roberts, sobel, threshold_otsu
-from skimage.measure import find_contours, regionprops, label
-from skimage.morphology import disk, closing
+from skimage.measure import find_contours, label, regionprops
+from skimage.morphology import closing, disk
 from skimage.segmentation import clear_border, watershed
 from wand.image import Image
-from webcolors import rgb_to_hex, normalize_integer_triplet
+from webcolors import normalize_integer_triplet, rgb_to_hex
 
 from ..algorithms.formula import get_kmeans, reject_outliers
 from ..apps.base import (
     ActionDispatcher,
     OptionParser,
     datadir,
-    logger,
     iglob,
+    logger,
     mkdir,
 )
 from ..formats.base import must_open
 from ..formats.pdf import cat
 from ..utils.webcolors import closest_color
-
 from .base import (
     Rectangle,
     latex,
@@ -57,7 +55,6 @@ from .base import (
     savefig,
     set_helvetica_axis,
 )
-
 
 np.seterr(all="ignore")
 
@@ -161,7 +158,7 @@ def sam(img: np.ndarray, checkpoint: str) -> List[dict]:
     Use Segment Anything Model (SAM) to segment objects.
     """
     try:
-        from segment_anything import sam_model_registry, SamAutomaticMaskGenerator
+        from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
     except ImportError:
         logger.fatal("segment_anything not installed. Please install it first.")
         sys.exit(1)

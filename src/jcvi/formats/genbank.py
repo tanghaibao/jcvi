@@ -5,19 +5,16 @@
 Genbank record operations based on biopython Bio.SeqIO
 https://github.com/biopython/biopython/blob/master/Bio/SeqIO/InsdcIO.py
 """
+from collections import defaultdict
 import os.path as op
 import sys
 
-from collections import defaultdict
-
 from Bio import SeqIO
 
-from ..apps.fetch import entrez
 from ..apps.base import ActionDispatcher, OptionParser, cleanup, glob, logger, mkdir, sh
-
+from ..apps.fetch import entrez
 from .base import BaseFile, get_number, must_open
 from .gff import GffLine
-
 
 MT = "mol_type"
 LT = "locus_tag"

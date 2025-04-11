@@ -5,9 +5,10 @@
 Scripts for the ALLMAPS manuscript
 """
 import sys
+
 import numpy as np
 
-from ..apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser
 from ..assembly.allmaps import AGP, GapEstimator, Map, normalize_lms_axis, spearmanr
 from ..formats.bed import Bed
 from ..graphics.base import (
@@ -16,8 +17,8 @@ from ..graphics.base import (
     panel_labels,
     plt,
     savefig,
-    set_ticklabels_helvetica,
     set2,
+    set_ticklabels_helvetica,
 )
 from ..graphics.chromosome import HorizontalChromosome
 from ..utils.cbook import percentage
@@ -293,6 +294,7 @@ def lms(args):
     ALLMAPS cartoon to illustrate LMS metric.
     """
     from random import randint
+
     from jcvi.graphics.chromosome import HorizontalChromosome
 
     p = OptionParser(lms.__doc__)

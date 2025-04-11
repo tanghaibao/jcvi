@@ -3,14 +3,13 @@ Wrapper for biopython Fasta, add option to parse sequence headers
 """
 
 import hashlib
+from itertools import groupby, zip_longest
 import os.path as op
+from random import choice
 import re
 import shutil
 import string
 import sys
-
-from itertools import groupby, zip_longest
-from random import choice
 
 from Bio import SeqIO
 from Bio.Seq import Seq
@@ -22,7 +21,6 @@ from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, need_up
 from ..utils.cbook import percentage
 from ..utils.console import printf
 from ..utils.table import write_csv
-
 from .base import BaseFile, DictFile, must_open
 from .bed import Bed
 
@@ -290,8 +288,8 @@ class SequenceInfo(object):
     """
 
     def __init__(self, filename, gapstats=False):
-        from jcvi.utils.cbook import SummaryStats
         from jcvi.assembly.base import calculate_A50
+        from jcvi.utils.cbook import SummaryStats
 
         f = Fasta(filename)
         self.filename = filename
@@ -464,8 +462,9 @@ def gc(args):
             gcpct = gccnt * 100 / totalcnt
             allbins.append(gcpct)
 
-    from jcvi.graphics.base import asciiplot
     from collections import Counter
+
+    from jcvi.graphics.base import asciiplot
 
     title = "Total number of bins={}".format(len(allbins))
     c = Counter(allbins)
@@ -2592,8 +2591,8 @@ def gaps(args):
 
     Print out a list of gaps in BED format (.gaps.bed).
     """
+    from jcvi.formats.agp import build, mask
     from jcvi.formats.sizes import agp
-    from jcvi.formats.agp import mask, build
 
     p = OptionParser(gaps.__doc__)
     p.add_argument(

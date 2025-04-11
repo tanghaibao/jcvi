@@ -1,17 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import sys
-
 from collections import defaultdict
 from itertools import groupby
+import sys
 
 from ete3 import Tree
 
 from ..apps.base import OptionParser, glob, logger
 from ..formats.base import LineFile
 from ..formats.sizes import Sizes
-
 from .base import (
     FancyBboxPatch,
     Rectangle,
@@ -414,6 +412,7 @@ def draw_tree(
 
 def read_trees(tree):
     from urllib.parse import parse_qs
+
     from jcvi.formats.base import read_block
 
     trees = []

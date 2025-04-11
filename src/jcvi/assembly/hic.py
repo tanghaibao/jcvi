@@ -5,20 +5,18 @@
 Process Hi-C output into AGP for chromosomal-scale scaffolding.
 """
 import array
+from collections import defaultdict
+from functools import partial
 import json
 import math
+from multiprocessing import Pool
 import os
 import os.path as op
 import sys
-
-from collections import defaultdict
-from functools import partial
-from multiprocessing import Pool
 from typing import List, Optional, Tuple
 
-import numpy as np
-
 from natsort import natsorted
+import numpy as np
 
 from ..algorithms.ec import GA_run, GA_setup
 from ..algorithms.formula import outlier_cutoff
@@ -42,15 +40,13 @@ from ..formats.sizes import Sizes
 from ..graphics.base import (
     markup,
     normalize_axes,
-    plt,
     plot_heatmap,
+    plt,
     savefig,
 )
 from ..graphics.dotplot import dotplot
 from ..utils.cbook import gene_name
-
 from .allmaps import make_movie
-
 
 # Map orientations to ints
 FF = {"+": 1, "-": -1, "?": 1}
@@ -621,8 +617,9 @@ def dist(args):
     Plot histogram based on .dist.npy data file. The .npy file stores an array
     with link counts per dist bin, with the bin starts stored in the genome.json.
     """
-    import seaborn as sns
     import pandas as pd
+    import seaborn as sns
+
     from jcvi.graphics.base import human_base_formatter, markup
 
     p = OptionParser(dist.__doc__)
@@ -934,6 +931,7 @@ def bam2mat(args):
     plotting.
     """
     import pysam
+
     from jcvi.utils.cbook import percentage
 
     p = OptionParser(bam2mat.__doc__)

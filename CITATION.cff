@@ -1,0 +1,142 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: JCVI
+message: >-
+  JCVI: A versatile toolkit for comparative genomics
+  analysis
+type: software
+authors:
+  - given-names: Haibao
+    family-names: Tang
+    email: tanghaibao@gmail.com
+    orcid: 'https://orcid.org/0000-0002-3460-8570'
+    affiliation: >-
+      Fujian Provincial Key Laboratory of Haixia Applied
+      Plant Systems Biology
+  - given-names: Vivek
+    family-names: Krishnakumar
+    affiliation: 'J. Craig Venter Institute, Rockville, Maryland, USA'
+  - given-names: Xiaofei
+    family-names: Zeng
+    affiliation: 'National Key Laboratory for Tropical Crop Breeding,'
+  - given-names: Zhougeng
+    family-names: Xu
+    affiliation: >-
+      National Key Laboratory of Plant Molecular Genetics
+      (NKLPMG)
+  - given-names: Adam
+    family-names: Taranto
+    affiliation: The University of Melbourne
+  - given-names: Johnathan S.
+    family-names: Lomas
+    affiliation: University of Nevada
+  - given-names: Yixing
+    family-names: Zhang
+    affiliation: >-
+      Fujian Provincial Key Laboratory of Haixia Applied
+      Plant Systems Biology
+  - given-names: Yumin
+    family-names: Huang
+    affiliation: >-
+      Fujian Provincial Key Laboratory of Haixia Applied
+      Plant Systems Biology
+  - given-names: Yibin
+    family-names: Wang
+    affiliation: National Key Laboratory for Tropical Crop Breeding
+  - given-names: 'Won Cheol '
+    family-names: Yim
+    affiliation: University of Nevada
+  - given-names: Jisen
+    family-names: Zhang
+    affiliation: >-
+      State Key Lab for Conservation and Utilization of
+      Subtropical Agro-Biological Resources
+  - given-names: Xingtan
+    family-names: Zhang
+    email: tanger_009@163.com
+    affiliation: National Key Laboratory for Tropical Crop Breeding
+identifiers:
+  - type: doi
+    value: 10.1002/imt2.211
+    description: iMeta paper
+repository-code: 'https://github.com/tanghaibao/jcvi'
+url: 'https://github.com/tanghaibao/jcvi'
+abstract: >-
+  The life cycle of genome builds spans interlocking pillars
+  of assembly, annotation, and comparative genomics to drive
+  biological insights. The JCVI library is a versatile
+  Python-based library that offers a suite of tools that
+  excel across these pillars. Featuring a modular design,
+  the JCVI library provides high-level utilities for tasks
+  such as format parsing, graphics generation, and
+  manipulation of genome assemblies and annotations.
+  Supporting genomics algorithms like MCscan and ALLMAPS are
+  widely employed in building genome releases, producing
+  publication-ready figures for quality assessment and
+  evolutionary inference.
+license: BSD-2-Clause
+commit: 0f9292d
+version: v1.5.3
+date-released: '2025-03-25'
+preferred-citation:
+  type: article
+  authors:
+    - given-names: Haibao
+      family-names: Tang
+      email: tanghaibao@gmail.com
+      orcid: 'https://orcid.org/0000-0002-3460-8570'
+      affiliation: >-
+        Fujian Provincial Key Laboratory of Haixia Applied
+        Plant Systems Biology
+    - given-names: Vivek
+      family-names: Krishnakumar
+      affiliation: 'J. Craig Venter Institute, Rockville, Maryland, USA'
+    - given-names: Xiaofei
+      family-names: Zeng
+      affiliation: 'National Key Laboratory for Tropical Crop Breeding,'
+    - given-names: Zhougeng
+      family-names: Xu
+      affiliation: >-
+        National Key Laboratory of Plant Molecular Genetics
+        (NKLPMG)
+    - given-names: Adam
+      family-names: Taranto
+      affiliation: The University of Melbourne
+    - given-names: Johnathan S.
+      family-names: Lomas
+      affiliation: University of Nevada
+    - given-names: Yixing
+      family-names: Zhang
+      affiliation: >-
+        Fujian Provincial Key Laboratory of Haixia Applied
+        Plant Systems Biology
+    - given-names: Yumin
+      family-names: Huang
+      affiliation: >-
+        Fujian Provincial Key Laboratory of Haixia Applied
+        Plant Systems Biology
+    - given-names: Yibin
+      family-names: Wang
+      affiliation: National Key Laboratory for Tropical Crop Breeding
+    - given-names: 'Won Cheol '
+      family-names: Yim
+      affiliation: University of Nevada
+    - given-names: Jisen
+      family-names: Zhang
+      affiliation: >-
+        State Key Lab for Conservation and Utilization of
+        Subtropical Agro-Biological Resources
+    - given-names: Xingtan
+      family-names: Zhang
+      email: tanger_009@163.com
+      affiliation: National Key Laboratory for Tropical Crop Breeding
+  doi: "10.1002/imt2.211"
+  journal: "iMeta"
+  month: 6
+  start: e211 # First page number
+  title: "JCVI: A versatile toolkit for comparative genomics analysis"
+  issue: 4
+  volume: 3
+  year: 2024

@@ -4,11 +4,10 @@
 """
 Some math formula for various calculations
 """
-import sys
-
 from collections import Counter
 from functools import lru_cache
-from math import log, exp, sqrt
+from math import exp, log, sqrt
+import sys
 
 import numpy as np
 import scipy
@@ -85,7 +84,7 @@ def choose_insertsize(readlen=150, step=20, cutoff=0.01):
 
 
 def get_kmeans(a, k, iter=100):
-    from scipy.cluster.vq import vq, kmeans
+    from scipy.cluster.vq import kmeans, vq
 
     a = np.array(a)
     centroids, _ = kmeans(a, k, iter=iter)

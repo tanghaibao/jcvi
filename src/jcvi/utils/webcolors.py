@@ -10,10 +10,9 @@
 import logging
 
 import numpy as np
-
-from skimage.color import rgb2lab, deltaE_cmc
-from webcolors._definitions import _CSS3_NAMES_TO_HEX
+from skimage.color import deltaE_cmc, rgb2lab
 from webcolors import hex_to_rgb
+from webcolors._definitions import _CSS3_NAMES_TO_HEX
 
 
 def color_diff(rgb1, rgb2):

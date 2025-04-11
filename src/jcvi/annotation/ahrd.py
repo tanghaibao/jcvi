@@ -6,15 +6,13 @@ Utility to run Automated Human Readable Description (AHRD) pipeline.
 
 <https://github.com/groupschoof/AHRD>
 """
-import os.path as op
-import sys
-import re
-
 from os import symlink
+import os.path as op
+import re
+import sys
 
-from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir, glob
+from ..apps.base import ActionDispatcher, OptionParser, glob, logger, mkdir
 from ..formats.base import must_open
-
 
 # --- Compiled RegExps ----
 # Cellular locations

@@ -6,6 +6,5 @@ Assortment of utility scripts implementing recipes from Python cookbooks, such a
 
 from ..apps.base import dmain
 
-
 if __name__ == "__main__":
     dmain(__file__)

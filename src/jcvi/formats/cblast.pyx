@@ -7,8 +7,8 @@ Stolen from brentp's biostuff (thanks):
 <https://github.com/brentp/bpbio/blob/master/biostuff/biostuff/cblastline.pyx>
 """
 import sys
-from libc.stdio cimport FILE, EOF, fopen, fscanf, rewind, fclose, sscanf, \
-            fgets, sprintf
+
+from libc.stdio cimport EOF, FILE, fclose, fgets, fopen, fscanf, rewind, sprintf, sscanf
 from libc.string cimport strcpy
 
 

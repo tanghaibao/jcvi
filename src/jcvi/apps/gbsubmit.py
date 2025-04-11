@@ -4,20 +4,17 @@
 """
 Prepare the data for Genbank submission
 """
-import os.path as op
-import sys
-import string
-
 from collections import defaultdict
 from functools import lru_cache
+import os.path as op
+import string
+import sys
 
 from Bio import SeqIO
 
 from ..formats.base import DictFile
 from ..utils.orderedcollections import parse_qs
-
 from .base import ActionDispatcher, OptionParser, glob, logger, mkdir, sh
-
 
 """
 GSS submission template files
@@ -353,9 +350,9 @@ def htg(args):
     For example, the clone name changes or phase upgrades. In this case, run
     formats.agp.phase() manually, modify the phasefile and use --phases to override.
     """
-    from jcvi.formats.fasta import sequin, ids
-    from jcvi.formats.agp import phase
     from jcvi.apps.fetch import entrez
+    from jcvi.formats.agp import phase
+    from jcvi.formats.fasta import ids, sequin
 
     p = OptionParser(htg.__doc__)
     p.add_argument(

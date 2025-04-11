@@ -11,7 +11,6 @@ import os.path as op
 import sys
 
 from ..formats.sam import get_prefix
-
 from .base import (
     ActionDispatcher,
     OptionParser,
@@ -40,8 +39,8 @@ def bam(args):
 
     Convert GSNAP output to BAM.
     """
-    from jcvi.formats.sizes import Sizes
     from jcvi.formats.sam import index
+    from jcvi.formats.sizes import Sizes
 
     p = OptionParser(bam.__doc__)
     p.set_home("eddyyeh")

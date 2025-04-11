@@ -11,23 +11,22 @@
 Simulate sugarcane genomes and analyze the diversity in the progeny genomes.
 """
 
-import os.path as op
-import sys
-
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
 from itertools import combinations, groupby, product
 from multiprocessing import Pool, cpu_count
+import os.path as op
 from random import randint, random
+import sys
 from typing import Dict, List, Tuple
 from uuid import uuid4
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
-import seaborn as sns
 import pandas as pd
+import seaborn as sns
 
 from ..apps.base import ActionDispatcher, OptionParser, flatten, logger, mkdir
 from ..formats.blast import Blast

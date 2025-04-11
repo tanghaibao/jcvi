@@ -5,19 +5,17 @@
 Calculation of synonymous substitutions (Ks).
 """
 import csv
-import os
-import os.path as op
-import sys
-
 from functools import partial
 from itertools import combinations, product
 from math import exp, log, pi, sqrt
+import os
+import os.path as op
+import sys
 from typing import Optional
-
-import numpy as np
 
 from Bio import AlignIO, SeqIO
 from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
+import numpy as np
 
 from ..apps.base import (
     ActionDispatcher,
@@ -1111,8 +1109,8 @@ def report(args):
     generate a report given a Ks result file (as produced by synonymous_calc.py).
     describe the median Ks, Ka values, as well as the distribution in stem-leaf plot
     """
-    from jcvi.utils.cbook import SummaryStats
     from jcvi.graphics.histogram import stem_leaf_plot
+    from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(report.__doc__)
     p.add_argument(

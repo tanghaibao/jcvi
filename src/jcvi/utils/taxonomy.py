@@ -26,21 +26,17 @@ Example:
 
                \-Populus_trichocarpa
 """
+from functools import lru_cache
 import sys
 import time
-
-from functools import lru_cache
-
-from urllib.request import urlopen
 from urllib.error import HTTPError, URLError
+from urllib.request import urlopen
 
+from BeautifulSoup import BeautifulSoup
+from ClientForm import ParseResponse
 from ete3 import Tree
 
-from ClientForm import ParseResponse
-from BeautifulSoup import BeautifulSoup
-
 from ..apps.base import ActionDispatcher, OptionParser, logger
-
 
 URL = "http://itol.embl.de/other_trees.shtml"
 

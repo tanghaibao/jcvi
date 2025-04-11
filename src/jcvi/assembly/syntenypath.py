@@ -4,10 +4,10 @@
 """
 Syntenic path assembly.
 """
+from collections import defaultdict
+from itertools import combinations, groupby
 import sys
 
-from collections import defaultdict
-from itertools import groupby, combinations
 from more_itertools import pairwise
 
 from ..algorithms.graph import BiGraph
@@ -127,9 +127,11 @@ def bed(args):
     Convert ANCHORS file to BED format.
     """
     from collections import defaultdict
+
     from jcvi.compara.synteny import check_beds
-    from jcvi.formats.bed import Bed
     from jcvi.formats.base import get_number
+    from jcvi.formats.bed import Bed
+
     from ..compara.base import AnchorFile
 
     p = OptionParser(bed.__doc__)

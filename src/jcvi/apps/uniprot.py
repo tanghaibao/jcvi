@@ -7,15 +7,12 @@ Programatically accessing UniprotKB to get data from a list of queries
 import os.path as op
 import sys
 import time
-
+from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
-from urllib.error import HTTPError, URLError
 
 from ..formats.base import must_open
-
 from .base import ActionDispatcher, OptionParser, logger
-
 
 uniprot_url = "http://www.uniprot.org/uniprot/"
 
@@ -93,8 +90,8 @@ def fetch(args):
     Follow this syntax <http://www.uniprot.org/help/text-search#text-search-syntax>
     to query any of the documented fields <http://www.uniprot.org/help/query-fields>
     """
-    import re
     import csv
+    import re
 
     p = OptionParser(fetch.__doc__)
 

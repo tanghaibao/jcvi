@@ -9,8 +9,7 @@ import sys
 from Bio.Restriction.Restriction import AllEnzymes, Analysis
 
 from ..formats.base import must_open
-from ..formats.fasta import Fasta, SeqRecord, SeqIO
-
+from ..formats.fasta import Fasta, SeqIO, SeqRecord
 from .base import ActionDispatcher, OptionParser, logger
 
 

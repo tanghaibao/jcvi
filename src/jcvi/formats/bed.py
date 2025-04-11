@@ -2,20 +2,18 @@
 Classes to handle the .bed files
 """
 
+from collections import OrderedDict, defaultdict
+from itertools import groupby
 import math
 import os
 import os.path as op
 import shutil
 import sys
-
-from collections import defaultdict, OrderedDict
-from itertools import groupby
 from typing import Optional, Tuple
 
-import numpy as np
-
 from more_itertools import pairwise
-from natsort import natsorted, natsort_key
+from natsort import natsort_key, natsorted
+import numpy as np
 
 from ..apps.base import (
     ActionDispatcher,
@@ -35,7 +33,6 @@ from ..utils.range import (
     range_intersect,
     range_union,
 )
-
 from .base import DictFile, LineFile, get_number, is_number, must_open
 from .sizes import Sizes
 
@@ -921,6 +918,7 @@ def juncs(args):
     calculate cumulative (sum) junction support
     """
     from tempfile import mkstemp
+
     from pybedtools import BedTool
 
     p = OptionParser(juncs.__doc__)
@@ -968,6 +966,7 @@ def random(args):
     0.1 = 10% of all features) will be extracted.
     """
     from random import sample
+
     from jcvi.formats.base import flexible_cast
 
     p = OptionParser(random.__doc__)
@@ -1912,6 +1911,7 @@ def sample(args):
     the reverse direction.
     """
     import random
+
     from jcvi.assembly.coverage import Coverage
 
     p = OptionParser(sample.__doc__)
@@ -2483,7 +2483,7 @@ def flanking(args):
 
     Get up to n features (upstream or downstream or both) flanking a given position.
     """
-    from numpy import array, argsort
+    from numpy import argsort, array
 
     p = OptionParser(flanking.__doc__)
     p.add_argument(

@@ -7,12 +7,10 @@ Manipulate PDF files, using PyPDF2 library.
 import sys
 
 from natsort import natsorted
-
 from pypdf import PdfMerger, parse_filename_page_ranges
 from pypdf.pagerange import PageRange
 
 from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
-
 from .base import must_open
 
 PAGE_RANGE_HELP = PageRange.__init__.__doc__

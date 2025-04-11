@@ -5,21 +5,18 @@
 Legacy script to plot distribution of certain classes onto chromosomes. Adapted
 from the script used in the Tang et al. PNAS 2010 paper, sigma figure.
 """
-import sys
-
 from itertools import groupby
 from math import ceil
+import sys
 from typing import List, Optional, Tuple
 
-import numpy as np
-
 from natsort import natsorted
+import numpy as np
 
 from ..apps.base import OptionParser, datafile, logger, sample_N
 from ..formats.base import DictFile, get_number
 from ..formats.bed import Bed
 from ..formats.sizes import Sizes
-
 from .base import (
     CirclePolygon,
     Polygon,

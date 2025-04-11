@@ -96,8 +96,8 @@ def diginorm(args):
     $ make test
     $ export PYTHONPATH=~/export/khmer
     """
-    from jcvi.formats.fastq import shuffle, pairinplace, split
     from jcvi.apps.base import getfilesize
+    from jcvi.formats.fastq import pairinplace, shuffle, split
 
     p = OptionParser(diginorm.__doc__)
     p.add_argument(
@@ -176,12 +176,12 @@ def expand(args):
     """
     import math
 
-    from jcvi.formats.fasta import Fasta, SeqIO
-    from jcvi.formats.fastq import readlen, first, fasta
-    from jcvi.formats.blast import Blast
+    from jcvi.apps.align import blast
     from jcvi.apps.base import cleanup
     from jcvi.apps.bowtie import align, get_samfile
-    from jcvi.apps.align import blast
+    from jcvi.formats.blast import Blast
+    from jcvi.formats.fasta import Fasta, SeqIO
+    from jcvi.formats.fastq import fasta, first, readlen
 
     p = OptionParser(expand.__doc__)
     p.set_depth(depth=200)

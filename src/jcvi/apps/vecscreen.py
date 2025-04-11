@@ -11,8 +11,7 @@ from ..formats.base import must_open
 from ..formats.blast import BlastLine
 from ..formats.fasta import tidy
 from ..utils.range import range_merge
-
-from .align import run_vecscreen, run_megablast
+from .align import run_megablast, run_vecscreen
 from .base import ActionDispatcher, OptionParser, download, sh
 
 ECOLI_URL = "ftp://ftp.ncbi.nlm.nih.gov/genomes/all/GCF/000/019/425/GCF_000019425.1_ASM1942v1/GCF_000019425.1_ASM1942v1_genomic.fna.gz"

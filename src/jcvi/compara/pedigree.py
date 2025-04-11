@@ -2,17 +2,16 @@
 Pedigree file manipulation.
 """
 
-import sys
-
 from collections import Counter
 from dataclasses import dataclass
 from random import sample
+import sys
 from typing import Dict, Optional
 
 import networkx as nx
 import numpy as np
 
-from ..apps.base import OptionParser, ActionDispatcher, logger
+from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..formats.base import BaseFile
 from ..graphics.base import set3_n
 

@@ -16,7 +16,6 @@ from ..utils.cbook import SummaryStats, human_size, percentage
 from ..utils.range import range_interleave
 from ..utils.table import tabulate
 
-
 metrics = ("Exon_Length", "Intron_Length", "Gene_Length", "Exon_Count")
 
 

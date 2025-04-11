@@ -6,6 +6,5 @@ Cluster of comparative genomics analysis methods: SynFind and QUOTA-ALIGN algori
 
 from ..apps.base import dmain
 
-
 if __name__ == "__main__":
     dmain(__file__)

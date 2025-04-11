@@ -26,7 +26,6 @@ from ..graphics.glyph import TextCircle
 from ..graphics.karyotype import Karyotype
 from ..graphics.synteny import Synteny
 
-
 template_cov = """# y, xstart, xend, rotation, color, label, va, bed
 .56, {0}, {1}, 0, darkslategray, , top, AN.bed
 .48, {2}, {3}, 0, darkslategray, , top, CN.bed
@@ -617,9 +616,10 @@ def deletion(args):
     along with a drawing of the C2 chromosome.
     """
     import math
+
     from jcvi.formats.bed import Bed
-    from jcvi.graphics.chromosome import HorizontalChromosome
     from jcvi.graphics.base import kb_formatter
+    from jcvi.graphics.chromosome import HorizontalChromosome
 
     p = OptionParser(deletion.__doc__)
     opts, args, iopts = p.set_image_options(args)

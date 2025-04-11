@@ -6,6 +6,5 @@ Array of data parsers for bioinformatics file formats, such as: GFF3, BED, SAM/B
 
 from ..apps.base import dmain
 
-
 if __name__ == "__main__":
     dmain(__file__)

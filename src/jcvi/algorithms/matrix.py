@@ -6,8 +6,8 @@ Matrix related subroutines
 """
 
 import math
-import numpy as np
 
+import numpy as np
 
 is_symmetric = lambda M: (M.T == M).all()
 

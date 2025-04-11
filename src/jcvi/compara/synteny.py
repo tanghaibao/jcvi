@@ -3,23 +3,21 @@
 
 """Syntenty inference in comparative genomics"""
 
-import os.path as op
-import sys
-
 from collections import defaultdict
 from collections.abc import Iterable
+import os.path as op
+import sys
 
 import numpy as np
 
 from ..algorithms.lis import heaviest_increasing_subsequence as his
 from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
-from ..formats.base import BaseFile, SetFile, read_block, must_open
+from ..formats.base import BaseFile, SetFile, must_open, read_block
 from ..formats.bed import Bed, BedLine
 from ..formats.blast import Blast
 from ..utils.cbook import gene_name, human_size
 from ..utils.grouper import Grouper
 from ..utils.range import range_chain
-
 from .base import AnchorFile
 
 
@@ -707,7 +705,7 @@ def layout(args):
     Compute optimal seqids order in a second genome, based on seqids on one
     genome, given the pairwise blocks in .simple format.
     """
-    from jcvi.algorithms.ec import GA_setup, GA_run
+    from jcvi.algorithms.ec import GA_run, GA_setup
 
     p = OptionParser(layout.__doc__)
     p.set_beds()
@@ -1578,8 +1576,8 @@ def depth(args):
     --sbed. The synteny blocks will be layered on the genomes, and the
     multiplicity will be summarized to stderr.
     """
-    from jcvi.utils.range import range_depth
     from jcvi.graphics.base import latex
+    from jcvi.utils.range import range_depth
 
     p = OptionParser(depth.__doc__)
     p.add_argument("--depthfile", help="Generate file with gene and depth")
@@ -1637,7 +1635,7 @@ def depth(args):
     if not opts.histogram:
         return
 
-    from jcvi.graphics.base import plt, quickplot_ax, savefig, normalize_axes
+    from jcvi.graphics.base import normalize_axes, plt, quickplot_ax, savefig
 
     # Plot two histograms one for query genome, one for subject genome
     plt.figure(1, (6, 3))

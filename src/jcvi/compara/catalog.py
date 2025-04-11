@@ -1,13 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import os.path as op
-import sys
-import string
-
 from collections import defaultdict
-from itertools import product, combinations
+from itertools import combinations, product
+import os.path as op
+import string
+import sys
 
+from ..apps.align import blast_main, diamond_blastp_main
+from ..apps.align import last as last_main
 from ..apps.base import (
     ActionDispatcher,
     OptionParser,
@@ -17,22 +18,22 @@ from ..apps.base import (
     need_update,
     sh,
 )
-from ..apps.align import last as last_main, diamond_blastp_main, blast_main
 from ..compara.blastfilter import main as blastfilter_main
 from ..compara.quota import main as quota_main
-from ..compara.synteny import scan, mcscan, liftover
+from ..compara.synteny import liftover, mcscan, scan
 from ..formats.base import BaseFile, DictFile, must_open
 from ..formats.bed import Bed
 from ..formats.blast import (
     BlastLine,
     cscore,
-    filter as blast_filter,
+)
+from ..formats.blast import (
     filtered_blastfile_name,
 )
+from ..formats.blast import filter as blast_filter
 from ..formats.fasta import Fasta
 from ..utils.cbook import gene_name
 from ..utils.grouper import Grouper
-
 from .base import AnchorFile
 from .synteny import check_beds
 

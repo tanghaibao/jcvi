@@ -6,10 +6,9 @@ From genomeCovergeBed results, initialize the count array, set cutoffs
 and optimize against the truth, to determine the cutoff for incorporating
 RNA-seq into annotation pipelines.
 """
-import sys
-import os.path as op
-
 from itertools import groupby
+import os.path as op
+import sys
 
 import numpy as np
 

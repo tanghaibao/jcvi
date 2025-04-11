@@ -2,38 +2,35 @@
 # -*- coding: UTF-8 -*-
 
 import copy
+from functools import partial
+from os import remove
 import os.path as op
 import re
 import sys
+from typing import List, Optional, Tuple, Union
 
-from os import remove
-
-from functools import partial
-from typing import Optional, List, Tuple, Union
-
-import numpy as np
 import matplotlib as mpl
+import numpy as np
 import seaborn as sns
 
 mpl.use("Agg")
 
-import matplotlib.colors as mcolors
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-
 from brewer2mpl import get_map
 from matplotlib import cm, rc, rcParams
+import matplotlib.colors as mcolors
 from matplotlib.colors import Colormap
 from matplotlib.patches import (
-    Rectangle,
-    Polygon,
     CirclePolygon,
     Ellipse,
-    PathPatch,
     FancyArrow,
     FancyArrowPatch,
     FancyBboxPatch,
+    PathPatch,
+    Polygon,
+    Rectangle,
 )
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 from ..apps.base import datadir, glob, logger, sample_N, which
 from ..formats.base import LineFile
@@ -605,6 +602,7 @@ def discrete_rainbow(N=7, cmap=cm.Set1, usepreset=True, shuffle=False, plot=Fals
     If you want to error and try anyway, set usepreset=False
     """
     import random
+
     from scipy import interpolate
 
     if usepreset:

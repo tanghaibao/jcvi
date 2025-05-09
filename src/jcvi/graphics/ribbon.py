@@ -365,7 +365,9 @@ class Region(object):
                 gp.set_transform(tr)
 
         if box_features:
-            self.draw_annotation_boxes(ax, box_features, startbp, endbp, y, cv, tr, orientation)
+            self.draw_annotation_boxes(
+                ax, box_features, startbp, endbp, y, cv, tr, orientation
+            )
 
         # Position and apply chromosome labels
         ha, va = layout.ha, layout.va
@@ -471,7 +473,9 @@ class Region(object):
         newStart = startbp + downstream
         return newStart, newEnd
 
-    def draw_annotation_boxes(self, ax, box_features, startbp, endbp, y, cv, tr, orientation):
+    def draw_annotation_boxes(
+        self, ax, box_features, startbp, endbp, y, cv, tr, orientation
+    ):
         """
         Draw boxes around specified regions of chromosomes.
 
@@ -512,22 +516,23 @@ class Region(object):
 
             # Get box color from BED extra fields (7th column)
             box_color = "black"  # Default color
-            if g.extra and len(g.extra) >= 1 and g.extra[0] != '.':
+            if g.extra and len(g.extra) >= 1 and g.extra[0] != ".":
                 box_color = g.extra[0]
 
             # Create box with transparent fill and colored border
             rect = mpl.patches.Rectangle(
-                (x1, y - box_height/2),  # Lower left corner
+                (x1, y - box_height / 2),  # Lower left corner
                 x2 - x1,  # Width
                 box_height,  # Height extends above and below annotation tracks
                 linewidth=2,  # Increased from 1 to 2
                 edgecolor=box_color,
-                facecolor='none',
+                facecolor="none",
                 alpha=0.8,
-                zorder=5  # Increased to place above annotations (which are at zorder=4)
+                zorder=5,  # Increased to place above annotations (which are at zorder=4)
             )
             rect.set_transform(tr)
             ax.add_patch(rect)
+
 
 class Synteny(object):
     def __init__(
@@ -674,13 +679,19 @@ class Synteny(object):
             for i in range(bf.ncols):
                 # Get chromosome-specific information
                 if lo[i].chrmName and lo[i].rStart and lo[i].rEnd:
-                    track_chrm, track_start, track_end = lo[i].chrmName, lo[i].rStart, lo[i].rEnd
+                    track_chrm, track_start, track_end = (
+                        lo[i].chrmName,
+                        lo[i].rStart,
+                        lo[i].rEnd,
+                    )
                 else:
                     _, _, _, _, track_chrm, _, _ = exts[i]
                     track_start, track_end = exts[i][0].start, exts[i][1].end
 
                 # Extract relevant box annotations for this chromosome
-                box_fe = list(box_annotations.extract(track_chrm, track_start, track_end))
+                box_fe = list(
+                    box_annotations.extract(track_chrm, track_start, track_end)
+                )
                 box_feats.append(box_fe)
 
         # Find largest coord range for any track
@@ -709,7 +720,9 @@ class Synteny(object):
                 loc_label=loc_label,
                 vpad=vpad,
                 features=feats[i] if feats else None,
-                extra_features=extra_feats[i] if extra_feats else None,  # Pass extra features to Region
+                extra_features=(
+                    extra_feats[i] if extra_feats else None
+                ),  # Pass extra features to Region
                 box_features=box_feats[i] if box_annotations else None,
                 plotRibbonBlocks=plotRibbonBlocks,
                 annotcolor=annotcolor,
@@ -915,11 +928,11 @@ def main(args: List[str]):
         [9] Feature height multiplier. i.e. 1 = default, 2 = double height """,
     )
     p.add_argument(
-    "--annotation-boxes",
-    default=None,
-    help="Draw boxes with colored borders around chromosome regions. BED format: "
-         "chr, start, end, name, score, strand, color. Boxes extend to include "
-         "annotation tracks.",
+        "--annotation-boxes",
+        default=None,
+        help="Draw boxes with colored borders around chromosome regions. BED format: "
+        "chr, start, end, name, score, strand, color. Boxes extend to include "
+        "annotation tracks.",
     )
     p.add_argument(
         "--noprune",

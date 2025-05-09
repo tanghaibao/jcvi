@@ -196,6 +196,7 @@ class Region(object):
         vpad=0.015,
         features=None,
         extra_features=None,
+        box_features=None,
         plotRibbonBlocks=False,
         annotcolor="g",
         extra_annotcolor="r",
@@ -363,6 +364,9 @@ class Region(object):
                 )
                 gp.set_transform(tr)
 
+        if box_features:
+            self.draw_annotation_boxes(ax, box_features, startbp, endbp, y, cv, tr, orientation)
+
         # Position and apply chromosome labels
         ha, va = layout.ha, layout.va
 
@@ -467,6 +471,63 @@ class Region(object):
         newStart = startbp + downstream
         return newStart, newEnd
 
+    def draw_annotation_boxes(self, ax, box_features, startbp, endbp, y, cv, tr, orientation):
+        """
+        Draw boxes around specified regions of chromosomes.
+
+        Args:
+            ax: Matplotlib axis
+            box_features: List of BedLine objects with box annotations
+            startbp, endbp: Chromosome region boundaries
+            y: Y-coordinate of chromosome
+            cv: Coordinate conversion function
+            tr: Transformation for rotation
+        """
+        # Same offset used for annotations
+        offset = 0.005
+
+        # Default annotation feature height
+        feat_height = 0.012 * 0.3  # Same as defined in Region.__init__
+
+        # Small additional padding
+        box_padding = 0.001
+
+        # Total height to cover annotations above and below
+        # Include one offset plus annotation height in each direction
+        box_height = 2 * (offset + feat_height + box_padding)
+
+        for g in box_features:
+            # Clip box to chromosome range
+            gstart, gend, outofrange = self.clip2range(g.start, g.end, startbp, endbp)
+            if outofrange:
+                continue
+
+            # Apply orientation flipping if needed (already handled by caller)
+            if orientation == "R":
+                gstart, gend = self.flip(gstart, gend, startbp, endbp)
+
+            # Get horizontal coordinates
+            x1 = cv(gstart)
+            x2 = cv(gend)
+
+            # Get box color from BED extra fields (7th column)
+            box_color = "black"  # Default color
+            if g.extra and len(g.extra) >= 1 and g.extra[0] != '.':
+                box_color = g.extra[0]
+
+            # Create box with transparent fill and colored border
+            rect = mpl.patches.Rectangle(
+                (x1, y - box_height/2),  # Lower left corner
+                x2 - x1,  # Width
+                box_height,  # Height extends above and below annotation tracks
+                linewidth=2,  # Increased from 1 to 2
+                edgecolor=box_color,
+                facecolor='none',
+                alpha=0.8,
+                zorder=5  # Increased to place above annotations (which are at zorder=4)
+            )
+            rect.set_transform(tr)
+            ax.add_patch(rect)
 
 class Synteny(object):
     def __init__(
@@ -480,6 +541,7 @@ class Synteny(object):
         tree=None,
         features=None,
         extra_features=None,
+        box_annotations=None,
         chr_label=True,
         loc_label=True,
         pad=0.05,
@@ -526,6 +588,7 @@ class Synteny(object):
         exts = []
         feats = []
         extra_feats = []
+        box_feats = []
 
         # Collect span for any tracks with custom range coords
         customSpans = []
@@ -606,6 +669,20 @@ class Synteny(object):
                 # Add empty list if no extra features
                 extra_feats.append([])
 
+        if box_annotations:
+            box_annotations = Bed(box_annotations)
+            for i in range(bf.ncols):
+                # Get chromosome-specific information
+                if lo[i].chrmName and lo[i].rStart and lo[i].rEnd:
+                    track_chrm, track_start, track_end = lo[i].chrmName, lo[i].rStart, lo[i].rEnd
+                else:
+                    _, _, _, _, track_chrm, _, _ = exts[i]
+                    track_start, track_end = exts[i][0].start, exts[i][1].end
+
+                # Extract relevant box annotations for this chromosome
+                box_fe = list(box_annotations.extract(track_chrm, track_start, track_end))
+                box_feats.append(box_fe)
+
         # Find largest coord range for any track
         # maxspan = max(exts, key=lambda x: x[-1])[-1]
         maxspan = max(customSpans)
@@ -617,15 +694,12 @@ class Synteny(object):
 
         # Plot annotations
         for i in range(bf.ncols):
-            ext = exts[i]
-            fe = feats[i] if feats else None
-            extra_fe = extra_feats[i] if extra_feats else None
             logger.debug(f"annotation {i} orientation is {orientation[i]}")
             ori = orientation[i] if orientation else None
             parent_ori = orientation[i - 1] if orientation and i >= 1 else None
             r = Region(
                 root,
-                ext,
+                exts[i],
                 lo[i],
                 bed,
                 scale,
@@ -634,8 +708,9 @@ class Synteny(object):
                 chr_label=chr_label,
                 loc_label=loc_label,
                 vpad=vpad,
-                features=fe,
-                extra_features=extra_fe,  # Pass extra features to Region
+                features=feats[i] if feats else None,
+                extra_features=extra_feats[i] if extra_feats else None,  # Pass extra features to Region
+                box_features=box_feats[i] if box_annotations else None,
                 plotRibbonBlocks=plotRibbonBlocks,
                 annotcolor=annotcolor,
                 extra_annotcolor=extra_annotcolor,  # Pass extra color to Region
@@ -840,6 +915,13 @@ def main(args: List[str]):
         [9] Feature height multiplier. i.e. 1 = default, 2 = double height """,
     )
     p.add_argument(
+    "--annotation-boxes",
+    default=None,
+    help="Draw boxes with colored borders around chromosome regions. BED format: "
+         "chr, start, end, name, score, strand, color. Boxes extend to include "
+         "annotation tracks.",
+    )
+    p.add_argument(
         "--noprune",
         default=True,
         action="store_false",
@@ -950,6 +1032,7 @@ def main(args: List[str]):
         tree=opts.tree,
         features=opts.annotations,
         extra_features=opts.extra_annotations,
+        box_annotations=opts.annotation_boxes,
         scalebar=opts.scalebar,
         paintbyscore=opts.paintbyscore,
         paintbystrand=opts.paintbystrand,

@@ -122,7 +122,7 @@ class Shade(object):
         a,
         b,
         ymid,
-        highlight=False,
+        highlight=None,
         style="curve",
         ec="k",
         fc="k",
@@ -173,7 +173,10 @@ class Shade(object):
             pathdata = [(M, a1), (L, b1), (L, b2), (L, a2), (CP, a1)]
         codes, verts = list(zip(*pathdata))
         path = Path(verts, codes)
-        if highlight:
+
+        if highlight and not ec:
+            fc = highlight
+        elif highlight:
             ec = fc = highlight
 
         pp = PathPatch(path, ec=ec, fc=fc, alpha=alpha, lw=lw, zorder=zorder)
@@ -473,32 +476,15 @@ class Region(object):
         newStart = startbp + downstream
         return newStart, newEnd
 
-    def draw_annotation_boxes(
-        self, ax, box_features, startbp, endbp, y, cv, tr, orientation
-    ):
-        """
-        Draw boxes around specified regions of chromosomes.
-
-        Args:
-            ax: Matplotlib axis
-            box_features: List of BedLine objects with box annotations
-            startbp, endbp: Chromosome region boundaries
-            y: Y-coordinate of chromosome
-            cv: Coordinate conversion function
-            tr: Transformation for rotation
-        """
+    def draw_annotation_boxes(self, ax, box_features, startbp, endbp, y, cv, tr, orientation):
         # Same offset used for annotations
         offset = 0.005
-
-        # Default annotation feature height
-        feat_height = 0.012 * 0.3  # Same as defined in Region.__init__
-
-        # Small additional padding
+        feat_height = 0.012 * 0.3
         box_padding = 0.001
-
-        # Total height to cover annotations above and below
-        # Include one offset plus annotation height in each direction
         box_height = 2 * (offset + feat_height + box_padding)
+
+        # Border width in points
+        lw = 2
 
         for g in box_features:
             # Clip box to chromosome range
@@ -506,7 +492,7 @@ class Region(object):
             if outofrange:
                 continue
 
-            # Apply orientation flipping if needed (already handled by caller)
+            # Apply orientation flipping if needed
             if orientation == "R":
                 gstart, gend = self.flip(gstart, gend, startbp, endbp)
 
@@ -514,21 +500,22 @@ class Region(object):
             x1 = cv(gstart)
             x2 = cv(gend)
 
-            # Get box color from BED extra fields (7th column)
-            box_color = "black"  # Default color
-            if g.extra and len(g.extra) >= 1 and g.extra[0] != ".":
+            # Get box color from BED file
+            box_color = "black"
+            if g.extra and len(g.extra) >= 1 and g.extra[0] != '.':
                 box_color = g.extra[0]
 
             # Create box with transparent fill and colored border
+            # No adjustment - border will be centered on the edge
             rect = mpl.patches.Rectangle(
-                (x1, y - box_height / 2),  # Lower left corner
-                x2 - x1,  # Width
-                box_height,  # Height extends above and below annotation tracks
-                linewidth=2,  # Increased from 1 to 2
+                (x1, y - box_height/2),
+                x2 - x1,
+                box_height,
+                linewidth=lw,
                 edgecolor=box_color,
-                facecolor="none",
+                facecolor='none',
                 alpha=0.8,
-                zorder=5,  # Increased to place above annotations (which are at zorder=4)
+                zorder=5
             )
             rect.set_transform(tr)
             ax.add_patch(rect)
@@ -753,16 +740,20 @@ class Synteny(object):
                     ribbonColor = self.inversionCheck(a, b)
                 if paintbyscore:
                     baseAlpha = self.scoreCheck(a, scaleAlpha)
+
                 if noline:
                     lw = 0.0
+                    edge_color = None
                 else:
                     lw = 0.1
+                    edge_color = ribbonColor
                 Shade(
                     root,
                     a,
                     b,
                     ymid,
                     fc=ribbonColor,
+                    ec=edge_color,
                     lw=lw,
                     alpha=baseAlpha,
                     style=shadestyle,
@@ -781,6 +772,13 @@ class Synteny(object):
                 baseAlpha = 1
                 if paintbyscore:
                     baseAlpha = self.scoreCheck(a, scaleAlpha)
+
+                if noline:
+                    lw = 0.0
+                    edge_color = None
+                else:
+                    lw = 0.1
+                    edge_color = h
                 Shade(
                     root,
                     a,
@@ -788,6 +786,8 @@ class Synteny(object):
                     ymid,
                     alpha=baseAlpha,
                     highlight=h,
+                    ec=edge_color,
+                    lw=lw,
                     zorder=1,
                     style=shadestyle,
                 )

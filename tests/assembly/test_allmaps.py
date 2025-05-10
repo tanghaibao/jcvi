@@ -2,6 +2,12 @@ import os
 import os.path as op
 
 from jcvi.apps.base import cleanup, mkdir
+
+#print python version to stderr
+print("Python version:", os.sys.version, file=os.stderr)
+#print versions of modules cmmodule and pysam
+print("cmmodule version:", os.sys.modules["cmmodule"].__version__, file=os.stderr)
+print("pysam version:", os.sys.modules["pysam"].__version__, file=os.stderr)
 from jcvi.assembly.allmaps import path
 
 

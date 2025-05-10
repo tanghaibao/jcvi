@@ -1,13 +1,14 @@
 import os
 import os.path as op
-
+import sys
 from jcvi.apps.base import cleanup, mkdir
 
 # print python version to stderr
-print("Python version:", os.sys.version, file=os.stderr)
+print("Python version:", sys.version, file=sys.stderr)
 # print versions of modules cmmodule and pysam
-print("cmmodule version:", os.sys.modules["cmmodule"].__version__, file=os.stderr)
-print("pysam version:", os.sys.modules["pysam"].__version__, file=os.stderr)
+print("cmmodule version:", sys.modules["cmmodule"].__version__, file=sys.stderr)
+print("pysam version:", sys.modules["pysam"].__version__, file=sys.stderr)
+
 from jcvi.assembly.allmaps import path
 
 

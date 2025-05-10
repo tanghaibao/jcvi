@@ -476,7 +476,9 @@ class Region(object):
         newStart = startbp + downstream
         return newStart, newEnd
 
-    def draw_annotation_boxes(self, ax, box_features, startbp, endbp, y, cv, tr, orientation):
+    def draw_annotation_boxes(
+        self, ax, box_features, startbp, endbp, y, cv, tr, orientation
+    ):
         # Same offset used for annotations
         offset = 0.005
         feat_height = 0.012 * 0.3
@@ -502,20 +504,20 @@ class Region(object):
 
             # Get box color from BED file
             box_color = "black"
-            if g.extra and len(g.extra) >= 1 and g.extra[0] != '.':
+            if g.extra and len(g.extra) >= 1 and g.extra[0] != ".":
                 box_color = g.extra[0]
 
             # Create box with transparent fill and colored border
             # No adjustment - border will be centered on the edge
             rect = mpl.patches.Rectangle(
-                (x1, y - box_height/2),
+                (x1, y - box_height / 2),
                 x2 - x1,
                 box_height,
                 linewidth=lw,
                 edgecolor=box_color,
-                facecolor='none',
+                facecolor="none",
                 alpha=0.8,
-                zorder=5
+                zorder=5,
             )
             rect.set_transform(tr)
             ax.add_patch(rect)

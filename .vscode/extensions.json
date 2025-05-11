@@ -1,0 +1,14 @@
+{
+    "recommendations": [
+        "aaron-bond.better-comments",
+        "bierner.markdown-mermaid",
+        "eamodio.gitlens",
+        "janisdd.vscode-edit-csv",
+        "mechatroner.rainbow-csv",
+        "meezilla.json",
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "oderwat.indent-rainbow",
+        "tamasfe.even-better-toml"
+    ]
+}

@@ -105,7 +105,7 @@ full-fledged applications.
 
 ## Dependencies
 
-JCVI requires Python3 between v3.8 and v3.12.
+JCVI requires Python3 between v3.9 and v3.12.
 
 Some graphics modules require the [ImageMagick](https://imagemagick.org/index.php) library.
 

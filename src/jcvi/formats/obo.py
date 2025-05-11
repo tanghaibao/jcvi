@@ -9,7 +9,7 @@ Parses obo_file and plot GO lineage
 from collections import deque
 from functools import partial
 import sys
-from typing import IO, Optional
+from typing import IO, Optional, Tuple
 
 from goatools.obo_parser import GODag
 

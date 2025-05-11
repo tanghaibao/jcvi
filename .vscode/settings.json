@@ -1,4 +1,6 @@
 {
+    "python.defaultInterpreterPath": "${env:PYTHON_INTERPRETER}",
+    "autoDocstring.docstringFormat": "numpy",
     "python.testing.pytestArgs": [
         "tests"
     ],

@@ -122,7 +122,7 @@ class Shade(object):
         a,
         b,
         ymid,
-        highlight=False,
+        highlight=None,
         style="curve",
         ec="k",
         fc="k",
@@ -173,7 +173,10 @@ class Shade(object):
             pathdata = [(M, a1), (L, b1), (L, b2), (L, a2), (CP, a1)]
         codes, verts = list(zip(*pathdata))
         path = Path(verts, codes)
-        if highlight:
+
+        if highlight and not ec:
+            fc = highlight
+        elif highlight:
             ec = fc = highlight
 
         pp = PathPatch(path, ec=ec, fc=fc, alpha=alpha, lw=lw, zorder=zorder)
@@ -196,6 +199,7 @@ class Region(object):
         vpad=0.015,
         features=None,
         extra_features=None,
+        box_features=None,
         plotRibbonBlocks=False,
         annotcolor="g",
         extra_annotcolor="r",
@@ -363,6 +367,11 @@ class Region(object):
                 )
                 gp.set_transform(tr)
 
+        if box_features:
+            self.draw_annotation_boxes(
+                ax, box_features, startbp, endbp, y, cv, tr, orientation
+            )
+
         # Position and apply chromosome labels
         ha, va = layout.ha, layout.va
 
@@ -467,6 +476,63 @@ class Region(object):
         newStart = startbp + downstream
         return newStart, newEnd
 
+    def draw_annotation_boxes(
+        self, ax, box_features, startbp, endbp, y, cv, tr, orientation
+    ):
+        # Same offset used for annotations
+        offset = 0.005
+        feat_height = 0.012 * 0.3
+        box_padding = 0.001
+        box_height = 2 * (offset + feat_height + box_padding)
+
+        # Border width in points
+        lw = 2
+
+        # Get figure for coordinate conversion
+        fig = ax.figure
+
+        # Calculate HALF the line width in figure coordinates
+        # Line width is centered on the path, so we need half to move borders out precisely
+        fig_width_inches = fig.get_figwidth()
+        half_lw_fig_units = (lw / 2) / (72 * fig_width_inches)
+
+        for g in box_features:
+            # Clip box to chromosome range
+            gstart, gend, outofrange = self.clip2range(g.start, g.end, startbp, endbp)
+            if outofrange:
+                continue
+
+            # Apply orientation flipping if needed
+            if orientation == "R":
+                gstart, gend = self.flip(gstart, gend, startbp, endbp)
+
+            # Get horizontal coordinates
+            x1 = cv(gstart)
+            x2 = cv(gend)
+
+            # Adjust coordinates to move borders outward by HALF the line width
+            x1 -= half_lw_fig_units  # Move left border out
+            x2 += half_lw_fig_units  # Move right border out
+
+            # Get box color from BED file
+            box_color = "black"
+            if g.extra and len(g.extra) >= 1 and g.extra[0] != ".":
+                box_color = g.extra[0]
+
+            # Create box with adjusted coordinates
+            rect = mpl.patches.Rectangle(
+                (x1, y - box_height / 2),
+                x2 - x1,
+                box_height,
+                linewidth=lw,
+                edgecolor=box_color,
+                facecolor="none",
+                alpha=0.8,
+                zorder=5,
+            )
+            rect.set_transform(tr)
+            ax.add_patch(rect)
+
 
 class Synteny(object):
     def __init__(
@@ -480,6 +546,7 @@ class Synteny(object):
         tree=None,
         features=None,
         extra_features=None,
+        box_annotations=None,
         chr_label=True,
         loc_label=True,
         pad=0.05,
@@ -526,6 +593,7 @@ class Synteny(object):
         exts = []
         feats = []
         extra_feats = []
+        box_feats = []
 
         # Collect span for any tracks with custom range coords
         customSpans = []
@@ -606,6 +674,26 @@ class Synteny(object):
                 # Add empty list if no extra features
                 extra_feats.append([])
 
+        if box_annotations:
+            box_annotations = Bed(box_annotations)
+            for i in range(bf.ncols):
+                # Get chromosome-specific information
+                if lo[i].chrmName and lo[i].rStart and lo[i].rEnd:
+                    track_chrm, track_start, track_end = (
+                        lo[i].chrmName,
+                        lo[i].rStart,
+                        lo[i].rEnd,
+                    )
+                else:
+                    _, _, _, _, track_chrm, _, _ = exts[i]
+                    track_start, track_end = exts[i][0].start, exts[i][1].end
+
+                # Extract relevant box annotations for this chromosome
+                box_fe = list(
+                    box_annotations.extract(track_chrm, track_start, track_end)
+                )
+                box_feats.append(box_fe)
+
         # Find largest coord range for any track
         # maxspan = max(exts, key=lambda x: x[-1])[-1]
         maxspan = max(customSpans)
@@ -617,15 +705,12 @@ class Synteny(object):
 
         # Plot annotations
         for i in range(bf.ncols):
-            ext = exts[i]
-            fe = feats[i] if feats else None
-            extra_fe = extra_feats[i] if extra_feats else None
             logger.debug(f"annotation {i} orientation is {orientation[i]}")
             ori = orientation[i] if orientation else None
             parent_ori = orientation[i - 1] if orientation and i >= 1 else None
             r = Region(
                 root,
-                ext,
+                exts[i],
                 lo[i],
                 bed,
                 scale,
@@ -634,8 +719,11 @@ class Synteny(object):
                 chr_label=chr_label,
                 loc_label=loc_label,
                 vpad=vpad,
-                features=fe,
-                extra_features=extra_fe,  # Pass extra features to Region
+                features=feats[i] if feats else None,
+                extra_features=(
+                    extra_feats[i] if extra_feats else None
+                ),  # Pass extra features to Region
+                box_features=box_feats[i] if box_annotations else None,
                 plotRibbonBlocks=plotRibbonBlocks,
                 annotcolor=annotcolor,
                 extra_annotcolor=extra_annotcolor,  # Pass extra color to Region
@@ -665,16 +753,20 @@ class Synteny(object):
                     ribbonColor = self.inversionCheck(a, b)
                 if paintbyscore:
                     baseAlpha = self.scoreCheck(a, scaleAlpha)
+
                 if noline:
                     lw = 0.0
+                    edge_color = None
                 else:
                     lw = 0.1
+                    edge_color = ribbonColor
                 Shade(
                     root,
                     a,
                     b,
                     ymid,
                     fc=ribbonColor,
+                    ec=edge_color,
                     lw=lw,
                     alpha=baseAlpha,
                     style=shadestyle,
@@ -693,6 +785,13 @@ class Synteny(object):
                 baseAlpha = 1
                 if paintbyscore:
                     baseAlpha = self.scoreCheck(a, scaleAlpha)
+
+                if noline:
+                    lw = 0.0
+                    edge_color = None
+                else:
+                    lw = 0.1
+                    edge_color = h
                 Shade(
                     root,
                     a,
@@ -700,6 +799,8 @@ class Synteny(object):
                     ymid,
                     alpha=baseAlpha,
                     highlight=h,
+                    ec=edge_color,
+                    lw=lw,
                     zorder=1,
                     style=shadestyle,
                 )
@@ -840,6 +941,13 @@ def main(args: List[str]):
         [9] Feature height multiplier. i.e. 1 = default, 2 = double height """,
     )
     p.add_argument(
+        "--annotation-boxes",
+        default=None,
+        help="Draw boxes with colored borders around chromosome regions. BED format: "
+        "chr, start, end, name, score, strand, color. Boxes extend to include "
+        "annotation tracks.",
+    )
+    p.add_argument(
         "--noprune",
         default=True,
         action="store_false",
@@ -950,6 +1058,7 @@ def main(args: List[str]):
         tree=opts.tree,
         features=opts.annotations,
         extra_features=opts.extra_annotations,
+        box_annotations=opts.annotation_boxes,
         scalebar=opts.scalebar,
         paintbyscore=opts.paintbyscore,
         paintbystrand=opts.paintbystrand,

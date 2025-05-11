@@ -1,6 +1,5 @@
 import os
 import os.path as op
-
 from jcvi.apps.base import cleanup, mkdir
 from jcvi.assembly.allmaps import path
 

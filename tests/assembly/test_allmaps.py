@@ -1,28 +1,7 @@
 import os
 import os.path as op
-import sys
 from jcvi.apps.base import cleanup, mkdir
-
-# print python version to stderr
-print("Python version:", sys.version, file=sys.stderr)
-# print versions of modules cmmodule and pysam
-
-try:
-    import pysam
-
-    print("pysam version:", sys.modules["pysam"].__version__, file=sys.stderr)
-except ImportError:
-    print("pysam not found", file=sys.stderr)
-
-try:
-    import cmmodule
-
-    print("cmmodule version:", sys.modules["cmmodule"].__version__, file=sys.stderr)
-except ImportError:
-    print("cmmodule not found", file=sys.stderr)
-
 from jcvi.assembly.allmaps import path
-
 
 def datafile(path: str) -> str:
     """Returns the path to a file in the designated test directory."""

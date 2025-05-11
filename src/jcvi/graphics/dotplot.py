@@ -26,19 +26,17 @@ Ghostscript (http://www.ghostscript.com/)
 see more here: http://matplotlib.sourceforge.net/users/usetex.html
 """
 
+from copy import deepcopy
 import os.path as op
+from random import sample
 import string
 import sys
-
-from copy import deepcopy
-from random import sample
 from typing import Optional
 
 from ..apps.base import OptionParser, logger, need_update
 from ..compara.base import AnchorFile
 from ..compara.synteny import batch_scan, check_beds, get_orientation
 from ..utils.cbook import seqid_parse, thousands
-
 from .base import (
     Rectangle,
     TextHandler,
@@ -48,8 +46,8 @@ from .base import (
     normalize_axes,
     plt,
     savefig,
-    set_human_axis,
     set1,
+    set_human_axis,
 )
 
 

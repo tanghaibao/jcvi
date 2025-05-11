@@ -22,14 +22,12 @@ IV	IRX7,GUX2
 """
 
 
-import sys
-
 from itertools import groupby
+import sys
 
 import numpy as np
 
 from ..apps.base import OptionParser
-
 from .base import mpl, plt, savefig
 
 

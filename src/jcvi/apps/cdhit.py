@@ -4,15 +4,13 @@
 """
 Using CD-HIT to remove duplicate reads.
 """
+from collections import defaultdict
 import os.path as op
 import sys
 
-from collections import defaultdict
-
-from ..formats.base import LineFile, read_block, must_open
+from ..formats.base import LineFile, must_open, read_block
 from ..formats.fastq import fasta
 from ..utils.cbook import percentage
-
 from .base import ActionDispatcher, OptionParser, logger, need_update, sh
 
 

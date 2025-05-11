@@ -2,29 +2,28 @@
 Basic support for running library as script
 """
 
+from argparse import SUPPRESS, ArgumentParser
+from collections.abc import Iterable
+from configparser import (
+    ConfigParser,
+    NoOptionError,
+    NoSectionError,
+    ParsingError,
+    RawConfigParser,
+)
 import errno
 import fnmatch
+from http.client import HTTPSConnection
 import logging
 import os
 import os.path as op
 import platform
 import shutil
 import signal
+from socket import gethostname
+from subprocess import PIPE, CalledProcessError, call, check_output
 import sys
 import time
-
-from argparse import ArgumentParser, SUPPRESS
-from collections.abc import Iterable
-from configparser import (
-    ConfigParser,
-    RawConfigParser,
-    NoOptionError,
-    NoSectionError,
-    ParsingError,
-)
-from http.client import HTTPSConnection
-from socket import gethostname
-from subprocess import CalledProcessError, PIPE, call, check_output
 from time import ctime
 from typing import Collection, List, Optional, Tuple, Union
 from urllib.parse import urlencode
@@ -33,8 +32,8 @@ from natsort import natsorted
 from rich.console import Console
 from rich.logging import RichHandler
 
-from .. import __copyright__, __version__ as version
-
+from .. import __copyright__
+from .. import __version__ as version
 
 os.environ["LC_ALL"] = "C"
 # http://newbebweb.blogspot.com/2012/02/python-head-ioerror-errno-32-broken.html
@@ -319,7 +318,7 @@ class OptionParser(ArgumentParser):
         """
         Add db connection specific attributes
         """
-        from jcvi.utils.db import valid_dbconn, get_profile
+        from jcvi.utils.db import get_profile, valid_dbconn
 
         self.add_argument(
             "--db",
@@ -1428,6 +1427,7 @@ def ls_ftp(dir):
         [str]: List of remote paths available, analogous to `ls`.
     """
     from urllib.parse import urlparse
+
     from ftpretty import ftpretty
 
     o = urlparse(dir)
@@ -1866,8 +1866,8 @@ def send_email(fromaddr, toaddr, subject, message):
     """
     Send an email message
     """
-    from smtplib import SMTP
     from email.mime.text import MIMEText
+    from smtplib import SMTP
 
     SERVER = "localhost"
     _message = MIMEText(message)

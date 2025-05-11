@@ -6,6 +6,5 @@ Set of scripts relating to variation studies such as imputation, phasing, SNP/CN
 
 from ..apps.base import dmain
 
-
 if __name__ == "__main__":
     dmain(__file__)

@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+from math import exp
+from multiprocessing import Lock, Pool
 import os.path as op
 import sys
 
-from math import exp
-from multiprocessing import Lock, Pool
-
 from ..formats.base import must_open
-
-from .grid import Jobs
 from .base import OptionParser, Popen, logger, mkdir
-
+from .grid import Jobs
 
 # LASTZ options
 Darkspace = "nameparse=darkspace"
@@ -237,8 +234,8 @@ def main():
     # computation, as opposed to splitting queries through "subsample".
     outdir = "outdir"
     if not blastline:
-        from jcvi.formats.fasta import Fasta
         from jcvi.formats.chain import faToTwoBit
+        from jcvi.formats.fasta import Fasta
 
         mkdir(outdir)
 

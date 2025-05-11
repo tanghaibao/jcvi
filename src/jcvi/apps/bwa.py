@@ -13,7 +13,6 @@ import sys
 from ..apps.grid import MakeManager
 from ..assembly.automaton import iter_project
 from ..formats.sam import get_samfile, mapped, output_bam
-
 from .base import (
     ActionDispatcher,
     OptionParser,

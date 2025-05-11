@@ -5,7 +5,7 @@
 Simple validator to make sure certain values match expectation.
 """
 
-from typing import Collection, Union, TypeVar
+from typing import Collection, TypeVar, Union
 
 ComparableType = Union[int, float]
 T = TypeVar("T")

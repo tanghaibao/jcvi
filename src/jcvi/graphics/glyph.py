@@ -6,15 +6,13 @@ Gradient gene features
 """
 
 import os.path as op
+from random import choice, randint, random, shuffle
 import sys
-
-from random import choice, shuffle, random, randint
 
 import numpy as np
 
-from ..apps.base import OptionParser, ActionDispatcher
+from ..apps.base import ActionDispatcher, OptionParser
 from ..utils.grouper import Grouper
-
 from .base import (
     CirclePolygon,
     Ellipse,
@@ -26,7 +24,6 @@ from .base import (
     savefig,
     set3,
 )
-
 
 tstep = 0.05
 Timing = np.arange(0, 1 + tstep, tstep)

@@ -2,7 +2,7 @@ from collections import defaultdict
 from typing import Dict, Tuple
 
 from ..apps.base import logger
-from ..formats.base import BaseFile, read_block, must_open
+from ..formats.base import BaseFile, must_open, read_block
 from ..utils.range import Range
 
 
@@ -101,7 +101,7 @@ class AnchorFile(BaseFile):
         """
         convert anchor file to 12 col blast file
         """
-        from ..formats.blast import BlastSlow, BlastLineByConversion
+        from ..formats.blast import BlastLineByConversion, BlastSlow
 
         if not outfile:
             outfile = self.filename + ".blast"

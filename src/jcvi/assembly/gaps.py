@@ -4,10 +4,9 @@
 """
 Calculates gap statistics and manipulate gaps in assembly.
 """
+from itertools import groupby
 import os.path as op
 import sys
-
-from itertools import groupby
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, need_update
 from ..formats.bed import Bed, fastaFromBed
@@ -189,8 +188,8 @@ def sizes(args):
     -   Strand +|-: flankers map in different orientations
     -   Negative value: the R flanker map before L flanker
     """
-    from jcvi.formats.base import DictFile
     from jcvi.apps.align import blast
+    from jcvi.formats.base import DictFile
 
     p = OptionParser(sizes.__doc__)
     opts, args = p.parse_args(args)

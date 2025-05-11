@@ -9,7 +9,6 @@ import re
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser
-
 from .base import LineFile, must_open
 
 

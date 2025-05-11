@@ -6,6 +6,5 @@ Miscellany of wrapper scripts for command-line bioinformatics tools, public data
 
 from .base import dmain
 
-
 if __name__ == "__main__":
     dmain(__file__)

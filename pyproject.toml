@@ -16,8 +16,8 @@ build-backend = "hatchling.build"
 name = "jcvi"
 description = "Python utility libraries on genome assembly, annotation and comparative genomics"
 readme = "README.md"
-requires-python = ">=3.8"
-license = { text = "BSD" }
+requires-python = ">=3.8,<3.13"
+license = { text = "BSD-3-Clause" } # Note: Setuptools will not support dict format from Feb 2026, BUT hatchling requires it!
 authors = [
     { name = "Haibao Tang", email = "tanghaibao@gmail.com" },
     { name = "Vivek Krishnakumar" },
@@ -26,7 +26,6 @@ authors = [
 
 classifiers = [
     "Intended Audience :: Science/Research",
-    "License :: OSI Approved :: BSD License",
     "Programming Language :: Python",
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Bio-Informatics",
@@ -84,7 +83,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-tests = ["mock", "pytest-benchmark", "pytest-cov", "pytest", "PyYAML"]
+tests = ["hatch", "isort", "mock", "numpydoc-validation", "pre-commit", "pymdown-extensions", "pytest-benchmark", "pytest-cov", "pytest", "PyYAML"]
 
 [project.urls]
 homepage = "http://github.com/tanghaibao/jcvi"
@@ -123,4 +122,35 @@ artifacts = [
     "src/jcvi/**/*.so",  # Linux/Mac shared objects
     "src/jcvi/**/*.pyd", # Windows shared objects
     "src/jcvi/**/*.c",   # Generated C files
+]
+
+[tool.pytest.ini_options]
+addopts = "-v --cov=jcvi --cov-branch --cov-report=xml --cov-report=term"
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+
+[tool.isort]
+profile = "black"
+known_third_party = ["Bio","pandas","numpy"]
+known_first_party = ["jcvi"]
+default_section = "THIRDPARTY"
+force_sort_within_sections = true
+
+[tool.numpydoc_validation]
+checks = [
+    "all",  # report on all checks
+    "ES01", # but don't require an extended summary
+    "EX01", # or examples
+    "SA01", # or a see also section
+    "SS06", # and don't require the summary to fit on one line
+]
+exclude = [  # don't report on checks for these
+    '\.__init__$',
+    '\.__repr__$',
+    '\.__str__$',
+]
+override_SS05 = [  # allow docstrings to start with these words
+    '^Process ',
+    '^Assess ',
+    '^Access ',
 ]

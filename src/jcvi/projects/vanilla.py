@@ -43,7 +43,7 @@ def phylogeny(args):
 
     Create a composite figure with (A) tree and (B) ks.
     """
-    from ..compara.ks import Layout, KsPlot, KsFile
+    from ..compara.ks import KsFile, KsPlot, Layout
 
     p = OptionParser(phylogeny.__doc__)
     _, args, iopts = p.set_image_options(args, figsize="10x12")
@@ -160,7 +160,7 @@ def ks(args):
 
     Create a ks figure.
     """
-    from ..compara.ks import Layout, KsPlot, KsFile
+    from ..compara.ks import KsFile, KsPlot, Layout
 
     p = OptionParser(ks.__doc__)
     _, args, iopts = p.set_image_options(args, figsize="10x4")

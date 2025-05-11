@@ -19,11 +19,10 @@ see supplementary info for sea anemone genome paper, formula::
 
 Finally a blast.filtered file is created.
 """
-import sys
-import os.path as op
-
 from collections import defaultdict
 from itertools import groupby
+import os.path as op
+import sys
 
 from ..apps.base import OptionParser, logger
 from ..compara.synteny import check_beds
@@ -54,7 +53,7 @@ def blastfilter_main(blast_file, p, opts):
     nwarnings = 0
     for b in blasts:
         query, subject = b.query, b.subject
-        if query == subject:
+        if is_self and query == subject:
             continue
 
         if ostrip:
@@ -307,7 +306,7 @@ def main(args):
         type=float,
         default=0.7,
         help="retain hits that have good bitscore. a value of 0.5 means "
-        "keep all values that are 50% or greater of the best hit. "
+        "keep all values that are 50%% or greater of the best hit. "
         "higher is more stringent",
     )
     p.add_argument("--exclude", help="Remove anchors from a previous run")

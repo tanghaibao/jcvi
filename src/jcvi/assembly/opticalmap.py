@@ -4,18 +4,17 @@
 """
 Optical map alignment parser.
 """
-import sys
-
 from collections import defaultdict
+import sys
 from xml.etree.ElementTree import ElementTree
 
-import numpy as np
 from more_itertools import pairwise
+import numpy as np
 
 from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..formats.base import must_open
 from ..formats.bed import Bed
-from ..utils.range import range_chain, range_parse, Range
+from ..utils.range import Range, range_chain, range_parse
 
 
 class OpticalMap(object):
@@ -232,6 +231,7 @@ def condense(args):
     Merge split alignments in OM bed.
     """
     from itertools import groupby
+
     from jcvi.assembly.patch import merge_ranges
 
     p = OptionParser(condense.__doc__)
@@ -335,8 +335,8 @@ def fasta(args):
     Use OM bed to scaffold and create pseudomolecules. bedfile can be generated
     by running jcvi.assembly.opticalmap bed --blockonly
     """
-    from jcvi.formats.sizes import Sizes
     from jcvi.formats.agp import OO, build
+    from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fasta.__doc__)
     opts, args = p.parse_args(args)

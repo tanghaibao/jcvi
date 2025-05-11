@@ -9,8 +9,7 @@ import os.path as op
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, sh, symlink, which
-from ..formats.base import write_file, must_open, FileMerger
-
+from ..formats.base import FileMerger, must_open, write_file
 
 alignAssembly_conf = """
 # MySQL settings
@@ -384,11 +383,12 @@ def consolidate(args):
     If `slop` is enabled, consolidation will collapse any variation
     in terminal UTR lengths, keeping the longest as representative.
     """
+    from itertools import combinations, product
+
     from jcvi.formats.base import longest_unique_prefix
     from jcvi.formats.gff import make_index, match_subfeats
     from jcvi.utils.cbook import AutoVivification
     from jcvi.utils.grouper import Grouper
-    from itertools import combinations, product
 
     supported_modes = ["name", "coords"]
     p = OptionParser(consolidate.__doc__)

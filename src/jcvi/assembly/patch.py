@@ -14,12 +14,12 @@ There are a few techniques, used in curating medicago assembly.
 5. Find gaps in optical map
 6. Insert unplaced scaffolds using mates
 """
-import os.path as op
-import sys
-import math
-
 from collections import defaultdict
 from itertools import groupby
+import math
+import os.path as op
+import sys
+
 from more_itertools import pairwise, roundrobin
 
 from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, sh
@@ -342,7 +342,7 @@ def insert(args):
 
     Insert scaffolds into assembly.
     """
-    from jcvi.formats.agp import mask, bed
+    from jcvi.formats.agp import bed, mask
     from jcvi.formats.sizes import agp
 
     p = OptionParser(insert.__doc__)

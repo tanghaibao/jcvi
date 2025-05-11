@@ -5,21 +5,18 @@
 Legacy script to plot distribution of certain classes onto chromosomes. Adapted
 from the script used in the Tang et al. PNAS 2010 paper, sigma figure.
 """
-import sys
-
 from itertools import groupby
 from math import ceil
-from typing import Optional, Tuple
-
-import numpy as np
+import sys
+from typing import List, Optional, Tuple
 
 from natsort import natsorted
+import numpy as np
 
 from ..apps.base import OptionParser, datafile, logger, sample_N
 from ..formats.base import DictFile, get_number
 from ..formats.bed import Bed
 from ..formats.sizes import Sizes
-
 from .base import (
     CirclePolygon,
     Polygon,
@@ -43,15 +40,15 @@ class Chromosome(BaseGlyph):
     def __init__(
         self,
         ax,
-        x,
-        y1,
-        y2,
-        width=0.015,
-        ec="k",
-        patch=None,
-        patchcolor="lightgrey",
-        lw=1,
-        zorder=2,
+        x: float,
+        y1: float,
+        y2: float,
+        width: float = 0.015,
+        ec: str = "k",
+        patch: Optional[List[float]] = None,
+        patchcolor: str = "lightgrey",
+        lw: int = 1,
+        zorder: int = 2,
     ):
         """
         Chromosome with positions given in (x, y1) => (x, y2)

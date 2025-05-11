@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+from collections import defaultdict
 import os
 import os.path as op
 import re
 import sys
-
-from collections import defaultdict
 from urllib.parse import quote, unquote
 
 from ..annotation.reformat import atg_name
@@ -24,11 +23,9 @@ from ..apps.base import (
 from ..utils.cbook import AutoVivification
 from ..utils.orderedcollections import DefaultOrderedDict, OrderedDict, parse_qs
 from ..utils.range import Range, range_minmax
-
-from .base import DictFile, LineFile, must_open, is_number
+from .base import DictFile, LineFile, is_number, must_open
 from .bed import Bed, BedLine, natsorted
 from .fasta import Fasta, SeqIO
-
 
 Valid_strands = ("+", "-", "?", ".")
 Valid_phases = ("0", "1", "2", ".")
@@ -857,8 +854,9 @@ def cluster(args):
     If `slop` is enabled, clustering/consolidation will collapse any variation
     in terminal UTR lengths, keeping only the longest as representative.
     """
-    from jcvi.utils.grouper import Grouper
     from itertools import combinations
+
+    from jcvi.utils.grouper import Grouper
 
     p = OptionParser(cluster.__doc__)
     p.add_argument(
@@ -2874,7 +2872,9 @@ def splicecov(args):
     across the junctions.
     """
     from tempfile import mkstemp
+
     from pybedtools import BedTool
+
     from jcvi.utils.cbook import SummaryStats
 
     p = OptionParser(splicecov.__doc__)
@@ -3190,6 +3190,7 @@ def load(args):
     $ %prog load athaliana.gff athaliana.fa --feature=downstream:TES:500 --avoidFeatures=both_strands
     """
     from datetime import datetime as dt
+
     from jcvi.formats.fasta import Seq, SeqRecord
 
     # can request output fasta sequence id to be picked from following attributes

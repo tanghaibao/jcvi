@@ -3,11 +3,10 @@ Useful recipes from various internet sources (thanks)
 mostly decorator patterns
 """
 
+from collections import defaultdict
 import os.path as op
 import re
 import sys
-
-from collections import defaultdict
 from typing import Optional
 
 from ..apps.base import logger
@@ -51,7 +50,7 @@ def depends(func):
     Decorator to perform check on infile and outfile. When infile is not present, issue
     warning, and when outfile is present, skip function calls.
     """
-    from jcvi.apps.base import need_update, listify
+    from jcvi.apps.base import listify, need_update
 
     infile = "infile"
     outfile = "outfile"
@@ -197,6 +196,22 @@ def percentage(a, b, precision=1, mode: Optional[int] = 0):
     elif mode == 2:
         return _a * 100.0 / _b
     return pct
+
+
+def short_float(f, precision=1, trim_zeros=True):
+    """
+    Format a float to a string with a fixed precision, and optionally trim
+    trailing zeros.
+
+    >>> short_float(3.1415926)
+    '3.1'
+    >>> short_float(3.002)
+    '3'
+    """
+    f = f"{f:.{precision}f}"
+    if trim_zeros:
+        f = f.rstrip("0").rstrip(".")
+    return f
 
 
 def thousands(x):

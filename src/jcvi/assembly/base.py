@@ -4,17 +4,16 @@
 """
 Base utilties for genome assembly related calculations and manipulations
 """
+from bisect import bisect
+from math import log
 import os.path as op
 import sys
 
-from math import log
-from bisect import bisect
-
 import numpy as np
 
+from ..apps.base import ActionDispatcher, OptionParser, glob
 from ..formats.base import must_open
 from ..formats.fasta import Fasta
-from ..apps.base import ActionDispatcher, OptionParser, glob
 
 ln2 = log(2)
 

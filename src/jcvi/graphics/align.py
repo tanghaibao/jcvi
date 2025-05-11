@@ -11,17 +11,15 @@ Illustrate three different types of alignments.
 """
 
 
-import sys
-
 from bisect import bisect
 from random import choice, randint
+import sys
 
 from more_itertools import pairwise
 
 from ..apps.base import OptionParser
 from ..utils.range import range_overlap
-
-from .base import FancyArrow, Rectangle, plt, savefig, normalize_axes
+from .base import FancyArrow, Rectangle, normalize_axes, plt, savefig
 from .chromosome import Chromosome, HorizontalChromosome
 from .glyph import BaseGlyph, GeneGlyph
 

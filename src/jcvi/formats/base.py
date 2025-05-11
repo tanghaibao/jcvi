@@ -1,21 +1,20 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+from collections import OrderedDict
 import fileinput
+from itertools import cycle, groupby, islice
 import math
 import os
 import os.path as op
 import sys
-
-from collections import OrderedDict
-from itertools import cycle, groupby, islice
 from typing import IO, Union
 
-
 from Bio import SeqIO
+
 from ..apps.base import (
-    OptionParser,
     ActionDispatcher,
+    OptionParser,
     cleanup,
     logger,
     mkdir,
@@ -23,7 +22,6 @@ from ..apps.base import (
     popen,
     sh,
 )
-
 
 FastaExt = ("fasta", "fa", "fna", "cds", "pep", "faa", "fsa", "seq", "nt", "aa")
 FastqExt = ("fastq", "fq")

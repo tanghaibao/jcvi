@@ -4,33 +4,29 @@
 """
 Scaffold Ordering with Weighted Maps.
 """
-import os.path as op
-import os
-import sys
-
 from collections import Counter, defaultdict
 from functools import partial
 from itertools import combinations, product
+import os
+import os.path as op
+import sys
 from typing import Optional
 
-import numpy as np
-import networkx as nx
-
-from cmmodule.utils import read_chain_file
 from cmmodule.mapbed import crossmap_bed_file
+from cmmodule.utils import read_chain_file
 from more_itertools import pairwise
+import networkx as nx
+import numpy as np
 
-from ..algorithms.ec import GA_setup, GA_run
+from ..algorithms.ec import GA_run, GA_setup
 from ..algorithms.formula import reject_outliers, spearmanr
-from ..algorithms.lis import (
-    longest_monotonic_subseq_length_loose as lms,
-    longest_monotonic_subsequence_loose as lmseq,
-)
+from ..algorithms.lis import longest_monotonic_subseq_length_loose as lms
+from ..algorithms.lis import longest_monotonic_subsequence_loose as lmseq
 from ..algorithms.matrix import determine_signs
 from ..apps.base import (
+    SUPPRESS,
     ActionDispatcher,
     OptionParser,
-    SUPPRESS,
     cleanup,
     flatten,
     get_today,
@@ -40,7 +36,9 @@ from ..apps.base import (
     sh,
     version,
 )
-from ..formats.agp import AGP, order_to_agp, build as agp_build, reindex
+from ..formats.agp import AGP
+from ..formats.agp import build as agp_build
+from ..formats.agp import order_to_agp, reindex
 from ..formats.base import DictFile, FileMerger, must_open, read_block
 from ..formats.bed import Bed, BedLine, natsorted, sort
 from ..formats.chain import fromagp
@@ -49,7 +47,6 @@ from ..graphics.landscape import draw_gauge
 from ..utils.cbook import human_size, percentage
 from ..utils.grouper import Grouper
 from ..utils.table import tabulate
-
 
 START, END = "START", "END"
 distance_choices = ("cM", "rank")
@@ -874,7 +871,7 @@ def plotratio(args):
 
     Illustrate physical vs map distance ratio, that were used in the gap estimation algorithm.
     """
-    from ..graphics.base import plt, savefig, normalize_axes, panel_labels, set2
+    from ..graphics.base import normalize_axes, panel_labels, plt, savefig, set2
 
     p = OptionParser(estimategaps.__doc__)
     _, args, iopts = p.set_image_options(args, figsize="6x6", dpi=300)
@@ -1800,11 +1797,11 @@ def plot(args):
     2. Scatter plot.
     """
     from ..graphics.base import (
+        normalize_axes,
+        panel_labels,
         plt,
         savefig,
-        normalize_axes,
         set2,
-        panel_labels,
         shorten,
     )
     from ..graphics.chromosome import Chromosome, GeneticMap, HorizontalChromosome

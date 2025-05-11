@@ -8,8 +8,8 @@
 # Copyright © 2020 Haibao Tang. All rights reserved.
 #
 import csv
-import sys
 import os.path as op
+import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir
 from ..formats.fasta import Fasta, SeqIO

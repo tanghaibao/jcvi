@@ -6,15 +6,13 @@ Wrapper for running series of EVM commands. There are two flavors of running
 EVM - TIGR only mode which communicates with the Sybase db; evm mode which
 communicates with GFF file.
 """
+from collections import defaultdict
 import os.path as op
 import sys
-
-from collections import defaultdict
 
 from ..apps.base import ActionDispatcher, OptionParser, need_update, sh
 from ..formats.base import write_file
 from ..formats.fasta import ids
-
 
 EVMRUN = r"""
 W=`pwd`/weights.txt
@@ -85,8 +83,8 @@ def maker(args):
 
     Prepare EVM inputs by separating tracks from MAKER.
     """
-    from jcvi.formats.base import SetFile
     from jcvi.apps.base import cleanup
+    from jcvi.formats.base import SetFile
 
     A, T, P = "ABINITIO_PREDICTION", "TRANSCRIPT", "PROTEIN"
     # Stores default weights and types

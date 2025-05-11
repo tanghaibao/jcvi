@@ -6,7 +6,6 @@ Parse html pages.
 """
 import os.path as op
 import sys
-
 from urllib.parse import urljoin
 
 from BeautifulSoup import BeautifulSoup
@@ -37,6 +36,7 @@ def gallery(args):
     Maps the images from local to remote.
     """
     from more_itertools import grouper
+
     from jcvi.apps.base import iglob
 
     p = OptionParser(gallery.__doc__)

@@ -4,8 +4,8 @@
 """
 Run EMBOSS programs.
 """
-import sys
 import multiprocessing as mp
+import sys
 
 from ..formats.base import must_open
 from .base import ActionDispatcher, OptionParser, cleanup

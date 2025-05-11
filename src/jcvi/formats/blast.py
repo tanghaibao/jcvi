@@ -2,11 +2,10 @@
 parses tabular BLAST -m8 (-format 6 in BLAST+) format
 """
 
+from collections import defaultdict
+from itertools import groupby
 import os.path as op
 import sys
-
-from itertools import groupby
-from collections import defaultdict
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, popen, sh
 from ..assembly.base import calculate_A50
@@ -15,11 +14,9 @@ from ..utils.cbook import percentage
 from ..utils.grouper import Grouper
 from ..utils.orderedcollections import OrderedDict
 from ..utils.range import range_distance
-
-from .base import LineFile, BaseFile, must_open
+from .base import BaseFile, LineFile, must_open
 from .bed import Bed
 from .sizes import Sizes
-
 
 try:
     from .cblast import BlastLine
@@ -218,7 +215,8 @@ class AlignStats:
 
 
 def get_stats(blastfile, strict=False):
-    from jcvi.utils.range import range_union, range_span
+    from jcvi.utils.range import range_span, range_union
+
     from .pyblast import BlastLine
 
     logger.debug("Report stats on `%s`" % blastfile)
@@ -439,8 +437,9 @@ def gaps(args):
         "Query gaps: {}  Subject gaps: {}".format(len(query_gaps), len(subject_gaps))
     )
 
-    from jcvi.graphics.base import savefig
     import seaborn as sns
+
+    from jcvi.graphics.base import savefig
 
     sns.distplot(query_gaps)
     savefig("query_gaps.pdf")
@@ -559,8 +558,8 @@ def completeness(args):
     BLAST sugarcane ESTs against sorghum annotations as reference, to find
     full-length transcripts.
     """
-    from jcvi.utils.range import range_minmax
     from jcvi.utils.cbook import SummaryStats
+    from jcvi.utils.range import range_minmax
 
     p = OptionParser(completeness.__doc__)
     p.add_argument("--ids", help="Save ids that are over 50% complete")
@@ -1006,8 +1005,8 @@ def mismatches(args):
 
     Print out histogram of mismatches of HSPs, usually for evaluating SNP level.
     """
-    from jcvi.utils.cbook import percentage
     from jcvi.graphics.histogram import stem_leaf_plot
+    from jcvi.utils.cbook import percentage
 
     p = OptionParser(mismatches.__doc__)
 
@@ -1262,7 +1261,8 @@ def bed(args):
     Print out bed file based on coordinates in BLAST report. By default, write
     out subject positions. Use --swap to write query positions.
     """
-    from .bed import sort as bed_sort, mergeBed
+    from .bed import mergeBed
+    from .bed import sort as bed_sort
 
     p = OptionParser(bed.__doc__)
     p.add_argument(

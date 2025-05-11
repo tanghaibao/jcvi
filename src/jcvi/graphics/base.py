@@ -2,37 +2,35 @@
 # -*- coding: UTF-8 -*-
 
 import copy
+from functools import partial
+from os import remove
 import os.path as op
 import re
 import sys
+from typing import List, Optional, Tuple, Union
 
-from os import remove
-
-from functools import partial
-from typing import Optional, List, Tuple, Union
-
-import numpy as np
 import matplotlib as mpl
+import numpy as np
 import seaborn as sns
 
 mpl.use("Agg")
 
-import matplotlib.pyplot as plt
-import matplotlib.ticker as ticker
-
 from brewer2mpl import get_map
 from matplotlib import cm, rc, rcParams
+import matplotlib.colors as mcolors
 from matplotlib.colors import Colormap
 from matplotlib.patches import (
-    Rectangle,
-    Polygon,
     CirclePolygon,
     Ellipse,
-    PathPatch,
     FancyArrow,
     FancyArrowPatch,
     FancyBboxPatch,
+    PathPatch,
+    Polygon,
+    Rectangle,
 )
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 
 from ..apps.base import datadir, glob, logger, sample_N, which
 from ..formats.base import LineFile
@@ -327,16 +325,15 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
         format = figname.rsplit(".", 1)[-1].lower()
     except:
         format = "pdf"
+    logger.debug("Matplotlib backend is: %s", mpl.get_backend())
     try:
-        logger.debug(f"Matplotlib backend is: {mpl.get_backend()}")
-        logger.debug(f"Attempting save as: {figname}")
+        logger.debug("Attempting save as: `%s`", figname)
         plt.savefig(figname, dpi=dpi, format=format, transparent=transparent)
     except Exception as e:
         message = "savefig failed with message:"
         message += "\n{0}".format(str(e))
         logger.error(message)
-        logger.debug(f"Matplotlib backend is: {mpl.get_backend()}")
-        logger.debug(f"Attempted save as: {format}")
+        logger.debug("Attempted save as: %s", format)
         logger.info("Try running again with --notex option to disable latex.")
         if op.exists(figname):
             if op.getsize(figname) < 1000:
@@ -605,6 +602,7 @@ def discrete_rainbow(N=7, cmap=cm.Set1, usepreset=True, shuffle=False, plot=Fals
     If you want to error and try anyway, set usepreset=False
     """
     import random
+
     from scipy import interpolate
 
     if usepreset:
@@ -657,6 +655,31 @@ def get_intensity(octal):
     r, g, b = int(r, 16), int(g, 16), int(b, 16)
     intensity = sqrt((r * r + g * g + b * b) / 3)
     return intensity
+
+
+def get_shades(base_color: str, n: int) -> np.array:
+    """
+    Generate N shades of a base color by blending with white and black. The base
+    color is in hex format, e.g., '#FF0000' for red.
+    """
+    base_rgb = np.array(mcolors.to_rgb(base_color))  # Convert hex to RGB (normalized)
+    lighter = n // 2
+    darker = n - lighter - 1
+
+    # Generate lighter shades by blending with white
+    white = np.array([1, 1, 1])  # White color as a NumPy array
+    lighter_shades = [
+        (white * (1 - i) + base_rgb * i) for i in np.linspace(0.2, 1, lighter + 1)
+    ][:-1]
+
+    # Generate darker shades by blending with black
+    black = np.array([0, 0, 0])  # Black color as a NumPy array
+    darker_shades = [
+        (base_rgb * i + black * (1 - i)) for i in np.linspace(1, 0.2, darker + 1)
+    ][1:]
+
+    # Combine all shades with the base color in the middle
+    return lighter_shades + [base_rgb] + darker_shades
 
 
 def adjust_spines(ax, spines, outward=False, color="lightslategray"):

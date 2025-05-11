@@ -5,17 +5,16 @@
 Genbank AGP file format, see spec here
 http://www.ncbi.nlm.nih.gov/projects/genome/assembly/agp
 """
+from collections import defaultdict
+from copy import deepcopy
+from itertools import groupby, zip_longest
 import re
 import shutil
 import sys
 
-from collections import defaultdict
-from copy import deepcopy
-from itertools import groupby, zip_longest
-
+from Bio import SeqIO
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
-from Bio import SeqIO
 from more_itertools import pairwise
 
 from ..apps.base import (
@@ -28,11 +27,9 @@ from ..apps.base import (
 )
 from ..assembly.base import calculate_A50
 from ..utils.range import range_intersect
-
 from .base import LineFile, must_open
 from .bed import Bed
 from .fasta import Fasta
-
 
 Supported_AGP_Version = "2.1"
 AGP_Version_Pragma = "##agp-version " + Supported_AGP_Version
@@ -915,6 +912,7 @@ def fromcsv(args):
     Convert csv which contains list of scaffolds/contigs to AGP file.
     """
     import csv
+
     from jcvi.formats.sizes import Sizes
 
     p = OptionParser(fromcsv.__doc__)

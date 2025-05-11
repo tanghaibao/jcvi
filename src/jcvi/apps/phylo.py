@@ -22,42 +22,39 @@ Optional steps:
 
 The external software needs be installed first.
 """
-import sys
+from functools import partial
+from itertools import chain
+from math import ceil
 import os
 import os.path as op
 import re
+import sys
 import warnings
 
-from math import ceil
-from itertools import chain
-from functools import partial
-
-import numpy as np
-from ete3 import Tree
-from Bio import SeqIO, AlignIO
+from Bio import AlignIO, SeqIO
 from Bio.Data import CodonTable
 from Bio.Emboss.Applications import (
-    FSeqBootCommandline,
+    FConsenseCommandline,
     FDNADistCommandline,
     FNeighborCommandline,
-    FConsenseCommandline,
+    FSeqBootCommandline,
 )
 from Bio.Phylo.Applications import PhymlCommandline, RaxmlCommandline
+from ete3 import Tree
+import numpy as np
 
 from ..compara.ks import (
     AbstractCommandline,
-    find_first_isoform,
-    run_mrtrans,
     clustal_align_protein,
+    find_first_isoform,
     muscle_align_protein,
+    run_mrtrans,
 )
-from ..formats.base import must_open, DictFile, LineFile
+from ..formats.base import DictFile, LineFile, must_open
 from ..formats.fasta import Fasta
-from ..utils.orderedcollections import OrderedDict
 from ..graphics.base import plt, savefig
-
+from ..utils.orderedcollections import OrderedDict
 from .base import ActionDispatcher, OptionParser, getpath, logger, mkdir, sh
-
 
 GBLOCKS_BIN = partial(getpath, name="GBLOCKS", warn="warn")
 PHYML_BIN = partial(getpath, name="PHYML", warn="warn")

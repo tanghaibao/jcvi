@@ -20,27 +20,25 @@ itself is used to represent the region.  The number in the 4th column is the
 synteny score. For the same query, it is ordered with decreasing synteny score.
 The last column means orientation. "+" is same direction.
 """
+from bisect import bisect_left
+from itertools import groupby, tee
 import os.path as op
 import sqlite3
 import sys
 
-from bisect import bisect_left
-from itertools import groupby, tee
-
 from ..algorithms.lis import (
-    longest_increasing_subsequence,
     longest_decreasing_subsequence,
+    longest_increasing_subsequence,
 )
 from ..apps.base import OptionParser, logger
 from ..formats.base import must_open
 from ..utils.grouper import Grouper
-
 from .synteny import check_beds, read_blast
 
 
 def transposed(data):
     x, y = zip(*data)
-    return zip(y, x)
+    return list(zip(y, x))
 
 
 def get_flanker(group, query):
@@ -131,7 +129,7 @@ def find_synteny_region(query, sbed, data, window, cutoff, colinear=False):
 def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
 
     cutoff = int(opts.cutoff * opts.window)
-    window = opts.window / 2
+    window = opts.window // 2
     colinear = opts.scoring == "collinear"
     qnote, snote = opts.qnote, opts.snote
     if qnote == "null" or snote == "null":
@@ -151,7 +149,7 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
 
     qsimplebed = qbed.simple_bed
 
-    for seqid, ranks in groupby(qsimplebed, key=lambda x: x[0]):
+    for _, ranks in groupby(qsimplebed, key=lambda x: x[0]):
         ranks = [x[1] for x in ranks]
         for r in ranks:
             rmin = max(r - window, ranks[0])
@@ -183,7 +181,7 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
                 right_dist = (
                     abs(anchor_pos - right_pos) if anchor_chr == right_chr else 0
                 )
-                flank_dist = (max(left_dist, right_dist) / 10000 + 1) * 10000
+                flank_dist = (max(left_dist, right_dist) // 10000 + 1) * 10000
 
                 far_syntelog = sbed[far_syntelog].accn
 
@@ -203,7 +201,7 @@ def batch_query(qbed, sbed, all_data, opts, fw=None, c=None, transpose=False):
                 c.execute("insert into synteny values (?,?,?,?,?,?,?,?)", pdata)
 
 
-def main(blastfile, p, opts):
+def synfind(blastfile, p, opts):
 
     sqlite = opts.sqlite
     qbed, sbed, qorder, sorder, is_self = check_beds(blastfile, p, opts)
@@ -240,8 +238,7 @@ def main(blastfile, p, opts):
         fw.close()
 
 
-if __name__ == "__main__":
-
+def main(args):
     p = OptionParser(__doc__)
     p.set_beds()
     p.set_stripnames()
@@ -270,10 +267,14 @@ if __name__ == "__main__":
         help="Scoring scheme",
     )
 
-    opts, args = p.parse_args()
+    opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (blastfile,) = args
-    main(blastfile, p, opts)
+    synfind(blastfile, p, opts)
+
+
+if __name__ == "__main__":
+    main(sys.argv[1:])

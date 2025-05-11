@@ -15,12 +15,14 @@ Support three versions with different objective functions:
 """
 
 from __future__ import division
-import numpy as np
-cimport numpy as np
-cimport cython
-from cpython cimport array
-import array
 
+import numpy as np
+
+cimport cython
+cimport numpy as np
+from cpython cimport array
+
+import array
 
 ctypedef np.int INT
 DEF LIMIT = 10000000

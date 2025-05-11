@@ -4,11 +4,10 @@ Wrapper for fetching data from various online repositories \
 """
 
 import os.path as op
+from os.path import join as urljoin
 import re
 import sys
 import time
-
-from os.path import join as urljoin
 from urllib.error import HTTPError, URLError
 
 from Bio import Entrez, SeqIO
@@ -19,21 +18,19 @@ from ..formats.fasta import print_first_difference
 from ..formats.fastq import fromsra
 from ..utils.cbook import tile
 from ..utils.console import printf
-
 from .base import (
     ActionDispatcher,
     OptionParser,
-    logger,
     cleanup,
     download,
     get_email_address,
     last_updated,
+    logger,
     ls_ftp,
     mkdir,
     sh,
     which,
 )
-
 
 myEmail = get_email_address()
 Entrez.email = myEmail
@@ -414,8 +411,8 @@ def format_bed_and_cds(species, gff, cdsfa):
         gff (str): Path to the GFF file
         cdsfa (str): Path to the FASTA file
     """
-    from jcvi.formats.gff import bed as gff_bed
     from jcvi.formats.fasta import format as fasta_format
+    from jcvi.formats.gff import bed as gff_bed
 
     # We have to watch out when the gene names and mRNA names mismatch, in which
     # case we just extract the mRNA names

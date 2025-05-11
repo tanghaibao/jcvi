@@ -18,13 +18,11 @@ For "va" (vertical alignment), accepted values are: top|bottom|center|""(empty)
 """
 
 import sys
-
 from typing import List, Optional
-
-import numpy as np
 
 from matplotlib import transforms
 from matplotlib.path import Path
+import numpy as np
 
 from ..apps.base import OptionParser, logger
 from ..compara.synteny import BlockFile
@@ -32,7 +30,6 @@ from ..formats.base import DictFile
 from ..formats.bed import Bed
 from ..utils.cbook import human_size
 from ..utils.validator import validate_in_choices, validate_in_range
-
 from .base import (
     AbstractLayout,
     PathPatch,
@@ -48,7 +45,6 @@ from .glyph import (
     RoundLabel,
 )
 from .tree import draw_tree, read_trees
-
 
 HorizontalAlignments = ("left", "right", "leftalign", "rightalign", "center", "")
 VerticalAlignments = ("top", "bottom", "center", "")

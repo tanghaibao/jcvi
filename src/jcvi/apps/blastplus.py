@@ -1,13 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+from multiprocessing import Lock
 import os.path as op
 import sys
 
-from multiprocessing import Lock
-
 from ..formats.base import must_open, split
-
 from .align import run_formatdb
 from .base import OptionParser, Popen, logger
 from .grid import Jobs

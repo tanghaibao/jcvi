@@ -10,7 +10,6 @@ TIGR contig format, see spec:
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger
-
 from .base import BaseFile, read_block
 
 
@@ -97,8 +96,8 @@ def frombed(args):
 
     Convert read placement to contig format. This is useful before running BAMBUS.
     """
-    from jcvi.formats.fasta import Fasta
     from jcvi.formats.bed import Bed
+    from jcvi.formats.fasta import Fasta
     from jcvi.utils.cbook import fill
 
     p = OptionParser(frombed.__doc__)

@@ -5,30 +5,28 @@
 Use genetic map to break chimeric scaffolds, order and orient scaffolds onto
 chromosomes.
 """
-import os.path as op
-import sys
-
 from itertools import combinations, groupby
+import os.path as op
 from random import sample
+import sys
 from typing import Tuple
 
 import numpy as np
 import seaborn as sns
 
-from ..apps.base import ActionDispatcher, OptionParser, logger, need_update
 from ..algorithms.formula import calc_ldscore
 from ..algorithms.matrix import symmetrize
+from ..apps.base import ActionDispatcher, OptionParser, logger, need_update
 from ..formats.base import BaseFile, LineFile, must_open, read_block
 from ..formats.bed import Bed, fastaFromBed
 from ..graphics.base import (
     Rectangle,
     draw_cmap,
     normalize_axes,
-    plt,
     plot_heatmap,
+    plt,
     savefig,
 )
-
 
 MSTheader = """population_type {0}
 population_name LG
@@ -185,9 +183,10 @@ def blat(args):
     Make ALLMAPS input csv based on sequences. The tab-delimited txt file
     include: name, LG, position, sequence.
     """
-    from jcvi.formats.base import is_number
-    from jcvi.formats.blast import best as blast_best, bed as blast_bed
     from jcvi.apps.align import blat as blat_align
+    from jcvi.formats.base import is_number
+    from jcvi.formats.blast import bed as blast_bed
+    from jcvi.formats.blast import best as blast_best
 
     p = OptionParser(blat.__doc__)
     _, args = p.parse_args(args)
@@ -240,16 +239,17 @@ def dotplot(args):
     scaffold_2707,11525,1,1.2
     """
     from natsort import natsorted
+
     from jcvi.assembly.allmaps import CSVMapLine
     from jcvi.formats.sizes import Sizes
     from jcvi.graphics.base import shorten
     from jcvi.graphics.dotplot import (
-        plt,
-        savefig,
+        downsample,
         markup,
         normalize_axes,
-        downsample,
         plot_breaks_and_labels,
+        plt,
+        savefig,
         thousands,
     )
 

@@ -9,7 +9,6 @@ import sys
 
 from ..formats.fasta import Fasta
 from ..utils.cbook import depends, percentage
-
 from .base import ActionDispatcher, OptionParser, sh
 
 

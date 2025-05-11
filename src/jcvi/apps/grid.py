@@ -2,11 +2,6 @@
 Codes to submit multiple jobs to JCVI grid engine
 """
 
-import os.path as op
-import sys
-import re
-import platform
-
 from multiprocessing import (
     Pool,
     Process,
@@ -16,9 +11,12 @@ from multiprocessing import (
     set_start_method,
 )
 from multiprocessing.queues import Queue
+import os.path as op
+import platform
+import re
+import sys
 
-from ..formats.base import write_file, must_open
-
+from ..formats.base import must_open, write_file
 from .base import (
     ActionDispatcher,
     OptionParser,
@@ -613,9 +611,10 @@ def kill(args):
     %prog kill all                     # Everything
     """
     import shlex
-    from jcvi.apps.base import sh, getusername
-    from subprocess import check_output, CalledProcessError
+    from subprocess import CalledProcessError, check_output
     import xml.etree.ElementTree as ET
+
+    from jcvi.apps.base import getusername, sh
 
     valid_methods = ("pattern", "jobid")
     p = OptionParser(kill.__doc__)

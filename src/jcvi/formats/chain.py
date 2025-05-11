@@ -26,7 +26,6 @@ import os.path as op
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh, which
-
 from .base import BaseFile, read_block
 from .sizes import Sizes
 
@@ -92,7 +91,7 @@ def summary(args):
     Provide stats of the chain file.
     """
     from jcvi.formats.fasta import summary as fsummary
-    from jcvi.utils.cbook import percentage, human_size
+    from jcvi.utils.cbook import human_size, percentage
 
     p = OptionParser(summary.__doc__)
     opts, args = p.parse_args(args)

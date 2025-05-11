@@ -6,9 +6,16 @@ Convert PAF/LASTZ alignments to bed and block files for jcvi.ribbon
 using layout file as guide.
 """
 
-from collections import namedtuple
-from jcvi.graphics.base import AbstractLayout
+
 import argparse
+from collections import namedtuple
+import glob
+from operator import attrgetter
+import os
+import shutil
+import sys
+
+from jcvi.graphics.base import AbstractLayout
 
 
 def mainArgs():

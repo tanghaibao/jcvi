@@ -23,7 +23,6 @@ from ..algorithms.lpsolve import MIPDataModel
 from ..apps.base import OptionParser, logger
 from ..compara.synteny import _score, check_beds
 from ..formats.base import must_open
-
 from .base import AnchorFile
 
 

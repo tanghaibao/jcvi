@@ -7,32 +7,29 @@ The VCLUST implementation borrows ideas and code from PyRAD. PyRAD link:
 
 <https://github.com/dereneaton/pyrad>
 """
-import os.path as op
-import sys
-
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from itertools import groupby
-from subprocess import Popen, PIPE, STDOUT
+import os.path as op
+from subprocess import PIPE, STDOUT, Popen
+import sys
 from tempfile import mkdtemp
 
+from more_itertools import grouper
 import numpy as np
 import scipy
-import scipy.stats
 import scipy.optimize
-
-from more_itertools import grouper
+import scipy.stats
 
 from ..formats.base import BaseFile, FileMerger, must_open, split
 from ..formats.fasta import parse_fasta
 from ..formats.fastq import fasta
 from ..utils.orderedcollections import DefaultOrderedDict
 from ..utils.table import write_csv
-
 from .base import (
-    OptionParser,
     ActionDispatcher,
+    OptionParser,
     cleanup,
     datadir,
     iglob,
@@ -42,7 +39,6 @@ from .base import (
     need_update,
     sh,
 )
-
 
 SEP = "//"
 CONSTAG = ">CONSENS0"

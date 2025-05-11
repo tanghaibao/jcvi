@@ -4,17 +4,15 @@
 """
 Catalog gene losses, and bites within genes.
 """
-import sys
-
 from itertools import groupby
+import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, sh
 from ..formats.bed import Bed
 from ..formats.blast import Blast
 from ..utils.cbook import gene_name
 from ..utils.grouper import Grouper
-from ..utils.range import range_minmax, range_overlap, range_distance
-
+from ..utils.range import range_distance, range_minmax, range_overlap
 from .synteny import check_beds
 
 
@@ -349,8 +347,8 @@ def gaps(args):
     Check gene locations against gaps. `idsfile` contains a list of IDs to query
     into `fractionationfile` in order to get expected locations.
     """
-    from jcvi.formats.base import DictFile
     from jcvi.apps.base import popen
+    from jcvi.formats.base import DictFile
     from jcvi.utils.cbook import percentage
 
     p = OptionParser(gaps.__doc__)
@@ -436,7 +434,7 @@ def summary(args):
     loss(). `gmap.status` is generated with genestatus().
     """
     from jcvi.formats.base import DictFile
-    from jcvi.utils.cbook import percentage, Registry
+    from jcvi.utils.cbook import Registry, percentage
 
     p = OptionParser(summary.__doc__)
     p.add_argument("--extra", help="Cross with extra tsv file")

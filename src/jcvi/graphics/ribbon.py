@@ -476,9 +476,7 @@ class Region(object):
         newStart = startbp + downstream
         return newStart, newEnd
 
-    def draw_annotation_boxes(
-        self, ax, box_features, startbp, endbp, y, cv, tr, orientation
-    ):
+    def draw_annotation_boxes(self, ax, box_features, startbp, endbp, y, cv, tr, orientation):
         # Same offset used for annotations
         offset = 0.005
         feat_height = 0.012 * 0.3
@@ -487,6 +485,14 @@ class Region(object):
 
         # Border width in points
         lw = 2
+
+        # Get figure for coordinate conversion
+        fig = ax.figure
+
+        # Calculate HALF the line width in figure coordinates
+        # Line width is centered on the path, so we need half to move borders out precisely
+        fig_width_inches = fig.get_figwidth()
+        half_lw_fig_units = (lw / 2) / (72 * fig_width_inches)
 
         for g in box_features:
             # Clip box to chromosome range
@@ -502,13 +508,16 @@ class Region(object):
             x1 = cv(gstart)
             x2 = cv(gend)
 
+            # Adjust coordinates to move borders outward by HALF the line width
+            x1 -= half_lw_fig_units  # Move left border out
+            x2 += half_lw_fig_units  # Move right border out
+
             # Get box color from BED file
             box_color = "black"
             if g.extra and len(g.extra) >= 1 and g.extra[0] != ".":
                 box_color = g.extra[0]
 
-            # Create box with transparent fill and colored border
-            # No adjustment - border will be centered on the edge
+            # Create box with adjusted coordinates
             rect = mpl.patches.Rectangle(
                 (x1, y - box_height / 2),
                 x2 - x1,

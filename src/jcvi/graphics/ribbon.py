@@ -476,7 +476,9 @@ class Region(object):
         newStart = startbp + downstream
         return newStart, newEnd
 
-    def draw_annotation_boxes(self, ax, box_features, startbp, endbp, y, cv, tr, orientation):
+    def draw_annotation_boxes(
+        self, ax, box_features, startbp, endbp, y, cv, tr, orientation
+    ):
         # Same offset used for annotations
         offset = 0.005
         feat_height = 0.012 * 0.3

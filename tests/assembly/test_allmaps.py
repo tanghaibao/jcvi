@@ -3,6 +3,7 @@ import os.path as op
 from jcvi.apps.base import cleanup, mkdir
 from jcvi.assembly.allmaps import path
 
+
 def datafile(path: str) -> str:
     """Returns the path to a file in the designated test directory."""
     return op.join(op.dirname(__file__), "allmaps.py", path)

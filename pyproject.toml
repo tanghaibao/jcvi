@@ -54,7 +54,7 @@ dependencies = [
     "pybedtools",
     "pyefd",
     "pypdf",
-    "pysam",
+    "pysam>=0.23.0",
     "pytesseract",
     "rich",
     "scikit-image",

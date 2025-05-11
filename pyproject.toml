@@ -54,7 +54,7 @@ dependencies = [
     "pybedtools",
     "pyefd",
     "pypdf",
-    "pysam<=0.22.1", # 0.23.0 hasbug 'pysam.libcalignedsegment' has no attribute 'CMATCH' with Py3.8 on MacOS latest
+    "pysam",
     "pytesseract",
     "rich",
     "scikit-image",

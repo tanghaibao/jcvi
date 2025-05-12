@@ -570,7 +570,7 @@ class Synteny(object):
         # genename: (orderedPosition, seqname, start, end, genename, score, strand)
         order = bed.order
         # Import synteny links (pairs of source > target IDs for features in BED file)
-        bf = BlockFile(blocks, defaultcolor="hide")
+        bf = BlockFile(blocks, defaultcolor="hide", allow_hex=True)
         # Import layout config
         self.layout = lo = Layout(layoutfile)
 

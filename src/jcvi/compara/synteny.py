@@ -24,7 +24,7 @@ from .base import AnchorFile
 class BlockFile(BaseFile):
     """Parse .blocks file which is the mcscan output with multiple columns as 'tracks'"""
 
-    def __init__(self, filename, defaultcolor="#fb8072", header=False):
+    def __init__(self, filename, defaultcolor="#fb8072", header=False, allow_hex=False):
         super().__init__(filename)
         fp = must_open(filename)
         hd = next(fp).rstrip().split("\t")
@@ -35,16 +35,32 @@ class BlockFile(BaseFile):
             fp.seek(0)
             self.header = range(ncols)
 
+        import re
+        # Regex pattern for valid hex color code
+        hex_pattern = re.compile(r'^#[0-9A-Fa-f]{6}\*')
+
         data = []
         highlight = []
         for row in fp:
             if row[0] == "#":
-                continue
-            hl = "*" in row
-            # r* highlights the block in red color
-            if hl:
+                # Check if this is a hex color code when allow_hex is True
+                if allow_hex and hex_pattern.match(row):
+                    # Extract the hex color code (without the trailing *)
+                    hl = row[:7]
+                    # Get the rest of the line after the *
+                    row = row[8:]
+                else:
+                    # Not a valid hex code or allow_hex is False
+                    if allow_hex and row.startswith("#"):
+                        logger.warning(f"Invalid hex color code in line: {row.strip()}")
+                    continue
+            elif "*" in row:
+                # Handle normal color highlights
                 hl, row = row.split("*", 1)
                 hl = hl or defaultcolor
+            else:
+                hl = False
+
             atoms = row.rstrip().split("\t")
             atoms = [x.strip() for x in atoms]
             atoms = ["." if x == "" else x for x in atoms]

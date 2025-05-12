@@ -36,8 +36,9 @@ class BlockFile(BaseFile):
             self.header = range(ncols)
 
         import re
+
         # Regex pattern for valid hex color code
-        hex_pattern = re.compile(r'^#[0-9A-Fa-f]{6}\*')
+        hex_pattern = re.compile(r"^#[0-9A-Fa-f]{6}\*")
 
         data = []
         highlight = []

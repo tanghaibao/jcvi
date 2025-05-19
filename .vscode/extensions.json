@@ -8,7 +8,6 @@
         "meezilla.json",
         "ms-python.python",
         "ms-python.vscode-pylance",
-        "oderwat.indent-rainbow",
         "tamasfe.even-better-toml"
     ]
 }

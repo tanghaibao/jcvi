@@ -1035,6 +1035,7 @@ def gb(args):
     <http://www.biostars.org/p/2492/>
     """
     try:
+        # TODO: remove this dependency. Could maybe substitute with BioPython
         from BCBio import GFF
     except ImportError:
         print(

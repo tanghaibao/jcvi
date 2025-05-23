@@ -158,7 +158,7 @@ After activating the Conda environment install JCVI using one of the following o
 1) Use pip to install the latest development version directly from this repo.
 
 ```bash
-pip install git+git://github.com/tanghaibao/jcvi.git
+pip install git+https://github.com/tanghaibao/jcvi.git
 ```
 
 2) Install latest release from PyPi.

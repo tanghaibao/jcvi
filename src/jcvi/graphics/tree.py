@@ -491,7 +491,7 @@ def draw_geoscale(
     # Neogene and Cretaceous as these are more relevant for most phylogeny
     if contrast_epochs:
         for era, start, end in Geo:
-            if not era in ("Neogene", "Cretaceous"):
+            if era not in ("Neogene", "Cretaceous"):
                 continue
 
             # Make a beige patch

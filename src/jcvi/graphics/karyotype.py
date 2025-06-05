@@ -19,7 +19,6 @@ section specify which connections to draw.
 e, 0, 1, athaliana.grape.4x1.simple
 """
 
-
 import sys
 from typing import List, Optional
 
@@ -235,8 +234,6 @@ class Track(object):
 
             step = 2 if nseqids <= 40 else 10
             if nseqids >= 2 * MaxSeqids and (i + 1) % step != 0:
-                continue
-            if nseqids < 5:
                 continue
 
             hpad = -pad if va == "bottom" else pad

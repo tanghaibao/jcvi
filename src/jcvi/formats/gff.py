@@ -95,9 +95,9 @@ class GffLine(object):
         if len(args) != 9:
             args = sline.split()
         if strict:
-            assert len(args) == 9, (
-                f"Malformed line ({len(args)} columns != 9): {args}. Please use strict=False to skip this error."
-            )
+            assert (
+                len(args) == 9
+            ), f"Malformed line ({len(args)} columns != 9): {args}. Please use strict=False to skip this error."
         self.seqid = args[0]
         self.source = args[1]
         self.type = args[2]
@@ -1443,9 +1443,9 @@ def chain(args):
         id = g.accn
         gid = id
         if attrib_key:
-            assert attrib_key in g.attributes.keys(), (
-                "Attribute `{0}` not present in GFF3".format(attrib_key)
-            )
+            assert (
+                attrib_key in g.attributes.keys()
+            ), "Attribute `{0}` not present in GFF3".format(attrib_key)
             gid = g.get_attr(attrib_key)
         curr_gid = gid
         if break_chain:
@@ -1691,12 +1691,12 @@ def format(args):
     remove_attrs = opts.remove_attrs.split(",") if opts.remove_attrs else None
     process_ftype = opts.process_ftype.split(",") if opts.process_ftype else None
     gsac = opts.gsac
-    assert not (opts.unique and opts.duptype), (
-        "Cannot use `--unique` and `--chaindup` together"
-    )
-    assert not (opts.type and opts.duptype), (
-        "Cannot use `--type` and `--chaindup` together"
-    )
+    assert not (
+        opts.unique and opts.duptype
+    ), "Cannot use `--unique` and `--chaindup` together"
+    assert not (
+        opts.type and opts.duptype
+    ), "Cannot use `--type` and `--chaindup` together"
     unique = opts.unique
     duptype = opts.duptype
     fixphase = opts.fixphase
@@ -1711,9 +1711,9 @@ def format(args):
         )
     strict = False if opts.nostrict else True
     make_gff_store = True if gffile in ("-", "stdin") else opts.make_gff_store
-    assert not (opts.copy_id_attr_to_name and opts.invent_name_attr), (
-        "Cannot use `--copy_id_attr_to_name` and `--invent_name_attr` together"
-    )
+    assert not (
+        opts.copy_id_attr_to_name and opts.invent_name_attr
+    ), "Cannot use `--copy_id_attr_to_name` and `--invent_name_attr` together"
     copy_id_attr_to_name = opts.copy_id_attr_to_name
     invent_name_attr = opts.invent_name_attr
     invent_protein_feat = opts.invent_protein_feat

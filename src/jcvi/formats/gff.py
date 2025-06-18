@@ -95,8 +95,8 @@ class GffLine(object):
         if len(args) != 9:
             args = sline.split()
         if strict:
-            assert len(args) == 9, "Malformed line ({0} columns != 9): {1}".format(
-                len(args), args
+            assert len(args) == 9, (
+                f"Malformed line ({len(args)} columns != 9): {args}. Please use strict=False to skip this error."
             )
         self.seqid = args[0]
         self.source = args[1]
@@ -1443,9 +1443,9 @@ def chain(args):
         id = g.accn
         gid = id
         if attrib_key:
-            assert (
-                attrib_key in g.attributes.keys()
-            ), "Attribute `{0}` not present in GFF3".format(attrib_key)
+            assert attrib_key in g.attributes.keys(), (
+                "Attribute `{0}` not present in GFF3".format(attrib_key)
+            )
             gid = g.get_attr(attrib_key)
         curr_gid = gid
         if break_chain:
@@ -1691,12 +1691,12 @@ def format(args):
     remove_attrs = opts.remove_attrs.split(",") if opts.remove_attrs else None
     process_ftype = opts.process_ftype.split(",") if opts.process_ftype else None
     gsac = opts.gsac
-    assert not (
-        opts.unique and opts.duptype
-    ), "Cannot use `--unique` and `--chaindup` together"
-    assert not (
-        opts.type and opts.duptype
-    ), "Cannot use `--type` and `--chaindup` together"
+    assert not (opts.unique and opts.duptype), (
+        "Cannot use `--unique` and `--chaindup` together"
+    )
+    assert not (opts.type and opts.duptype), (
+        "Cannot use `--type` and `--chaindup` together"
+    )
     unique = opts.unique
     duptype = opts.duptype
     fixphase = opts.fixphase
@@ -1711,9 +1711,9 @@ def format(args):
         )
     strict = False if opts.nostrict else True
     make_gff_store = True if gffile in ("-", "stdin") else opts.make_gff_store
-    assert not (
-        opts.copy_id_attr_to_name and opts.invent_name_attr
-    ), "Cannot use `--copy_id_attr_to_name` and `--invent_name_attr` together"
+    assert not (opts.copy_id_attr_to_name and opts.invent_name_attr), (
+        "Cannot use `--copy_id_attr_to_name` and `--invent_name_attr` together"
+    )
     copy_id_attr_to_name = opts.copy_id_attr_to_name
     invent_name_attr = opts.invent_name_attr
     invent_protein_feat = opts.invent_protein_feat
@@ -2560,15 +2560,22 @@ def gtf(args):
     specify "gene_id" and "transcript_id".
     """
     p = OptionParser(gtf.__doc__)
+    p.add_argument(
+        "--nostrict",
+        default=False,
+        action="store_true",
+        help="Disable strict parsing of GFF file and/or mapping file",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (gffile,) = args
-    gff = Gff(gffile)
+    gff = Gff(gffile, strict=not opts.nostrict)
     transcript_info = AutoVivification()
     for g in gff:
+        transcript_id = None
         if g.type.endswith(("RNA", "transcript")):
             if "ID" in g.attributes and "Parent" in g.attributes:
                 transcript_id = g.get_attr("ID")
@@ -2581,9 +2588,14 @@ def gtf(args):
                 gene_id = transcript_id
             transcript_info[transcript_id]["gene_id"] = gene_id
             transcript_info[transcript_id]["gene_type"] = g.type
+            g.attributes = OrderedDict(
+                [("gene_id", [gene_id]), ("transcript_id", [transcript_id])]
+            )
+            g.update_attributes(gtf=True, urlquote=False)
+            print(g)
             continue
 
-        if g.type not in valid_gff_to_gtf_type.keys():
+        if g.type not in valid_gff_to_gtf_type:
             continue
 
         try:
@@ -2603,7 +2615,6 @@ def gtf(args):
                 [("gene_id", [gene_id]), ("transcript_id", [tid])]
             )
             g.update_attributes(gtf=True, urlquote=False)
-
             print(g)
 
 

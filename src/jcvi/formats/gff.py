@@ -95,9 +95,9 @@ class GffLine(object):
         if len(args) != 9:
             args = sline.split()
         if strict:
-            assert len(args) == 9, "Malformed line ({0} columns != 9): {1}".format(
-                len(args), args
-            )
+            assert (
+                len(args) == 9
+            ), f"Malformed line ({len(args)} columns != 9): {args}. Please use strict=False to skip this error."
         self.seqid = args[0]
         self.source = args[1]
         self.type = args[2]
@@ -2560,15 +2560,22 @@ def gtf(args):
     specify "gene_id" and "transcript_id".
     """
     p = OptionParser(gtf.__doc__)
+    p.add_argument(
+        "--nostrict",
+        default=False,
+        action="store_true",
+        help="Disable strict parsing of GFF file and/or mapping file",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (gffile,) = args
-    gff = Gff(gffile)
+    gff = Gff(gffile, strict=not opts.nostrict)
     transcript_info = AutoVivification()
     for g in gff:
+        transcript_id = None
         if g.type.endswith(("RNA", "transcript")):
             if "ID" in g.attributes and "Parent" in g.attributes:
                 transcript_id = g.get_attr("ID")
@@ -2581,9 +2588,14 @@ def gtf(args):
                 gene_id = transcript_id
             transcript_info[transcript_id]["gene_id"] = gene_id
             transcript_info[transcript_id]["gene_type"] = g.type
+            g.attributes = OrderedDict(
+                [("gene_id", [gene_id]), ("transcript_id", [transcript_id])]
+            )
+            g.update_attributes(gtf=True, urlquote=False)
+            print(g)
             continue
 
-        if g.type not in valid_gff_to_gtf_type.keys():
+        if g.type not in valid_gff_to_gtf_type:
             continue
 
         try:
@@ -2603,7 +2615,6 @@ def gtf(args):
                 [("gene_id", [gene_id]), ("transcript_id", [tid])]
             )
             g.update_attributes(gtf=True, urlquote=False)
-
             print(g)
 
 

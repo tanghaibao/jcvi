@@ -35,7 +35,7 @@ def db_defaults(connector="Sybase"):
 def get_profile(
     sqshrc="~/.sqshrc", connector="Sybase", hostname=None, username=None, password=None
 ):
-    """
+    r"""
     get database, username, password from .sqshrc file e.g.
     \set username="user"
     """

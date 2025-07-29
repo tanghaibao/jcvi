@@ -99,8 +99,8 @@ def grabseeds(args):
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     ax = fig.add_subplot(1, 1, 1)
-    ax.set_xlabel(f"Principal Component 1 ({pc1_var * 100:.0f}\%)", fontsize=15)
-    ax.set_ylabel(f"Principal Component 2 ({pc2_var * 100:.0f}\%)", fontsize=15)
+    ax.set_xlabel(f"Principal Component 1 ({pc1_var * 100:.0f}%)", fontsize=15)
+    ax.set_ylabel(f"Principal Component 2 ({pc2_var * 100:.0f}%)", fontsize=15)
     ax.set_title("Sorghum kernels, PCA Plot", fontsize=20)
     ax.scatter("PC1", "PC2", s="ScatterSize", c="Color", data=final_df)
     set_helvetica_axis(ax)

@@ -256,7 +256,7 @@ def estimategaps(args):
     root.text(
         sum(markers) / 2,
         ypos + pad,
-        "Distance: 1.29cM $\Leftrightarrow$ 211,824bp (6.1 cM/Mb)",
+        r"Distance: 1.29cM $\Leftrightarrow$ 211,824bp (6.1 cM/Mb)",
         **fontprop,
     )
 
@@ -310,7 +310,7 @@ def lms(args):
     xdata = [x + randint(-3, 3) for x in range(10, 110, 10)]
     ydata = [x + randint(-3, 3) for x in range(10, 110, 10)]
     ydata[3:7] = ydata[3:7][::-1]
-    xydata = zip(xdata, ydata)
+    xydata = list(zip(xdata, ydata))
     lis = xydata[:3] + [xydata[4]] + xydata[7:]
     lds = xydata[3:7]
     xlis, ylis = zip(*lis)
@@ -425,7 +425,7 @@ def subplot_twinx(
     legend=None,
     loc="upper left",
 ):
-    columned_data = zip(*data)
+    columned_data = list(zip(*data))
     x, yy = columned_data[0], columned_data[1:]
     assert len(ylabels) == 2
     assert len(yy) == 2
@@ -464,7 +464,7 @@ def subplot_twinx(
 def subplot(
     ax, data, xlabel, ylabel, xlim=None, ylim=1.1, xcast=float, ycast=float, legend=None
 ):
-    columned_data = zip(*data)
+    columned_data = list(zip(*data))
     x, yy = columned_data[0], columned_data[1:]
     lines = []
     for y, m in zip(yy, "o^x"):

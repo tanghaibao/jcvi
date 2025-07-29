@@ -67,7 +67,12 @@ reserved_gff_attributes = (
 )
 multiple_gff_attributes = ("Parent", "Alias", "Dbxref", "Ontology_term")
 safechars = " /:?~#+!$'@()*[]|"
-VALID_HUMAN_CHROMOSMES = set([str(x) for x in range(1, 23)] + ["X", "Y"])
+VALID_HUMAN_CHROMOSOMES = {
+    **{str(i): f"chr{i}" for i in range(1, 23)},
+    "X": "chrX",
+    "Y": "chrY",
+    "MT": "chrM",
+}
 
 
 class GffLine(object):
@@ -1671,7 +1676,12 @@ def format(args):
         action="store_true",
         help="Store entire GFF file in memory during first iteration",
     )
-
+    p.add_argument(
+        "--human_chr",
+        default=False,
+        action="store_true",
+        help="Only allow 1-22XY/MT, and add `chr` prefix to seqid",
+    )
     p.set_outfile()
     p.set_SO_opts()
 
@@ -2019,6 +2029,11 @@ def format(args):
                 if parent in cds_track:
                     _parent = [parent, "{0}-Protein".format(parent)]
                     g.set_attr("Parent", _parent)
+
+        if opts.human_chr:
+            if g.seqid not in VALID_HUMAN_CHROMOSOMES:
+                continue
+            g.seqid = VALID_HUMAN_CHROMOSOMES[g.seqid]
 
         pp = g.get_attr("Parent", first=False)
         if (
@@ -2575,7 +2590,6 @@ def gtf(args):
     gff = Gff(gffile, strict=not opts.nostrict)
     transcript_info = AutoVivification()
     for g in gff:
-        transcript_id = None
         if g.type.endswith(("RNA", "transcript")):
             if "ID" in g.attributes and "Parent" in g.attributes:
                 transcript_id = g.get_attr("ID")
@@ -3023,7 +3037,7 @@ def bed(args):
         "--human_chr",
         default=False,
         action="store_true",
-        help="Only allow 1-22XY, and add `chr` prefix to seqid",
+        help="Only allow 1-22XY/MT, and add `chr` prefix to seqid",
     )
     p.add_argument(
         "--ensembl_cds",
@@ -3089,9 +3103,9 @@ def bed(args):
         if span:
             bl.score = bl.span
         if human_chr:
-            if bl.seqid not in VALID_HUMAN_CHROMOSMES:
+            if bl.seqid not in VALID_HUMAN_CHROMOSOMES:
                 continue
-            bl.seqid = "chr" + bl.seqid
+            bl.seqid = VALID_HUMAN_CHROMOSOMES[bl.seqid]
         if ensembl_cds:
             if g.get_attr("gene_biotype") != "protein_coding":
                 continue

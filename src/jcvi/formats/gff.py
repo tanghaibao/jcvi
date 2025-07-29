@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from collections import defaultdict
 import os
 import os.path as op
 import re
 import sys
+
+from collections import defaultdict
 from urllib.parse import quote, unquote
 
 from ..annotation.reformat import atg_name
@@ -214,6 +215,7 @@ class GffLine(object):
         attributes = []
         if gtf:
             gff3 = None
+            urlquote = False
         elif gff3 is None:
             gff3 = self.gff3
 
@@ -1499,7 +1501,6 @@ def chain(args):
             prev_gid = curr_gid
 
     for gkey, v in sorted(gffdict.items()):
-        gseqid, key = gkey
         seqid = v["seqid"]
         source = v["source"]
         type = v["type"]
@@ -1852,6 +1853,10 @@ def format(args):
         so, _ = GODag_from_SO()
         valid_soterm = {}
 
+    gtf = ".gtf" in gffile and not opts.gff3
+    if gtf:
+        logger.info("Output in GTF format")
+
     fw = must_open(outfile, "w")
     if not make_gff_store:
         gff = Gff(gffile, keep_attr_order=(not opts.no_keep_attr_order), strict=strict)
@@ -2048,9 +2053,8 @@ def format(args):
                     fix_gsac(g, notes)
                 print(g, file=fw)
         else:
-            if g.gff3 and not opts.gff3:
-                opts.gff3 = True
-            g.update_attributes(gff3=opts.gff3)
+            gff3 = g.gff3 or opts.gff3
+            g.update_attributes(gff3=gff3, gtf=gtf)
             if gsac:
                 fix_gsac(g, notes)
             if duptype == g.type and skip[(g.seqid, g.idx, id, g.start, g.end)] == 1:

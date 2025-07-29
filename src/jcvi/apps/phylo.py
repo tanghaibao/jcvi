@@ -481,7 +481,7 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
     except:
         print("SH test failed.", file=sys.stderr)
     else:
-        pval = pval.strip().replace("\t", " ").replace("%", "\%")
+        pval = pval.strip().replace("\t", " ").replace("%", r"\%")
         print("{0}\t{1}".format(op.basename(querytree), pval), file=shout)
         logger.debug("SH p-value appended to %s" % shout.name)
 

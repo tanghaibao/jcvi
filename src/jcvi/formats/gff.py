@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from collections import defaultdict
 import os
 import os.path as op
 import re
 import sys
+
+from collections import defaultdict
 from urllib.parse import quote, unquote
 
 from ..annotation.reformat import atg_name
@@ -67,7 +68,12 @@ reserved_gff_attributes = (
 )
 multiple_gff_attributes = ("Parent", "Alias", "Dbxref", "Ontology_term")
 safechars = " /:?~#+!$'@()*[]|"
-VALID_HUMAN_CHROMOSMES = set([str(x) for x in range(1, 23)] + ["X", "Y"])
+VALID_HUMAN_CHROMOSOMES = {
+    **{str(i): f"chr{i}" for i in range(1, 23)},
+    "X": "chrX",
+    "Y": "chrY",
+    "MT": "chrM",
+}
 
 
 class GffLine(object):
@@ -209,6 +215,7 @@ class GffLine(object):
         attributes = []
         if gtf:
             gff3 = None
+            urlquote = False
         elif gff3 is None:
             gff3 = self.gff3
 
@@ -1494,7 +1501,6 @@ def chain(args):
             prev_gid = curr_gid
 
     for gkey, v in sorted(gffdict.items()):
-        gseqid, key = gkey
         seqid = v["seqid"]
         source = v["source"]
         type = v["type"]
@@ -1671,7 +1677,12 @@ def format(args):
         action="store_true",
         help="Store entire GFF file in memory during first iteration",
     )
-
+    p.add_argument(
+        "--human_chr",
+        default=False,
+        action="store_true",
+        help="Only allow 1-22XY/MT, and add `chr` prefix to seqid",
+    )
     p.set_outfile()
     p.set_SO_opts()
 
@@ -1841,6 +1852,10 @@ def format(args):
     if opts.verifySO:
         so, _ = GODag_from_SO()
         valid_soterm = {}
+
+    gtf = ".gtf" in gffile and not opts.gff3
+    if gtf:
+        logger.info("Output in GTF format")
 
     fw = must_open(outfile, "w")
     if not make_gff_store:
@@ -2020,6 +2035,11 @@ def format(args):
                     _parent = [parent, "{0}-Protein".format(parent)]
                     g.set_attr("Parent", _parent)
 
+        if opts.human_chr:
+            if g.seqid not in VALID_HUMAN_CHROMOSOMES:
+                continue
+            g.seqid = VALID_HUMAN_CHROMOSOMES[g.seqid]
+
         pp = g.get_attr("Parent", first=False)
         if (
             opts.multiparents == "split" and (pp and len(pp) > 1) and g.type != "CDS"
@@ -2033,9 +2053,8 @@ def format(args):
                     fix_gsac(g, notes)
                 print(g, file=fw)
         else:
-            if g.gff3 and not opts.gff3:
-                opts.gff3 = True
-            g.update_attributes(gff3=opts.gff3)
+            gff3 = g.gff3 or opts.gff3
+            g.update_attributes(gff3=gff3, gtf=gtf)
             if gsac:
                 fix_gsac(g, notes)
             if duptype == g.type and skip[(g.seqid, g.idx, id, g.start, g.end)] == 1:
@@ -2575,7 +2594,6 @@ def gtf(args):
     gff = Gff(gffile, strict=not opts.nostrict)
     transcript_info = AutoVivification()
     for g in gff:
-        transcript_id = None
         if g.type.endswith(("RNA", "transcript")):
             if "ID" in g.attributes and "Parent" in g.attributes:
                 transcript_id = g.get_attr("ID")
@@ -3023,7 +3041,7 @@ def bed(args):
         "--human_chr",
         default=False,
         action="store_true",
-        help="Only allow 1-22XY, and add `chr` prefix to seqid",
+        help="Only allow 1-22XY/MT, and add `chr` prefix to seqid",
     )
     p.add_argument(
         "--ensembl_cds",
@@ -3089,9 +3107,9 @@ def bed(args):
         if span:
             bl.score = bl.span
         if human_chr:
-            if bl.seqid not in VALID_HUMAN_CHROMOSMES:
+            if bl.seqid not in VALID_HUMAN_CHROMOSOMES:
                 continue
-            bl.seqid = "chr" + bl.seqid
+            bl.seqid = VALID_HUMAN_CHROMOSOMES[bl.seqid]
         if ensembl_cds:
             if g.get_attr("gene_biotype") != "protein_coding":
                 continue

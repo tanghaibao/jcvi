@@ -195,9 +195,9 @@ def get_minibam_bed(bamfile, bedfile, minibam=None):
 
     cmd = "cat {}".format(bedfile)
     cmd += " | perl -lane 'print \"$F[0]:$F[1]-$F[2]\"'"
-    cmd += " | xargs -n1 -t -I \{\}"
+    cmd += r" | xargs -n1 -t -I \{\}"
     cmd += " samtools view {}".format(bamfile)
-    cmd += " \{\} >> " + minisamfile
+    cmd += r" \{\} >> " + minisamfile
     sh(cmd)
 
     cmd = "samtools view {} -b".format(minisamfile)

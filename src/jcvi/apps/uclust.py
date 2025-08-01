@@ -595,6 +595,7 @@ def consensus(args):
         RAD = stack(S)
 
         if len(data) == 1:  # No computation needed
+            # TODO: seq is not defined!
             output.append((fname, seq))
             bins.extend(RAD)
             start = end

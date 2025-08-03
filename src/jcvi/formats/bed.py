@@ -1121,10 +1121,11 @@ def overlap(args):
     union_length = sum(interval.length for interval in union)
 
     # Calculate the Jaccard index
+    a_pct = percentage(intersection_length, a_length, mode=3)
+    b_pct = percentage(intersection_length, b_length, mode=3)
+    jaccard_pct = percentage(intersection_length, union_length, mode=3)
     jaccard_index = intersection_length / union_length if union_length > 0 else 0
-    print(
-        f"{bedfile1}\t{human_size(a_length)}\t{human_size(intersection_length)}/{human_size(union_length)} ({jaccard_index * 100:.1f}%)"
-    )
+    print(f"{bedfile1}\t{human_size(a_length)}\t{a_pct}\t{b_pct}\t{jaccard_pct}")
 
     return {
         "bedfile1": bedfile1,

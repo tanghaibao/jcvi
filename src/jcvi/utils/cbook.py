@@ -188,13 +188,17 @@ def percentage(a, b, precision=1, mode: Optional[int] = 0):
     """
     _a, _b = a, b
     pct = "{0:.{1}f}%".format(a * 100.0 / b, precision)
-    a, b = thousands(a), thousands(b)
+    ta, tb = thousands(a), thousands(b)
     if mode == 0:
-        return "{0} of {1} ({2})".format(a, b, pct)
+        return "{0} of {1} ({2})".format(ta, tb, pct)
     elif mode == 1:
-        return "{0} ({1})".format(a, pct)
+        return "{0} ({1})".format(ta, pct)
     elif mode == 2:
         return _a * 100.0 / _b
+    elif mode == 3:
+        ha = human_size(a)
+        hb = human_size(b)
+        return f"{ha}/{hb} ({pct})"
     return pct
 
 

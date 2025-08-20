@@ -1144,6 +1144,7 @@ def sh(
     silent=False,
     shell="/bin/bash",
     check=False,
+    check_gzip: bool = True,
     redirect_error=None,
 ):
     """
@@ -1173,7 +1174,7 @@ def sh(
                 cat = "zcat"
             cmd = "{0} {1} |".format(cat, infile) + cmd
         if outfile and outfile not in ("-", "stdout"):
-            if outfile.endswith(".gz"):
+            if check_gzip and outfile.endswith(".gz"):
                 cmd += " | gzip"
             tag = ">"
             if append:

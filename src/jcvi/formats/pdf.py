@@ -2,16 +2,19 @@
 # -*- coding: UTF-8 -*-
 
 """
-Manipulate PDF files, using PyPDF2 library.
+Manipulate PDF files, using PyPDF library.
 """
+import shutil
 import sys
 
 from natsort import natsorted
-from pypdf import PdfMerger, parse_filename_page_ranges
-from pypdf.pagerange import PageRange
 
 from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
 from .base import must_open
+
+from pypdf import PdfWriter
+from pypdf.pagerange import PageRange, parse_filename_page_ranges  # stable home
+
 
 PAGE_RANGE_HELP = PageRange.__init__.__doc__
 
@@ -75,20 +78,38 @@ def cat(args):
 
     filename_page_ranges = parse_filename_page_ranges(args)
     nfiles = len(filename_page_ranges)
-    merger = PdfMerger()
-    with must_open(outfile, "wb") as fw:
-        in_fs = {}
-        try:
-            for filename, page_range in filename_page_ranges:
-                logger.debug("%s: %s", filename, page_range)
-                if filename not in in_fs:
-                    in_fs[filename] = open(filename, "rb")
-                merger.append(in_fs[filename], pages=page_range)
-        except Exception as e:
-            logger.error("Error while reading %s: %s", filename, e)
-            sys.exit(1)
-        merger.write(fw)
+
+    # Fast-path: if exactly one input and range == ":" (all), do a simple copy
+    if nfiles == 1:
+        in_file, pr = filename_page_ranges[0]
+        sl = getattr(pr, "to_slice", lambda: slice(None))()
+        if sl.start is None and sl.stop is None and sl.step is None:
+            logger.debug("Single input with full range detected; copying bytes")
+            try:
+                shutil.copyfile(in_file, outfile)
+                logger.info("Copied `%s` to `%s`", in_file, outfile)
+            except Exception as e:
+                logger.error("Error while copying %s: %s", in_file, e)
+                sys.exit(1)
+            if opts.cleanup:
+                logger.debug("Cleaning up 1 file")
+                cleanup([in_file])
+            return
+
+    writer = PdfWriter()
+    try:
+        for filename, page_range in filename_page_ranges:
+            logger.debug("%s: %s", filename, page_range)
+            # `append` accepts PageRange objects directly (preferred over slices)
+            writer.append(fileobj=filename, pages=page_range)
+
+        with must_open(outfile, "wb") as fw:
+            writer.write(fw)
+        writer.close()
         logger.info("Extracted %d files into `%s`", nfiles, outfile)
+    except Exception as e:
+        logger.error("Error while reading %s: %s", filename, e)  # noqa: F821
+        sys.exit(1)
 
     if opts.cleanup:
         logger.debug("Cleaning up %d files", nfiles)

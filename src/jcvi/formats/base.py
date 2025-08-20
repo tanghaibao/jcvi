@@ -1,14 +1,21 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-from collections import OrderedDict
 import fileinput
-from itertools import cycle, groupby, islice
+import gzip
 import math
 import os
 import os.path as op
+import shutil
 import sys
-from typing import IO, Union
+import tempfile
+
+from collections import OrderedDict
+from itertools import cycle, groupby, islice
+from os import PathLike
+from pathlib import Path
+from typing import IO, Iterable, Sequence, Union
+
 
 from Bio import SeqIO
 
@@ -126,32 +133,157 @@ class SetFile(BaseFile, set):
             self.update(keys)
 
 
-class FileMerger(object):
+class FileMerger:
     """
-    Same as cat * > filename
+    Merge files like `cat * > outfile`, with gzip-aware behavior:
+
+    - If ALL inputs are gz and `outfile` ends with .gz/.bgz -> fast byte-concat
+      (valid per gzip spec; decoders read concatenated members).
+    - Otherwise, stream-decompress gz inputs as needed and optionally gzip the output.
+    - If a single input file is provided and the output has the same compression
+      (both gz or both not gz), do a straight byte-for-byte copy.
+    - Mixed inputs (gz + plain) are supported.
+
+    Atomic writes: data is written to a temp file in the same directory, then
+    installed with os.replace(...).
     """
 
-    def __init__(self, filelist, outfile):
-        self.filelist = filelist
-        self.outfile = outfile
-        self.ingz = filelist[0].endswith(".gz")
-        self.outgz = outfile.endswith(".gz")
+    GZ_SUFFIXES = {".gz", ".bgz", ".bgzip", ".bgzf", ".gzip"}
 
-    def merge(self, checkexists=False):
-        outfile = self.outfile
-        if checkexists and not need_update(self.filelist, outfile, warn=True):
-            return
+    def __init__(self, filelist: Sequence[PathLike], outfile: PathLike):
+        if not filelist:
+            raise ValueError("filelist must contain at least one path")
+        self.filelist = [Path(p) for p in filelist]
+        self.outfile = Path(outfile)
 
-        files = " ".join(self.filelist)
-        ingz, outgz = self.ingz, self.outgz
-        if ingz and outgz:  # can merge gz files directly
-            cmd = "cat {}".format(files)
-        else:
-            cmd = "zcat" if self.ingz else "cat"
-            cmd += " " + files
-        sh(cmd, outfile=outfile)
+    # ---- public API ---------------------------------------------------------
 
-        return outfile
+    def merge(self, skip_if_uptodate: bool = False, overwrite: bool = True) -> Path:
+        """
+        Merge input files into `outfile`.
+
+        Args:
+            skip_if_uptodate: If True, and outfile exists and is newer than all inputs, do nothing.
+            overwrite: If False and outfile exists, raise FileExistsError.
+        Returns:
+            Path to the outfile.
+        """
+        for p in self.filelist:
+            if not p.exists():
+                raise FileNotFoundError(str(p))
+
+        if skip_if_uptodate and not self._needs_update():
+            return self.outfile
+
+        # Single-file fast-path: just copy bytes if compression matches (or paths differ)
+        if len(self.filelist) == 1:
+            src = self.filelist[0]
+            if src.resolve() == self.outfile.resolve():
+                return self.outfile  # nothing to do
+            # If input and output compression match, straight copy; else transform via streaming path
+            if self._is_gzip(src) == self._is_gzip(self.outfile):
+                self._atomic_copy(src, self.outfile, overwrite=overwrite)
+                return self.outfile
+            # Fall through to the streaming path to (de)compress as requested.
+
+        ingz_all = all(self._is_gzip(p) for p in self.filelist)
+        outgz = self._is_gzip(self.outfile)
+
+        # Optimized path: all gz in, gz out -> byte-concatenate (keeps separate gzip members)
+        if ingz_all and outgz:
+            self._concat_bytes(self.filelist, self.outfile, overwrite=overwrite)
+            return self.outfile
+
+        # General streaming path (handles mixed inputs and (de)compression)
+        self._stream_merge(
+            self.filelist, self.outfile, out_compress=outgz, overwrite=overwrite
+        )
+        return self.outfile
+
+    # ---- helpers ------------------------------------------------------------
+
+    def _needs_update(self) -> bool:
+        out = self.outfile
+        if not out.exists():
+            return True
+        out_mtime = out.stat().st_mtime
+        return any(p.stat().st_mtime > out_mtime for p in self.filelist)
+
+    @classmethod
+    def _is_gzip(cls, path: Path) -> bool:
+        s = path.suffix.lower()
+        if s in cls.GZ_SUFFIXES:
+            return True
+        # support double suffix like .vcf.gz
+        return len(path.suffixes) >= 2 and path.suffixes[-1].lower() in cls.GZ_SUFFIXES
+
+    def _temp_in_same_dir(self, dst: Path) -> str:
+        dst.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(prefix=".merge-", suffix=".tmp", dir=str(dst.parent))
+        os.close(fd)
+        return tmp
+
+    def _install_tmp(self, tmp: str, dst: Path, overwrite: bool) -> None:
+        if dst.exists() and not overwrite:
+            # Clean up temp file before raising
+            try:
+                os.unlink(tmp)
+            except OSError:
+                pass
+            raise FileExistsError(f"{dst} already exists and overwrite=False")
+        os.replace(tmp, dst)  # atomic on same filesystem
+
+    def _atomic_copy(self, src: Path, dst: Path, overwrite: bool) -> None:
+        tmp = self._temp_in_same_dir(dst)
+        try:
+            with src.open("rb") as fi, open(tmp, "wb") as fo:
+                shutil.copyfileobj(fi, fo, length=1024 * 1024)
+            self._install_tmp(tmp, dst, overwrite)
+        finally:
+            # If replace failed, ensure tmp is gone
+            if os.path.exists(tmp):
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+
+    def _concat_bytes(self, inputs: Iterable[Path], dst: Path, overwrite: bool) -> None:
+        tmp = self._temp_in_same_dir(dst)
+        try:
+            with open(tmp, "wb") as fo:
+                for p in inputs:
+                    with open(p, "rb") as fi:
+                        shutil.copyfileobj(fi, fo, length=1024 * 1024)
+            self._install_tmp(tmp, dst, overwrite)
+        finally:
+            if os.path.exists(tmp):
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
+
+    def _stream_merge(
+        self, inputs: Iterable[Path], dst: Path, out_compress: bool, overwrite: bool
+    ) -> None:
+        tmp = self._temp_in_same_dir(dst)
+        try:
+            opener_out = (
+                (lambda path: gzip.open(path, "wb"))
+                if out_compress
+                else (lambda path: open(path, "wb"))
+            )
+            with opener_out(tmp) as fo:
+                for p in inputs:
+                    opener_in = gzip.open if self._is_gzip(p) else open
+                    with opener_in(p, "rb") as fi:
+                        shutil.copyfileobj(fi, fo, length=1024 * 1024)
+            self._install_tmp(tmp, dst, overwrite)
+        finally:
+            if os.path.exists(tmp):
+                try:
+                    os.unlink(tmp)
+                except OSError:
+                    pass
 
 
 class FileSplitter(object):

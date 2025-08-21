@@ -123,7 +123,7 @@ def create_data_model(nodes, constraints_x, qa, constraints_y, qb):
     num_constraints = len(constraints_x)
 
     # non-self
-    if not (constraints_x is constraints_y):
+    if constraints_x is not constraints_y:
         for c in constraints_y:
             constraint_coeffs.append({x: 1 for x in c})
             bounds.append(qb)

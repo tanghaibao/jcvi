@@ -1,12 +1,11 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+from collections import defaultdict
 import os
 import os.path as op
 import re
 import sys
-
-from collections import defaultdict
 from urllib.parse import quote, unquote
 
 from ..annotation.reformat import atg_name

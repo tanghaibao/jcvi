@@ -1,11 +1,9 @@
 name: Python Tests
-
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
-
+    branches: [main]
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -14,41 +12,35 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest]
         python-version: ["3.9", "3.10", "3.11", "3.12"]
-
     steps:
-      - uses: actions/checkout@v4
-
+      - uses: actions/checkout@v5
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: ${{ matrix.python-version }}
-          cache: 'pip'
-
+          cache: "pip"
       - name: Install BEDTools (Linux)
         run: |
-            sudo apt-get update
-            sudo apt-get install --fix-missing bedtools libmagickwand-dev
+          sudo apt-get update
+          sudo apt-get install --fix-missing bedtools libmagickwand-dev
         if: matrix.os == 'ubuntu-latest'
-
       - name: Install BEDTools (macOS)
         run: brew install bedtools imagemagick
         if: matrix.os == 'macos-latest'
-
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e '.[tests]'
-
       # Get pytest args from pyproject.toml
       - name: Test with pytest
         run: |
           pytest
 
-      # Upload coverage report to Codecov
-      # Only upload coverage for the latest Python version on Ubuntu
-      #- name: Upload coverage reports to Codecov
-      #  uses: codecov/codecov-action@v5
-      #  if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
-      #  with:
-      #    token: ${{ secrets.CODECOV_TOKEN }}
-      #    slug: tanghaibao/jcvi
+# Upload coverage report to Codecov
+# Only upload coverage for the latest Python version on Ubuntu
+#- name: Upload coverage reports to Codecov
+#  uses: codecov/codecov-action@v5
+#  if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+#  with:
+#    token: ${{ secrets.CODECOV_TOKEN }}
+#    slug: tanghaibao/jcvi

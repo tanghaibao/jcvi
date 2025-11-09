@@ -1,13 +1,13 @@
 {
-    "recommendations": [
-        "aaron-bond.better-comments",
-        "bierner.markdown-mermaid",
-        "eamodio.gitlens",
-        "janisdd.vscode-edit-csv",
-        "mechatroner.rainbow-csv",
-        "meezilla.json",
-        "ms-python.python",
-        "ms-python.vscode-pylance",
-        "tamasfe.even-better-toml"
-    ]
+  "recommendations": [
+    "aaron-bond.better-comments",
+    "bierner.markdown-mermaid",
+    "eamodio.gitlens",
+    "janisdd.vscode-edit-csv",
+    "mechatroner.rainbow-csv",
+    "meezilla.json",
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "tamasfe.even-better-toml"
+  ]
 }

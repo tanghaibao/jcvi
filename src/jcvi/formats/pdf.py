@@ -8,13 +8,11 @@ import shutil
 import sys
 
 from natsort import natsorted
-
-from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
-from .base import must_open
-
 from pypdf import PdfWriter
 from pypdf.pagerange import PageRange, parse_filename_page_ranges  # stable home
 
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
+from .base import must_open
 
 PAGE_RANGE_HELP = PageRange.__init__.__doc__
 

@@ -2,7 +2,7 @@
 # See https://pre-commit.com/hooks.html for more hooks
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: check-toml
       - id: check-yaml
@@ -10,20 +10,26 @@ repos:
         exclude: ^tests/
       - id: trailing-whitespace
         exclude: ^tests/
-      #- id: check-added-large-files
-      #  args: [--maxkb=500, --enforce-all]
       - id: check-ast
       - id: check-json
         exclude: ^tests/
       - id: check-merge-conflict
       - id: check-symlinks
       - id: check-executables-have-shebangs
-      #- id: debug-statements
-      #- id: name-tests-test
-      #  args: [--pytest-test-first]
-
-#  - repo: https://github.com/numpy/numpydoc
-#    rev: v1.8.0
-#    hooks:
-#      - id: numpydoc-validation
-#        exclude: (tests/|docs/).*
+        #- id: debug-statements
+  - repo: https://github.com/rhysd/actionlint
+    rev: v1.7.8
+    hooks:
+      - id: actionlint
+  - repo: https://github.com/google/yamlfmt
+    rev: v0.20.0
+    hooks:
+      - id: yamlfmt
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v4.0.0-alpha.8
+    hooks:
+      - id: prettier
+  - repo: https://github.com/psf/black
+    rev: 25.9.0
+    hooks:
+      - id: black

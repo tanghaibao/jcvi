@@ -38,14 +38,12 @@ Following modules are available as generic Bioinformatics handling
 methods.
 
 - <kbd>algorithms</kbd>
-
   - Linear programming solver with SCIP and GLPK.
   - Supermap: find set of non-overlapping anchors in BLAST or NUCMER output.
   - Longest or heaviest increasing subsequence.
   - Matrix operations.
 
 - <kbd>apps</kbd>
-
   - GenBank entrez accession, Phytozome, Ensembl and SRA downloader.
   - Calculate (non)synonymous substitution rate between gene pairs.
   - Basic phylogenetic tree construction using PHYLIP, PhyML, or RAxML, and viualization.
@@ -62,7 +60,6 @@ methods.
   format (TIGR assembly format), etc.
 
 - <kbd>graphics</kbd>
-
   - BLAST or synteny dot plot.
   - Histogram using R and ASCII art.
   - Paint regions on set of chromosomes.
@@ -79,14 +76,12 @@ methods.
 Then there are modules that contain domain-specific methods.
 
 - <kbd>assembly</kbd>
-
   - K-mer histogram analysis.
   - Preparation and validation of tiling path for clone-based assemblies.
   - Scaffolding through ALLMAPS, optical map and genetic map.
   - Pre-assembly and post-assembly QC procedures.
 
 - <kbd>annotation</kbd>
-
   - Training of _ab initio_ gene predictors.
   - Calculate gene, exon and intron statistics.
   - Wrapper for PASA and EVM.
@@ -139,39 +134,30 @@ conda env create -f environment.yml
 conda activate jcvi
 ```
 
-Note: If you are using a Mac with an ARM64 (Apple Silicon) processor, some dependencies are not currently available from Bioconda for this architecture.
-
-You can instead create a virtual OSX64 (intel) env like this:
-
-```bash
-conda env create -f env_osx64.yml
-
-conda activate jcvi-osx64
-```
-
 After activating the Conda environment install JCVI using one of the following options.
 
 ## Installation
 
 ### Installation options
 
-1) Use pip to install the latest development version directly from this repo.
+1. Use pip to install the latest development version directly from this repo.
 
 ```bash
 pip install git+https://github.com/tanghaibao/jcvi.git
 ```
 
-2) Install latest release from PyPi.
+2. Install latest release from PyPi.
 
 ```bash
 pip install jcvi
 ```
 
-3) Alternatively, if you want to install in development mode.
+3. Alternatively, if you want to install in development mode.
 
 ```bash
 git clone git://github.com/tanghaibao/jcvi.git && cd jcvi
 pip install -e '.[tests]'
+pre-commit install
 ```
 
 ### Test Installation

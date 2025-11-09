@@ -1,21 +1,19 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
+from collections import OrderedDict
 import fileinput
 import gzip
+from itertools import cycle, groupby, islice
 import math
 import os
+from os import PathLike
 import os.path as op
+from pathlib import Path
 import shutil
 import sys
 import tempfile
-
-from collections import OrderedDict
-from itertools import cycle, groupby, islice
-from os import PathLike
-from pathlib import Path
 from typing import IO, Iterable, Sequence, Union
-
 
 from Bio import SeqIO
 

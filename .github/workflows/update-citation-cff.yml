@@ -1,0 +1,23 @@
+name: Update CITATION.cff on Tag
+on:
+  push:
+    tags:
+      # Match semantic version tags: v1.0.0, v1.2.3, v2.0.0-beta, etc.
+      # Excludes moving tags: v1, v2
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  update-citation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+      - uses: Adamtaranto/citation-sync-action@v1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          # Create PR instead of pushing to main
+          use-pull-request: true
+          update-mode: "match"

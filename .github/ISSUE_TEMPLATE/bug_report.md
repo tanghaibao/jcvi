@@ -1,10 +1,9 @@
 ---
 name: Bug report
 about: Create a report to help us improve
-title: ''
-labels: ''
-assignees: ''
-
+title: ""
+labels: ""
+assignees: ""
 ---
 
 **Describe the bug**
@@ -34,6 +33,7 @@ If applicable, add screenshots to help explain your problem.
 - Platform: [output of `uname -a` or `systeminfo`]
 
 **System information**
+
 - OS: [e.g. MacOS, Windows, Ubuntu]
 - Version [e.g. Sequoia 15.1.1, Windows 10, Ubuntu 20.04]
 - Processor: [e.g. Intel i7, AMD Ryzen 5]

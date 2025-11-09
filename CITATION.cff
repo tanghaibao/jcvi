@@ -1,26 +1,25 @@
-# This CITATION.cff file was generated with cffinit.
-# Visit https://bit.ly/cffinit to generate yours today!
-
 cff-version: 1.2.0
 title: JCVI
 message: >-
   JCVI: A versatile toolkit for comparative genomics
   analysis
+version: 1.5.7
+date-released: 2025-08-21
 type: software
 authors:
   - given-names: Haibao
     family-names: Tang
     email: tanghaibao@gmail.com
-    orcid: 'https://orcid.org/0000-0002-3460-8570'
+    orcid: "https://orcid.org/0000-0002-3460-8570"
     affiliation: >-
       Fujian Provincial Key Laboratory of Haixia Applied
       Plant Systems Biology
   - given-names: Vivek
     family-names: Krishnakumar
-    affiliation: 'J. Craig Venter Institute, Rockville, Maryland, USA'
+    affiliation: "J. Craig Venter Institute, Rockville, Maryland, USA"
   - given-names: Xiaofei
     family-names: Zeng
-    affiliation: 'National Key Laboratory for Tropical Crop Breeding,'
+    affiliation: "National Key Laboratory for Tropical Crop Breeding,"
   - given-names: Zhougeng
     family-names: Xu
     affiliation: >-
@@ -45,7 +44,7 @@ authors:
   - given-names: Yibin
     family-names: Wang
     affiliation: National Key Laboratory for Tropical Crop Breeding
-  - given-names: 'Won Cheol '
+  - given-names: "Won Cheol "
     family-names: Yim
     affiliation: University of Nevada
   - given-names: Jisen
@@ -61,8 +60,8 @@ identifiers:
   - type: doi
     value: 10.1002/imt2.211
     description: iMeta paper
-repository-code: 'https://github.com/tanghaibao/jcvi'
-url: 'https://github.com/tanghaibao/jcvi'
+repository-code: "https://github.com/tanghaibao/jcvi"
+url: "https://github.com/tanghaibao/jcvi"
 abstract: >-
   The life cycle of genome builds spans interlocking pillars
   of assembly, annotation, and comparative genomics to drive
@@ -77,25 +76,22 @@ abstract: >-
   publication-ready figures for quality assessment and
   evolutionary inference.
 license: BSD-2-Clause
-commit: 0f9292d
-version: v1.5.3
-date-released: '2025-03-25'
 preferred-citation:
   type: article
   authors:
     - given-names: Haibao
       family-names: Tang
       email: tanghaibao@gmail.com
-      orcid: 'https://orcid.org/0000-0002-3460-8570'
+      orcid: "https://orcid.org/0000-0002-3460-8570"
       affiliation: >-
         Fujian Provincial Key Laboratory of Haixia Applied
         Plant Systems Biology
     - given-names: Vivek
       family-names: Krishnakumar
-      affiliation: 'J. Craig Venter Institute, Rockville, Maryland, USA'
+      affiliation: "J. Craig Venter Institute, Rockville, Maryland, USA"
     - given-names: Xiaofei
       family-names: Zeng
-      affiliation: 'National Key Laboratory for Tropical Crop Breeding,'
+      affiliation: "National Key Laboratory for Tropical Crop Breeding,"
     - given-names: Zhougeng
       family-names: Xu
       affiliation: >-
@@ -120,7 +116,7 @@ preferred-citation:
     - given-names: Yibin
       family-names: Wang
       affiliation: National Key Laboratory for Tropical Crop Breeding
-    - given-names: 'Won Cheol '
+    - given-names: "Won Cheol "
       family-names: Yim
       affiliation: University of Nevada
     - given-names: Jisen

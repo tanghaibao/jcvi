@@ -1,9 +1,7 @@
 {
-    "python.defaultInterpreterPath": "${env:PYTHON_INTERPRETER}",
-    "autoDocstring.docstringFormat": "numpy",
-    "python.testing.pytestArgs": [
-        "tests"
-    ],
-    "python.testing.unittestEnabled": false,
-    "python.testing.pytestEnabled": true
+  "python.defaultInterpreterPath": "${env:PYTHON_INTERPRETER}",
+  "autoDocstring.docstringFormat": "numpy",
+  "python.testing.pytestArgs": ["tests"],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }

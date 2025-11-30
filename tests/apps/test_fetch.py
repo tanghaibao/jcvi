@@ -23,11 +23,9 @@ def test_get_cookies(mock_username, mock_password):
 def test_usage_with_percent_prog():
     """Test that usage strings with %prog don't cause ValueError in argparse.
 
-    This is a regression test for:
-    https://github.com/tanghaibao/jcvi/issues/XXX
-
-    The issue was that docstrings containing %prog were set to p.usage after
-    OptionParser initialization, bypassing the %prog -> %(prog)s conversion.
+    This is a regression test for the issue where docstrings containing %prog
+    were set to p.usage after OptionParser initialization, bypassing the
+    %prog -> %(prog)s conversion that OptionParser.__init__ performs.
     """
     from jcvi.apps.base import OptionParser
 

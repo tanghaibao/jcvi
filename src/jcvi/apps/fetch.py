@@ -155,7 +155,7 @@ def ensembl(args):
 
     valid_species = [x for x in ls_ftp(fasta_url) if "." not in x]
     doc = "\n".join((ensembl.__doc__, tile(valid_species)))
-    p.usage = doc
+    p.usage = doc.replace("%prog", "%(prog)s")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -278,7 +278,7 @@ def phytozome(args):
     genomes = g.get_genomes()
     valid_species = genomes.keys()
     species_tile = tile(valid_species)
-    p.usage = "\n".join((phytozome.__doc__, species_tile))
+    p.usage = "\n".join((phytozome.__doc__, species_tile)).replace("%prog", "%(prog)s")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
@@ -380,7 +380,7 @@ def phytozome9(args):
     valid_species = [x for x in ls_ftp(url) if "." not in x]
 
     doc = "\n".join((phytozome9.__doc__, tile(valid_species)))
-    p.usage = doc
+    p.usage = doc.replace("%prog", "%(prog)s")
 
     if len(args) != 1:
         sys.exit(not p.print_help())

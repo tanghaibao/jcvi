@@ -72,10 +72,17 @@ class Layout(AbstractLayout):
         fp = open(filename)
         self.edges = []
         for row in fp:
-            if row[0] == "#":
+            # Strip newline/whitespace and skip empty lines
+            line = row.strip()
+            if not line:
                 continue
-            if row[0] == "e":
-                args = row.rstrip().split(delimiter)
+
+            # Allow comments even with leading whitespace
+            if line.startswith("#"):
+                continue
+
+            if line.startswith("e"):
+                args = line.split(delimiter)
                 args = [x.strip() for x in args]
                 i, j, fn = args[1:4]
                 if len(args) == 5 and args[4]:
@@ -87,7 +94,10 @@ class Layout(AbstractLayout):
                 blocks = self.parse_blocks(fn, i)
                 self.edges.append((i, j, blocks, samearc))
             else:
-                self.append(LayoutLine(row, delimiter=delimiter, generank=generank))
+                ll = LayoutLine(line, delimiter=delimiter, generank=generank)
+                # only keep non-empty layout lines
+                if not ll.empty:
+                    self.append(ll)
 
         self.assign_colors(seed=seed)
 

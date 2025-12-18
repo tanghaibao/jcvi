@@ -70,3 +70,7 @@ docs/_build/
 # gffutils temp DB file
 *.db
 src/jcvi/version.py
+
+# Test output files
+tests/**/*.synfind
+tests/**/*.lifted.anchors

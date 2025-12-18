@@ -303,12 +303,30 @@ def process_blast_for_liftover(blast_file, qorder, sorder, is_self=False, ostrip
 
     Instead of loading all BlastLine objects into memory, this function
     processes the file in a single pass and builds only the required
-    data structures:
-    - blast_to_score: dict mapping (qi, si) -> score
-    - accepted: dict mapping (query, subject) -> score_str
-    - all_hits: dict mapping (qseqid, sseqid) -> list of (qi, si, score)
+    data structures. This significantly reduces memory usage for large
+    BLAST files (e.g., from 50GB+ to ~5GB for a 5GB input file).
 
-    This significantly reduces memory usage for large BLAST files.
+    Parameters
+    ----------
+    blast_file : str
+        Path to BLAST output file
+    qorder : dict
+        Query gene order mapping (gene -> (index, BedLine))
+    sorder : dict
+        Subject gene order mapping (gene -> (index, BedLine))
+    is_self : bool, optional
+        Whether this is a self-self comparison (default: False)
+    ostrip : bool, optional
+        Whether to strip gene names (default: True)
+
+    Returns
+    -------
+    blast_to_score : dict
+        Mapping of (qi, si) tuples to integer scores
+    accepted : dict
+        Mapping of (query, subject) tuples to string scores
+    all_hits : defaultdict(list)
+        Mapping of (qseqid, sseqid) tuples to lists of (qi, si, score) tuples
     """
     blast_to_score = {}
     accepted = {}

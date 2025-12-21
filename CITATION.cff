@@ -3,8 +3,8 @@ title: JCVI
 message: >-
   JCVI: A versatile toolkit for comparative genomics
   analysis
-version: 1.5.10
-date-released: 2025-12-17
+version: 1.5.11
+date-released: 2025-12-20
 type: software
 authors:
   - given-names: Haibao

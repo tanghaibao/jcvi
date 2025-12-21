@@ -58,7 +58,7 @@ def chunk_average(a, window=10, offset=None):
     offset = offset or window
 
     bins = int(math.ceil((a.size - window) * 1.0 / offset)) + 1
-    r = np.zeros((bins,), dtype=np.float)
+    r = np.zeros((bins,), dtype=float)
     start = 0
     for i in range(bins):
         r[i] = np.average(a[start : start + window])

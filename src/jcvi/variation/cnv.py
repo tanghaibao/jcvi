@@ -977,7 +977,7 @@ def mergecn(args):
             op.join(s + "-cn", "{}.{}.cn".format(op.basename(s), seqid))
             for s in samples
         ]
-        arrays = [np.fromfile(name, dtype=np.float) for name in names]
+        arrays = [np.fromfile(name, dtype=float) for name in names]
         shapes = [x.shape[0] for x in arrays]
         med_shape = np.median(shapes)
         arrays = [x for x in arrays if x.shape[0] == med_shape]

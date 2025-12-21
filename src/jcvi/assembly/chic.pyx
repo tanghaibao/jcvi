@@ -24,7 +24,6 @@ from cpython cimport array
 
 import array
 
-ctypedef np.int INT
 DEF LIMIT = 10000000
 DEF BB = 12
 cdef int *GR = \
@@ -34,10 +33,10 @@ cdef int *GR = \
 
 
 def score_evaluate_M(array.array[int] tour,
-                     np.ndarray[INT, ndim=1] tour_sizes=None,
-                     np.ndarray[INT, ndim=2] tour_M=None):
-    cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]
-    cdef np.ndarray[INT, ndim=1] sizes_cum = np.cumsum(sizes_oo) - sizes_oo // 2
+                     np.ndarray[int, ndim=1] tour_sizes=None,
+                     np.ndarray[int, ndim=2] tour_M=None):
+    cdef np.ndarray[int, ndim=1] sizes_oo = tour_sizes[tour]
+    cdef np.ndarray[int, ndim=1] sizes_cum = np.cumsum(sizes_oo) - sizes_oo // 2
 
     cdef double s = 0.0
     cdef int size = len(tour)
@@ -59,10 +58,10 @@ def score_evaluate_M(array.array[int] tour,
 
 
 def score_evaluate_P(array.array[int] tour,
-                     np.ndarray[INT, ndim=1] tour_sizes=None,
-                     np.ndarray[INT, ndim=3] tour_P=None):
-    cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]
-    cdef np.ndarray[INT, ndim=1] sizes_cum = np.cumsum(sizes_oo)
+                     np.ndarray[int, ndim=1] tour_sizes=None,
+                     np.ndarray[int, ndim=3] tour_P=None):
+    cdef np.ndarray[int, ndim=1] sizes_oo = tour_sizes[tour]
+    cdef np.ndarray[int, ndim=1] sizes_cum = np.cumsum(sizes_oo)
 
     cdef double s = 0.0
     cdef int size = len(tour)
@@ -83,10 +82,10 @@ def score_evaluate_P(array.array[int] tour,
 
 
 def score_evaluate_Q(array.array[int] tour,
-                     np.ndarray[INT, ndim=1] tour_sizes=None,
-                     np.ndarray[INT, ndim=3] tour_Q=None):
-    cdef np.ndarray[INT, ndim=1] sizes_oo = tour_sizes[tour]
-    cdef np.ndarray[INT, ndim=1] sizes_cum = np.cumsum(sizes_oo)
+                     np.ndarray[int, ndim=1] tour_sizes=None,
+                     np.ndarray[int, ndim=3] tour_Q=None):
+    cdef np.ndarray[int, ndim=1] sizes_oo = tour_sizes[tour]
+    cdef np.ndarray[int, ndim=1] sizes_cum = np.cumsum(sizes_oo)
 
     cdef double s = 0.0
     cdef int size = len(tour)

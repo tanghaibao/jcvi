@@ -44,7 +44,7 @@ class Coverage(BaseFile):
         fp = open(self.filename)
         size = self.sizes[ctg]
 
-        data = np.zeros((size,), dtype=np.int)
+        data = np.zeros((size,), dtype=int)
         for row in fp:
             seqid, start, end, cov = row.split()
             if seqid != ctg:

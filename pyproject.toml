@@ -17,7 +17,7 @@ name = "jcvi"
 description = "Python utility libraries on genome assembly, annotation and comparative genomics"
 readme = "README.md"
 requires-python = ">=3.8,<3.13"
-license = { text = "BSD-3-Clause" } # Note: Setuptools will not support dict format from Feb 2026, BUT hatchling requires it!
+license = "BSD-3-Clause"
 authors = [
     { name = "Haibao Tang", email = "tanghaibao@gmail.com" },
     { name = "Vivek Krishnakumar" },

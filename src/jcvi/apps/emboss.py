@@ -4,6 +4,7 @@
 """
 Run EMBOSS programs.
 """
+
 import multiprocessing as mp
 import sys
 

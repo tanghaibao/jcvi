@@ -5,6 +5,7 @@
 Use genetic map to break chimeric scaffolds, order and orient scaffolds onto
 chromosomes.
 """
+
 from itertools import combinations, groupby
 import os.path as op
 from random import sample

@@ -19,6 +19,7 @@ see supplementary info for sea anemone genome paper, formula::
 
 Finally a blast.filtered file is created.
 """
+
 from collections import defaultdict
 from itertools import groupby
 import os.path as op

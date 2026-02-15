@@ -4,6 +4,7 @@
 """
 Process Hi-C output into AGP for chromosomal-scale scaffolding.
 """
+
 import array
 from collections import defaultdict
 from functools import partial

@@ -6,6 +6,7 @@ TSP solver using Concorde or OR-tools. This is much faster than the LP-formulati
 algorithms.lpsolve.tsp(). See also:
 https://developers.google.com/optimization/routing/tsp
 """
+
 from collections import defaultdict
 from dataclasses import dataclass
 from itertools import combinations

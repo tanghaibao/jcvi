@@ -4,6 +4,7 @@
 """
 Deconvolute fastq files according to barcodes.
 """
+
 from collections import namedtuple
 from itertools import groupby, islice, product
 from multiprocessing import Pool

@@ -5,6 +5,7 @@
 Longest increasing subsequence, code stolen from internet (thanks)
 http://wordaligned.org/articles/patience-sort
 """
+
 import bisect
 
 # We want a maximum function which accepts a default value

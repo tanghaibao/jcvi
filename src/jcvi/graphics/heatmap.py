@@ -21,7 +21,6 @@ III	I9H/IRX9-L,IRX14
 IV	IRX7,GUX2
 """
 
-
 from itertools import groupby
 import sys
 

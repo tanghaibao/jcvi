@@ -4,6 +4,7 @@
 """
 Scripts for the ALLMAPS manuscript
 """
+
 import sys
 
 import numpy as np

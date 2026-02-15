@@ -6,6 +6,7 @@ Procedures to validate and update golden path of a genome assembly. This relies
 heavily on formats.agp, and further includes several algorithms, e.g. overlap
 detection.
 """
+
 from copy import deepcopy
 from functools import lru_cache
 from itertools import groupby

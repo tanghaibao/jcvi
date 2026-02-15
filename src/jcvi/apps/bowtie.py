@@ -7,6 +7,7 @@ files. Bowtie2 help:
 
 <http://bowtie-bio.sourceforge.net/bowtie2/index.shtml>
 """
+
 import sys
 
 from ..formats.base import BaseFile

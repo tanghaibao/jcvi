@@ -6,6 +6,7 @@ From synteny blocks, reconstruct ancestral order by interleaving the genes in
 between the anchors. This is the bottom-up method used first in Bowers (2003),
 and in Tang (2010), to reconstruct pre-alpha and pre-rho order, respectively.
 """
+
 from itertools import zip_longest
 from math import sqrt
 import sys

@@ -5,6 +5,7 @@
 Wrapper for mummerplot. Selecting a subset of queries and references to plot
 main features in the dot plot.
 """
+
 import os.path as op
 import sys
 

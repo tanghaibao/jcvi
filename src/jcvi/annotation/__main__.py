@@ -4,7 +4,6 @@
 Collection of scripts to run gene finders, execute annotation pipelines, perform QC checks and generate summary statistics
 """
 
-
 from ..apps.base import dmain
 
 if __name__ == "__main__":

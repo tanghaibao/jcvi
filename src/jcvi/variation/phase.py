@@ -4,6 +4,7 @@
 """
 Read-based phasing.
 """
+
 import sys
 
 try:

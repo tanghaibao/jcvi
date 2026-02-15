@@ -22,6 +22,7 @@ Optional steps:
 
 The external software needs be installed first.
 """
+
 from functools import partial
 from itertools import chain
 from math import ceil

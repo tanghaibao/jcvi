@@ -4,6 +4,7 @@
 """
 Subroutines to aid ALLPATHS-LG assembly.
 """
+
 from itertools import islice
 import os.path as op
 from struct import pack, unpack

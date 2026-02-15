@@ -10,6 +10,7 @@ from random import choice, randint, random, shuffle
 import sys
 
 import numpy as np
+from palettable import colorbrewer
 
 from ..apps.base import ActionDispatcher, OptionParser
 from ..utils.grouper import Grouper
@@ -19,7 +20,6 @@ from .base import (
     FancyArrowPatch,
     Polygon,
     Rectangle,
-    get_map,
     plt,
     savefig,
     set3,
@@ -446,7 +446,7 @@ class CartoonRegion(object):
     def assign_colors(self, k):
         from matplotlib.colors import rgb2hex
 
-        colorset = get_map("Paired", "qualitative", k).mpl_colors
+        colorset = getattr(colorbrewer.qualitative, f"Paired_{k}").mpl_colors
         colorset = [rgb2hex(x) for x in colorset]
         cs = colorset + ["w"] * (self.n - k - 1)
         shuffle(cs)

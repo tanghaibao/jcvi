@@ -130,7 +130,7 @@ def waterlilyGOM(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    (datafile, csvfile) = args
+    datafile, csvfile = args
     outgroup = ["ginkgo"]
 
     logger.debug("Load tree file `%s`", datafile)

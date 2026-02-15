@@ -29,7 +29,7 @@ def lcn(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    (groups_tsv, sequence_dir, lcn_dir) = args
+    groups_tsv, sequence_dir, lcn_dir = args
     selected = []
     # Read in the orthogroup definition and selected based on counts
     with open(groups_tsv) as fp:

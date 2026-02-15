@@ -14,6 +14,7 @@ There are a few techniques, used in curating medicago assembly.
 5. Find gaps in optical map
 6. Insert unplaced scaffolds using mates
 """
+
 from collections import defaultdict
 from itertools import groupby
 import math

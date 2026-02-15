@@ -15,7 +15,6 @@ import seaborn as sns
 
 mpl.use("Agg")
 
-from brewer2mpl import get_map
 from matplotlib import cm, rc, rcParams
 import matplotlib.colors as mcolors
 from matplotlib.colors import Colormap
@@ -31,6 +30,7 @@ from matplotlib.patches import (
 )
 import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
+from palettable import colorbrewer
 
 from ..apps.base import datadir, glob, logger, sample_N, which
 from ..formats.base import LineFile
@@ -81,7 +81,7 @@ class ImageOptions(object):
 
     @property
     def diverge(self):
-        colors = get_map(self.opts.diverge, "diverging", 5).mpl_colors
+        colors = getattr(colorbrewer.diverging, f"{self.opts.diverge}_5").mpl_colors
         return colors[0], colors[-1]
 
 
@@ -238,7 +238,7 @@ def shorten(s, maxchar=20, mid="..."):
 
 
 def set1_n(number=9):
-    return get_map("Set1", "qualitative", number).hex_colors
+    return getattr(colorbrewer.qualitative, f"Set1_{number}").hex_colors
 
 
 def set2_n(number=8):
@@ -246,16 +246,17 @@ def set2_n(number=8):
     # pleasant to look at by Drs. Cynthia Brewer and Mark Harrower of Pennsylvania
     # State University. These colors look lovely together, and are less
     # saturated than those colors in Set1.
-    return get_map("Set2", "qualitative", number).hex_colors
+
+    return getattr(colorbrewer.qualitative, f"Set2_{number}").hex_colors
 
 
 def set3_n(number=12):
-    return get_map("Set3", "qualitative", number).hex_colors
+    return getattr(colorbrewer.qualitative, f"Set3_{number}").hex_colors
 
 
 def paired_n(number=12):
     """See also: https://colorbrewer2.org/#type=qualitative&scheme=Paired&n=12"""
-    return get_map("Paired", "qualitative", number).hex_colors
+    return getattr(colorbrewer.qualitative, f"Paired_{number}").hex_colors
 
 
 set1, set2, set3, paired = set1_n(), set2_n(), set3_n(), paired_n()
@@ -272,9 +273,9 @@ def prettyplot():
 
     # Need to 'reverse' red to blue so that blue=cold=small numbers,
     # and red=hot=large numbers with '_r' suffix
-    blue_red = get_map("RdBu", "diverging", 11, reverse=True).mpl_colormap
-    green_purple = get_map("PRGn", "diverging", 11).mpl_colormap
-    red_purple = get_map("RdPu", "sequential", 9).mpl_colormap
+    blue_red = getattr(colorbrewer.diverging, f"RdBu_11_r").mpl_colormap
+    green_purple = getattr(colorbrewer.diverging, f"PRGn_11").mpl_colormap
+    red_purple = getattr(colorbrewer.sequential, f"RdPu_9").mpl_colormap
 
     return blues_r, reds, blue_red, green_purple, red_purple
 

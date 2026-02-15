@@ -4,6 +4,7 @@
 """
 Procedure to touch and copy softlinks
 """
+
 import os
 import os.path as op
 import sys

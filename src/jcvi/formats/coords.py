@@ -5,6 +5,7 @@
 parses JCVI software NUCMER (http://mummer.sourceforge.net/manual/)
 output - mostly as *.coords file.
 """
+
 from itertools import groupby
 from math import exp
 import os.path as op

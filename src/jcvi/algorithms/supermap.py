@@ -12,6 +12,7 @@ first chain using ref, and a second chain using query and we will have options
 to keep either the union or the intersection of retain chained alignments from
 both genomes, similar to the SUPERMAP algorithm. This operation is symmetrical.
 """
+
 import sys
 
 from ..apps.base import OptionParser, logger

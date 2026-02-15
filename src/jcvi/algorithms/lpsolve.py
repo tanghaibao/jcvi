@@ -24,6 +24,7 @@ The input lp_data is assumed in .lp format, see below
 >>> print GLPKSolver(lp_data).results
 [0, 1]
 """
+
 from dataclasses import dataclass
 from io import StringIO
 import os.path as op

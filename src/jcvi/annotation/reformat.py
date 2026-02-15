@@ -7,6 +7,7 @@ Convert common output files from gene prediction software into gff3 format.
 Similar to the utilities in DAWGPAWS.
 <http://dawgpaws.sourceforge.net/man.html>
 """
+
 from collections import defaultdict
 from itertools import groupby, product
 import os
@@ -748,7 +749,7 @@ def read_scores(scoresfile, opts=None, sort=False, trimsuffix=True):
     fp = must_open(scoresfile)
     logger.debug("Load scores file `{0}`".format(scoresfile))
     for row in fp:
-        (new, old, identity, score) = row.strip().split("\t")
+        new, old, identity, score = row.strip().split("\t")
         if trimsuffix:
             old = re.sub(r"\.\d+$", "", old)
         if resolve == "alignment":

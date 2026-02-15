@@ -4,6 +4,7 @@
 """
 Run through NCBI vecscreen on a local machine.
 """
+
 import os.path as op
 import sys
 

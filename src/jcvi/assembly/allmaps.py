@@ -4,6 +4,7 @@
 """
 Scaffold Ordering with Weighted Maps.
 """
+
 from collections import Counter, defaultdict
 from functools import partial
 from itertools import combinations, product

@@ -5,6 +5,7 @@
 Legacy script to plot distribution of certain classes onto chromosomes. Adapted
 from the script used in the Tang et al. PNAS 2010 paper, sigma figure.
 """
+
 from itertools import groupby
 from math import ceil
 import sys

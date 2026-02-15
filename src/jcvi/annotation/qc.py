@@ -8,6 +8,7 @@ testing. Several aspects of annotation QC are implemented in this script.
 - Trim UTRs. MAKER sometimes predict UTRs that extend into other genes.
 - Remove overlapping models.
 """
+
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser

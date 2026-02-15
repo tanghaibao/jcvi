@@ -12,6 +12,7 @@ format (use compara.synteny.scan()), then segment the chromosomes and cluster
 segments according to the matching patterns. Finally the putative ancestral
 regions (PAR) are identified and visualized.
 """
+
 from math import log
 import os.path as op
 import sys

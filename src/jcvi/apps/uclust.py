@@ -7,6 +7,7 @@ The VCLUST implementation borrows ideas and code from PyRAD. PyRAD link:
 
 <https://github.com/dereneaton/pyrad>
 """
+
 from collections import defaultdict
 from copy import deepcopy
 from functools import partial

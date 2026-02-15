@@ -4,6 +4,7 @@
 """
 Programatically accessing UniprotKB to get data from a list of queries
 """
+
 import os.path as op
 import sys
 import time

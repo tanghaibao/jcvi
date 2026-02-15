@@ -4,6 +4,7 @@
 """
 Train ab initio gene predictors.
 """
+
 import os
 import os.path as op
 import sys

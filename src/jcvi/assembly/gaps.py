@@ -4,6 +4,7 @@
 """
 Calculates gap statistics and manipulate gaps in assembly.
 """
+
 from itertools import groupby
 import os.path as op
 import sys

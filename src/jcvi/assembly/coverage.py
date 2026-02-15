@@ -7,6 +7,7 @@ Provide coverage QC for assembled sequences:
 2. plot base coverage and mate coverage
 3. plot gaps in the sequence (if any)
 """
+
 from collections import defaultdict
 
 from ..apps.base import ActionDispatcher, logger, need_update, sh

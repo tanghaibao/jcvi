@@ -4,6 +4,7 @@
 """
 Calculation of synonymous substitutions (Ks).
 """
+
 import csv
 from functools import partial
 from itertools import combinations, product

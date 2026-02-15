@@ -7,6 +7,7 @@ This script simply parses the lines in SAM into human readable fields.
 
 http://samtools.sourceforge.net/SAM1.pdf
 """
+
 from collections import defaultdict
 from itertools import groupby
 import os

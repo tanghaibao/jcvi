@@ -4,6 +4,7 @@
 """
 Variant call format.
 """
+
 from collections import defaultdict
 from itertools import groupby
 import os.path as op

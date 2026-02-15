@@ -5,6 +5,7 @@
 Perform DNA-DNA alignment using BLAST, NUCMER and BLAT. Keep the interface the
 same and does parallelization both in core and on grid.
 """
+
 import os.path as op
 import shutil
 from subprocess import STDOUT, CalledProcessError

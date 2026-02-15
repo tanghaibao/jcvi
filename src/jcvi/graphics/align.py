@@ -10,7 +10,6 @@ Illustrate three different types of alignments.
 - Optical map alignment, matchings between restriction fragments
 """
 
-
 from bisect import bisect
 from random import choice, randint
 import sys

@@ -4,6 +4,7 @@
 """
 Mask low complexity regions in the genome.
 """
+
 import os.path as op
 import sys
 

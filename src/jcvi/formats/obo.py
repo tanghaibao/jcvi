@@ -6,6 +6,7 @@
 
 Parses obo_file and plot GO lineage
 """
+
 from collections import deque
 from functools import partial
 import sys

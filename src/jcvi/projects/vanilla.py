@@ -4,6 +4,7 @@
 """
 Plotting scripts for the vanilla genome paper.
 """
+
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger
@@ -48,7 +49,7 @@ def phylogeny(args):
     p = OptionParser(phylogeny.__doc__)
     _, args, iopts = p.set_image_options(args, figsize="10x12")
 
-    (datafile, layoutfile) = args
+    datafile, layoutfile = args
 
     logger.debug("Load tree file `%s`", datafile)
     t, hpd = parse_tree(datafile)
@@ -210,7 +211,7 @@ def synteny(args):
     p = OptionParser(synteny.__doc__)
     _, args, iopts = p.set_image_options(args, figsize="12x12")
 
-    (bedfile, sizesfile, blocksfile, allbedfile, blockslayout) = args
+    bedfile, sizesfile, blocksfile, allbedfile, blockslayout = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
@@ -252,7 +253,7 @@ def wgd(args):
     p = OptionParser(synteny.__doc__)
     _, args, iopts = p.set_image_options(args, figsize="8x5")
 
-    (bedfile, sizesfile) = args
+    bedfile, sizesfile = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     ax1 = fig.add_axes((0, 0, 1, 1))
@@ -286,7 +287,7 @@ def microsynteny(args):
     p = OptionParser(synteny.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="12x6")
 
-    (blocksfile, allbedfile, blockslayout) = args
+    blocksfile, allbedfile, blockslayout = args
 
     fig = plt.figure(1, (iopts.w, iopts.h))
     ax2 = fig.add_axes((0, 0, 1, 1))

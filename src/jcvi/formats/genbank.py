@@ -5,6 +5,7 @@
 Genbank record operations based on biopython Bio.SeqIO
 https://github.com/biopython/biopython/blob/master/Bio/SeqIO/InsdcIO.py
 """
+
 from collections import defaultdict
 import os.path as op
 import sys

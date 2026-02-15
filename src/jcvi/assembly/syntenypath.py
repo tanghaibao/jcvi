@@ -4,6 +4,7 @@
 """
 Syntenic path assembly.
 """
+
 from collections import defaultdict
 from itertools import combinations, groupby
 import sys

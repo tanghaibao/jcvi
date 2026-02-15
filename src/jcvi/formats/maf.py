@@ -5,6 +5,7 @@
 MAF format specification:
 <http://genome.ucsc.edu/FAQ/FAQformat#format5>
 """
+
 from bisect import bisect
 from dataclasses import dataclass
 import sys

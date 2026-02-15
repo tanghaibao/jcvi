@@ -13,7 +13,6 @@ Identify the best downloading mechanism for a given URL.
 Credits: https://pypi.org/project/ez_setup/
 """
 
-
 import os
 import platform
 import subprocess

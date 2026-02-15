@@ -34,7 +34,6 @@ classifiers = [
 dependencies = [
     "biopython",
     "boto3",
-    "brewer2mpl",
     "CrossMap",
     "cython",
     "deap",
@@ -51,6 +50,7 @@ dependencies = [
     "networkx",
     "numpy",
     "ortools",
+    "palettable",
     "pybedtools",
     "pyefd",
     "pypdf",

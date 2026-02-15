@@ -5,6 +5,7 @@
 Use R ggplot2 library to plot histogram, also contains an ASCII histogram (use
 --text) when invoking histogram().
 """
+
 from collections import defaultdict
 from math import ceil, log
 import os.path as op
@@ -29,25 +30,19 @@ m <- ggplot(data, aes(x=$xlabel)) +
      theme(plot.title=element_text(size=11, colour="darkblue"))
 """
 
-histogram_template = (
-    histogram_header
-    + """
+histogram_template = histogram_header + """
 m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=(vmax-vmin)/$bins) +
 labs(title='$title')
 ggsave('$outfile')
 """
-)
 
-histogram_log_template = (
-    histogram_header
-    + """
+histogram_log_template = histogram_header + """
 library(scales)
 m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=0.33) +
 labs(title='$title') +
 scale_x_continuous(trans=log${base}_trans())
 ggsave('$outfile')
 """
-)
 
 histogram_multiple_template = """
 library(ggplot2)
@@ -56,20 +51,15 @@ vmax <- $vmax
 data <- read.table('$numberfile', header=T, sep="\t", skip=$skip)
 """
 
-histogram_multiple_template_a = (
-    histogram_multiple_template
-    + """
+histogram_multiple_template_a = histogram_multiple_template + """
 m <- ggplot(data, aes(x=$xlabel, fill=grp))
 m + geom_bar(binwidth=(vmax-vmin)/$bins, position="dodge") +
 xlim(vmin, vmax) +
 labs(title='$title') +
 ggsave('$outfile')
 """
-)
 
-histogram_multiple_template_b = (
-    histogram_multiple_template
-    + """
+histogram_multiple_template_b = histogram_multiple_template + """
 m <- ggplot(data, aes(x=$xlabel))
 m + geom_histogram(colour="darkgreen", fill="$fill", binwidth=(vmax-vmin)/$bins) +
 xlim(vmin, vmax) +
@@ -77,7 +67,6 @@ labs(title='$title') +
 facet_wrap(~grp)
 ggsave('$outfile')
 """
-)
 
 
 def loghistogram(data, base=2, title="Counts", summary=False):

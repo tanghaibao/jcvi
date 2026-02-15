@@ -7,6 +7,7 @@ both on the 2D dotplot and 1D-projection
 
 `range_chain` implements the exon-chain algorithm
 """
+
 from collections import defaultdict, namedtuple
 from itertools import groupby
 import sys

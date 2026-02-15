@@ -12,13 +12,13 @@ import os.path as op
 import sys
 
 import numpy as np
+from palettable import colorbrewer
 
 from ..apps.base import OptionParser, glob, logger
 from ..formats.sizes import Sizes
 from .base import (
     Rectangle,
     adjust_spines,
-    get_map,
     mb_float_formatter,
     mb_formatter,
     plt,
@@ -150,7 +150,8 @@ class Coverage(object):
 
         if palette is None:
             # Get the palette
-            set2 = get_map("Set2", "qualitative", ntracks).mpl_colors
+            set2 = getattr(colorbrewer.qualitative, f"Set2_{ntracks}").mpl_colors
+
         else:
             set2 = [palette] * ntracks
 

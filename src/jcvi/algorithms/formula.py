@@ -4,6 +4,7 @@
 """
 Some math formula for various calculations
 """
+
 from collections import Counter
 from functools import lru_cache
 from math import exp, log, sqrt

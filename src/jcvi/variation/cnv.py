@@ -4,6 +4,7 @@
 """
 Helper functions for Copy Number Variations (CNV).
 """
+
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from itertools import groupby
@@ -237,8 +238,8 @@ class CopyNumberHMM(object):
     def plot(
         self, samplekey, chrs=allsomes, color=None, dx=None, ymax=8, ms=2, alpha=0.7
     ):
-        from brewer2mpl import get_map
         import matplotlib.pyplot as plt
+        from palettable import colorbrewer
 
         props = dict(boxstyle="round", facecolor="wheat", alpha=0.2)
 
@@ -249,7 +250,11 @@ class CopyNumberHMM(object):
             axs = np.array([axs])
         plt.tight_layout()
         if color is None:
-            color = choice(get_map("Set2", "qualitative", 8).mpl_colors)
+            map_name = "Set2"
+            map_number = 8
+            color = choice(
+                getattr(colorbrewer.qualitative, f"{map_name}_{map_number}").mpl_colors
+            )
 
         for region, ax in zip(chrs, axs):
             chr, start, end = parse_region(region)

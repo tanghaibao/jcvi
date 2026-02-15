@@ -304,7 +304,7 @@ class GffLine(object):
         if re.search("exon|CDS|UTR", self.type):
             parent = self.get_attr("Parent")
             if parent:
-                (locus, iso) = atg_name(parent, retval="locus,iso", trimpad0=False)
+                locus, iso = atg_name(parent, retval="locus,iso", trimpad0=False)
                 if locus:
                     sig_elems.append(locus)
         else:
@@ -3371,7 +3371,7 @@ def load(args):
                     feat.seqid, feat.start, feat.end, orient
                 )
             else:
-                (s, e) = (
+                s, e = (
                     (feat.start, feat.end)
                     if (feat.strand == "+")
                     else (feat.end, feat.start)
@@ -3413,7 +3413,7 @@ def load(args):
                 )
             )
 
-            (s, e) = (start, stop) if feat.strand == "+" else (stop, start)
+            s, e = (start, stop) if feat.strand == "+" else (stop, start)
             seq_loc = str(feat.seqid) + ":" + str(s) + "-" + str(e)
             desc = sep.join(
                 str(x)
@@ -3551,13 +3551,13 @@ def get_coords(feature, site, fLen, seqlen, feat, children_list, gffdb):
     """
     if site in ["TSS", "TES"]:
         if feature == "upstream" and site == "TSS":
-            (start, stop) = (
+            start, stop = (
                 (feat.start - fLen, feat.start - 1)
                 if feat.strand == "+"
                 else (feat.end + 1, feat.end + fLen)
             )
         if feature == "downstream" and site == "TES":
-            (start, stop) = (
+            start, stop = (
                 (feat.end + 1, feat.end + fLen)
                 if feat.strand == "+"
                 else (feat.start - fLen, feat.start - 1)
@@ -3579,13 +3579,13 @@ def get_coords(feature, site, fLen, seqlen, feat, children_list, gffdb):
 
         cds_start, cds_stop = range_minmax(children)
         if feature == "upstream" and site == "TrSS":
-            (start, stop) = (
+            start, stop = (
                 (cds_start - fLen, cds_start - 1)
                 if feat.strand == "+"
                 else (cds_stop + 1, cds_stop + fLen)
             )
         elif feature == "downstream" and site == "TrES":
-            (start, stop) = (
+            start, stop = (
                 (cds_stop + 1, cds_stop + fLen)
                 if feat.strand == "+"
                 else (cds_start - fLen, cds_start - 1)

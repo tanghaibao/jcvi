@@ -4,6 +4,7 @@
 """
 Impute unknown variations given an input vcf file.
 """
+
 import os.path as op
 import sys
 

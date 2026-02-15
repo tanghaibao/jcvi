@@ -4,6 +4,7 @@
 """
 AWS-related methods.
 """
+
 from configparser import NoOptionError, NoSectionError
 from datetime import datetime
 import fnmatch

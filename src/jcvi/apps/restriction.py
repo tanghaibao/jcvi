@@ -4,6 +4,7 @@
 """
 Procedure to cut genome using restriction enzymes.
 """
+
 import sys
 
 from Bio.Restriction.Restriction import AllEnzymes, Analysis

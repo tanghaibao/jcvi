@@ -4,6 +4,7 @@
 """
 Analyze SNPs in re-sequencing panels.
 """
+
 import sys
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh

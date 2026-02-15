@@ -5,6 +5,7 @@
 Assembly QC plots, including general statistics, base and mate coverages, and
 scaffolding consistencies.
 """
+
 import os.path as op
 import sys
 

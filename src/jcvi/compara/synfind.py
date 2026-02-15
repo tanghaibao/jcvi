@@ -20,6 +20,7 @@ itself is used to represent the region.  The number in the 4th column is the
 synteny score. For the same query, it is ordered with decreasing synteny score.
 The last column means orientation. "+" is same direction.
 """
+
 from bisect import bisect_left
 from itertools import groupby, tee
 import os.path as op

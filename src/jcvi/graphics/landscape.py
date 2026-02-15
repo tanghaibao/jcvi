@@ -6,7 +6,6 @@ Create chromosome landscape plots that are similar to the ones used in soybean
 and sorghum paper.
 """
 
-
 from collections import Counter, OrderedDict, defaultdict
 import os.path as op
 import sys

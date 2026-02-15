@@ -4,6 +4,7 @@
 """
 Deals with K-mers and K-mer distribution from reads or genome
 """
+
 from collections import defaultdict
 import math
 import os.path as op

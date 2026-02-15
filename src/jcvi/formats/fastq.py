@@ -4,6 +4,7 @@
 """
 Processing fastq files
 """
+
 from itertools import islice
 import json
 import os.path as op

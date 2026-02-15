@@ -431,13 +431,10 @@ arraysh = """
 CMD=`awk "NR==$SGE_TASK_ID" {0}`
 $CMD"""
 
-arraysh_ua = (
-    PBS_STANZA
-    + """
+arraysh_ua = PBS_STANZA + """
 cd $PBS_O_WORKDIR
 CMD=`awk "NR==$PBS_ARRAY_INDEX" {3}`
 $CMD"""
-)
 
 
 def get_grid_engine():

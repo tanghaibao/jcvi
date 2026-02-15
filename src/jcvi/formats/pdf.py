@@ -4,6 +4,7 @@
 """
 Manipulate PDF files, using PyPDF library.
 """
+
 import shutil
 import sys
 

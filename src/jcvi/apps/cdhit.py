@@ -4,6 +4,7 @@
 """
 Using CD-HIT to remove duplicate reads.
 """
+
 from collections import defaultdict
 import os.path as op
 import sys

@@ -9,6 +9,7 @@ include the following components
 + Use minimus2 to combine the contigs through overlaps
 + Map the mates to the contigs and perform scaffolding
 """
+
 from collections import defaultdict
 from itertools import groupby
 import os

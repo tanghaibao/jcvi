@@ -4,6 +4,7 @@
 """
 Base utilties for genome assembly related calculations and manipulations
 """
+
 from bisect import bisect
 from math import log
 import os.path as op

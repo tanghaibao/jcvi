@@ -4,6 +4,7 @@
 """
 Script to write and assist SOAPdenovo assembly.
 """
+
 import os.path as op
 import sys
 
@@ -59,24 +60,18 @@ GCRUN = (
 )
 GCRUNG = "GapCloser_v1.12 -a {0} -b $G -l 155 -o {1} -p 31 -t $P"
 
-SOAPRUN = (
-    """
+SOAPRUN = """
 $C pregraph -s $S -d 1 -K $K -o $A -R -p $P
 $C contig -s $S -g $A -M 1 -R -p $P
 $C map -s $S -g $A -p $P
 $C scaff -g $A -F -p $P
-"""
-    + GCRUN
-)
+""" + GCRUN
 
-SCFRUN = (
-    """
+SCFRUN = """
 prepare -K $K -c %s -g $A
 $C map -s $S -g $A -p $P
 $C scaff -z -g $A -F -p $P
-"""
-    + GCRUN
-)
+""" + GCRUN
 
 
 def get_size(filename):

@@ -4,6 +4,7 @@
 """
 Simulate Illumina sequencing reads.
 """
+
 import math
 import os
 import os.path as op

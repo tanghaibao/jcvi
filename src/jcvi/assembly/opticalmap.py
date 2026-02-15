@@ -4,6 +4,7 @@
 """
 Optical map alignment parser.
 """
+
 from collections import defaultdict
 import sys
 from xml.etree.ElementTree import ElementTree

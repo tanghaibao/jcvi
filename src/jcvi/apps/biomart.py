@@ -6,6 +6,7 @@ Builds the queries for Globus and BioMart servie, usefu for extraction of
 phytozome data sets.  Certain portion of the codes are ported from R package
 `biomaRt` (thanks).
 """
+
 import sys
 import urllib
 from urllib.parse import urljoin

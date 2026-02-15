@@ -8,6 +8,7 @@ Tang et al. (2012) Altered Patterns of Fractionation and Exon Deletions in
 Brassica rapa Support a Two-Step Model of Paleohexaploidy. Genetics.
 <http://www.genetics.org/content/190/4/1563.short>
 """
+
 from more_itertools import pairwise
 
 from ..apps.base import ActionDispatcher, OptionParser, fname

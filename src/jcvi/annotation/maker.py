@@ -125,15 +125,12 @@ DIR=`awk "NR==$SGE_TASK_ID" {0}`
 cd $DIR
 {1} --ignore_nfs_tmp"""
 
-arraysh_ua = (
-    PBS_STANZA
-    + """
+arraysh_ua = PBS_STANZA + """
 cd $PBS_O_WORKDIR
 DIR=`awk "NR==$PBS_ARRAY_INDEX" {2}`
 cd $DIR
 {3} --ignore_nfs_tmp > ../maker.$PBS_ARRAY_INDEX.out 2>&1
 """
-)
 
 
 def parallel(args):

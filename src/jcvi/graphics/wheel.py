@@ -4,6 +4,7 @@
 """
 Wheel plot that shows continuous data in radial axes.
 """
+
 from collections import OrderedDict
 from itertools import groupby
 from math import degrees

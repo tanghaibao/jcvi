@@ -4,6 +4,7 @@
 """
 Parse html pages.
 """
+
 import os.path as op
 import sys
 from urllib.parse import urljoin

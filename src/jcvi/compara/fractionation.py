@@ -4,6 +4,7 @@
 """
 Catalog gene losses, and bites within genes.
 """
+
 from itertools import groupby
 import sys
 

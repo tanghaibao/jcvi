@@ -4,6 +4,7 @@
 """
 Scripts for the pineapple genome paper.
 """
+
 import sys
 
 from ..annotation.ahrd import read_interpro

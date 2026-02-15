@@ -6,6 +6,7 @@ Wrapper for running series of EVM commands. There are two flavors of running
 EVM - TIGR only mode which communicates with the Sybase db; evm mode which
 communicates with GFF file.
 """
+
 from collections import defaultdict
 import os.path as op
 import sys

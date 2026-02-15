@@ -6,6 +6,7 @@ Implements the max sum segment algorithm, using Kadane's algorithm, see
 
 <http://en.wikipedia.org/wiki/Maximum_subarray_problem>
 """
+
 Infinity = 1e10000
 
 

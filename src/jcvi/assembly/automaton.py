@@ -4,6 +4,7 @@
 """
 Automate genome assembly by iterating assembly on a set of files, individually.
 """
+
 import os
 import os.path as op
 import sys

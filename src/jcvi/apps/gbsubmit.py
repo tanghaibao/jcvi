@@ -4,6 +4,7 @@
 """
 Prepare the data for Genbank submission
 """
+
 from collections import defaultdict
 from functools import lru_cache
 import os.path as op

@@ -4,6 +4,7 @@
 """
 SynFind analyses and visualization.
 """
+
 from collections import defaultdict
 from copy import deepcopy
 from itertools import groupby

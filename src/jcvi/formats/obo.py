@@ -10,7 +10,7 @@ Parses obo_file and plot GO lineage
 from collections import deque
 from functools import partial
 import sys
-from typing import IO, Optional
+from typing import IO, Optional, Tuple
 
 from goatools.obo_parser import GODag
 
@@ -22,7 +22,7 @@ SO_URL = (
 )
 
 
-def load_GODag(obo_url: str, prt: Optional[IO] = None) -> (GODag, str):
+def load_GODag(obo_url: str, prt: Optional[IO] = None) -> Tuple[GODag, str]:
     """
     Load given obo url and returns GODag object.
 

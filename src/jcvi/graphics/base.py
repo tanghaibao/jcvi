@@ -487,7 +487,7 @@ def asciiplot(x, y, digit=1, width=50, title=None, char="="):
     ay = np.array(y)
 
     if title:
-        print("[bold white]".format(title), file=sys.stderr)
+        print("[bold white]{}".format(title), file=sys.stderr)
 
     az = ay * width // ay.max()
     tx = [asciiaxis(x, digit=digit) for x in ax]

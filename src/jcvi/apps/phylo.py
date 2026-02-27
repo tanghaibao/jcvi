@@ -273,7 +273,7 @@ def smart_reroot(treefile, outgroupfile, outfile, format=0):
     try:
         tree.set_outgroup(tree.get_common_ancestor(*outgroup))
     except ValueError:
-        assert type(outgroup) == list
+        assert isinstance(outgroup, list)
         outgroup = outgroup[0]
         tree.set_outgroup(outgroup)
     tree.write(outfile=outfile, format=format)
@@ -479,7 +479,7 @@ def SH_raxml(reftree, querytree, phy_file, shout="SH_out.txt"):
     # hard coded
     try:
         pval = re.search("(Significantly.*:.*)", o).group(0)
-    except:
+    except Exception:
         print("SH test failed.", file=sys.stderr)
     else:
         pval = pval.strip().replace("\t", " ").replace("%", r"\%")
@@ -944,7 +944,7 @@ def build(args):
             outfile, phy_file = build_nj_phylip(
                 alignment, outfile=out_file, outgroup=outgroup, work_dir=treedir
             )
-        except:
+        except Exception:
             print("NJ tree cannot be built for {0}".format(dna_file))
 
         if opts.SH:
@@ -962,7 +962,7 @@ def build(args):
                 outfile, phy_file = build_ml_phyml(
                     alignment, outfile=out_file, work_dir=treedir
                 )
-            except:
+            except Exception:
                 print("ML tree cannot be built for {0}".format(dna_file))
 
         elif opts.ml == "raxml":
@@ -970,7 +970,7 @@ def build(args):
                 outfile, phy_file = build_ml_raxml(
                     alignment, outfile=out_file, work_dir=treedir
                 )
-            except:
+            except Exception:
                 print("ML tree cannot be built for {0}".format(dna_file))
 
         if outgroup:

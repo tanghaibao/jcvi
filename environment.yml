@@ -10,5 +10,10 @@ dependencies:
   - wand # Python bindings for ImageMagick
   - pip
   - pip:
-      - pytest
+      - black
       - hatch
+      - mock
+      - pytest
+      - pytest-benchmark
+      - pytest-cov
+      - PyYAML

@@ -678,7 +678,6 @@ def generate_groups(groupsfile):
     Args:
         groupsfile (str): Path to the groups file
     """
-    data = []
     with open(groupsfile) as fp:
         for row in fp:
             seqids, color = row.split()

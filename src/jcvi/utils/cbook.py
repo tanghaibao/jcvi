@@ -365,7 +365,7 @@ def seqid_parse(seqid, sep=["-"], stdpf=True):
 
     if sep is None:
         sep = [""]
-    elif type(sep) == str:
+    elif isinstance(sep, str):
         sep = [sep]
 
     prefix = seqid[:lastnumi]

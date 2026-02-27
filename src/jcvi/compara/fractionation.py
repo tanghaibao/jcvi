@@ -380,7 +380,7 @@ def gaps(args):
     not_in_gaps = popen(cmd).read()
     not_in_gaps = int(not_in_gaps)
     in_gaps = total - not_in_gaps
-    print("Ids in gaps: {1}".format(total, percentage(in_gaps, total)), file=sys.stderr)
+    print("Ids in gaps: {0}".format(percentage(in_gaps, total)), file=sys.stderr)
 
 
 def get_tags(idsfile):

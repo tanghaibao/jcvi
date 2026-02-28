@@ -455,7 +455,7 @@ def main(args: List[str]):
 
     seqidsfile, layoutfile = args
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
 
     Karyotype(

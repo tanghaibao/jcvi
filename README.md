@@ -122,9 +122,24 @@ The external programs that are often used are:
 - [BEDTOOLS](http://code.google.com/p/bedtools/)
 - [EMBOSS](http://emboss.sourceforge.net/)
 
+### Managing dependencies with uv
+
+You can use [uv](https://docs.astral.sh/uv/) to create and manage a project environment from `pyproject.toml` and `uv.lock`.
+
+```bash
+uv sync --extra tests
+```
+
+Run commands inside the managed environment with `uv run`, for example:
+
+```bash
+uv run jcvi --version
+uv run pytest
+```
+
 ### Managing dependencies with Conda
 
-You can use the the YAML files in this repo to create an environment with basic JCVI dependencies.
+You can use the YAML files in this repo to create an environment with basic JCVI dependencies.
 
 If you are new to Conda, we recommend the [Miniforge](https://conda-forge.org/download/) distribution.
 
@@ -140,19 +155,27 @@ After activating the Conda environment install JCVI using one of the following o
 
 ### Installation options
 
-1. Use pip to install the latest development version directly from this repo.
+1. Use uv to install dependencies and set up a local development environment.
+
+```bash
+git clone git://github.com/tanghaibao/jcvi.git && cd jcvi
+uv sync --extra tests
+pre-commit install
+```
+
+2. Use pip to install the latest development version directly from this repo.
 
 ```bash
 pip install git+https://github.com/tanghaibao/jcvi.git
 ```
 
-2. Install latest release from PyPi.
+3. Install latest release from PyPi.
 
 ```bash
 pip install jcvi
 ```
 
-3. Alternatively, if you want to install in development mode.
+4. Alternatively, if you want to install in development mode with pip.
 
 ```bash
 git clone git://github.com/tanghaibao/jcvi.git && cd jcvi

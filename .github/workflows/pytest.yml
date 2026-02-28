@@ -21,7 +21,9 @@ jobs:
       - name: Set up uv
         uses: astral-sh/setup-uv@v6
         with:
-          cache-dependency-glob: "uv.lock"
+          cache-dependency-glob: |
+            uv.lock
+            pyproject.toml
       - name: Install BEDTools (Linux)
         run: |
           sudo apt-get update

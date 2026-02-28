@@ -139,7 +139,7 @@ uv run pytest
 
 ### Managing dependencies with Conda
 
-You can use the the YAML files in this repo to create an environment with basic JCVI dependencies.
+You can use the YAML files in this repo to create an environment with basic JCVI dependencies.
 
 If you are new to Conda, we recommend the [Miniforge](https://conda-forge.org/download/) distribution.
 

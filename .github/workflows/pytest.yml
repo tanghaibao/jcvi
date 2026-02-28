@@ -11,7 +11,7 @@ jobs:
       max-parallel: 4
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.9", "3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12"]
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}
@@ -32,7 +32,11 @@ jobs:
         if: matrix.os == 'macos-latest'
       - name: Install dependencies
         run: |
-          uv sync --frozen --extra tests
+          if [ -f uv.lock ]; then
+            uv sync --frozen --extra tests
+          else
+            uv sync --extra tests
+          fi
       # Get pytest args from pyproject.toml
       - name: Test with pytest
         run: |

@@ -84,8 +84,18 @@ class Seed(object):
         self.x, self.y = int(round(x)), int(round(y))
         self.location = f"{self.x}|{self.y}"
         self.area = int(round(props.area))
-        self.length = int(round(props.major_axis_length))
-        self.width = int(round(props.minor_axis_length))
+        major_axis_length = (
+            props.axis_major_length
+            if hasattr(props, "axis_major_length")
+            else props.major_axis_length
+        )
+        minor_axis_length = (
+            props.axis_minor_length
+            if hasattr(props, "axis_minor_length")
+            else props.minor_axis_length
+        )
+        self.length = int(round(major_axis_length))
+        self.width = int(round(minor_axis_length))
         self.props = props
         self.efds = efds
         self.circularity = 4 * pi * props.area / props.perimeter**2
@@ -798,7 +808,16 @@ def seeds(args):
         efds = efd_feature(contour)
         y0, x0 = props.centroid
         orientation = props.orientation
-        major, minor = props.major_axis_length, props.minor_axis_length
+        major = (
+            props.axis_major_length
+            if hasattr(props, "axis_major_length")
+            else props.major_axis_length
+        )
+        minor = (
+            props.axis_minor_length
+            if hasattr(props, "axis_minor_length")
+            else props.minor_axis_length
+        )
         major_dx = sin(orientation) * major / 2
         major_dy = cos(orientation) * major / 2
         minor_dx = cos(orientation) * minor / 2

@@ -693,7 +693,7 @@ def main(args: List[str]):
     prune_features = not opts.noprune
 
     pf = datafile.rsplit(".", 1)[0]
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
     Synteny(
         fig,

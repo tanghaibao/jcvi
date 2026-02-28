@@ -220,7 +220,7 @@ def mosdepth(args):
     logscale = opts.logscale
 
     # Construct a composite figure with N tracks indicated in the groups
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
 
     rows = len(groups)
@@ -608,7 +608,7 @@ def depth(args):
 
     bedfiles = args
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
 
     npanels = len(bedfiles)
@@ -788,7 +788,7 @@ def composite(args):
     plt.rcParams["xtick.major.size"] = 0
     plt.rcParams["ytick.major.size"] = 0
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
     root = fig.add_axes((0, 0, 1, 1))
 
     root.text(0.5, 0.95, chr, ha="center", color="darkslategray")
@@ -1072,7 +1072,7 @@ def heatmap(args):
     stacks = opts.stacks.split(",")
     heatmaps = opts.heatmaps.split(",")
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
     root_extent = (0, 0, 1, 1)
     root = fig.add_axes(root_extent)
 
@@ -1301,7 +1301,7 @@ def stack(args):
 
     stacks = opts.stacks.split(",")
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
     root_extent = (0, 0, 1, 1)
     root = fig.add_axes(root_extent)
 

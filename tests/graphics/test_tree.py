@@ -41,9 +41,7 @@ def test_tree_parse_tree_function():
     from jcvi.graphics.tree import parse_tree
 
     newick = "(((A:0.1,B:0.2)90:0.3,(C:0.15,D:0.25)80:0.2)100:0.05,E:0.4);"
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".nwk", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".nwk", delete=False) as f:
         f.write(newick)
         fname = f.name
     try:

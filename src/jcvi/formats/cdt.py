@@ -45,7 +45,7 @@ class CDT(BaseFile):
 
     def get_gtr_tree(self):
 
-        from ete3 import Tree
+        from ete4 import Tree
 
         fp = open(self.gtrfile)
         reader = csv.reader(fp, delimiter="\t")
@@ -68,7 +68,7 @@ class CDT(BaseFile):
 
     def print_newick(self, nwk_file):
 
-        self.gtr_tree.write(format=5, outfile=nwk_file)
+        self.gtr_tree.write(outfile=nwk_file, parser=5)
         logger.debug("Newick tree written to `%s`", nwk_file)
 
     def iter_partitions(self, cutoff=0.3, gtr=True):

@@ -37,7 +37,7 @@ dependencies = [
     "CrossMap",
     "cython",
     "deap",
-    "ete3",
+    "ete4",
     "ftpretty",
     "genomepy",
     "gffutils",
@@ -125,7 +125,6 @@ addopts = "-v --cov=jcvi --cov-branch --cov-report=xml --cov-report=term"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
 filterwarnings = [
-    "ignore:invalid escape sequence.*:SyntaxWarning:ete3\\..*",
 ]
 
 [tool.isort]

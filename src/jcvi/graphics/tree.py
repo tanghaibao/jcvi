@@ -5,7 +5,7 @@ from collections import defaultdict
 from itertools import groupby
 import sys
 
-from ete3 import Tree
+from ete4 import Tree
 
 from ..apps.base import OptionParser, glob, logger
 from ..formats.base import LineFile
@@ -177,12 +177,20 @@ def draw_tree(
 
     if reroot:
         if outgroup:
-            R = t.get_common_ancestor(*outgroup)
+            R = t.common_ancestor(*outgroup)
         else:
             # Calculate the midpoint node
             R = t.get_midpoint_outgroup()
 
         if R is not t:
+            # ete4 requires consistent support at root before rerooting
+            root_children_support = [c.support for c in t.children]
+            if None in root_children_support and any(
+                s is not None for s in root_children_support
+            ):
+                for child in t.children:
+                    if child.support is None:
+                        child.support = 1.0
             t.set_outgroup(R)
 
         # By default, the distance to outgroup and non-outgroup is the same
@@ -192,7 +200,7 @@ def draw_tree(
             a, b = t.children
             # Avoid even split
             total = a.dist + b.dist
-            newR = t.get_common_ancestor(*outgroup)
+            newR = t.common_ancestor(*outgroup)
             a.dist = 0.9 * total
             b.dist = total - a.dist
 
@@ -210,7 +218,7 @@ def draw_tree(
     def rescale_divergence(divergence):
         return rescale(max_dist - divergence)
 
-    num_leaves = len(t.get_leaf_names())
+    num_leaves = len(list(t.leaf_names()))
     yinterval = (1 - ystart) / num_leaves
     ytop = ystart + (num_leaves - 0.5) * yinterval
 
@@ -228,10 +236,10 @@ def draw_tree(
     i = 0
     color_groups = []  # Used to plot groups to the right of the tree
     for n in t.traverse("postorder"):
-        dist = n.get_distance(t)
+        dist = t.get_distance(n, t)
         xx = rescale(dist)
 
-        if n.is_leaf():
+        if n.is_leaf:
             yy = ystart + i * yinterval
             i += 1
 
@@ -304,10 +312,10 @@ def draw_tree(
                     alpha=0.4,
                     lw=2,
                 )
-            support = n.support
+            support = n.support if n.support is not None else 0
             if support > 1:
                 support = support / 100.0
-            if not n.is_root() and supportcolor:
+            if not n.is_root and supportcolor:
                 if support > scutoff / 100.0:
                     ax.text(
                         xx,
@@ -535,7 +543,7 @@ def parse_tree(infile):
     if repl.hpd:
         print(repl.hpd, file=sys.stderr)
 
-    return (Tree(treedata, format=1), repl.hpd) if changed else (Tree(treedata), None)
+    return (Tree(treedata, parser=1), repl.hpd) if changed else (Tree(treedata), None)
 
 
 def main(args):

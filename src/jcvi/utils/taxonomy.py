@@ -35,7 +35,7 @@ from urllib.request import urlopen
 
 from BeautifulSoup import BeautifulSoup
 from ClientForm import ParseResponse
-from ete3 import Tree
+from ete4 import Tree
 
 from ..apps.base import ActionDispatcher, OptionParser, logger
 
@@ -85,7 +85,7 @@ class TaxIDTree(object):
         return self.newick
 
     def print_tree(self):
-        t = Tree(self.newick, format=8)
+        t = Tree(self.newick, parser=8)
         print(t)
 
 
@@ -122,9 +122,9 @@ def MRCA(list_of_taxids):
     """
 
     t = TaxIDTree(list_of_taxids)
-    t = Tree(str(t), format=8)
+    t = Tree(str(t), parser=8)
 
-    ancestor = t.get_common_ancestor(*t.get_leaves())
+    ancestor = t.common_ancestor(*list(t.leaves()))
 
     return ancestor.name
 

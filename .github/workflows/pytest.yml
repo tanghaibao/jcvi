@@ -11,7 +11,7 @@ jobs:
       max-parallel: 4
       matrix:
         os: [ubuntu-latest, macos-latest]
-        python-version: ["3.10", "3.11", "3.12"]
+        python-version: ["3.10", "3.11", "3.12", "3.13", "3.14"]
     steps:
       - uses: actions/checkout@v6
       - name: Set up Python ${{ matrix.python-version }}
@@ -48,7 +48,7 @@ jobs:
 # Only upload coverage for the latest Python version on Ubuntu
 #- name: Upload coverage reports to Codecov
 #  uses: codecov/codecov-action@v5
-#  if: matrix.python-version == '3.12' && matrix.os == 'ubuntu-latest'
+#  if: matrix.python-version == '3.14' && matrix.os == 'ubuntu-latest'
 #  with:
 #    token: ${{ secrets.CODECOV_TOKEN }}
 #    slug: tanghaibao/jcvi

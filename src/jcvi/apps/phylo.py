@@ -41,7 +41,7 @@ from Bio.Emboss.Applications import (
     FSeqBootCommandline,
 )
 from Bio.Phylo.Applications import PhymlCommandline, RaxmlCommandline
-from ete3 import Tree
+from ete4 import Tree
 import numpy as np
 
 from ..compara.ks import (
@@ -252,8 +252,8 @@ def smart_reroot(treefile, outgroupfile, outfile, format=0):
     Tree reading format options see here:
     http://packages.python.org/ete2/tutorial/tutorial_trees.html#reading-newick-trees
     """
-    tree = Tree(treefile, format=format)
-    leaves = [t.name for t in tree.get_leaves()][::-1]
+    tree = Tree(treefile, parser=format)
+    leaves = [t.name for t in list(tree.leaves())][::-1]
     outgroup = []
     for o in must_open(outgroupfile):
         o = o.strip()
@@ -271,12 +271,12 @@ def smart_reroot(treefile, outgroupfile, outfile, format=0):
         return treefile
 
     try:
-        tree.set_outgroup(tree.get_common_ancestor(*outgroup))
+        tree.set_outgroup(tree.common_ancestor(*outgroup))
     except ValueError:
         assert type(outgroup) == list
         outgroup = outgroup[0]
         tree.set_outgroup(outgroup)
-    tree.write(outfile=outfile, format=format)
+    tree.write(outfile=outfile, parser=format)
 
     logger.debug("Rerooted tree printed to {0}".format(outfile))
     return outfile
@@ -374,9 +374,9 @@ def build_nj_phylip(alignment, outfile, outgroup, work_dir="."):
             nodesupport[node_children] = node.dist / 100.0
 
     for k, v in nodesupport.items():
-        ct_b.get_common_ancestor(*k).support = v
+        ct_b.common_ancestor(*k).support = v
     print(ct_b)
-    ct_b.write(format=0, outfile=outfile)
+    ct_b.write(outfile=outfile, parser=0)
 
     try:
         s = op.getsize(outfile)

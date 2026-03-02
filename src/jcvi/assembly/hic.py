@@ -1007,42 +1007,50 @@ def bam2mat(args):
     # Check all reads, rules borrowed from LACHESIS
     # https://github.com/shendurelab/LACHESIS/blob/master/src/GenomeLinkMatrix.cc#L1476
     j = k = 0
-    for c in bamfile:
-        j += 1
-        if j % 100000 == 0:
-            print("{} reads counted".format(j), file=sys.stderr)
+    try:
+        for c in bamfile:
+            j += 1
+            if j % 100000 == 0:
+                print("{} reads counted".format(j), file=sys.stderr)
 
-        if c.is_qcfail and c.is_duplicate:
-            continue
-        if c.is_secondary and c.is_supplementary:
-            continue
-        if c.mapping_quality == 0:
-            continue
-        if not c.is_paired:
-            continue
-        if c.is_read2:  # Take only one read
-            continue
-
-        # pysam v0.8.3 does not support keyword reference_name
-        achr = bamfile.getrname(c.reference_id)
-        apos = c.reference_start
-        bchr = bamfile.getrname(c.next_reference_id)
-        bpos = c.next_reference_start
-        if achr not in seqstarts or bchr not in seqstarts:
-            continue
-        if achr == bchr:
-            dist = abs(apos - bpos)
-            if dist < minsize:
+            if c.is_qcfail and c.is_duplicate:
                 continue
-            db = distbin_number(dist)
-            B[db] += 1
+            if c.is_secondary and c.is_supplementary:
+                continue
+            if c.mapping_quality == 0:
+                continue
+            if not c.is_paired:
+                continue
+            if c.is_read2:  # Take only one read
+                continue
 
-        abin, bbin = bin_number(achr, apos), bin_number(bchr, bpos)
-        A[abin, bbin] += 1
-        if abin != bbin:
-            A[bbin, abin] += 1
+            # pysam v0.8.3 does not support keyword reference_name
+            achr = bamfile.getrname(c.reference_id)
+            apos = c.reference_start
+            bchr = bamfile.getrname(c.next_reference_id)
+            bpos = c.next_reference_start
+            if achr not in seqstarts or bchr not in seqstarts:
+                continue
+            if achr == bchr:
+                dist = abs(apos - bpos)
+                if dist < minsize:
+                    continue
+                db = distbin_number(dist)
+                B[db] += 1
 
-        k += 1
+            abin, bbin = bin_number(achr, apos), bin_number(bchr, bpos)
+            A[abin, bbin] += 1
+            if abin != bbin:
+                A[bbin, abin] += 1
+
+            k += 1
+    except ValueError as e:
+        # pysam >= 0.23.1 raises ValueError("Firing event 10 with no exception set")
+        # at iterator exhaustion on Python 3.13 when pytest-cov is active.
+        # All records have been processed at this point, so we only re-raise
+        # unexpected errors. See: https://github.com/pysam-developers/pysam/issues/1350
+        if "Firing event 10 with no exception set" not in str(e):
+            raise
 
     logger.debug("Total reads counted: %s", percentage(2 * k, j))
     bamfile.close()

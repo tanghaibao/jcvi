@@ -99,6 +99,9 @@ class Layout(AbstractLayout):
         fp = open(filename, encoding="utf-8")
         self.edges = []
         for row in fp:
+            row = row.strip()
+            if not row:
+                continue
             if row[0] == "#":
                 continue
             if row[0] == "e":

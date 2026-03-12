@@ -74,3 +74,5 @@ src/jcvi/version.py
 # Test output files
 tests/**/*.synfind
 tests/**/*.lifted.anchors
+tests/**/*.pdf
+tests/**/grape_peach.bed

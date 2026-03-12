@@ -1463,6 +1463,15 @@ def path(args):
     )
     mapnames = cc.mapnames
     allseqids = cc.seqids
+    sizes = Sizes(fastafile).mapping
+    missing_from_fasta = [s for s in allseqids if s not in sizes]
+    if missing_from_fasta:
+        logger.warning(
+            "%d scaffold(s) in BED file not found in FASTA and will be skipped: %s",
+            len(missing_from_fasta),
+            ", ".join(sorted(missing_from_fasta)),
+        )
+        allseqids = [s for s in allseqids if s in sizes]
     weights = Weights(weightsfile, mapnames)
     pivot = weights.pivot
     ref = weights.ref
@@ -1535,7 +1544,6 @@ def path(args):
     # Perform OO within each partition
     agpfile = pf + ".chr.agp"
     tourfile = pf + ".tour"
-    sizes = Sizes(fastafile).mapping
     fwagp = must_open(agpfile, "w")
     fwtour = must_open(tourfile, "w")
     solutions = []

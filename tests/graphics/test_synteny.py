@@ -3,11 +3,13 @@
 
 import os
 import os.path as op
+import tempfile
+
 import pytest
 
 from jcvi.apps.base import cleanup
 from jcvi.formats.bed import merge
-from jcvi.graphics.synteny import LayoutLine, main as synteny_main
+from jcvi.graphics.synteny import Layout, LayoutLine, main as synteny_main
 from jcvi.utils.validator import ValidationError
 
 
@@ -57,3 +59,22 @@ def test_main():
     image_name = synteny_main(["blocks", "grape_peach.bed", "blocks.layout"])
     assert op.exists(image_name)
     os.chdir(cwd)
+
+
+def test_layout_with_blank_lines():
+    """Test that Layout handles blank lines in the layout file gracefully."""
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".layout", delete=False) as f:
+        f.write("# x,y,rotation,ha,va,color\n")
+        f.write("\n")
+        f.write("0.5, 0.6, 0, left, center, m\n")
+        f.write("\n")
+        f.write("0.5, 0.4, 0, left, center, k\n")
+        tmpfile = f.name
+
+    try:
+        layout = Layout(tmpfile)
+        assert len(layout) == 2
+        assert layout[0].color == "m"
+        assert layout[1].color == "k"
+    finally:
+        os.unlink(tmpfile)

@@ -132,7 +132,7 @@ class AbstractLayout(LineFile):
     def assign_array(self, attrib, array):
         assert len(array) == len(self)
         for x, c in zip(self, array):
-            if not getattr(x, attrib):
+            if not getattr(x, attrib, None):
                 setattr(x, attrib, c)
 
     def assign_colors(self, seed: Optional[int] = None):

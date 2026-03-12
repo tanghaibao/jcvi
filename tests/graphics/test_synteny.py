@@ -63,9 +63,7 @@ def test_main():
 
 def test_layout_with_blank_lines():
     """Test that Layout handles blank lines in the layout file gracefully."""
-    with tempfile.NamedTemporaryFile(
-        mode="w", suffix=".layout", delete=False
-    ) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".layout", delete=False) as f:
         f.write("# x,y,rotation,ha,va,color\n")
         f.write("\n")
         f.write("0.5, 0.6, 0, left, center, m\n")

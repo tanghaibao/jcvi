@@ -369,6 +369,14 @@ class Karyotype(object):
         # https://github.com/tanghaibao/jcvi/issues/676
         for i, row in enumerate(_ for _ in fp if not _.startswith("#") and _.strip()):
             logger.info("Processing `%s` (track %d)", row.strip(), i)
+            if i >= len(layout):
+                logger.error(
+                    "Number of rows in seqids (%d) exceeds number of tracks in layout (%d). "
+                    "Please check your seqids and layout files.",
+                    i + 1,
+                    len(layout),
+                )
+                break
             t = layout[i]
             # There can be comments in seqids file:
             # https://github.com/tanghaibao/jcvi/issues/335

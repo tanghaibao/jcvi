@@ -42,4 +42,10 @@ def test_main():
     image_name = karyotype_main(
         ["seqids_with_empty_lines", "layout", "-o", "karyotype_with_empty_lines.pdf"]
     )
+    assert op.exists(image_name)
+    cleanup("karyotype_mismatch.pdf")
+    image_name = karyotype_main(
+        ["seqids_mismatch", "layout", "-o", "karyotype_mismatch.pdf"]
+    )
+    assert op.exists(image_name)
     os.chdir(cwd)

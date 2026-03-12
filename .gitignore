@@ -1,6 +1,9 @@
 # Mac stuff
 .DS_Store
 
+# Test output artifacts
+tests/graphics/data/*.pdf
+
 # Development
 dev/
 

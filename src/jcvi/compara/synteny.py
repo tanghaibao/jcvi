@@ -28,7 +28,20 @@ class BlockFile(BaseFile):
         super().__init__(filename)
         fp = must_open(filename)
         hd = next(fp).rstrip().split("\t")
+        # Set the col number based on the header
         ncols = len(hd)
+
+        # Report the number of columns in the header
+
+        logger.info("Blocks file `{}` has {} columns.".format(filename, ncols))
+
+        if ncols < 2:
+            logger.warning(
+                "File `{}` has only {} columns, expected at least 2.".format(
+                    filename, ncols
+                )
+            )
+
         if header:
             self.header = hd
         else:
@@ -42,7 +55,9 @@ class BlockFile(BaseFile):
 
         data = []
         highlight = []
+        row_count = 0
         for row in fp:
+            row_count += 1
             if row[0] == "#":
                 # Check if this is a hex color code when allow_hex is True
                 if allow_hex and hex_pattern.match(row):
@@ -62,13 +77,49 @@ class BlockFile(BaseFile):
             else:
                 hl = False
 
+            # Remove trailing newline and split by tab
             atoms = row.rstrip().split("\t")
+            # Strip whitespace from each atom
             atoms = [x.strip() for x in atoms]
+            # Replace empty strings with "."
             atoms = ["." if x == "" else x for x in atoms]
+
+            # Check atoms for spaces
+            if any(" " in x for x in atoms):
+                logger.error(
+                    "Spaces found in row `{}` of blocks file. Columns must be tab delimited.\n{}".format(
+                        row_count, row.strip()
+                    )
+                )
+                exit(1)
+
+            # Warning for empty lines
+            if not atoms or all(x == "." for x in atoms):
+                logger.warning(
+                    "Empty line or all columns are empty in row `{}` of blocks file.".format(
+                        row_count
+                    )
+                )
+                continue
+
+            # Truncate or pad the atoms to match ncols
             if len(atoms) > ncols:
+                logger.warning(
+                    "Row length exceeds expected columns in blocks file, truncating to {} at line {}:\n {}".format(
+                        ncols, row_count, row.strip()
+                    )
+                )
+                # Truncate to ncols
                 atoms = atoms[:ncols]
             elif len(atoms) < ncols:
+                logger.warning(
+                    "Row length less than expected columns in file `{}`, padding to {} cols at line {}:\n{}".format(
+                        filename, ncols, row_count, row.strip()
+                    )
+                )
+                # Pad with "." to match ncols
                 atoms = atoms + ["."] * (ncols - len(atoms))
+
             data.append(atoms)
             highlight.append(hl)
 
@@ -524,7 +575,6 @@ def add_arguments(p, args, dist=10):
 
 
 def main():
-
     actions = (
         ("scan", "get anchor list using single-linkage algorithm"),
         ("summary", "provide statistics for pairwise blocks"),
@@ -629,7 +679,8 @@ def query(args):
         regions.append(get_region_size(matching_region, sbed, sorder))
 
     for min_accn, max_accn, seqid, span, anchor_count in sorted(
-        regions, key=lambda x: (-x[-1], -x[-2])  # Sort by (anchor_count, span) DESC
+        regions,
+        key=lambda x: (-x[-1], -x[-2]),  # Sort by (anchor_count, span) DESC
     ):
         print(
             "{} {} ({}): span {}, anchors {}".format(
@@ -1122,7 +1173,6 @@ def matrix(args):
 
 
 def get_boundary_bases(start, end, order):
-
     from jcvi.utils.range import range_minmax
 
     (i, s), (j, e) = order[start], order[end]
@@ -1228,7 +1278,6 @@ def simple(args):
         block_id = pf + "-block-{0}".format(i)
 
         if coords:
-
             aseqid, astartbase, aendbase = get_boundary_bases(astart, aend, qorder)
             bseqid, bstartbase, bendbase = get_boundary_bases(bstart, bend, sorder)
             abase = aendbase - astartbase + 1

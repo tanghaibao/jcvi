@@ -440,6 +440,8 @@ class Synteny(object):
         vpad: float = 0.015,
         scalebar: bool = False,
         shadestyle: str = "curve",
+        shadecolor: Optional[str] = None,
+        shadelw: float = 1,
         glyphstyle: str = "arrow",
         glyphcolor: str = "orientation",
         seed: Optional[int] = None,
@@ -518,7 +520,14 @@ class Synteny(object):
             for ga, gb, h in bf.iter_pairs(i, j):
                 a, b = gg[(i, ga)], gg[(j, gb)]
                 Shade(
-                    root, a, b, ymid_pad, fc=blockcolor, lw=0, alpha=1, style=shadestyle
+                    root,
+                    a,
+                    b,
+                    ymid_pad,
+                    fc=blockcolor or shadecolor,
+                    lw=shadelw,
+                    alpha=1,
+                    style=shadestyle,
                 )
 
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
@@ -671,6 +680,18 @@ def main(args: List[str]):
         help="Style of syntenic wedges",
     )
     p.add_argument(
+        "--shadecolor",
+        default=None,
+        help="Default color of syntenic wedges (when not specified in layout file). "
+        "Accepts any matplotlib color string, e.g. 'gainsboro', 'steelblue', '#aabbcc'.",
+    )
+    p.add_argument(
+        "--shadelw",
+        default=1,
+        type=float,
+        help="Line width of syntenic wedge outlines [Default: 1]",
+    )
+    p.add_argument(
         "--outputprefix",
         default="",
         help="Prefix for the output file",
@@ -709,6 +730,8 @@ def main(args: List[str]):
         genelabelrotation=opts.genelabelrotation,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,
+        shadecolor=opts.shadecolor,
+        shadelw=opts.shadelw,
         glyphstyle=opts.glyphstyle,
         glyphcolor=opts.glyphcolor,
         seed=iopts.seed,

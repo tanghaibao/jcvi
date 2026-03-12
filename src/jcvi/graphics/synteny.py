@@ -174,14 +174,38 @@ class Shade(object):
         if ax1 is None or ax2 is None or bx1 is None or bx2 is None:
             return
         if min_size > 0:
-            ax_mid = (ax1 + ax2) / 2
-            if abs(ax2 - ax1) < min_size:
-                ax1, ax2 = ax_mid - min_size / 2, ax_mid + min_size / 2
+            # Enforce minimum segment length in axes space by expanding
+            # along the segment direction, so endpoints stay on the track.
+            # Handle end A
+            adx = ax2 - ax1
+            ady = ay2 - ay1
+            alen = np.hypot(adx, ady)
+            if 0 < alen < min_size:
+                ahalf = min_size / 2.0
+                ax_mid = (ax1 + ax2) / 2.0
+                ay_mid = (ay1 + ay2) / 2.0
+                aux = adx / alen
+                auy = ady / alen
+                ax1 = ax_mid - aux * ahalf
+                ay1 = ay_mid - auy * ahalf
+                ax2 = ax_mid + aux * ahalf
+                ay2 = ay_mid + auy * ahalf
                 a1 = (ax1, ay1)
                 a2 = (ax2, ay2)
-            bx_mid = (bx1 + bx2) / 2
-            if abs(bx2 - bx1) < min_size:
-                bx1, bx2 = bx_mid - min_size / 2, bx_mid + min_size / 2
+            # Handle end B
+            bdx = bx2 - bx1
+            bdy = by2 - by1
+            blen = np.hypot(bdx, bdy)
+            if 0 < blen < min_size:
+                bhalf = min_size / 2.0
+                bx_mid = (bx1 + bx2) / 2.0
+                by_mid = (by1 + by2) / 2.0
+                bux = bdx / blen
+                buy = bdy / blen
+                bx1 = bx_mid - bux * bhalf
+                by1 = by_mid - buy * bhalf
+                bx2 = bx_mid + bux * bhalf
+                by2 = by_mid + buy * bhalf
                 b1 = (bx1, by1)
                 b2 = (bx2, by2)
         M, C4, L, CP = Path.MOVETO, Path.CURVE4, Path.LINETO, Path.CLOSEPOLY
@@ -546,6 +570,8 @@ class Synteny(object):
                 )
 
             for ga, gb, h in bf.iter_pairs(i, j, highlight=True):
+                if h == "hide":
+                    continue
                 a, b = gg[(i, ga)], gg[(j, gb)]
                 Shade(
                     root,

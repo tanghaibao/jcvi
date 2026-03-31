@@ -26,6 +26,7 @@ def blastz_score_to_ncbi_expectation(bz_score):
     log_prob = -bits * 0.693147181
     return 3.0e9 * exp(log_prob)
 
+
 FLANK = 60
 
 

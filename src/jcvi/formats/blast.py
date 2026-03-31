@@ -8,7 +8,15 @@ from math import exp
 import os.path as op
 import sys
 
-from ..apps.base import ActionDispatcher, OptionParser, get_abs_path, logger, need_update, popen, sh
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    get_abs_path,
+    logger,
+    need_update,
+    popen,
+    sh,
+)
 from ..assembly.base import calculate_A50
 from ..compara.base import AnchorFile
 from ..utils.cbook import percentage

@@ -19,7 +19,9 @@ from more_itertools import grouper, pairwise
 
 from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, need_update
 from ..utils.cbook import percentage
-from ..utils.console import printf
+from rich.console import Console
+
+printf = Console().print
 from ..utils.table import write_csv
 from .base import BaseFile, DictFile, must_open
 from .bed import Bed

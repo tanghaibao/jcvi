@@ -7,7 +7,6 @@ Scripts for the pineapple genome paper.
 
 import sys
 
-from ..annotation.ahrd import read_interpro
 from ..apps.base import ActionDispatcher, OptionParser, logger
 from ..formats.base import DictFile, LineFile, SetFile, get_number, must_open
 from ..formats.bed import Bed
@@ -17,6 +16,35 @@ from ..graphics.chromosome import Chromosome
 from ..graphics.glyph import TextCircle
 from ..graphics.karyotype import Karyotype
 from ..graphics.synteny import Synteny, draw_gene_legend
+
+
+def read_interpro(ipr):
+    store = {}
+    fp = open(ipr)
+    for row in fp:
+        (
+            accession,
+            md5,
+            seqlen,
+            analysis,
+            signature,
+            signature_description,
+            start,
+            stop,
+            score,
+            status,
+            date,
+            interpro,
+            interpro_description,
+            GO,
+            pathway,
+        ) = row.split("\t")
+        accession = accession.split(".")[0]
+        interpro_description = interpro_description.replace('"', "")
+        pathway = pathway.strip()
+        if accession not in ipr:
+            store[accession] = (interpro, interpro_description, GO, pathway)
+    return store
 
 
 class RegionsLine(object):

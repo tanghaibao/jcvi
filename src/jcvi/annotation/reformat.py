@@ -10,6 +10,7 @@ Similar to the utilities in DAWGPAWS.
 
 from collections import defaultdict
 from itertools import groupby, product
+import multiprocessing as mp
 import os
 import re
 import sys
@@ -1040,6 +1041,80 @@ def parse_prefix(identifier):
     return pf, id
 
 
+class NeedleHeader(object):
+    def __init__(self, filename):
+        fp = must_open(filename)
+        for row in fp:
+            if row[0] != "#":
+                continue
+            if row.startswith("# Identity"):
+                self.identity = row.split(":")[-1].strip()
+            if row.startswith("# Score"):
+                self.score = row.split(":")[-1].strip()
+
+
+def _needle(fa, fb, needlefile, a, b, results):
+    from Bio.Emboss.Applications import NeedleCommandline
+
+    needle_cline = NeedleCommandline(
+        asequence=fa, bsequence=fb, gapopen=10, gapextend=0.5, outfile=needlefile
+    )
+    _, _ = needle_cline()
+    nh = NeedleHeader(needlefile)
+    cleanup(fa, fb, needlefile)
+    r = ["\t".join((a, b, nh.identity, nh.score))]
+    results.extend(r)
+
+
+def needle(args):
+    """
+    %prog needle nw.pairs a.pep.fasta b.pep.fasta
+
+    Take protein pairs and needle them
+    Automatically writes output file `nw.scores`
+    """
+    from jcvi.formats.fasta import Fasta, SeqIO
+
+    p = OptionParser(needle.__doc__)
+    opts, args = p.parse_args(args)
+
+    if len(args) != 3:
+        sys.exit(not p.print_help())
+
+    manager = mp.Manager()
+    results = manager.list()
+    needle_pool = mp.Pool(processes=mp.cpu_count())
+
+    pairsfile, apep, bpep = args
+    afasta, bfasta = Fasta(apep), Fasta(bpep)
+    fp = must_open(pairsfile)
+    for i, row in enumerate(fp):
+        a, b = row.split()
+        a, b = afasta[a], bfasta[b]
+        fa, fb = must_open("{0}_{1}_a.fasta".format(pairsfile, i), "w"), must_open(
+            "{0}_{1}_b.fasta".format(pairsfile, i), "w"
+        )
+        SeqIO.write([a], fa, "fasta")
+        SeqIO.write([b], fb, "fasta")
+        fa.close()
+        fb.close()
+
+        needlefile = "{0}_{1}_ab.needle".format(pairsfile, i)
+        needle_pool.apply_async(
+            _needle, (fa.name, fb.name, needlefile, a.id, b.id, results)
+        )
+
+    needle_pool.close()
+    needle_pool.join()
+    fp.close()
+
+    scoresfile = "{0}.scores".format(pairsfile.rsplit(".")[0])
+    fw = must_open(scoresfile, "w")
+    for result in results:
+        print(result, file=fw)
+    fw.close()
+
+
 def reindex(args):
     """
     %prog reindex gffile pep.fasta ref.pep.fasta
@@ -1065,7 +1140,6 @@ def reindex(args):
     """
     from tempfile import mkstemp
 
-    from jcvi.apps.emboss import needle
     from jcvi.formats.fasta import Fasta
     from jcvi.formats.gff import make_index
 

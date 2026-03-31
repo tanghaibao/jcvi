@@ -17,7 +17,7 @@ import sys
 
 from ..apps.base import OptionParser, logger
 from ..formats.blast import BlastLine
-from ..formats.coords import CoordsLine
+from ..formats.blast import CoordsLine
 from ..utils.range import Range, range_chain
 
 

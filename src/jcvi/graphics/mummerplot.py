@@ -11,7 +11,7 @@ import sys
 
 from ..apps.base import OptionParser, logger, sh
 from ..formats.base import SetFile
-from ..formats.coords import Coords, filter
+from ..formats.blast import Coords, coords_filter
 from ..formats.sizes import Sizes
 
 
@@ -75,7 +75,7 @@ def main(args):
     refcov = opts.refcov
     pctid = opts.pctid
     hitlen = opts.hitlen
-    deltafile = filter(
+    deltafile = coords_filter(
         [deltafile, "--pctid={0}".format(pctid), "--hitlen={0}".format(hitlen)]
     )
 

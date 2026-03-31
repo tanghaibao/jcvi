@@ -13,6 +13,9 @@ segments according to the matching patterns. Finally the putative ancestral
 regions (PAR) are identified and visualized.
 """
 
+from collections import namedtuple
+import csv
+from itertools import groupby
 from math import log
 import os.path as op
 import sys
@@ -21,10 +24,67 @@ from more_itertools import pairwise
 import numpy as np
 
 from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
+from ..formats.base import BaseFile
 from ..formats.bed import Bed
 from ..formats.blast import BlastLine
 from .base import AnchorFile
 from .synteny import check_beds
+
+GTRLine = namedtuple("GTRLine", "parent left_child right_child dist")
+
+
+class CDT(BaseFile):
+    def __init__(self, filename):
+        super().__init__(filename)
+
+        pf = filename.rsplit(".", 1)[0]
+        self.gtrfile = pf + ".gtr"
+        self.atrfile = pf + ".atr"
+        self.get_names()
+
+    def get_names(self):
+        cdt_file = self.filename
+        reader = csv.reader(open(cdt_file), delimiter="\t")
+
+        gid = next(reader)
+        assert gid[0] == "GID"
+        aid = next(reader)
+        if aid[0] == "AID":
+            eweight = next(reader)
+        else:
+            eweight = aid
+        assert eweight[0] == "EWEIGHT"
+
+        self.gnames = [x[:2] for x in reader]
+        self.anames = list(zip(aid, gid))[4:]
+
+    def iter_partitions(self, cutoff=0.3, gtr=True):
+        from jcvi.utils.grouper import Grouper
+
+        if gtr:
+            names = self.gnames
+            fp = open(self.gtrfile)
+        else:
+            names = self.anames
+            fp = open(self.atrfile)
+
+        reader = csv.reader(fp, delimiter="\t")
+        grouper = Grouper()
+        for g in map(GTRLine._make, reader):
+            d = float(g.dist)
+            if d < cutoff:
+                continue
+
+            grouper.join(g.parent, g.left_child, g.right_child)
+
+        parents = {}
+        for i, group in enumerate(grouper):
+            for g in group:
+                parents[g] = i
+
+        partitions = [[parents.get(a, x), x] for a, x in names]
+        for key, parts in groupby(partitions, key=lambda x: x[0]):
+            yield list(x[1] for x in parts)
 
 
 def main():
@@ -102,8 +162,6 @@ def pad(args):
 
     Test and reconstruct candidate PADs.
     """
-    from jcvi.formats.cdt import CDT
-
     p = OptionParser(pad.__doc__)
     p.set_beds()
     p.add_argument(

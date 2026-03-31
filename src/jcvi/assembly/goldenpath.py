@@ -30,7 +30,7 @@ from ..apps.grid import WriteJobs
 from ..formats.agp import AGP, TPF, build, get_phase, reindex, tidy
 from ..formats.base import BaseFile, must_open
 from ..formats.blast import BlastLine, BlastSlow
-from ..formats.coords import Overlap_types
+from ..formats.blast import Overlap_types
 from ..formats.fasta import Fasta, SeqIO
 
 GoodPct = 98

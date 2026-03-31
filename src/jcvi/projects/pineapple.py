@@ -42,8 +42,7 @@ def read_interpro(ipr):
         accession = accession.split(".")[0]
         interpro_description = interpro_description.replace('"', "")
         pathway = pathway.strip()
-        if accession not in ipr:
-            store[accession] = (interpro, interpro_description, GO, pathway)
+        store[accession] = (interpro, interpro_description, GO, pathway)
     return store
 
 

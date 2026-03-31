@@ -451,7 +451,7 @@ def coords_fromdelta(args):
     from ..apps.base import OptionParser
 
     p = OptionParser(coords_fromdelta.__doc__)
-    p.parse_args(args)
+    opts, args = p.parse_args(args)
 
     if len(args) != 1:
         sys.exit(not p.print_help())

@@ -26,8 +26,7 @@ from ..apps.base import (
     need_update,
     sh,
 )
-from ..formats.base import must_open
-from ..formats.contig import ContigFile
+from ..formats.base import must_open, read_block
 from ..formats.fasta import (
     Fasta,
     Seq,
@@ -41,6 +40,55 @@ from ..formats.fasta import (
 from ..formats.sizes import Sizes
 from ..utils.cbook import depends
 from .base import n50
+
+
+class ReadLine(object):
+    def __init__(self, row, contig):
+        assert row[0] == "#"
+        self.id = row.strip("#").split("(")[0]
+        coords = row.split("<")[1].split(">")[0]
+        start, end = coords.split()
+        self.contig = contig
+        self.start = int(start)
+        self.end = int(end)
+        if self.start > self.end:
+            self.start, self.end = self.end, self.start
+        self.orientation = "-" if "[RC]" in row else "+"
+
+    def __str__(self):
+        return self.id
+
+    __repr__ = __str__
+
+
+class ContigLine(object):
+    def __init__(self, row):
+        assert row[:2] == "##"
+        self.id = row.strip("#").split()[0]
+        self.reads = []
+
+    def __str__(self):
+        return ":".join((self.id, str(self.reads)))
+
+    __repr__ = __str__
+
+
+class ContigFile(object):
+    def __init__(self, filename):
+        self.filename = filename
+        self.fp = open(filename)
+
+    def iter_records(self):
+        c = None
+        for a, b in read_block(self.fp, "#"):
+            if a[:2] == "##":
+                if c:
+                    yield c
+                c = ContigLine(a)
+            else:
+                c.reads.append(ReadLine(a, c.id))
+        if c:  # last one
+            yield c
 
 
 def main():

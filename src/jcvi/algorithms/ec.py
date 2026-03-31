@@ -15,7 +15,9 @@ from deap import base, creator, tools
 from deap.algorithms import varAnd
 
 from ..apps.base import logger
-from ..utils.console import printf
+from rich.console import Console
+
+printf = Console().print
 from .lis import longest_monotonic_subseq_length
 
 # This has to be in global space, otherwise runs into error "creator.Individual

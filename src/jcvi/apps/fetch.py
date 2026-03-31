@@ -17,7 +17,10 @@ from ..formats.base import must_open
 from ..formats.fasta import print_first_difference
 from ..formats.fastq import fromsra
 from ..utils.cbook import tile
-from ..utils.console import printf
+from rich.console import Console
+
+console = Console()
+
 from .base import (
     ActionDispatcher,
     OptionParser,
@@ -181,8 +184,6 @@ def download_species_ensembl(species, valid_species, url):
 
 
 def get_cookies(cookies=PHYTOZOME_COOKIES):
-    from jcvi.utils.console import console
-
     # Check if cookies is still good
     if op.exists(cookies) and last_updated(cookies) < 3600:
         return cookies
@@ -516,8 +517,8 @@ def bisect(args):
             break
 
     if valid:
-        printf()
-        printf("[green]{} matches the sequence in `{}`".format(valid, fastafile))
+        console.print()
+        console.print("[green]{} matches the sequence in `{}`".format(valid, fastafile))
 
 
 def entrez(args):
@@ -653,7 +654,7 @@ def entrez(args):
         seen.add(id)
 
     if seen:
-        printf(
+        console.print(
             "A total of {0} {1} records downloaded.".format(totalsize, fmt.upper()),
         )
 

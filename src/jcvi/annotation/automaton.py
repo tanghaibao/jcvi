@@ -218,7 +218,7 @@ def tophat(args):
 
     Run tophat on a folder of reads.
     """
-    from jcvi.apps.bowtie import check_index
+    from jcvi.apps.align import check_index
     from jcvi.formats.fastq import guessoffset
 
     p = OptionParser(tophat.__doc__)

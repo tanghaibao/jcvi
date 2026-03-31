@@ -179,7 +179,7 @@ def expand(args):
 
     from jcvi.apps.align import blast
     from jcvi.apps.base import cleanup
-    from jcvi.apps.bowtie import align, get_samfile
+    from jcvi.apps.align import align, get_samfile
     from jcvi.formats.blast import Blast
     from jcvi.formats.fasta import Fasta, SeqIO
     from jcvi.formats.fastq import fasta, first, readlen
@@ -266,7 +266,7 @@ def contamination(args):
     1. Ecoli.fsata - this will tell us the lower bound of contamination
     2. genome.fasta - this will tell us the upper bound of contamination
     """
-    from jcvi.apps.bowtie import BowtieLogFile, align
+    from jcvi.apps.align import BowtieLogFile, align
 
     p = OptionParser(contamination.__doc__)
     p.set_firstN()

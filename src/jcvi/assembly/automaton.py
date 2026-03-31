@@ -142,7 +142,7 @@ def contamination(args):
     Remove contaminated reads. The FASTQ files in the folder will automatically
     pair and filtered against Ecoli.fasta to remove contaminants using BOWTIE2.
     """
-    from jcvi.apps.bowtie import align
+    from jcvi.apps.align import align
 
     p = OptionParser(contamination.__doc__)
     p.add_argument(
@@ -193,7 +193,7 @@ def pairs(args):
     from jcvi.formats.sam import pairs as ps
 
     if aligner == "bowtie":
-        from jcvi.apps.bowtie import align
+        from jcvi.apps.align import align
     elif aligner == "bwa":
         from jcvi.apps.bwa import align
 

@@ -8,6 +8,7 @@ MAF format specification:
 
 from bisect import bisect
 from dataclasses import dataclass
+from math import exp
 import sys
 
 from Bio import AlignIO, SeqIO
@@ -15,8 +16,16 @@ from bx import interval_index_file
 from bx.align import maf
 
 from ..apps.base import ActionDispatcher, OptionParser, need_update
-from ..apps.lastz import blastz_score_to_ncbi_bits, blastz_score_to_ncbi_expectation
 from .base import BaseFile, logger
+
+blastz_score_to_ncbi_bits = lambda bz_score: bz_score * 0.0205
+
+
+def blastz_score_to_ncbi_expectation(bz_score):
+    bits = blastz_score_to_ncbi_bits(bz_score)
+    log_prob = -bits * 0.693147181
+    return 3.0e9 * exp(log_prob)
+
 
 FLANK = 60
 

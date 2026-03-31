@@ -248,8 +248,6 @@ class OptionParser(ArgumentParser):
         """
         Add --downloader options for given command line program.
         """
-        from jcvi.utils.ez_setup import ALL_DOWNLOADERS
-
         downloader_choices = [x[0] for x in ALL_DOWNLOADERS]
         self.add_argument(
             "--downloader",
@@ -313,36 +311,6 @@ class OptionParser(ArgumentParser):
             type=int,
             help="Number of CPUs to use, 0=unlimited",
         )
-
-    def set_db_opts(self, dbname="mta4", credentials=True):
-        """
-        Add db connection specific attributes
-        """
-        from jcvi.utils.db import get_profile, valid_dbconn
-
-        self.add_argument(
-            "--db",
-            default=dbname,
-            dest="dbname",
-            help="Specify name of database to query",
-        )
-        self.add_argument(
-            "--connector",
-            default="Sybase",
-            dest="dbconn",
-            choices=valid_dbconn.keys(),
-            help="Specify database connector",
-        )
-        hostname, username, password = get_profile()
-        if credentials:
-            self.add_argument("--hostname", default=hostname, help="Specify hostname")
-            self.add_argument(
-                "--username", default=username, help="Username to connect to database"
-            )
-            self.add_argument(
-                "--password", default=password, help="Password to connect to database"
-            )
-        self.add_argument("--port", type=int, help="Specify port number")
 
     def set_aws_opts(self, store="hli-mv-data-science/htang"):
         from jcvi.utils.aws import s3ify
@@ -1437,6 +1405,107 @@ def ls_ftp(dir):
     return [op.basename(x) for x in ftp.list(o.path)]
 
 
+def _download_file_powershell(url, target, cookies=None):
+    if cookies:
+        raise NotImplementedError
+    target = os.path.abspath(target)
+    cmd = [
+        "powershell",
+        "-Command",
+        f"(new-object System.Net.WebClient).DownloadFile({url}, {target})",
+    ]
+    check_output(cmd)
+
+
+def _has_powershell():
+    if platform.system() != "Windows":
+        return False
+    try:
+        check_output(["powershell", "-Command", "echo test"])
+    except (FileNotFoundError, CalledProcessError):
+        return False
+    return True
+
+
+_download_file_powershell.viable = _has_powershell
+
+
+def _download_file_curl(url, target, cookies=None):
+    cmd = ["curl", url, "--output", target, "-L"]
+    if url.startswith("ftp:"):
+        cmd += ["-P", "-"]
+    if cookies:
+        cmd += ["-b", cookies]
+    check_output(cmd)
+
+
+def _has_curl():
+    try:
+        check_output(["curl", "--version"])
+    except (FileNotFoundError, CalledProcessError):
+        return False
+    return True
+
+
+_download_file_curl.viable = _has_curl
+
+
+def _download_file_wget(url, target, cookies=None):
+    cmd = ["wget", url, "--output-document", target, "--no-check-certificate"]
+    if url.startswith("ftp:"):
+        cmd += ["--passive-ftp"]
+    if cookies:
+        cmd += ["--load-cookies", cookies]
+    check_output(cmd)
+
+
+def _has_wget():
+    try:
+        check_output(["wget", "--version"])
+    except (FileNotFoundError, NotADirectoryError, CalledProcessError):
+        return False
+    return True
+
+
+_download_file_wget.viable = _has_wget
+
+
+def _download_file_insecure(url, target, cookies=None):
+    if cookies:
+        raise NotImplementedError
+    from urllib.request import urlopen
+
+    src = dst = None
+    try:
+        src = urlopen(url)
+        data = src.read()
+        dst = open(target, "wb")
+        dst.write(data)
+    finally:
+        if src:
+            src.close()
+        if dst:
+            dst.close()
+
+
+_download_file_insecure.viable = lambda: True
+
+ALL_DOWNLOADERS = [
+    ("wget", _download_file_wget),
+    ("curl", _download_file_curl),
+    ("powershell", _download_file_powershell),
+    ("insecure", _download_file_insecure),
+]
+
+
+def get_best_downloader(downloader=None):
+    for dl_name, dl in ALL_DOWNLOADERS:
+        if downloader and dl_name != downloader:
+            continue
+        if dl.viable():
+            return dl
+
+
 def download(
     url, filename=None, debug=True, cookies=None, handle_gzip=False, downloader=None
 ):
@@ -1481,8 +1550,6 @@ def download(
             logger.info("File `%s` exists. Download skipped.", final_filename)
         success = True
     else:
-        from jcvi.utils.ez_setup import get_best_downloader
-
         downloader = get_best_downloader(downloader=downloader)
         if downloader:
             try:

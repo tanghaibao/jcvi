@@ -29,7 +29,9 @@ from ..apps.base import (
     sh,
 )
 from ..formats.base import BaseFile, SetFile, timestamp
-from .console import console
+from rich.console import Console
+
+console = Console()
 
 AWS_CREDS_PATH = "%s/.aws/credentials" % (op.expanduser("~"),)
 

@@ -314,36 +314,6 @@ class OptionParser(ArgumentParser):
             help="Number of CPUs to use, 0=unlimited",
         )
 
-    def set_db_opts(self, dbname="mta4", credentials=True):
-        """
-        Add db connection specific attributes
-        """
-        from jcvi.utils.db import get_profile, valid_dbconn
-
-        self.add_argument(
-            "--db",
-            default=dbname,
-            dest="dbname",
-            help="Specify name of database to query",
-        )
-        self.add_argument(
-            "--connector",
-            default="Sybase",
-            dest="dbconn",
-            choices=valid_dbconn.keys(),
-            help="Specify database connector",
-        )
-        hostname, username, password = get_profile()
-        if credentials:
-            self.add_argument("--hostname", default=hostname, help="Specify hostname")
-            self.add_argument(
-                "--username", default=username, help="Username to connect to database"
-            )
-            self.add_argument(
-                "--password", default=password, help="Password to connect to database"
-            )
-        self.add_argument("--port", type=int, help="Specify port number")
-
     def set_aws_opts(self, store="hli-mv-data-science/htang"):
         from jcvi.utils.aws import s3ify
 

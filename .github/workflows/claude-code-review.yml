@@ -18,8 +18,8 @@ jobs:
     #   github.event.pull_request.user.login == 'new-developer' ||
     #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
 
-    # Skip any PRs authored by a bot
-    if: github.event.pull_request.user.type != 'Bot'
+    # Skip PRs authored by dependabot
+    if: github.event.pull_request.user.login != 'dependabot[bot]'
 
     runs-on: ubuntu-latest
     permissions:

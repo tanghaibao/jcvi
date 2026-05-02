@@ -20,7 +20,7 @@ jobs:
 
     # Skip any PRs authored by a bot
     if: github.event.pull_request.user.type != 'Bot'
-    
+
     runs-on: ubuntu-latest
     permissions:
       contents: read

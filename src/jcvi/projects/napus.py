@@ -446,7 +446,14 @@ def fig3(args):
         color = rr if "+" in label else gg
         if opts.chinese:
             ax.text(
-                x, 30, label, color=color, fontsize=9, ha=ha, va="center", style="italic"
+                x,
+                30,
+                label,
+                color=color,
+                fontsize=9,
+                ha=ha,
+                va="center",
+                style="italic",
             )
         else:
             ax.text(

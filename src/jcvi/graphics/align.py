@@ -297,8 +297,8 @@ class OpticalMapTrack(BaseGlyph):
 
     def duplicate(self, a, b):
         ai, bi = self.get_endpoints(a, b)
-        ai += self.wiggle / 2
-        bi += self.wiggle / 2
+        ai += self.wiggle // 2
+        bi += self.wiggle // 2
         ci, di = ai - self.wiggle, ai
         bb = self.sizes[ai:bi]
         bs = len(bb)
@@ -479,6 +479,12 @@ def main():
     (mode,) = args
     assert mode == "demo"
 
+    row_headers = ("Inversion", "Indel", "Duplication")
+    col_headers = ("Assembly alignment", "Read alignment", "Optical map alignment")
+    if opts.chinese:
+        row_headers = ("倒位", "插入缺失", "重复")
+        col_headers = ("拼接比对", "读段比对", "光学图谱比对")
+
     a, b = 30, 70
     pad = 0.08
     w = 0.31
@@ -494,14 +500,14 @@ def main():
     # Row headers
     xx = pad * 0.6
     yy = 1 - pad - 0.5 * w
-    for title in ("Inversion", "Indel", "Duplication"):
+    for title in row_headers:
         root.text(xx, yy, title, ha="center", va="center")
         yy -= w
 
     # Column headers
     xx = pad + 0.5 * w
     yy = 1 - pad / 2
-    for title in ("Assembly alignment", "Read alignment", "Optical map alignment"):
+    for title in col_headers:
         root.text(xx, yy, title, ha="center", va="center")
         xx += w
 

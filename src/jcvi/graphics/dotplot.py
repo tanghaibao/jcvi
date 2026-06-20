@@ -261,6 +261,7 @@ def dotplot(
     stdpf: bool = True,
     chpf: bool = True,
     usetex: bool = True,
+    chinese: bool = False,
 ):
     """
     Draw a dotplot from an anchor file.
@@ -381,11 +382,18 @@ def dotplot(
             xstart += 0.1
 
     if title is None:
-        title = f"Inter-genomic comparison: {gx} vs {gy}"
-        if is_self:
-            title = f"Intra-genomic comparison within {gx}"
-            npairs //= 2
-        title += f" ({thousands(npairs)} gene pairs)"
+        if chinese:
+            title = f"基因组间比较：{gx} vs {gy}"
+            if is_self:
+                title = f"{gx} 基因组内比较"
+                npairs //= 2
+            title += f"（{thousands(npairs)} 个基因对）"
+        else:
+            title = f"Inter-genomic comparison: {gx} vs {gy}"
+            if is_self:
+                title = f"Intra-genomic comparison within {gx}"
+                npairs //= 2
+            title += f" ({thousands(npairs)} gene pairs)"
     root.set_title(title, x=0.5, y=0.96, color="k")
     if title:
         logger.debug("Dot plot title: %s", title)

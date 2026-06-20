@@ -15,7 +15,11 @@ import sys
 from typing import Optional
 
 from Bio import AlignIO, SeqIO
-from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
+
+try:
+    from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
+except ImportError:  # Biopython >= 1.78 removed the Applications command wrappers
+    ClustalwCommandline = MuscleCommandline = None
 import numpy as np
 
 from ..apps.base import (
@@ -49,7 +53,11 @@ class AbstractCommandline:
 class YnCommandline(AbstractCommandline):
     """Little commandline for yn00."""
 
-    def __init__(self, ctl_file, command=PAML_BIN("yn00")):
+    def __init__(self, ctl_file, command=None):
+        # Resolve PAML path lazily so importing this module does not prompt for
+        # a yn00 binary that is only needed by the calc action.
+        if command is None:
+            command = PAML_BIN("yn00")
         self.ctl_file = ctl_file
         self.parameters = []
         self.command = command
@@ -67,8 +75,12 @@ class MrTransCommandline(AbstractCommandline):
         nuc_file,
         output_file,
         outfmt="paml",
-        command=PAL2NAL_BIN("pal2nal.pl"),
+        command=None,
     ):
+        # Resolve PAL2NAL lazily so importing this module does not prompt for a
+        # binary only needed by the calc action.
+        if command is None:
+            command = PAL2NAL_BIN("pal2nal.pl")
         self.prot_align_file = prot_align_file
         self.nuc_file = nuc_file
         self.output_file = output_file

@@ -125,7 +125,7 @@ def waterlilyGOM(args):
     )
 
     p = OptionParser(waterlilyGOM.__doc__)
-    _, args, iopts = p.set_image_options(args, figsize="12x9")
+    opts, args, iopts = p.set_image_options(args, figsize="12x9")
 
     if len(args) != 2:
         sys.exit(not p.print_help())
@@ -142,9 +142,13 @@ def waterlilyGOM(args):
     root = fig.add_axes((0, 0, 1, 1))
 
     margin, rmargin = 0.15, 0.19  # Left and right margin
-    leafinfo = LeafInfoFile("leafinfo.csv").cache
+    leafinfofile = "leafinfo.cn.csv" if opts.chinese else "leafinfo.csv"
+    leafinfo = LeafInfoFile(leafinfofile).cache
     wgdinfo = WGDInfoFile("wgdinfo.csv").cache
-    groups = "Monocots,Eudicots,ANA-grade,Gymnosperms"
+    if opts.chinese:
+        groups = "单子叶植物,真双子叶植物,基部被子植物,裸子植物"
+    else:
+        groups = "Monocots,Eudicots,ANA-grade,Gymnosperms"
 
     draw_tree(
         root,
@@ -159,6 +163,7 @@ def waterlilyGOM(args):
         wgdinfo=wgdinfo,
         geoscale=True,
         groups=groups.split(","),
+        chinese=opts.chinese,
     )
 
     # Bottom right show legends for the WGD circles
@@ -172,7 +177,7 @@ def waterlilyGOM(args):
     root.text(
         xstart + pad,
         ypos,
-        "Nymphaealean WGD",
+        "睡莲类全基因组复制" if opts.chinese else "Nymphaealean WGD",
         color=waterlily_wgdline.color,
         va="center",
     )
@@ -182,7 +187,7 @@ def waterlilyGOM(args):
     root.text(
         xstart + pad,
         ypos,
-        "Other known WGDs",
+        "其他已知全基因组复制" if opts.chinese else "Other known WGDs",
         color=other_wgdline.color,
         va="center",
     )

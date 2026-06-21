@@ -417,6 +417,22 @@ def markup(s: str):
     Change the string to latex format, and italicize the text between *.
     """
     if not rcParams["text.usetex"]:
+        # Without LaTeX, strip LaTeX-only markup so labels stay readable (and so
+        # CJK labels are not hidden behind \textit{}); keep $...$ mathtext intact.
+        s = s.replace(r"\noindent", "")
+
+        def _italic(m):
+            # Render \textit{...} as mathtext italic so Latin names stay italic
+            # without latex; fall back to plain for non-ASCII (e.g. CJK).
+            x = m.group(1)
+            if x.isascii():
+                return r"$\mathit{" + x.replace(" ", r"\ ") + r"}$"
+            return x
+
+        s = re.sub(r"\\textit\{([^{}]*)\}", _italic, s)
+        s = re.sub(r"\\text(?:bf|rm|sf)\{([^{}]*)\}", r"\1", s)
+        s = re.sub(r"\*([^*]+)\*", _italic, s)  # *italic* -> mathtext italic
+        s = s.replace(r"\\", "\n")  # LaTeX line break -> real newline
         return s
     if "$" in s:
         return s
@@ -431,6 +447,31 @@ def append_percentage(s):
         return s + r"$\%$"
     else:
         return s + "%"
+
+
+# Cross-platform CJK-capable sans-serif fonts, tried in order (macOS / Windows /
+# Linux). Used as a per-glyph fallback so Chinese labels render with --chinese.
+CJK_FONTS = [
+    "Arial Unicode MS",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Heiti SC",
+    "Songti SC",
+    "Microsoft YaHei",
+    "SimHei",
+    "SimSun",
+    "Noto Sans CJK SC",
+    "Noto Sans SC",
+    "Source Han Sans SC",
+    "WenQuanYi Zen Hei",
+]
+
+
+def set_chinese_font():
+    """Select a CJK-capable font and disable latex so Chinese labels render."""
+    rc("text", usetex=False)
+    rc("font", **{"family": "sans-serif", "sans-serif": CJK_FONTS + ["DejaVu Sans"]})
+    rcParams["axes.unicode_minus"] = False
 
 
 def setup_theme(
@@ -457,7 +498,9 @@ def setup_theme(
         rc("text", usetex=False)
 
     if font == "Helvetica":
-        rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
+        # CJK fonts appended as a per-glyph fallback so Chinese labels render
+        # (only used when text.usetex is False; Latin still comes from Helvetica)
+        rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"] + CJK_FONTS})
     elif font == "Palatino":
         rc("font", **{"family": "serif", "serif": ["Palatino"]})
     elif font == "Schoolbook":

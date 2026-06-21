@@ -23,6 +23,7 @@ from ..graphics.base import (
     plt,
     savefig,
     set1,
+    set_chinese_font,
     setup_theme,
 )
 from ..graphics.chromosome import draw_chromosomes
@@ -43,7 +44,11 @@ def synteny(args):
     p = OptionParser(synteny.__doc__)
     p.set_beds()
     opts, args, iopts = p.set_image_options(args, figsize="14x7")
-    setup_theme(style="dark")
+    setup_theme(style="dark", usetex=iopts.usetex)
+
+    if opts.chinese:
+        # The extra setup_theme() above resets the font, so re-apply the CJK font
+        set_chinese_font()
 
     if len(args) != 6:
         sys.exit(not p.print_help())
@@ -71,6 +76,8 @@ def synteny(args):
         is_self=is_self,
         chrlw=0.5,
         sepcolor=set1[3],
+        genomenames="葡萄_桃" if opts.chinese else None,
+        chinese=opts.chinese,
     )
 
     # Panel B
@@ -86,7 +93,7 @@ def synteny(args):
     panel_labels(root, labels)
     normalize_axes(root, ax1_root, ax2_root, ax3_root)
 
-    image_name = "synteny.pdf"
+    image_name = "synteny." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
 
 

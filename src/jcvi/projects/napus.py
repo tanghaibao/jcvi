@@ -16,6 +16,7 @@ from ..graphics.base import (
     FancyArrowPatch,
     Rectangle,
     adjust_spines,
+    markup,
     mpl,
     normalize_axes,
     panel_labels,
@@ -38,6 +39,17 @@ template_f3a = r"""# y, xstart, xend, rotation, color, label, va, bed
 .55, {2}, {3}, 0, gainsboro, \textit{{B. rapa}} A$\mathsf{{_r}}$2, top, brapa.bed
 .45, {4}, {5}, 0, gainsboro, \textit{{B. oleracea}} C$\mathsf{{_o}}$2, top, boleracea.bed
 .35, {6}, {7}, 0, gainsboro, \noindent\textit{{B. napus}} C$\mathsf{{_n}}$2\\(cv Darmor-\textit{{bzh}}), top, CN.bed
+# edges
+e, 0, 1, AN.brapa.1x1.lifted.simple
+e, 1, 2, brapa.boleracea.1x1.lifted.simple
+e, 3, 2, CN.boleracea.1x1.lifted.simple"""
+
+# Chinese variant of template_f3a (used with --chinese)
+template_f3a_cn = r"""# y, xstart, xend, rotation, color, label, va, bed
+.65, {0}, {1}, 0, gainsboro, 甘蓝型油菜 A$\mathsf{{_n}}$2\\（品种 Darmor-bzh）, top, AN.bed
+.55, {2}, {3}, 0, gainsboro, 白菜型油菜 A$\mathsf{{_r}}$2, top, brapa.bed
+.45, {4}, {5}, 0, gainsboro, 甘蓝 C$\mathsf{{_o}}$2, top, boleracea.bed
+.35, {6}, {7}, 0, gainsboro, 甘蓝型油菜 C$\mathsf{{_n}}$2\\（品种 Darmor-bzh）, top, CN.bed
 # edges
 e, 0, 1, AN.brapa.1x1.lifted.simple
 e, 1, 2, brapa.boleracea.1x1.lifted.simple
@@ -308,7 +320,8 @@ def fig3(args):
 
     # Synteny panel
     seqidsfile = make_seqids(chrs)
-    klayout = make_layout(chrs, chr_sum_sizes, ratio, template_f3a, shift=0.05)
+    template = template_f3a_cn if opts.chinese else template_f3a
+    klayout = make_layout(chrs, chr_sum_sizes, ratio, template, shift=0.05)
     height = 0.07
     r = height / 4
     K = Karyotype(
@@ -322,6 +335,7 @@ def fig3(args):
         sizes=sizes,
         heightpad=r,
         plot_label=False,
+        plot_circles=False,
     )
 
     # Chromosome labels
@@ -332,7 +346,7 @@ def fig3(args):
         if lx < 0.11:
             lx += 0.1
             ly += 0.06
-        label = kl.label
+        label = markup(kl.label)
         root.text(lx - 0.015, ly, label, fontsize=15, ha="right", va="center")
 
     # Inset with datafiles
@@ -429,9 +443,28 @@ def fig3(args):
             x = x2
         else:
             x = x1
-        label = r"\textit{{{0}}}".format(label)
         color = rr if "+" in label else gg
-        ax.text(x, 30, label, color=color, fontsize=9, ha=ha, va="center")
+        if opts.chinese:
+            ax.text(
+                x,
+                30,
+                label,
+                color=color,
+                fontsize=9,
+                ha=ha,
+                va="center",
+                style="italic",
+            )
+        else:
+            ax.text(
+                x,
+                30,
+                r"\textit{{{0}}}".format(label),
+                color=color,
+                fontsize=9,
+                ha=ha,
+                va="center",
+            )
 
     ax_Ar.set_xlim(0, tracks[1].total)
     ax_Ar.set_ylim(-1, 1)
@@ -441,7 +474,15 @@ def fig3(args):
     # Plot coverage in resequencing lines
     gstep = 5000000
     order = "swede,kale,h165,yudal,aviso,abu,bristol".split(",")
-    labels_dict = {"h165": "Resynthesized (H165)", "abu": "Aburamasari"}
+    if opts.chinese:
+        labels_dict = {
+            "swede": "芜菁甘蓝",
+            "kale": "羽衣甘蓝",
+            "h165": "人工合成种(H165)",
+            "abu": "Aburamasari",
+        }
+    else:
+        labels_dict = {"h165": "Resynthesized (H165)", "abu": "Aburamasari"}
     hlsuffix = "regions.forhaibao"
     chr1, chr2 = "chrA02", "chrC02"
     t1, t2 = tracks[0], tracks[-1]
@@ -477,19 +518,31 @@ def fig3(args):
         (x2, yys[6] + 0.9 * tip, -1.2 * tip, 0, "GSL"),
     )
 
-    arrowprops = dict(facecolor="black", shrink=0.05, frac=0.5, width=1, headwidth=4)
+    arrowprops = dict(arrowstyle="-|>", color="black", lw=1, shrinkA=2, shrinkB=2)
     for x, y, dx, dy, label in annotations:
-        label = r"\textit{{{0}}}".format(label)
-        root.annotate(
-            label,
-            xy=(x, y),
-            xytext=(x + dx, y + dy),
-            arrowprops=arrowprops,
-            color=rr,
-            fontsize=9,
-            ha="center",
-            va="center",
-        )
+        if opts.chinese:
+            root.annotate(
+                label,
+                xy=(x, y),
+                xytext=(x + dx, y + dy),
+                arrowprops=arrowprops,
+                color=rr,
+                fontsize=9,
+                ha="center",
+                va="center",
+                style="italic",
+            )
+        else:
+            root.annotate(
+                r"\textit{{{0}}}".format(label),
+                xy=(x, y),
+                xytext=(x + dx, y + dy),
+                arrowprops=arrowprops,
+                color=rr,
+                fontsize=9,
+                ha="center",
+                va="center",
+            )
 
     canvas2 = (t2.xstart, 0.05, t2.xend - t2.xstart, 0.2)
     Coverage(

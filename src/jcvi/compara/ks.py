@@ -15,7 +15,62 @@ import sys
 from typing import Optional
 
 from Bio import AlignIO, SeqIO
-from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
+
+try:
+    from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
+except ImportError:
+    # Biopython >= 1.78 removed the Applications wrappers; provide minimal
+    # stand-ins that build the command line and run the external binary so the
+    # calc/alignment call sites keep working.
+    import subprocess
+
+    class _AppCommandline:
+        _flags: dict = {}  # kwarg name -> (cli flag, is_boolean)
+
+        def __init__(self, cmd, **kwargs):
+            self.cmd = cmd
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+            self._kwargs = kwargs
+
+        def __str__(self):
+            parts = [self.cmd]
+            for name, value in self._kwargs.items():
+                flag, is_bool = self._flags.get(name, ("-" + name, False))
+                if is_bool:
+                    if value:
+                        parts.append(flag)
+                elif value is not None:
+                    parts.append("{}{}".format(flag, value))
+            return " ".join(parts)
+
+        def __call__(self):
+            proc = subprocess.run(str(self), shell=True, capture_output=True, text=True)
+            return proc.stdout, proc.stderr
+
+    class ClustalwCommandline(_AppCommandline):
+        _flags = {
+            "infile": ("-INFILE=", False),
+            "outfile": ("-OUTFILE=", False),
+            "outorder": ("-OUTORDER=", False),
+            "type": ("-TYPE=", False),
+        }
+
+        def __init__(self, cmd="clustalw2", **kwargs):
+            super().__init__(cmd, **kwargs)
+
+    class MuscleCommandline(_AppCommandline):
+        _flags = {
+            "input": ("-in ", False),
+            "out": ("-out ", False),
+            "seqtype": ("-seqtype ", False),
+            "clwstrict": ("-clwstrict", True),
+        }
+
+        def __init__(self, cmd="muscle", **kwargs):
+            super().__init__(cmd, **kwargs)
+
+
 import numpy as np
 
 from ..apps.base import (
@@ -49,7 +104,11 @@ class AbstractCommandline:
 class YnCommandline(AbstractCommandline):
     """Little commandline for yn00."""
 
-    def __init__(self, ctl_file, command=PAML_BIN("yn00")):
+    def __init__(self, ctl_file, command=None):
+        # Resolve PAML path lazily so importing this module does not prompt for
+        # a yn00 binary that is only needed by the calc action.
+        if command is None:
+            command = PAML_BIN("yn00")
         self.ctl_file = ctl_file
         self.parameters = []
         self.command = command
@@ -67,8 +126,12 @@ class MrTransCommandline(AbstractCommandline):
         nuc_file,
         output_file,
         outfmt="paml",
-        command=PAL2NAL_BIN("pal2nal.pl"),
+        command=None,
     ):
+        # Resolve PAL2NAL lazily so importing this module does not prompt for a
+        # binary only needed by the calc action.
+        if command is None:
+            command = PAL2NAL_BIN("pal2nal.pl")
         self.prot_align_file = prot_align_file
         self.nuc_file = nuc_file
         self.output_file = output_file

@@ -19,6 +19,7 @@ from ..formats.sizes import Sizes
 from .base import (
     Rectangle,
     adjust_spines,
+    markup,
     mb_float_formatter,
     mb_formatter,
     plt,
@@ -195,7 +196,9 @@ class Coverage(object):
                 xy.import_hlfile(hlfile, chr, diverge=diverge)
             if plot_label:
                 label = labels_dict.get(label, label.capitalize())
-                label = r"\textit{{{0}}}".format(label)
+                # Use the *..* italic convention so markup() formats it correctly
+                # under both latex (-> \textit) and --notex (-> mathtext italic).
+                label = markup("*{0}*".format(label))
                 root.text(x - 0.015, yy + yinterval / 2, label, ha="right", va="center")
             xy.draw()
             ax.set_xlim(*xlim)

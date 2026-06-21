@@ -431,7 +431,7 @@ def markup(s: str):
 
         s = re.sub(r"\\textit\{([^{}]*)\}", _italic, s)
         s = re.sub(r"\\text(?:bf|rm|sf)\{([^{}]*)\}", r"\1", s)
-        s = re.sub(r"\*([^*]+)\*", r"\1", s)  # *italic* markup -> plain text
+        s = re.sub(r"\*([^*]+)\*", _italic, s)  # *italic* -> mathtext italic
         s = s.replace(r"\\", "\n")  # LaTeX line break -> real newline
         return s
     if "$" in s:

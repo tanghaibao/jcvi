@@ -386,8 +386,11 @@ class Karyotype(object):
                 if sizes:
                     # Restrict the provided sizes to this track's seqids; otherwise
                     # every track inherits the genome-wide total and the per-chr
-                    # gauge/coverage axes collapse.
-                    sz = dict((x, sizes[x]) for x in seqids if x in sizes)
+                    # gauge/coverage axes collapse. Fail early (rather than with a
+                    # later KeyError in Track.draw) if any seqid has no size.
+                    missing = [x for x in seqids if x not in sizes]
+                    assert not missing, "No size for seqids: {}".format(missing)
+                    sz = dict((x, sizes[x]) for x in seqids)
                 else:
                     sz = dict(
                         (x, max(z.end for z in list(bed.sub_bed(x)))) for x in seqids

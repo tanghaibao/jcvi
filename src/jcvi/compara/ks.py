@@ -18,8 +18,59 @@ from Bio import AlignIO, SeqIO
 
 try:
     from Bio.Align.Applications import ClustalwCommandline, MuscleCommandline
-except ImportError:  # Biopython >= 1.78 removed the Applications command wrappers
-    ClustalwCommandline = MuscleCommandline = None
+except ImportError:
+    # Biopython >= 1.78 removed the Applications wrappers; provide minimal
+    # stand-ins that build the command line and run the external binary so the
+    # calc/alignment call sites keep working.
+    import subprocess
+
+    class _AppCommandline:
+        _flags: dict = {}  # kwarg name -> (cli flag, is_boolean)
+
+        def __init__(self, cmd, **kwargs):
+            self.cmd = cmd
+            for k, v in kwargs.items():
+                setattr(self, k, v)
+            self._kwargs = kwargs
+
+        def __str__(self):
+            parts = [self.cmd]
+            for name, value in self._kwargs.items():
+                flag, is_bool = self._flags.get(name, ("-" + name, False))
+                if is_bool:
+                    if value:
+                        parts.append(flag)
+                elif value is not None:
+                    parts.append("{}{}".format(flag, value))
+            return " ".join(parts)
+
+        def __call__(self):
+            proc = subprocess.run(str(self), shell=True, capture_output=True, text=True)
+            return proc.stdout, proc.stderr
+
+    class ClustalwCommandline(_AppCommandline):
+        _flags = {
+            "infile": ("-INFILE=", False),
+            "outfile": ("-OUTFILE=", False),
+            "outorder": ("-OUTORDER=", False),
+            "type": ("-TYPE=", False),
+        }
+
+        def __init__(self, cmd="clustalw2", **kwargs):
+            super().__init__(cmd, **kwargs)
+
+    class MuscleCommandline(_AppCommandline):
+        _flags = {
+            "input": ("-in ", False),
+            "out": ("-out ", False),
+            "seqtype": ("-seqtype ", False),
+            "clwstrict": ("-clwstrict", True),
+        }
+
+        def __init__(self, cmd="muscle", **kwargs):
+            super().__init__(cmd, **kwargs)
+
+
 import numpy as np
 
 from ..apps.base import (

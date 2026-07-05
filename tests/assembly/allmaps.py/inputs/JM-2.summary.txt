@@ -1,0 +1,29 @@
+*** Summary for each individual map ***
+======================================================================
+                         o              JMFemale                JMMale
+----------------------------------------------------------------------
+            Linkage Groups                     1                     1
+          Markers (unique)                    61                    59
+            Markers per Mb                   4.2                   4.3
+             N50 Scaffolds                     5                     5
+                 Scaffolds                    18                    18
+   Scaffolds with 1 marker                     7                     7
+  Scaffolds with 2 markers                     3                     5
+  Scaffolds with 3 markers                     1                     0
+Scaffolds with >=4 markers                     7                     6
+               Total bases    14,691,276 (96.2%)    13,781,640 (90.2%)
+----------------------------------------------------------------------
+*** Summary for consensus map ***
+===================================================================================
+                         o               Anchored              Oriented    Unplaced
+-----------------------------------------------------------------------------------
+          Markers (unique)                    120                   101           0
+            Markers per Mb                    7.9                   9.6           0
+             N50 Scaffolds                      5                     4           0
+                 Scaffolds                     22                    12           0
+   Scaffolds with 1 marker                      5                     0           0
+  Scaffolds with 2 markers                      7                     3           0
+  Scaffolds with 3 markers                      1                     1           0
+Scaffolds with >=4 markers                      9                     8           0
+               Total bases    15,270,543 (100.0%)    10,567,602 (69.2%)    0 (0.0%)
+-----------------------------------------------------------------------------------

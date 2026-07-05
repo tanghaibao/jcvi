@@ -8,16 +8,15 @@ from unittest.mock import patch
 
 @patch("builtins.input", return_value="username")
 @patch("getpass.getpass", return_value="password")
-def test_get_cookies(mock_username, mock_password):
+def test_get_cookies(mock_username, mock_password, tmp_path, monkeypatch):
     from jcvi.apps.fetch import get_cookies, PHYTOZOME_COOKIES
-    from jcvi.apps.base import cleanup, which
+    from jcvi.apps.base import which
 
-    cleanup(PHYTOZOME_COOKIES)
+    monkeypatch.chdir(tmp_path)
     if which("curl"):
         assert get_cookies() == PHYTOZOME_COOKIES
     else:
         assert get_cookies() is None  # errored out with "curl not found"
-    cleanup(PHYTOZOME_COOKIES)
 
 
 def test_usage_with_percent_prog():

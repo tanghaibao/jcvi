@@ -41,7 +41,7 @@ class Capturing(list):
         sys.stdout = self._stdout
 
 
-LOG = open("test_scripts.log", "a")
+LOG = open(op.join(tempfile.gettempdir(), "jcvi_test_scripts.log"), "a")
 
 
 def generate_tests(metafunc, domain):

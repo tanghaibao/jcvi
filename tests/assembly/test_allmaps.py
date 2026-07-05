@@ -1,6 +1,6 @@
 import os
 import os.path as op
-from jcvi.apps.base import cleanup, mkdir
+from jcvi.apps.base import mkdir
 from jcvi.assembly.allmaps import path
 
 
@@ -20,28 +20,26 @@ def test_weights():
     assert weights.maps == ["JMMale", "JMFemale"]
 
 
-def test_liftover():
-    from jcvi.apps.base import cleanup
+def test_liftover(tmp_path, monkeypatch):
     from jcvi.assembly.allmaps import liftover
     from ..config import compare_line_by_line
 
+    monkeypatch.chdir(tmp_path)
     chainfile = datafile("inputs/JM-2.chain")
     bedfile = datafile("inputs/JM-2.bed")
     liftedbedfile = "JM-2.lifted.bed"
     expected = datafile("references/JM-2.lifted.bed")
     liftover(chainfile, bedfile, liftedbedfile, unmapfile="unmapped", cstyle="l")
     compare_line_by_line(liftedbedfile, expected)
-    cleanup(liftedbedfile, "unmapped")
 
 
-def test_path():
-    testdir = "chr23"
-    cleanup(testdir)
+def test_path(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     bedfile = datafile("inputs/JM-2.bed")
     fastafile = datafile("inputs/scaffolds.fasta.gz")
     weightsfile = datafile("inputs/weights.txt")
     output_image = "chr23.pdf"
-    cwd = os.getcwd()
+    testdir = str(tmp_path / "chr23")
     mkdir(testdir)
     os.chdir(testdir)
     path(
@@ -53,5 +51,3 @@ def test_path():
         ]
     )
     assert op.exists(output_image)
-    os.chdir(cwd)
-    cleanup(testdir)

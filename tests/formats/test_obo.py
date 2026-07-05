@@ -1,7 +1,7 @@
-def test_oboreader():
-    import os
+def test_oboreader(tmp_path, monkeypatch):
     from jcvi.formats.obo import GODag_from_GO
 
+    monkeypatch.chdir(tmp_path)
     go, obo_file = GODag_from_GO()
     r1, r2, r3 = [
         rec
@@ -15,6 +15,3 @@ def test_oboreader():
     assert r2.namespace == "molecular_function"
     assert r3.item_id == "GO:0000007"
     assert tuple(sorted(r4.alt_ids)) == ("GO:0036422",)
-
-    if os.path.exists(obo_file):
-        os.remove(obo_file)

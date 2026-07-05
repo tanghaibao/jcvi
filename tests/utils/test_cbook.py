@@ -1,7 +1,6 @@
 import os.path as op
 import pytest
 
-from jcvi.apps.base import cleanup
 from jcvi.utils.cbook import autoscale, depends, gene_name, seqid_parse, short_float
 
 
@@ -40,18 +39,19 @@ def test_seqid_parse(seqid, sep, stdpf, output):
     assert seqid_parse(seqid, sep, stdpf) == output
 
 
-def test_depends():
+def test_depends(tmp_path):
     @depends
     def func1(infile="a", outfile="b"):
         assert op.exists(infile)
         with open(outfile, "w"):
             pass
 
-    with open("a", "w"):
+    infile = str(tmp_path / "a")
+    outfile = str(tmp_path / "b")
+    with open(infile, "w"):
         pass
-    func1(infile="a", outfile="b")
-    assert op.exists("b")
-    cleanup("a", "b")
+    func1(infile=infile, outfile=outfile)
+    assert op.exists(outfile)
 
 
 @pytest.mark.parametrize(

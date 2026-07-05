@@ -4,5 +4,6 @@
 from jcvi.graphics.glyph import demo
 
 
-def test_demo():
+def test_demo(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
     demo([])

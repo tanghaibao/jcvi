@@ -1,7 +1,7 @@
 synfind:
   script: synfind
   action: main
-  opts: -o __DIR__/inputs/testtigs.testchr.synfind
+  opts: -o __TMP__/testtigs.testchr.synfind
   args: __DIR__/inputs/testtigs.testchr.last
-  outputs: [__DIR__/inputs/testtigs.testchr.synfind]
+  outputs: [__TMP__/testtigs.testchr.synfind]
   references: [references/testtigs.testchr.synfind]

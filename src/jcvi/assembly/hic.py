@@ -946,6 +946,10 @@ def bam2mat(args):
         "--seqids",
         help="Use a given seqids file, a single line with seqids joined by comma",
     )
+    p.add_argument(
+        "--outdir",
+        help="Output directory for generated files (default: same dir as input BAM)",
+    )
     opts, args = p.parse_args(args)
 
     if len(args) != 1:
@@ -954,7 +958,8 @@ def bam2mat(args):
     (bamfilename,) = args
     pf = bamfilename.rsplit(".", 1)[0]
     N = opts.resolution
-    pf += f".resolution_{N}"
+    pf_name = op.basename(pf) + f".resolution_{N}"
+    pf = op.join(opts.outdir, pf_name) if opts.outdir else pf + f".resolution_{N}"
     bins = 1500  # Distance distribution bins
     minsize = 100  # Record distance if it is at least minsize
     seqids = opts.seqids

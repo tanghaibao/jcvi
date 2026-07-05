@@ -13,6 +13,7 @@ This testing functionality was adapted from the implementation developed by http
 """
 
 import sys
+import os
 import os.path as op
 import glob
 import re
@@ -134,8 +135,13 @@ def test_script(
     func = getattr(module, action)
     args = " ".join((opts, args)).split()
 
-    with Capturing(stdout) as output:
-        func(args)
+    original_dir = os.getcwd()
+    os.chdir(tmp_dir)
+    try:
+        with Capturing(stdout) as output:
+            func(args)
+    finally:
+        os.chdir(original_dir)
 
     if not fail:
         for output, reference in zip(outputs, references):

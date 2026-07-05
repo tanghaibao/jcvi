@@ -14,7 +14,7 @@ depth:
 
 liftover:
   action: liftover
-  opts: --qbed=__DIR__/inputs/test_empty_blocks.a.bed --sbed=__DIR__/inputs/test_empty_blocks.b.bed
+  opts: --qbed=__DIR__/inputs/test_empty_blocks.a.bed --sbed=__DIR__/inputs/test_empty_blocks.b.bed --outfile=__TMP__/test_empty_blocks.lifted.anchors
   args: __DIR__/inputs/test_empty_blocks.last __DIR__/inputs/test_empty_blocks.anchors
-  outputs: [__DIR__/inputs/test_empty_blocks.lifted.anchors]
+  outputs: [__TMP__/test_empty_blocks.lifted.anchors]
   references: [references/test_empty_blocks.lifted.anchors]

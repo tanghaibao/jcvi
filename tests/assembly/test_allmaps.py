@@ -1,6 +1,4 @@
-import os
 import os.path as op
-from jcvi.apps.base import mkdir
 from jcvi.assembly.allmaps import path
 
 
@@ -34,14 +32,13 @@ def test_liftover(tmp_path, monkeypatch):
 
 
 def test_path(tmp_path, monkeypatch):
+    import shutil
+
     monkeypatch.chdir(tmp_path)
-    bedfile = datafile("inputs/JM-2.bed")
+    bedfile = str(tmp_path / "JM-2.bed")
+    shutil.copy(datafile("inputs/JM-2.bed"), bedfile)
     fastafile = datafile("inputs/scaffolds.fasta.gz")
     weightsfile = datafile("inputs/weights.txt")
-    output_image = "chr23.pdf"
-    testdir = str(tmp_path / "chr23")
-    mkdir(testdir)
-    os.chdir(testdir)
     path(
         [
             bedfile,
@@ -50,4 +47,4 @@ def test_path(tmp_path, monkeypatch):
             weightsfile,
         ]
     )
-    assert op.exists(output_image)
+    assert op.exists("chr23.pdf")

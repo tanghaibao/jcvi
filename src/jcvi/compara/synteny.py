@@ -1930,7 +1930,7 @@ def liftover(args):
     """
     p = OptionParser(liftover.__doc__)
     p.set_stripnames()
-    p.set_outfile()
+    p.set_outfile(outfile=None)
 
     blast_file, anchor_file, dist, opts = add_arguments(p, args)
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)

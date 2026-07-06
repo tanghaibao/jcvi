@@ -5,7 +5,6 @@ import os
 import os.path as op
 import pytest
 
-from jcvi.apps.base import cleanup
 from jcvi.graphics.karyotype import main as karyotype_main, make_circle_name
 
 
@@ -27,20 +26,19 @@ def test_make_circle_name(sid, rev, expected):
     assert make_circle_name(sid, rev) == expected, "Expect {}".format(expected)
 
 
-def test_main():
-    cwd = os.getcwd()
-    os.chdir(op.join(op.dirname(__file__), "data"))
-    cleanup("karyotype.pdf")
+def test_main(tmp_path, monkeypatch):
+    data_dir = op.join(op.dirname(__file__), "data")
+    for fname in os.listdir(data_dir):
+        os.symlink(op.join(data_dir, fname), op.join(str(tmp_path), fname))
+    monkeypatch.chdir(tmp_path)
+
     image_name = karyotype_main(["seqids", "layout"])
     assert op.exists(image_name)
-    cleanup("karyotype_with_comments.pdf")
     image_name = karyotype_main(
         ["seqids_with_comments", "layout", "-o", "karyotype_with_comments.pdf"]
     )
     assert op.exists(image_name)
-    cleanup("karyotype_with_empty_lines.pdf")
     image_name = karyotype_main(
         ["seqids_with_empty_lines", "layout", "-o", "karyotype_with_empty_lines.pdf"]
     )
     assert op.exists(image_name)
-    os.chdir(cwd)

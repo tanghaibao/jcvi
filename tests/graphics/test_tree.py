@@ -12,15 +12,11 @@ matplotlib.use("Agg")
 import pytest
 
 
-def test_tree_main(tmp_path):
+def test_tree_main(tmp_path, monkeypatch):
     """Render the built-in demo tree to a PNG and check the file is created."""
-    from jcvi.apps.base import cleanup
     from jcvi.graphics.tree import main as tree_main
 
-    demo = str(tmp_path / "demo.png")
-    cleanup(demo)
-
-    os.chdir(tmp_path)
+    monkeypatch.chdir(tmp_path)
     tree_main(["demo", "--format", "png"])
     assert op.exists(str(tmp_path / "demo.png"))
 

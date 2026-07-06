@@ -1930,6 +1930,7 @@ def liftover(args):
     """
     p = OptionParser(liftover.__doc__)
     p.set_stripnames()
+    p.set_outfile(outfile=None)
 
     blast_file, anchor_file, dist, opts = add_arguments(p, args)
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
@@ -1961,7 +1962,7 @@ def liftover(args):
             lifted += 1
 
     logger.debug("%d new pairs found (dist=%d).", lifted, dist)
-    newanchorfile = anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
+    newanchorfile = opts.outfile or anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
     if accepted:
         ac.filter_blocks(accepted)
     ac.print_to_file(filename=newanchorfile)

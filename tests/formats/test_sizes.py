@@ -10,11 +10,10 @@ ACGTTCGAGAGA
 """
 
 
-def test_sizes():
-    from jcvi.apps.base import cleanup
+def test_sizes(tmp_path):
     from jcvi.formats.base import write_file
 
-    fastafile = "test.fa"
+    fastafile = str(tmp_path / "test.fa")
     write_file(fastafile, FASTA_CONTENTS, skipcheck=True)
     sizes = Sizes(fastafile)
     assert len(sizes) == 3
@@ -24,4 +23,3 @@ def test_sizes():
     assert sizes.cumsizes_mapping["chr1"] == 0
     assert sizes.cumsizes_mapping["chr2"] == 4
     assert sizes.cumsizes_mapping["chr3"] == 12
-    cleanup(fastafile, sizes.filename)

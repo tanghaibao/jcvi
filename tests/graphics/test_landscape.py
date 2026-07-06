@@ -1,14 +1,15 @@
 import os
 import os.path as op
 
-from jcvi.apps.base import cleanup
 from jcvi.graphics.landscape import depth, stack
 
 
-def test_depth():
-    cwd = os.getcwd()
-    os.chdir(op.join(op.dirname(__file__), "data"))
-    cleanup("depth.pdf")
+def test_depth(tmp_path, monkeypatch):
+    data_dir = op.join(op.dirname(__file__), "data")
+    for fname in os.listdir(data_dir):
+        os.symlink(op.join(data_dir, fname), op.join(str(tmp_path), fname))
+    monkeypatch.chdir(tmp_path)
+
     image_name = depth(
         [
             "VAR0_srtd.wgs.regions.bed.gz",
@@ -20,15 +21,15 @@ def test_depth():
         ]
     )
     assert op.exists(image_name)
-    os.chdir(cwd)
 
 
-def test_stack():
-    cwd = os.getcwd()
-    os.chdir(op.join(op.dirname(__file__), "data"))
-    cleanup("TAIR10_organelles.fas.pdf")
+def test_stack(tmp_path, monkeypatch):
+    data_dir = op.join(op.dirname(__file__), "data")
+    for fname in os.listdir(data_dir):
+        os.symlink(op.join(data_dir, fname), op.join(str(tmp_path), fname))
+    monkeypatch.chdir(tmp_path)
+
     image_name = stack(
         ["TAIR10_organelles.fas.gz", "--stacks=exons", "--window=25000", "--shift=5000"]
     )
     assert op.exists(image_name)
-    os.chdir(cwd)

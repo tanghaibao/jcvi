@@ -51,14 +51,16 @@ jobs:
           # pollution this step exists to catch and still report clean.
           # Scoped to tests/ because src/ legitimately holds ignored build
           # artifacts (_version.py, generated .c/.so).
+          # Written outside the checkout, so the report is not itself a stray.
+          dirty="${RUNNER_TEMP:-/tmp}/dirty.txt"
           git status --porcelain --ignored=traditional -- tests/ \
-            | grep -vE '__pycache__|\.pyc$|\.coverage$|coverage\.xml$' >dirty.txt || true
+            | grep -vE '__pycache__|\.pyc$|\.coverage$|coverage\.xml$' >"$dirty" || true
           # Elsewhere, tracked-file edits and non-ignored strays still count.
           # uv.lock is excluded: `uv sync` may write it during this job.
-          git status --porcelain --untracked-files=all -- . ':!tests' ':!uv.lock' >>dirty.txt
-          if [ -s dirty.txt ]; then
+          git status --porcelain --untracked-files=all -- . ':!tests' ':!uv.lock' >>"$dirty"
+          if [ -s "$dirty" ]; then
             echo "::error::Tests created or modified files inside the repo:"
-            cat dirty.txt
+            cat "$dirty"
             exit 1
           fi
 

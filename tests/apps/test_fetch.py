@@ -8,11 +8,10 @@ from unittest.mock import patch
 
 @patch("builtins.input", return_value="username")
 @patch("getpass.getpass", return_value="password")
-def test_get_cookies(mock_username, mock_password, tmp_path, monkeypatch):
+def test_get_cookies(mock_username, mock_password):
     from jcvi.apps.fetch import get_cookies, PHYTOZOME_COOKIES
     from jcvi.apps.base import which
 
-    monkeypatch.chdir(tmp_path)
     if which("curl"):
         assert get_cookies() == PHYTOZOME_COOKIES
     else:

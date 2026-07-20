@@ -43,6 +43,21 @@ jobs:
       - name: Test with pytest
         run: |
           uv run pytest
+      - name: Check tests left the working tree clean
+        run: |
+          # Report lives outside the checkout so it is not itself a stray.
+          dirty="${RUNNER_TEMP:-/tmp}/dirty.txt"
+          # --ignored: .gitignore hides test outputs like tests/**/*.pdf.
+          # Only for tests/; src/ has legitimate ignored build artifacts.
+          git status --porcelain --ignored=traditional -- tests/ \
+            | grep -vE '__pycache__|\.pyc$|\.coverage$|coverage\.xml$' >"$dirty" || true
+          # uv.lock excluded: `uv sync` may write it during this job.
+          git status --porcelain --untracked-files=all -- . ':!tests' ':!uv.lock' >>"$dirty"
+          if [ -s "$dirty" ]; then
+            echo "::error::Tests created or modified files inside the repo:"
+            cat "$dirty"
+            exit 1
+          fi
 
 # Upload coverage report to Codecov
 # Only upload coverage for the latest Python version on Ubuntu

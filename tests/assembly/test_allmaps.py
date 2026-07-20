@@ -18,11 +18,10 @@ def test_weights():
     assert weights.maps == ["JMMale", "JMFemale"]
 
 
-def test_liftover(tmp_path, monkeypatch):
+def test_liftover():
     from jcvi.assembly.allmaps import liftover
     from ..config import compare_line_by_line
 
-    monkeypatch.chdir(tmp_path)
     chainfile = datafile("inputs/JM-2.chain")
     bedfile = datafile("inputs/JM-2.bed")
     liftedbedfile = "JM-2.lifted.bed"
@@ -31,10 +30,9 @@ def test_liftover(tmp_path, monkeypatch):
     compare_line_by_line(liftedbedfile, expected)
 
 
-def test_path(tmp_path, monkeypatch):
+def test_path(tmp_path):
     import shutil
 
-    monkeypatch.chdir(tmp_path)
     bedfile = str(tmp_path / "JM-2.bed")
     shutil.copy(datafile("inputs/JM-2.bed"), bedfile)
     fastafile = datafile("inputs/scaffolds.fasta.gz")

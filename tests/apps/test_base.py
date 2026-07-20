@@ -35,11 +35,10 @@ def test_sample_N():
     assert a == [2, 3, 1, 2]
 
 
-def test_download(tmp_path, monkeypatch):
+def test_download():
     from jcvi.apps.base import cleanup, download
     from jcvi.apps.vecscreen import ECOLI_URL, UNIVEC_URL
 
-    monkeypatch.chdir(tmp_path)
     ret = download("http://www.google.com")
     assert ret == "index.html"
     cleanup(ret)
@@ -84,11 +83,10 @@ def test_flatten(input_list, output_list):
     assert flatten(input_list) == output_list
 
 
-def test_cleanup(tmp_path, monkeypatch):
+def test_cleanup():
     from jcvi.apps.base import cleanup, mkdir
     from jcvi.formats.base import write_file
 
-    monkeypatch.chdir(tmp_path)
     write_file("a", "content_a", skipcheck=True)
     write_file("b", "content_b", skipcheck=True)
     write_file("c", "content_c", skipcheck=True)
@@ -111,11 +109,10 @@ def test_cleanup(tmp_path, monkeypatch):
         assert not op.exists(path)
 
 
-def test_need_update(tmp_path, monkeypatch):
+def test_need_update():
     from jcvi.apps.base import cleanup, need_update
     from jcvi.formats.base import write_file
 
-    monkeypatch.chdir(tmp_path)
     assert need_update("does_not_exist.txt", "does_not_exist.txt")
 
     write_file("a", "content_a", skipcheck=True)
@@ -156,10 +153,9 @@ def test_set_image_options():
     g.add_argument("--group", default="jcvi", help="pytest coverage")
 
 
-def test_getpath(tmp_path, monkeypatch):
+def test_getpath():
     from jcvi.apps.base import getpath
 
-    monkeypatch.chdir(tmp_path)
     with mock.patch("builtins.input", lambda _: "e\rvvvvvvvv = zzzzzzzz\n"):
         assert getpath("not-part-of-path", name="CLUSTALW2", warn="warn") is None
 

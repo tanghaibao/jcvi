@@ -91,7 +91,9 @@ def generate_tests(metafunc, domain):
                     test_params["args"],
                     test_params["outputs"],
                     test_params["references"],
-                    script_dir,
+                    # Absolute, so that `__DIR__` and reference paths resolve
+                    # correctly no matter what the test's working directory is
+                    op.abspath(script_dir),
                 )
             )
 

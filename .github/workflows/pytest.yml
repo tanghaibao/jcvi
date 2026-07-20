@@ -43,6 +43,15 @@ jobs:
       - name: Test with pytest
         run: |
           uv run pytest
+      # Tests must not write into the checkout; see tests/conftest.py
+      - name: Check tests left the working tree clean
+        run: |
+          git status --porcelain --untracked-files=all -- tests/ src/ >dirty.txt
+          if [ -s dirty.txt ]; then
+            echo "::error::Tests created or modified files inside the repo:"
+            cat dirty.txt
+            exit 1
+          fi
 
 # Upload coverage report to Codecov
 # Only upload coverage for the latest Python version on Ubuntu

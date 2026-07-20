@@ -43,20 +43,15 @@ jobs:
       - name: Test with pytest
         run: |
           uv run pytest
-      # Tests must not write into the checkout; see tests/conftest.py
       - name: Check tests left the working tree clean
         run: |
-          # `--ignored` matters: .gitignore lists test outputs such as
-          # tests/**/*.pdf, so without it a test can recreate exactly the
-          # pollution this step exists to catch and still report clean.
-          # Scoped to tests/ because src/ legitimately holds ignored build
-          # artifacts (_version.py, generated .c/.so).
-          # Written outside the checkout, so the report is not itself a stray.
+          # Report lives outside the checkout so it is not itself a stray.
           dirty="${RUNNER_TEMP:-/tmp}/dirty.txt"
+          # --ignored: .gitignore hides test outputs like tests/**/*.pdf.
+          # Only for tests/; src/ has legitimate ignored build artifacts.
           git status --porcelain --ignored=traditional -- tests/ \
             | grep -vE '__pycache__|\.pyc$|\.coverage$|coverage\.xml$' >"$dirty" || true
-          # Elsewhere, tracked-file edits and non-ignored strays still count.
-          # uv.lock is excluded: `uv sync` may write it during this job.
+          # uv.lock excluded: `uv sync` may write it during this job.
           git status --porcelain --untracked-files=all -- . ':!tests' ':!uv.lock' >>"$dirty"
           if [ -s "$dirty" ]; then
             echo "::error::Tests created or modified files inside the repo:"

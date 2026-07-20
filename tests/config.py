@@ -91,9 +91,7 @@ def generate_tests(metafunc, domain):
                     test_params["args"],
                     test_params["outputs"],
                     test_params["references"],
-                    # Absolute, so that `__DIR__` and reference paths resolve
-                    # correctly no matter what the test's working directory is
-                    op.abspath(script_dir),
+                    op.abspath(script_dir),  # absolute: resolution is cwd-independent
                 )
             )
 
@@ -120,9 +118,8 @@ def test_script(
 
     tmp_dir = tempfile.mkdtemp()
 
-    # Some scripts write sidecar files next to their inputs -- gffutils, for
-    # example, creates a `.db` alongside the GFF it reads. Point `__DIR__` at a
-    # throwaway copy so those writes cannot land in the checkout.
+    # Scripts may write sidecars next to their inputs (gffutils' `.db`), so
+    # point `__DIR__` at a throwaway copy.
     work_dir = copytree(work_dir, op.join(tmp_dir, "work"))
 
     opts, args = "", ""

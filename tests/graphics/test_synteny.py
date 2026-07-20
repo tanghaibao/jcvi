@@ -50,11 +50,8 @@ def test_invalid_layoutline(row, delimiter, error):
         _ = LayoutLine(row, delimiter)
 
 
-def test_main(tmp_path, monkeypatch):
-    data_dir = op.join(op.dirname(__file__), "data")
-    for fname in os.listdir(data_dir):
-        os.symlink(op.join(data_dir, fname), op.join(str(tmp_path), fname))
-    monkeypatch.chdir(tmp_path)
+def test_main(copy_data):
+    copy_data(op.join(op.dirname(__file__), "data"))
 
     merge(["grape.bed", "peach.bed", "-o", "grape_peach.bed"])
     image_name = synteny_main(["blocks", "grape_peach.bed", "blocks.layout"])

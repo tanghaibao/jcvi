@@ -23,7 +23,7 @@ import time
 import yaml
 
 from importlib import import_module
-from shutil import rmtree as rmdir_
+from shutil import copytree, rmtree as rmdir_
 from typing import Optional, Tuple
 
 # https://stackoverflow.com/questions/16571150/how-to-capture-stdout-output-from-a-python-function-call
@@ -119,6 +119,11 @@ def test_script(
     start_time = time.time()
 
     tmp_dir = tempfile.mkdtemp()
+
+    # Some scripts write sidecar files next to their inputs -- gffutils, for
+    # example, creates a `.db` alongside the GFF it reads. Point `__DIR__` at a
+    # throwaway copy so those writes cannot land in the checkout.
+    work_dir = copytree(work_dir, op.join(tmp_dir, "work"))
 
     opts, args = "", ""
     if options:

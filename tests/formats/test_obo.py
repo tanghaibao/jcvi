@@ -1,7 +1,6 @@
-def test_oboreader(tmp_path, monkeypatch):
+def test_oboreader():
     from jcvi.formats.obo import GODag_from_GO
 
-    monkeypatch.chdir(tmp_path)
     go, obo_file = GODag_from_GO()
     r1, r2, r3 = [
         rec

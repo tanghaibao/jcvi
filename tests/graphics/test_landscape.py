@@ -1,14 +1,10 @@
-import os
 import os.path as op
 
 from jcvi.graphics.landscape import depth, stack
 
 
-def test_depth(tmp_path, monkeypatch):
-    data_dir = op.join(op.dirname(__file__), "data")
-    for fname in os.listdir(data_dir):
-        os.symlink(op.join(data_dir, fname), op.join(str(tmp_path), fname))
-    monkeypatch.chdir(tmp_path)
+def test_depth(copy_data):
+    copy_data(op.join(op.dirname(__file__), "data"))
 
     image_name = depth(
         [
@@ -23,11 +19,8 @@ def test_depth(tmp_path, monkeypatch):
     assert op.exists(image_name)
 
 
-def test_stack(tmp_path, monkeypatch):
-    data_dir = op.join(op.dirname(__file__), "data")
-    for fname in os.listdir(data_dir):
-        os.symlink(op.join(data_dir, fname), op.join(str(tmp_path), fname))
-    monkeypatch.chdir(tmp_path)
+def test_stack(copy_data):
+    copy_data(op.join(op.dirname(__file__), "data"))
 
     image_name = stack(
         ["TAIR10_organelles.fas.gz", "--stacks=exons", "--window=25000", "--shift=5000"]

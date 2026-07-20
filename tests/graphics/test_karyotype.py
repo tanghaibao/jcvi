@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import os
 import os.path as op
 import pytest
 
@@ -26,11 +25,8 @@ def test_make_circle_name(sid, rev, expected):
     assert make_circle_name(sid, rev) == expected, "Expect {}".format(expected)
 
 
-def test_main(tmp_path, monkeypatch):
-    data_dir = op.join(op.dirname(__file__), "data")
-    for fname in os.listdir(data_dir):
-        os.symlink(op.join(data_dir, fname), op.join(str(tmp_path), fname))
-    monkeypatch.chdir(tmp_path)
+def test_main(copy_data):
+    copy_data(op.join(op.dirname(__file__), "data"))
 
     image_name = karyotype_main(["seqids", "layout"])
     assert op.exists(image_name)

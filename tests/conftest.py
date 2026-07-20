@@ -5,7 +5,36 @@
 Shared pytest fixtures for the jcvi test suite.
 """
 
+import os
+import os.path as op
+import shutil
+
 import pytest
+
+
+@pytest.fixture
+def copy_data(tmp_path):
+    """
+    Copy the contents of a test data directory into the isolated working dir.
+
+    Returns a callable taking the data directory to copy from.
+
+    Tests must *copy* rather than symlink: several entry points write outputs
+    whose names collide with their inputs (`grape_peach.bed`, `calibrate.json`),
+    and writing through a symlink modifies the link target, i.e. the checked-in
+    data directory. Copying keeps those writes inside the temporary directory.
+    """
+
+    def _copy(data_dir: str) -> str:
+        for fname in os.listdir(data_dir):
+            src, dst = op.join(data_dir, fname), op.join(str(tmp_path), fname)
+            if op.isdir(src):
+                shutil.copytree(src, dst)
+            else:
+                shutil.copy2(src, dst)
+        return str(tmp_path)
+
+    return _copy
 
 
 @pytest.fixture(autouse=True)

@@ -249,10 +249,10 @@ for FASTA.**
 
 ## Star History
 
-<a href="https://www.star-history.com/?repos=tanghaibao%2Fjcvi&type=date&logscale=&legend=top-left">
+<a href="https://www.star-history.com/?repos=tanghaibao%2Fjcvi%2Ctanghaibao%2Fgoatools&type=date&legend=top-left">
  <picture>
-   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=tanghaibao/jcvi&type=date&theme=dark&logscale&legend=top-left&sealed_token=LmHbx70lZ-_lproBSan2mKKpL9DVQWq-7G85Rg3Qn00JB3wsKjp_Qe4_T9N64oIlw7P7PKtX_eVHCPw7qMUyZExGrztEJG8Kogh4rdgHwjnThrXYewc4qVRXhbf7nNO03__pN0QtCsit-oA1H3HnH0nAz-LDhcSUchBGI7mU8IPP4yj6g-8Sx2LZ6vnC" />
-   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=tanghaibao/jcvi&type=date&logscale&legend=top-left&sealed_token=LmHbx70lZ-_lproBSan2mKKpL9DVQWq-7G85Rg3Qn00JB3wsKjp_Qe4_T9N64oIlw7P7PKtX_eVHCPw7qMUyZExGrztEJG8Kogh4rdgHwjnThrXYewc4qVRXhbf7nNO03__pN0QtCsit-oA1H3HnH0nAz-LDhcSUchBGI7mU8IPP4yj6g-8Sx2LZ6vnC" />
-   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=tanghaibao/jcvi&type=date&logscale&legend=top-left&sealed_token=LmHbx70lZ-_lproBSan2mKKpL9DVQWq-7G85Rg3Qn00JB3wsKjp_Qe4_T9N64oIlw7P7PKtX_eVHCPw7qMUyZExGrztEJG8Kogh4rdgHwjnThrXYewc4qVRXhbf7nNO03__pN0QtCsit-oA1H3HnH0nAz-LDhcSUchBGI7mU8IPP4yj6g-8Sx2LZ6vnC" />
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=tanghaibao/jcvi%2Ctanghaibao/goatools&type=date&theme=dark&legend=top-left&sealed_token=kar4zWVKpq0Pdbtdfhsz8937obc2S-HCpPLhwr4XEkncB0ws4ZrCpedeElv8S6t-iCXDUy1g-PenuxC3S9oLXNeazqTjQJ_bwSA1kpp-ZRlIeytuFkPc8BEeG4UgjXtKdHVVFQK_LEbh27MsxKxmMvHeGVoHpYnvfcYbRSBp7ab-F7d0TUf4x-Q-jBah" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=tanghaibao/jcvi%2Ctanghaibao/goatools&type=date&legend=top-left&sealed_token=kar4zWVKpq0Pdbtdfhsz8937obc2S-HCpPLhwr4XEkncB0ws4ZrCpedeElv8S6t-iCXDUy1g-PenuxC3S9oLXNeazqTjQJ_bwSA1kpp-ZRlIeytuFkPc8BEeG4UgjXtKdHVVFQK_LEbh27MsxKxmMvHeGVoHpYnvfcYbRSBp7ab-F7d0TUf4x-Q-jBah" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=tanghaibao/jcvi%2Ctanghaibao/goatools&type=date&legend=top-left&sealed_token=kar4zWVKpq0Pdbtdfhsz8937obc2S-HCpPLhwr4XEkncB0ws4ZrCpedeElv8S6t-iCXDUy1g-PenuxC3S9oLXNeazqTjQJ_bwSA1kpp-ZRlIeytuFkPc8BEeG4UgjXtKdHVVFQK_LEbh27MsxKxmMvHeGVoHpYnvfcYbRSBp7ab-F7d0TUf4x-Q-jBah" />
  </picture>
 </a>

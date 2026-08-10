@@ -655,7 +655,7 @@ class Weights(DictFile):
             logger.debug("Weight for `%s` set to %d.", m, default)
 
     def get_pivot(self, mapnames):
-        # Break ties by occurence in file
+        # Break ties by occurrence in file
         common_mapnames = set(self.maps) & set(mapnames)
         if not common_mapnames:
             logger.error("No common names found between %s and %s", self.maps, mapnames)

@@ -162,7 +162,7 @@ def readLASTZ(infile, minID=50):
     counter = 0
     # Read in split rows
     for row in content:
-        # Ignore lines begining with '#'
+        # Ignore lines beginning with '#'
         if row[0][0] == "#":
             continue
         # Count if hit identity exceeds threshold
@@ -245,7 +245,7 @@ def readPAF(infile, minID=50):
     counter = 0
     # Read in split rows
     for row in content:
-        # Ignore lines begining with '#'
+        # Ignore lines beginning with '#'
         if row[0][0] == "#":
             continue
         # Count if hit identity exceeds threshold

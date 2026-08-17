@@ -8,6 +8,7 @@ dependencies:
   - imagemagick
   - libmagic # System-level magic library
   - wand # Python bindings for ImageMagick
+  - last=1256 # MCscan requirement
   - pip
   - pip:
       - pytest

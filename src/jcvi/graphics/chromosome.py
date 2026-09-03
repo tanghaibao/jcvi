@@ -11,6 +11,7 @@ from math import ceil
 import sys
 from typing import List, Optional, Tuple
 
+from matplotlib.path import Path
 from natsort import natsorted
 import numpy as np
 
@@ -60,7 +61,8 @@ class Chromosome(BaseGlyph):
         y1, y2 = sorted((y1, y2))
         super().__init__(ax)
         pts, r = self.get_pts(x, y1, y2, width)
-        self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder))
+        self.outline = Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder)
+        self.append(self.outline)
         if patch:
             rr = r * 0.9  # Shrink a bit for the patches
             # First patch is colored if there is an even number of patches, otherwise not colored
@@ -74,6 +76,22 @@ class Chromosome(BaseGlyph):
                 )
 
         self.add_patches()
+        self.clip_patches()
+
+    def clip(self, artist):
+        """Clip an artist (e.g. a painted region) to the chromosome outline"""
+        artist.set_clip_path(self.outline)
+
+    def clip_patches(self):
+        # Clip after add_patches(): set_clip_path() captures the outline's
+        # transform, which is only set once the outline is on the axes
+        for p in self[1:]:
+            if isinstance(p, Rectangle):
+                self.clip(p)
+
+    def set_transform(self, tr):
+        super().set_transform(tr)
+        self.clip_patches()  # re-clip against the new transform
 
     def get_pts(self, x, y1, y2, width):
         w = width / 2
@@ -112,7 +130,8 @@ class HorizontalChromosome(BaseGlyph):
         x1, x2 = sorted((x1, x2))
         super().__init__(ax)
         pts, r = self.get_pts(x1, x2, y, height, style=style)
-        self.append(Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder + 1))
+        self.outline = Polygon(pts, fill=False, lw=lw, ec=ec, zorder=zorder + 1)
+        self.append(self.outline)
 
         if fc:
             pts, r = self.get_pts(x1, x2, y, height / 2, style=style)
@@ -130,6 +149,20 @@ class HorizontalChromosome(BaseGlyph):
                 )
 
         self.add_patches()
+        self.clip_patches()
+
+    def clip(self, artist):
+        """Clip an artist (e.g. a painted region) to the chromosome outline"""
+        artist.set_clip_path(self.outline)
+
+    def clip_patches(self):
+        for p in self[1:]:
+            if isinstance(p, Rectangle):
+                self.clip(p)
+
+    def set_transform(self, tr):
+        super().set_transform(tr)
+        self.clip_patches()  # re-clip against the new transform
 
     def get_pts(self, x1, x2, y, height, style="auto") -> Tuple[list, float]:
         h = height / 2
@@ -160,16 +193,26 @@ class ChromosomeWithCentromere(object):
         pts += [[x - r, y1 - r], [x - r, y2 + r]]
         pts += plot_cap((x, y2 + r), np.radians(range(180, 360)), r)
         pts += [[x + r, y2 + r], [x + r, y1 - r]]
-        ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
+        upper_arm = Polygon(pts, fc=fc, fill=fill, zorder=zorder)
+        ax.add_patch(upper_arm)
         pts = []
         pts += plot_cap((x, y2 - r), np.radians(range(180)), r)
         pts += [[x - r, y2 - r], [x - r, y3 + r]]
         pts += plot_cap((x, y3 + r), np.radians(range(180, 360)), r)
         pts += [[x + r, y3 + r], [x + r, y2 - r]]
-        ax.add_patch(Polygon(pts, fc=fc, fill=fill, zorder=zorder))
+        lower_arm = Polygon(pts, fc=fc, fill=fill, zorder=zorder)
+        ax.add_patch(lower_arm)
         ax.add_patch(
             CirclePolygon((x, y2), radius=r * 0.5, fc="k", ec="k", zorder=zorder)
         )
+        self.ax = ax
+        self.outline_path = Path.make_compound_path(
+            upper_arm.get_path(), lower_arm.get_path()
+        )
+
+    def clip(self, artist):
+        """Clip an artist (e.g. a painted region) to both chromosome arms"""
+        artist.set_clip_path(self.outline_path, self.ax.transData)
 
 
 class ChromosomeMap(object):
@@ -582,17 +625,20 @@ def draw_chromosomes(
 
     # first the chromosomes
     chr_locations = {}
+    chr_glyphs = {}
     for a, (chr, clen) in enumerate(natsorted(chr_lens.items())):
         xx = xstart + a * xinterval + 0.5 * xwidth
         chr_locations[chr] = xx
         root.text(xx, ystart + 0.01, str(get_number(chr)), ha="center")
         if centromeres:
             yy = ystart - centromeres[chr] * ratio
-            ChromosomeWithCentromere(
+            chr_glyphs[chr] = ChromosomeWithCentromere(
                 root, xx, ystart, yy, ystart - clen * ratio, width=xwidth
             )
         else:
-            Chromosome(root, xx, ystart, ystart - clen * ratio, width=xwidth)
+            chr_glyphs[chr] = Chromosome(
+                root, xx, ystart, ystart - clen * ratio, width=xwidth
+            )
 
     alpha = 1
     # color the regions
@@ -611,16 +657,17 @@ def draw_chromosomes(
                 start = prev_end
             yystart = ystart - end * ratio
             yyend = ystart - start * ratio
-            root.add_patch(
-                Rectangle(
-                    (xx, yystart),
-                    xwidth,
-                    yyend - yystart,
-                    fc=class_colors.get(klass, "lightslategray"),
-                    lw=0,
-                    alpha=alpha,
-                )
+            painted = Rectangle(
+                (xx, yystart),
+                xwidth,
+                yyend - yystart,
+                fc=class_colors.get(klass, "lightslategray"),
+                lw=0,
+                alpha=alpha,
             )
+            # Keep painted regions inside the rounded chromosome caps
+            chr_glyphs[chr].clip(painted)
+            root.add_patch(painted)
             prev_end, prev_klass = b.end, klass
 
             if imagemap:

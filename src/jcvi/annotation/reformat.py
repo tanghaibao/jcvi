@@ -1054,7 +1054,7 @@ class NeedleHeader(object):
 
 
 def _needle(fa, fb, needlefile, a, b, results):
-    from Bio.Emboss.Applications import NeedleCommandline
+    from ..apps.commandline import NeedleCommandline
 
     needle_cline = NeedleCommandline(
         asequence=fa, bsequence=fb, gapopen=10, gapextend=0.5, outfile=needlefile

@@ -10,13 +10,23 @@ from itertools import groupby
 import os.path as op
 import sys
 
-from pyfaidx import Fasta
-from pyliftover import LiftOver
-
-from ..apps.base import ActionDispatcher, OptionParser, logger, need_update, sh
+from ..apps.base import (
+    ActionDispatcher,
+    OptionParser,
+    logger,
+    missing_extra,
+    need_update,
+    sh,
+)
 from ..utils.cbook import percentage
 from .base import must_open
 from .sizes import Sizes
+
+try:
+    from pyfaidx import Fasta
+    from pyliftover import LiftOver
+except ImportError as e:
+    missing_extra(e, "variation")
 
 
 class VcfLine:

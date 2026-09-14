@@ -11,7 +11,7 @@ from itertools import groupby
 import os.path as op
 import sys
 
-from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir, symlink
+from ..apps.base import ActionDispatcher, OptionParser, logger, mkdir, require, symlink
 from ..apps.grid import MakeManager
 from ..formats.base import get_number, must_open
 from ..formats.bed import Bed
@@ -184,7 +184,7 @@ def venn(args):
 
     Display benchmark results as Venn diagram.
     """
-    from matplotlib_venn import venn2
+    venn2 = require("matplotlib_venn", "projects").venn2
 
     p = OptionParser(venn.__doc__)
     opts, args, iopts = p.set_image_options(args, figsize="9x9")

@@ -1,14 +1,17 @@
-import os
 import io
-import shutil
-import pytest
+import os
 from pathlib import Path
+import shutil
 
+import pytest
+
+pytest.importorskip("pypdf")  # `pip install 'jcvi[grabseeds]'`
 from pypdf import PdfReader, PdfWriter
+
+import jcvi.formats.pdf as pdfmod
 
 # Import the function under test and the module for patching
 from jcvi.formats.pdf import cat as pdf_cat
-import jcvi.formats.pdf as pdfmod
 
 
 def _make_pdf(path: Path, sizes):

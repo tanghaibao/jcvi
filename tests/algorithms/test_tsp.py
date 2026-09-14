@@ -10,6 +10,8 @@
 
 import pytest
 
+pytest.importorskip("ortools")  # `pip install 'jcvi[lp]'`
+
 
 @pytest.mark.parametrize(
     "edges,directed,expected",

@@ -313,7 +313,7 @@ class OptionParser(ArgumentParser):
         )
 
     def set_aws_opts(self, store="hli-mv-data-science/htang"):
-        from jcvi.utils.aws import s3ify
+        s3ify = require("jcvi.utils.aws", "aws").s3ify
 
         store = s3ify(store)
         group = self.add_argument_group("AWS and Docker options")
@@ -1226,6 +1226,38 @@ def is_exe(fpath):
     return op.isfile(fpath) and os.access(fpath, os.X_OK)
 
 
+def missing_extra(exc: ImportError, extra: str):
+    """
+    Report a missing optional dependency and exit.
+
+    Args:
+        exc: the ImportError that was raised.
+        extra: name of the pip extra that provides the package, e.g. ``"ngs"``.
+    """
+    logger.error("Missing optional dependency: %s", exc)
+    logger.error("Install it with: pip install 'jcvi[%s]'", extra)
+    sys.exit(1)
+
+
+def require(module: str, extra: str):
+    """
+    Import an optional dependency, or exit with an install hint.
+
+    Args:
+        module: dotted module name to import, e.g. ``"pysam"``.
+        extra: name of the pip extra that provides it, e.g. ``"ngs"``.
+
+    Returns:
+        The imported module.
+    """
+    from importlib import import_module
+
+    try:
+        return import_module(module)
+    except ImportError as e:
+        missing_extra(e, extra)
+
+
 def which(program):
     """
     Emulates the unix which command.
@@ -1412,7 +1444,7 @@ def ls_ftp(dir):
     """
     from urllib.parse import urlparse
 
-    from ftpretty import ftpretty
+    ftpretty = require("ftpretty", "fetch").ftpretty
 
     o = urlparse(dir)
 

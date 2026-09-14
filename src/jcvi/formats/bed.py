@@ -22,6 +22,7 @@ from ..apps.base import (
     logger,
     need_update,
     popen,
+    require,
     sh,
 )
 from ..utils.cbook import SummaryStats, human_size, percentage, thousands
@@ -499,7 +500,7 @@ def gaps(args):
     bedfile will contain 'uncovered' (i.e. gap) features, in that case use
     --missing to note if gap is missing in one or more seqids.
     """
-    from pybedtools import BedTool
+    BedTool = require("pybedtools", "ngs").BedTool
 
     p = OptionParser(gaps.__doc__)
     p.add_argument(
@@ -556,7 +557,7 @@ def closest(args):
     Find the closest feature in `features.bed` to `input.bed`.
     `features.bed` must be sorted using `jcvi.formats.bed sort`.
     """
-    from pybedtools import BedTool
+    BedTool = require("pybedtools", "ngs").BedTool
 
     p = OptionParser(closest.__doc__)
     p.add_argument("--maxdist", default=5000, help="Maximum distance")
@@ -919,7 +920,7 @@ def juncs(args):
     """
     from tempfile import mkstemp
 
-    from pybedtools import BedTool
+    BedTool = require("pybedtools", "ngs").BedTool
 
     p = OptionParser(juncs.__doc__)
     p.set_outfile()
@@ -1098,7 +1099,7 @@ def overlap(args):
     `bedtools intersect` and `bedtools merge`. It also estimates the Jaccard
     index between the two bed files.
     """
-    from pybedtools import BedTool
+    BedTool = require("pybedtools", "ngs").BedTool
 
     p = OptionParser(overlap.__doc__)
     opts, args = p.parse_args(args)

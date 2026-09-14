@@ -8,7 +8,7 @@ Impute unknown variations given an input vcf file.
 import os.path as op
 import sys
 
-from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..apps.base import ActionDispatcher, OptionParser, logger, require
 from ..apps.grid import MakeManager
 from ..formats.base import must_open
 from ..formats.vcf import CM, VcfLine
@@ -325,7 +325,7 @@ def impute(args):
 
     Use IMPUTE2 to impute vcf on chromosome 1.
     """
-    from pyfaidx import Fasta
+    Fasta = require("pyfaidx", "variation").Fasta
 
     p = OptionParser(impute.__doc__)
     p.set_home("shapeit")

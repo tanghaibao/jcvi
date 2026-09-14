@@ -11,9 +11,13 @@ try:
     import vcf
 except ImportError:
     pass
-import pysam
 
-from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..apps.base import ActionDispatcher, OptionParser, logger, missing_extra
+
+try:
+    import pysam
+except ImportError as e:
+    missing_extra(e, "ngs")
 
 
 class CPRA:

@@ -1,5 +1,10 @@
 import os.path as op
 
+import pytest
+
+for _mod in ("pyefd", "pytesseract", "skimage", "wand.image", "webcolors"):
+    pytest.importorskip(_mod)  # `pip install 'jcvi[grabseeds]'`
+
 from jcvi.graphics.grabseeds import calibrate, seeds
 
 

@@ -12,11 +12,15 @@ from math import exp
 import sys
 
 from Bio import AlignIO, SeqIO
-from bx import interval_index_file
-from bx.align import maf
 
-from ..apps.base import ActionDispatcher, OptionParser, need_update
+from ..apps.base import ActionDispatcher, OptionParser, missing_extra, need_update
 from .base import BaseFile, logger
+
+try:
+    from bx import interval_index_file
+    from bx.align import maf
+except ImportError as e:
+    missing_extra(e, "ngs")
 
 blastz_score_to_ncbi_bits = lambda bz_score: bz_score * 0.0205
 

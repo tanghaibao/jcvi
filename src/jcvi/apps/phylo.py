@@ -212,6 +212,9 @@ def run_gblocks(align_fasta_file, **kwargs):
         print("***Gblocks could not run", file=sys.stderr)
         return None
     else:
+        # `AbstractCommandline.run()` returns raw bytes from
+        # `Popen.communicate()` on Python 3, so decode before matching.
+        r = r.decode("utf-8", errors="replace") if isinstance(r, bytes) else r
         print(r, file=sys.stderr)
         alignp = re.sub(
             r".*Gblocks alignment:.*\(([0-9]{1,3}) %\).*", r"\1", r, flags=re.DOTALL

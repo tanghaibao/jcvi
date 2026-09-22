@@ -33,52 +33,80 @@ classifiers = [
 
 dependencies = [
     "biopython",
-    "boto3",
     "CrossMap",
-    "cython",
     "deap",
     "ete4",
-    "ftpretty",
-    "genomepy",
-    "gffutils",
-    "goatools",
-    "graphviz",
-    "jinja2",
     "matplotlib",
     "more-itertools",
     "natsort",
     "networkx",
     "numpy",
-    "ortools",
     "palettable",
-    "pybedtools",
-    "pyefd",
-    "pypdf",
-    "pysam",
-    "pytesseract",
+    "pandas",
     "rich",
-    "scikit-image",
     "scipy",
     "seaborn",
-    "Wand",
-    "webcolors",
 ]
 
 dynamic = ["version"]
 
 [project.optional-dependencies]
+# Niche features; `pip install 'jcvi[all]'` installs everything except the
+# extras listed after `all`, which need large or licensed downloads.
+assembly = ["bitarray"] # k-mer binning in assembly.kmer
+aws = ["boto3", "botocore"] # S3 helpers (jcvi.utils.aws)
+excel = ["xlrd", "xlwt"] # formats.excel, projects.str spreadsheets
+fetch = ["ftpretty"] # FTP listing in apps.base.ls_ftp
+graphviz = ["pygraphviz"] # graph drawing (wheels bundle Graphviz)
+grabseeds = [ # GRABSEEDS image analysis, PDF tools
+    "pyefd",
+    "pypdf",
+    "pytesseract",
+    "scikit-image",
+    "Wand",
+    "webcolors",
+]
+lp = ["ortools"] # OR-tools LP/TSP solvers
+ngs = [ # BAM/BED/GFF/MAF actions needing bindings
+    "bcbio-gff",
+    "bx-python",
+    "gffutils",
+    "pybedtools",
+    "pysam",
+]
+ontology = ["goatools"] # GO ontology parsing (formats.obo)
+projects = ["jinja2", "matplotlib-venn", "scikit-learn"] # jcvi.projects scripts
+variation = [ # VCF, CNV and imputation tools
+    "cyvcf2",
+    "hmmlearn",
+    "holoviews",
+    "hvplot",
+    "pyfaidx",
+    "pyliftover",
+    "PyVCF3",
+]
+web = ["beautifulsoup4"] # HTML scraping in formats.html
+all = [
+    "jcvi[assembly,aws,excel,fetch,graphviz,grabseeds,lp,ngs,ontology,projects,variation,web]",
+]
+gurobi = ["gurobipy"] # Gurobi TSP solver; needs a licence
+segment = ["segment-anything", "torch", "torchvision"] # SAM model in grabseeds
 tests = [
-    "black",
-    "hatch",
-    "isort",
+    "jcvi[all]",
     "mock",
-    "numpydoc-validation",
-    "pre-commit",
-    "pymdown-extensions",
     "pytest-benchmark",
     "pytest-cov",
     "pytest",
     "PyYAML",
+]
+
+dev = [
+    "black",
+    "hatch",
+    "isort",
+    "numpydoc-validation",
+    "pre-commit",
+    "pymdown-extensions",
 ]
 
 [project.urls]
@@ -124,8 +152,7 @@ artifacts = [
 addopts = "-v --cov=jcvi --cov-branch --cov-report=xml --cov-report=term"
 testpaths = ["tests"]
 python_files = ["test_*.py"]
-filterwarnings = [
-]
+filterwarnings = []
 
 [tool.isort]
 profile = "black"

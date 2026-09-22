@@ -10,6 +10,9 @@
 
 import pytest
 
+pytest.importorskip("skimage")  # `pip install 'jcvi[grabseeds]'`
+pytest.importorskip("webcolors")
+
 
 @pytest.mark.parametrize(
     "rgb1,rgb2,output",

@@ -10,6 +10,8 @@
 
 import pytest
 
+pytest.importorskip("ortools")  # `pip install 'jcvi[lp]'`
+
 
 def test_has_ortools():
     from jcvi.algorithms.lpsolve import has_ortools

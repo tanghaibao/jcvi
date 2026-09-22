@@ -18,6 +18,7 @@ from ..apps.base import (
     mkdir,
     need_update,
     parse_multi_values,
+    require,
     sh,
 )
 from ..utils.cbook import AutoVivification
@@ -1040,12 +1041,7 @@ def gb(args):
     Convert GFF3 to Genbank format. Recipe taken from:
     <http://www.biostars.org/p/2492/>
     """
-    try:
-        from BCBio import GFF
-    except ImportError:
-        print(
-            "You need to install dep first: $ easy_install bcbio-gff", file=sys.stderr
-        )
+    GFF = require("BCBio.GFF", "ngs")
 
     p = OptionParser(gb.__doc__)
     opts, args = p.parse_args(args)
@@ -1543,7 +1539,8 @@ def format(args):
 
     Read in the gff and print it out, changing seqid, etc.
     """
-    from jcvi.formats.obo import GODag_from_SO, validate_term
+    obo = require("jcvi.formats.obo", "ontology")
+    GODag_from_SO, validate_term = obo.GODag_from_SO, obo.validate_term
 
     valid_multiparent_ops = ["split", "merge"]
 
@@ -2900,7 +2897,7 @@ def splicecov(args):
     """
     from tempfile import mkstemp
 
-    from pybedtools import BedTool
+    BedTool = require("pybedtools", "ngs").BedTool
 
     from jcvi.utils.cbook import SummaryStats
 
@@ -3142,7 +3139,7 @@ def make_index(gff_file):
     """
     Make a sqlite database for fast retrieval of features.
     """
-    import gffutils
+    gffutils = require("gffutils", "ngs")
 
     db_file = gff_file + ".db"
 
@@ -3331,7 +3328,7 @@ def load(args):
     desc_attr = opts.desc_attribute
     sep = opts.sep
 
-    import gffutils
+    gffutils = require("gffutils", "ngs")
 
     g = make_index(gff_file)
     f = Fasta(fasta_file, index=False)

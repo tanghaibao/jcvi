@@ -21,6 +21,7 @@ from ..apps.base import (
     Popen,
     logger,
     need_update,
+    require,
     sh,
 )
 from ..apps.grid import MakeManager
@@ -950,7 +951,7 @@ def count(args):
 
     Run dump - jellyfish - bin - bincount in serial.
     """
-    from bitarray import bitarray
+    bitarray = require("bitarray", "assembly").bitarray
 
     p = OptionParser(count.__doc__)
     opts, args = p.parse_args(args)
@@ -1003,7 +1004,7 @@ def bincount(args):
 
     Count K-mers in the bin.
     """
-    from bitarray import bitarray
+    bitarray = require("bitarray", "assembly").bitarray
 
     from jcvi.formats.sizes import Sizes
 
@@ -1038,7 +1039,7 @@ def bin(args):
 
     Serialize counts to bitarrays.
     """
-    from bitarray import bitarray
+    bitarray = require("bitarray", "assembly").bitarray
 
     p = OptionParser(bin.__doc__)
     opts, args = p.parse_args(args)

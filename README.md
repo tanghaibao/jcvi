@@ -183,6 +183,45 @@ pip install -e '.[tests]'
 pre-commit install
 ```
 
+### Optional dependencies
+
+The default install only pulls in what the core modules need. Niche features
+are grouped into extras, for example:
+
+```bash
+pip install 'jcvi[ngs]'    # or: uv sync --extra ngs
+pip install 'jcvi[all]'    # everything
+```
+
+| Extra       | Enables                                                                   |
+| ----------- | ------------------------------------------------------------------------- |
+| `assembly`  | K-mer binning in `jcvi.assembly.kmer` (bitarray)                          |
+| `aws`       | S3 helpers in `jcvi.utils.aws` (boto3)                                    |
+| `excel`     | Spreadsheet conversion in `jcvi.formats.excel` (xlrd, xlwt)               |
+| `fetch`     | FTP directory listing in `jcvi.apps.base` (ftpretty)                      |
+| `graphviz`  | Graph drawing in `jcvi.algorithms.graph` and `jcvi.compara.reconstruct` (pygraphviz) |
+| `grabseeds` | GRABSEEDS image analysis and `jcvi.formats.pdf` (scikit-image, Wand, pytesseract, pyefd, pypdf, webcolors) |
+| `lp`        | OR-tools based LP and TSP solvers in `jcvi.algorithms`                    |
+| `ngs`       | BAM/BED/GFF/MAF actions (pysam, pybedtools, gffutils, bcbio-gff, bx-python) |
+| `ontology`  | GO/SO ontology parsing in `jcvi.formats.obo` (goatools)                   |
+| `projects`  | Scripts in `jcvi.projects` (jinja2, matplotlib-venn, scikit-learn)        |
+| `variation` | VCF, CNV and imputation tools (cyvcf2, hmmlearn, holoviews, hvplot, pyfaidx, pyliftover, PyVCF3) |
+| `web`       | HTML scraping in `jcvi.formats.html` (beautifulsoup4)                     |
+| `all`       | All of the above                                                          |
+
+These extras are not part of `all`:
+
+| Extra       | Enables                                                                   |
+| ----------- | ------------------------------------------------------------------------- |
+| `gurobi`    | Gurobi TSP solver in `jcvi.algorithms.lpsolve`; needs a Gurobi licence    |
+| `segment`   | Segment Anything model in GRABSEEDS (segment-anything, torch, torchvision) |
+
+Some extras call external programs as well. GRABSEEDS needs ImageMagick and
+Tesseract, which `environment.yml` installs.
+
+An action that needs a missing extra exits with a message naming the extra to
+install.
+
 ### Test Installation
 
 If installed successfully, you can check the version with:

@@ -23,7 +23,7 @@ import sys
 
 from more_itertools import pairwise, roundrobin
 
-from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, sh
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, require, sh
 from ..formats.base import FileMerger
 from ..formats.bed import (
     Bed,
@@ -811,7 +811,7 @@ def refine(args):
     - Break in the middle of the region
     - Break at the closest gap (--closest)
     """
-    from pybedtools import BedTool
+    BedTool = require("pybedtools", "ngs").BedTool
 
     p = OptionParser(refine.__doc__)
     p.add_argument(

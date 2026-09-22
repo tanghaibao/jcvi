@@ -9,11 +9,15 @@ import shutil
 import sys
 
 from natsort import natsorted
-from pypdf import PdfWriter
-from pypdf.pagerange import PageRange, parse_filename_page_ranges  # stable home
 
-from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger
+from ..apps.base import ActionDispatcher, OptionParser, cleanup, logger, missing_extra
 from .base import must_open
+
+try:
+    from pypdf import PdfWriter
+    from pypdf.pagerange import PageRange, parse_filename_page_ranges  # stable home
+except ImportError as e:
+    missing_extra(e, "grabseeds")
 
 PAGE_RANGE_HELP = PageRange.__init__.__doc__
 

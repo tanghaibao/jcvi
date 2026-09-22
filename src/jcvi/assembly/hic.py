@@ -29,6 +29,7 @@ from ..apps.base import (
     iglob,
     logger,
     mkdir,
+    require,
     symlink,
 )
 from ..apps.grid import Jobs
@@ -890,7 +891,7 @@ def get_seqstarts(bamfile, N, seqids=None):
     """Go through the SQ headers and pull out all sequences with size
     greater than the resolution settings, i.e. contains at least a few cells
     """
-    import pysam
+    pysam = require("pysam", "ngs")
 
     bamfile = pysam.AlignmentFile(bamfile, "rb")
     seqsize = {}
@@ -931,7 +932,7 @@ def bam2mat(args):
     to more fine-grained heatmap, but leads to large .mat size and slower
     plotting.
     """
-    import pysam
+    pysam = require("pysam", "ngs")
 
     from jcvi.utils.cbook import percentage
 

@@ -13,7 +13,7 @@ import sys
 
 from more_itertools import pairwise
 
-from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..apps.base import ActionDispatcher, OptionParser, logger, require
 from ..formats.base import get_number
 from ..formats.bed import Bed
 from ..utils.grouper import Grouper
@@ -119,7 +119,7 @@ def adjgraph(args):
     chr 1
     138 6133 -5387 144 -6132 -139 140 141 146 -147 6134 145 -170 -142 -143
     """
-    import pygraphviz as pgv
+    pgv = require("pygraphviz", "graphviz")
 
     from jcvi.formats.base import SetFile
 

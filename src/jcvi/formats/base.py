@@ -25,6 +25,7 @@ from ..apps.base import (
     mkdir,
     need_update,
     popen,
+    require,
     sh,
 )
 
@@ -491,7 +492,7 @@ def must_open(
             return fileinput.input(filename)
 
     if filename.startswith("s3://"):
-        from jcvi.utils.aws import pull_from_s3
+        pull_from_s3 = require("jcvi.utils.aws", "aws").pull_from_s3
 
         filename = pull_from_s3(filename)
 

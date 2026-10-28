@@ -77,7 +77,7 @@ tests = [
     "pymdown-extensions",
     "pytest-benchmark",
     "pytest-cov",
-    "pytest",
+    "pytest<9.2",  # pytest-benchmark 5.3.0 breaks on pytest 9.2
     "PyYAML",
 ]
 

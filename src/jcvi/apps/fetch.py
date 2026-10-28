@@ -359,7 +359,9 @@ def phytozome(args):
             logger.error("No annotation downloaded for %s", s)
             continue
         if opts.format:
-            format_bed_and_cds(s, gff, cds)
+            # Genome ids are named by the species prefix of downloaded files
+            name = op.basename(gff).split("_")[0] if s.isdigit() else s
+            format_bed_and_cds(name, gff, cds)
 
 
 def download_species_phytozome(

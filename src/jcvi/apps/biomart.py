@@ -2,105 +2,16 @@
 # -*- coding: UTF-8 -*-
 
 """
-Builds the queries for Globus and BioMart servie, usefu for extraction of
+Builds the queries for BioMart service, useful for extraction of
 phytozome data sets.  Certain portion of the codes are ported from R package
 `biomaRt` (thanks).
 """
 
 import sys
 import urllib
-from urllib.parse import urljoin
 from xml.etree.ElementTree import Element, ElementTree, SubElement, tostring
 
-from .base import ActionDispatcher, OptionParser, download, logger
-
-
-class GlobusXMLParser(ElementTree):
-    def __init__(self, xml_file):
-        """Parse an Globus directory listing XML file
-
-        Args:
-            xml_file (str): Path to the XML file
-        """
-        with open(xml_file) as fp:
-            self.parse(fp)
-
-    def get_genomes(self):
-        """
-        Only folders containing `assembly` and `annotation` are of interest.
-        """
-        root = PhytozomePath(next(self.iter(tag="organismDownloads")))
-        genomes = {}
-        for child in root.values():
-            if child.has_genome_release:
-                genomes[child.name] = child
-
-        # early_release
-        early_release = root.get("early_release")
-        if early_release:
-            for child in early_release.values():
-                if child.has_genome_release:
-                    genomes[child.name] = child
-
-        return genomes
-
-
-class PhytozomePath(dict):
-    TAGS_OF_INTEREST = ("organismDownloads", "folder", "file")
-
-    def __init__(self, element):
-        """Deserialize XML => dict-like structure to ease navigation
-        between folders. Keys are folder or file names.
-
-        Args:
-            element (ElementTree): XML parse tree
-        """
-        tag = element.tag
-        assert tag in self.TAGS_OF_INTEREST
-        self.url = None
-        if tag == "file":
-            self.name = element.attrib["filename"]
-            self.url = element.attrib["url"]
-        else:
-            self.name = element.attrib["name"]
-        self.tag = tag
-        for child in list(element):
-            if child.tag not in self.TAGS_OF_INTEREST:
-                continue
-            child = PhytozomePath(child)
-            self[child.name] = child
-
-    @property
-    def has_genome_release(self):
-        """Only the folders that contain both `assembly` and `annotation` are of interest here."""
-        return "assembly" in self and "annotation" in self
-
-    def download(self, name, base_url, cookies, downloader=None):
-        """Download the file if it has an URL. Otherwise, this will recursively search the children.
-
-        See also:
-        <https://genome.jgi.doe.gov/portal/help/download.jsf>
-
-        Args:
-            name (str, optional): Name of the file. Defaults to None.
-            base_url (str): Link to the file on the internet.
-            cookies (str, optional): cookies file. Defaults to None.
-            downloader (str, optional): Use a given downloader. One of wget|curl|powershell|insecure.
-            Defaults to None.
-        """
-        if self.name == name and base_url and self.url:
-            url = urljoin(base_url, self.url)
-            download(
-                url, filename=name, debug=True, cookies=cookies, downloader=downloader
-            )
-        else:
-            for child_name, child in self.items():
-                if child_name == name:
-                    child.download(name, base_url, cookies, downloader=downloader)
-        return name
-
-    def __repr__(self):
-        return "{}: [{}]".format(self.name, ", ".join(repr(v) for v in self))
+from .base import ActionDispatcher, OptionParser, logger
 
 
 class MartXMLParser(ElementTree):

@@ -3,12 +3,18 @@ Wrapper for fetching data from various online repositories \
 (Entrez, Ensembl, Phytozome, and SRA)
 """
 
+import json
+import os
 import os.path as op
 from os.path import join as urljoin
 import re
+import shutil
 import sys
 import time
+from typing import Dict, List, Optional, Tuple
 from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 from Bio import Entrez, SeqIO
 from more_itertools import grouper
@@ -27,17 +33,19 @@ from .base import (
     cleanup,
     download,
     get_email_address,
-    last_updated,
     logger,
     ls_ftp,
     mkdir,
-    sh,
-    which,
 )
 
 myEmail = get_email_address()
 Entrez.email = myEmail
-PHYTOZOME_COOKIES = ".phytozome_cookies"
+JGI_FILE_LIST_URL = "https://files.jgi.doe.gov/phytozome_file_list/"
+JGI_DOWNLOAD_URL = "https://files-download.jgi.doe.gov/download_files/{}/"
+JGI_PORTAL_URL = "https://data.jgi.doe.gov/refine-download/phytozome"
+JGI_TOKEN_ENV = "JGI_SESSION_TOKEN"
+# Files on tape, need a restore request before download
+JGI_ARCHIVED_STATUS = {"PURGED", "RESTORE_REGISTERED", "RESTORE_IN_PROGRESS"}
 
 
 def batch_taxonomy(list_of_taxids):
@@ -183,54 +191,141 @@ def download_species_ensembl(species, valid_species, url):
             download(f)
 
 
-def get_cookies(cookies=PHYTOZOME_COOKIES):
-    # Check if cookies is still good
-    if op.exists(cookies) and last_updated(cookies) < 3600:
-        return cookies
+def get_jgi_token() -> Optional[str]:
+    """Read JGI session token from the environment, or prompt for it."""
+    token = os.environ.get(JGI_TOKEN_ENV)
+    if not token and console.is_terminal:
+        token = console.input("[bold green]JGI session token: ", password=True)
+    if not token:
+        return None
+    token = token.strip()
+    return token if token.startswith("Bearer ") else f"Bearer {token}"
 
-    if console.is_terminal:
-        username = console.input("[bold green]Phytozome Login: ")
-        pw = console.input("[bold green]Phytozome Password: ", password=True)
+
+def query_phytozome(
+    species: str, version: Optional[str] = None, assembly: bool = False
+) -> List[dict]:
+    """Query the JGI file list for a species name or a genome id."""
+    pattern = r".*[._](gene\.gff3|cds\.fa)\.gz"
+    if assembly:
+        pattern += r"|.*\.fa\.gz"
+    params = {"api_version": 2, "x": 50, "ff[file_name_pattern]": pattern}
+    if species.isdigit():
+        params["genome_id"] = species
     else:
-        username, pw = None, None
-    curlcmd = which("curl")
-    if curlcmd is None:
-        logger.error("curl command not installed. Aborting.")
-        return None
-    cmd = "{} https://signon.jgi.doe.gov/signon/create".format(curlcmd)
-    cmd += " --data-urlencode 'login={0}' --data-urlencode 'password={1}' -b {2} -c {2}".format(
-        username, pw, cookies
-    )
-    sh(cmd, outfile="/dev/null", errfile="/dev/null", log=False)
-    if not op.exists(cookies):
-        logger.error("Cookies file `{}` not created. Aborting.".format(cookies))
-        return None
+        params["organism"] = species
+        if version:
+            params["version"] = version
+    with urlopen(f"{JGI_FILE_LIST_URL}?{urlencode(params)}") as fp:
+        return json.load(fp).get("organisms", [])
 
-    return cookies
+
+def classify_phytozome_file(f: dict) -> Optional[str]:
+    """Label a file record as gff, cds or asm (unmasked assembly)."""
+    name, meta = f["file_name"], f.get("metadata", {})
+    if "lowConfidence" in name:
+        return None
+    if re.search(r"[._]gene\.gff3\.gz$", name):
+        return "gff"
+    if re.search(r"[._]cds\.fa\.gz$", name):
+        return "cds"
+    # metadata.content is unreliable (e.g. "unmashed"), check name instead
+    if (
+        name.endswith(".fa.gz")
+        and meta.get("type") == "assembly"
+        and "masked" not in name
+    ):
+        return "asm"
+    return None
+
+
+def _genome_id(organism: dict) -> int:
+    return int(organism["id"].rsplit("-", 1)[-1])
+
+
+def _rank_phytozome_file(f: dict, version: str) -> Tuple[bool, bool, str]:
+    """Prefer files on disk, then named after the genome version, then newest."""
+    return (
+        f.get("file_status") not in JGI_ARCHIVED_STATUS,
+        f"_{version}." in f["file_name"],
+        f.get("added_date", ""),
+    )
+
+
+def select_phytozome_files(
+    organisms: List[dict], assembly: bool = False
+) -> Dict[str, dict]:
+    """Pick files from the newest genome that has all requested file kinds."""
+    kinds = ("gff", "cds", "asm") if assembly else ("gff", "cds")
+    for o in sorted(organisms, key=_genome_id, reverse=True):
+        candidates: Dict[Optional[str], List[dict]] = {}
+        for f in o.get("files", []):
+            candidates.setdefault(classify_phytozome_file(f), []).append(f)
+        if not all(k in candidates for k in kinds):
+            continue
+        logger.info("Selected %s (%s)", o["name"], o["id"])
+        if o.get("data_utilization_status") == "Restricted":
+            logger.warning("%s is under restricted data use policy", o["name"])
+        meta = o.get("top_hit", {}).get("metadata", {}).get("phytozome", {})
+        version = meta.get("version", "")
+        return {
+            k: max(candidates[k], key=lambda f: _rank_phytozome_file(f, version))
+            for k in kinds
+        }
+    return {}
+
+
+def download_jgi_file(f: dict, token: str) -> Optional[str]:
+    """Download a single file from JGI Data Portal, return the local path."""
+    filename = f["file_name"]
+    if op.exists(filename):
+        logger.info("File `%s` exists. Download skipped.", filename)
+        return filename
+    req = Request(JGI_DOWNLOAD_URL.format(f["_id"]), headers={"Authorization": token})
+    logger.info("Downloading `%s` (%s)", filename, f.get("file_status"))
+    try:
+        with urlopen(req) as src, open(filename, "wb") as dst:
+            shutil.copyfileobj(src, dst)
+    except HTTPError as e:
+        cleanup(filename)
+        if e.code in (401, 403):
+            logger.error("Invalid or expired JGI session token")
+        elif e.code == 409:
+            logger.error(
+                "`%s` is archived on tape, request a restore at %s",
+                filename,
+                JGI_PORTAL_URL,
+            )
+        else:
+            logger.error("Failed to download `%s`: %s", filename, e)
+        return None
+    except URLError as e:
+        cleanup(filename)
+        logger.error("Failed to download `%s`: %s", filename, e)
+        return None
+    return filename
 
 
 def phytozome(args):
     """
     %prog phytozome species
 
-    Retrieve genomes and annotations from phytozome using Globus API. Available
-    species listed below. Use comma to give a list of species to download. For
-    example:
+    Retrieve genomes and annotations from Phytozome using JGI Data Portal API.
+    Use comma to give a list of species, which are Phytozome short names
+    (the newest genome is picked) or genome ids (to pick a specific genome).
+    Browse available genomes at https://phytozome-next.jgi.doe.gov/. For example:
 
     $ %prog phytozome Athaliana,Vvinifera,Osativa,Sbicolor,Slycopersicum
 
-    The downloader will prompt you to enter Phytozome user name and password
-    during downloading. Please register for a login at:
-    https://phytozome.jgi.doe.gov/pz/portal.html.
+    Downloading requires a JGI session token. Log in at https://data.jgi.doe.gov,
+    click your avatar -> "Copy My Session Token", then set it to the environment
+    variable JGI_SESSION_TOKEN, or paste it when prompted.
     """
-    from jcvi.apps.biomart import GlobusXMLParser
-
     p = OptionParser(phytozome.__doc__)
     p.add_argument(
         "--version",
-        default="12",
-        choices=("9", "10", "11", "12", "12_unrestricted", "13"),
-        help="Phytozome version",
+        default="current",
+        help="Phytozome release, e.g. 13, ignored for genome ids",
     )
     p.add_argument(
         "--assembly",
@@ -244,111 +339,51 @@ def phytozome(args):
         action="store_true",
         help="Format to CDS and BED for synteny inference",
     )
-    p.set_downloader()
     opts, args = p.parse_args(args)
-
-    downloader = opts.downloader
-    directory_listing = ".phytozome_directory_V{}.xml".format(opts.version)
-    # Get directory listing
-    base_url = "http://genome.jgi.doe.gov"
-    dlist = "{}/ext-api/downloads/get-directory?organism=PhytozomeV{}".format(
-        base_url, opts.version
-    )
-
-    # Make sure we have a valid cookies
-    cookies = get_cookies()
-    if cookies is None:
-        logger.error("Error fetching cookies ... cleaning up")
-        cleanup(directory_listing)
-        sys.exit(1)
-
-    # Proceed to use the cookies and download the species list
-    try:
-        download(
-            dlist,
-            filename=directory_listing,
-            cookies=cookies,
-            downloader=downloader,
-        )
-        g = GlobusXMLParser(directory_listing)
-    except Exception as _:
-        logger.error("Error downloading directory listing ... cleaning up")
-        cleanup(directory_listing, cookies)
-        sys.exit(1)
-
-    genomes = g.get_genomes()
-    valid_species = genomes.keys()
-    species_tile = tile(valid_species)
-    p.usage = "\n".join((phytozome.__doc__, species_tile)).replace("%prog", "%(prog)s")
 
     if len(args) != 1:
         sys.exit(not p.print_help())
 
     (species,) = args
-    if species == "all":
-        species = ",".join(valid_species)
+    token = get_jgi_token()
+    if token is None:
+        logger.error("No JGI session token found, set %s", JGI_TOKEN_ENV)
+        sys.exit(1)
 
-    species = species.split(",")
-    for s in species:
+    for s in species.split(","):
         res = download_species_phytozome(
-            genomes,
-            s,
-            valid_species,
-            base_url,
-            cookies,
-            assembly=opts.assembly,
-            downloader=downloader,
+            s, token, version=opts.version, assembly=opts.assembly
         )
-        if not res:
-            logger.error("No files downloaded")
-        gff, fa = res.get("gff"), res.get("cds")
+        gff, cds = res.get("gff"), res.get("cds")
+        if not (gff and cds):
+            logger.error("No annotation downloaded for %s", s)
+            continue
         if opts.format:
-            format_bed_and_cds(s, gff, fa)
+            # Genome ids are named by the species prefix of downloaded files
+            name = op.basename(gff).split("_")[0] if s.isdigit() else s
+            format_bed_and_cds(name, gff, cds)
 
 
 def download_species_phytozome(
-    genomes, species, valid_species, base_url, cookies, assembly=False, downloader=None
-):
-    """Download assembly FASTA and annotation GFF.
+    species: str,
+    token: str,
+    version: Optional[str] = None,
+    assembly: bool = False,
+) -> Dict[str, str]:
+    """Download annotation GFF, CDS FASTA and optionally assembly FASTA.
 
-    Args:
-        genomes (dict): Dictionary parsed from Globus XML.
-        species (str): Target species to download.
-        valid_species (List[str]): Allowed set of species
-        base_url (str): URL.
-        cookies (str): cookies file path.
-        assembly (bool, optional): Do we download assembly FASTA (can be big).
-        Defaults to False.
-        downloader (str, optional): Use a given downloader. One of wget|curl|powershell|insecure.
-        Defaults to None.
+    Returns a dict that maps gff|cds|asm to local file paths.
     """
-    assert species in valid_species, "{} is not in the species list".format(species)
+    organisms = query_phytozome(species, version=version, assembly=assembly)
+    files = select_phytozome_files(organisms, assembly=assembly)
+    if not files:
+        logger.error("%s not found in Phytozome (version=%s)", species, version)
+        return {}
     res = {}
-    genome = genomes.get(species)
-    if not genome:
-        return res
-
-    genome_assembly = genome.get("assembly")
-    if assembly and genome_assembly:
-        asm_name = next(x for x in genome_assembly if x.endswith(".fa.gz"))
-        if asm_name:
-            res["asm"] = genome_assembly.download(
-                asm_name, base_url, cookies, downloader=downloader
-            )
-
-    genome_annotation = genome.get("annotation")
-    if genome_annotation:
-        gff_name = next(x for x in genome_annotation if x.endswith(".gene.gff3.gz"))
-        if gff_name:
-            res["gff"] = genome_annotation.download(
-                gff_name, base_url, cookies, downloader=downloader
-            )
-        cds_name = next(x for x in genome_annotation if x.endswith(".cds.fa.gz"))
-        if cds_name:
-            res["cds"] = genome_annotation.download(
-                cds_name, base_url, cookies, downloader=downloader
-            )
-
+    for kind, f in files.items():
+        path = download_jgi_file(f, token)
+        if path:
+            res[kind] = path
     return res
 
 

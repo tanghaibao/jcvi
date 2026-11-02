@@ -1,3 +1,8 @@
+import pytest
+
+pytest.importorskip("goatools")  # `pip install 'jcvi[ontology]'`
+
+
 def test_oboreader():
     from jcvi.formats.obo import GODag_from_GO
 

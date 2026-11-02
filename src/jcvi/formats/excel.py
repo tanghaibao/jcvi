@@ -12,7 +12,7 @@ Library dependency: xlutils
 import os.path as op
 import sys
 
-from ..apps.base import ActionDispatcher, OptionParser, logger
+from ..apps.base import ActionDispatcher, OptionParser, logger, require
 
 
 class ColorMatcher(object):
@@ -110,7 +110,7 @@ class ColorMatcher(object):
         """Takes an "R,G,B" string or wx.Color and returns a matching xlwt
         color.
         """
-        from jcvi.utils.webcolors import color_diff
+        color_diff = require("jcvi.utils.webcolors", "grabseeds").color_diff
 
         if isinstance(color, int):
             return color
@@ -162,7 +162,8 @@ def fromcsv(args):
     """
     from csv import reader
 
-    from xlwt import Workbook, easyxf
+    xlwt = require("xlwt", "excel")
+    Workbook, easyxf = xlwt.Workbook, xlwt.easyxf
 
     from jcvi.formats.base import flexible_cast
 
@@ -222,7 +223,7 @@ def csv(args):
 
     Convert EXCEL to csv file.
     """
-    from xlrd import open_workbook
+    open_workbook = require("xlrd", "excel").open_workbook
 
     p = OptionParser(csv.__doc__)
     p.set_sep(sep=",")

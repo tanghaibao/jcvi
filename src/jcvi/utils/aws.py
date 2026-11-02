@@ -16,8 +16,8 @@ import os.path as op
 import sys
 import time
 
-import boto3
 from botocore.exceptions import ClientError, ParamValidationError
+from rich.console import Console
 
 from ..apps.base import (
     ActionDispatcher,
@@ -25,11 +25,16 @@ from ..apps.base import (
     datafile,
     get_config,
     logger,
+    missing_extra,
     popen,
     sh,
 )
 from ..formats.base import BaseFile, SetFile, timestamp
-from rich.console import Console
+
+try:
+    import boto3
+except ImportError as e:
+    missing_extra(e, "aws")
 
 console = Console()
 

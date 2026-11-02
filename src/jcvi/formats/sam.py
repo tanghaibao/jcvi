@@ -26,6 +26,7 @@ from ..apps.base import (
     mkdir,
     need_update,
     popen,
+    require,
     sh,
 )
 from ..assembly.base import Astat
@@ -669,7 +670,8 @@ def chimera(args):
     Parse BAM file from `bwasw` and list multi-hit reads and breakpoints.
     """
     from natsort import natsorted
-    import pysam
+
+    pysam = require("pysam", "ngs")
 
     p = OptionParser(chimera.__doc__)
     p.set_verbose()
@@ -769,7 +771,7 @@ def mapped(args):
     Given an input sam/bam file, output a sam/bam file containing only the mapped reads.
     Optionally, extract the unmapped reads into a separate file
     """
-    import pysam
+    pysam = require("pysam", "ngs")
 
     from jcvi.apps.grid import Jobs
 

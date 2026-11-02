@@ -22,6 +22,7 @@ from ..apps.base import (
     logger,
     need_update,
     popen,
+    require,
     sh,
 )
 from ..formats.base import SetFile, flexible_cast, get_number, must_open
@@ -729,7 +730,7 @@ def annotate(args):
 
 
 def calculate_ovl(nbedfile, obedfile, opts, scoresfile):
-    from pybedtools import BedTool
+    BedTool = require("pybedtools", "ngs").BedTool
 
     nbedtool = BedTool(nbedfile)
     obedtool = BedTool(obedfile)
@@ -878,7 +879,7 @@ def get_pairs(cbedfile, pairsfile):
 
 
 def consolidate(nbedfile, obedfile, cbedfile):
-    from pybedtools import BedTool
+    BedTool = require("pybedtools", "ngs").BedTool
 
     nbedtool = BedTool(nbedfile)
     obedtool = BedTool(obedfile)
@@ -1054,7 +1055,7 @@ class NeedleHeader(object):
 
 
 def _needle(fa, fb, needlefile, a, b, results):
-    from Bio.Emboss.Applications import NeedleCommandline
+    from ..apps.commandline import NeedleCommandline
 
     needle_cline = NeedleCommandline(
         asequence=fa, bsequence=fb, gapopen=10, gapextend=0.5, outfile=needlefile

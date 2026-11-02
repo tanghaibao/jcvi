@@ -8,7 +8,7 @@ Construct and visualize phylogenetic trees from:
 
 Options are provided for each step:
 1.  sequence alignment:
-    ClustalW2 or MUSCLE (wrapped on Biopython)
+    ClustalW2 or MUSCLE
 2.  alignment editting:
     GBlocks (optional)
 3.  build trees:
@@ -34,13 +34,6 @@ import warnings
 
 from Bio import AlignIO, SeqIO
 from Bio.Data import CodonTable
-from Bio.Emboss.Applications import (
-    FConsenseCommandline,
-    FDNADistCommandline,
-    FNeighborCommandline,
-    FSeqBootCommandline,
-)
-from Bio.Phylo.Applications import PhymlCommandline, RaxmlCommandline
 from ete4 import Tree
 import numpy as np
 
@@ -56,6 +49,14 @@ from ..formats.fasta import Fasta
 from ..graphics.base import plt, savefig
 from ..utils.orderedcollections import OrderedDict
 from .base import ActionDispatcher, OptionParser, getpath, logger, mkdir, sh
+from .commandline import (
+    FConsenseCommandline,
+    FDNADistCommandline,
+    FNeighborCommandline,
+    FSeqBootCommandline,
+    PhymlCommandline,
+    RaxmlCommandline,
+)
 
 GBLOCKS_BIN = partial(getpath, name="GBLOCKS", warn="warn")
 PHYML_BIN = partial(getpath, name="PHYML", warn="warn")
@@ -71,10 +72,10 @@ class GblocksCommandline(AbstractCommandline):
     Accepts alignment in FASTA or NBRF/PIR format.
     """
 
-    def __init__(
-        self, aln_file, aln_type="c", command=GBLOCKS_BIN("Gblocks"), **kwargs
-    ):
-
+    def __init__(self, aln_file, aln_type="c", command=None, **kwargs):
+        # Resolve binaries lazily so importing this module never prompts.
+        if command is None:
+            command = GBLOCKS_BIN("Gblocks")
         self.aln_file = aln_file
         self.aln_type = aln_type
         self.command = command
@@ -102,11 +103,12 @@ class FfitchCommandline(AbstractCommandline):
         self,
         datafile,
         outtreefile,
-        command=FPHYLIP_BIN("ffitch"),
+        command=None,
         intreefile=None,
         **kwargs,
     ):
-
+        if command is None:
+            command = FPHYLIP_BIN("ffitch")
         self.datafile = datafile
         self.outtreefile = outtreefile
         self.outfile = datafile.rsplit(".", 1)[0] + ".ffitch"
@@ -140,11 +142,12 @@ class TreeFixCommandline(AbstractCommandline):
         stree_file,
         smap_file,
         a_ext,
-        command=TREEFIX_BIN("treefix"),
+        command=None,
         r=False,
         **kwargs,
     ):
-
+        if command is None:
+            command = TREEFIX_BIN("treefix")
         self.input = input
         self.s = stree_file
         self.S = smap_file

@@ -3,12 +3,16 @@ channels:
   - conda-forge
   - bioconda
 dependencies:
-  - python 3.12
-  - bedtools
-  - imagemagick
-  - libmagic # System-level magic library
-  - wand # Python bindings for ImageMagick
+  - python=3.12
   - pip
+  # External programs and system libraries used by jcvi
+  - bedtools # pybedtools and formats.bed actions
+  - imagemagick # GRABSEEDS image handling via Wand
+  # conda-forge libheif 1.23.4 links against a Homebrew-only libsharpyuv path,
+  # which stops ImageMagick (and therefore Wand) from loading on macOS.
+  - libheif!=1.23.4
+  - tesseract # OCR of seed labels via pytesseract
+  - wand # Python bindings built against the conda ImageMagick
   - pip:
       - pytest
       - hatch

@@ -11,7 +11,7 @@ import sys
 from more_itertools import pairwise
 import networkx as nx
 
-from ..apps.base import logger
+from ..apps.base import logger, require
 from ..formats.base import must_open
 
 """
@@ -226,7 +226,7 @@ class BiGraph(object):
         nodehighlight=None,
         prog="circo",
     ):
-        import pygraphviz as pgv
+        pgv = require("pygraphviz", "graphviz")
 
         G = pgv.AGraph()
         for e in self.edges.values():

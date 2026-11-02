@@ -11,7 +11,7 @@ testing. Several aspects of annotation QC are implemented in this script.
 
 import sys
 
-from ..apps.base import ActionDispatcher, OptionParser
+from ..apps.base import ActionDispatcher, OptionParser, require
 from ..formats.base import must_open
 from ..formats.gff import (
     Gff,
@@ -162,7 +162,7 @@ def trimUTR(args):
     `python -m jcvi.formats.gff fixboundaries` on the resultant GFF3
     to adjust the boundaries of all parent 'gene' features
     """
-    import gffutils
+    gffutils = require("gffutils", "ngs")
 
     from jcvi.formats.base import SetFile
 

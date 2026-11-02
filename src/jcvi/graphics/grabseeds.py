@@ -16,24 +16,14 @@ from typing import Any, List, Optional, Tuple
 
 import numpy as np
 
-from ..apps.base import setup_magick_home
+from ..apps.base import missing_extra, require, setup_magick_home
 
 # Attempt to set MACICK_HOME ENV variable if imagemagick installed with homebrew on Mac
 setup_magick_home()
 
 from PIL.Image import open as iopen
-from pyefd import elliptic_fourier_descriptors
-from pytesseract import image_to_string
 from scipy.ndimage import binary_fill_holes, distance_transform_edt
 from scipy.optimize import fmin_bfgs as fmin
-from skimage.color import gray2rgb, rgb2gray
-from skimage.feature import canny, peak_local_max
-from skimage.filters import roberts, sobel, threshold_otsu
-from skimage.measure import find_contours, label, regionprops
-from skimage.morphology import closing, disk
-from skimage.segmentation import clear_border, watershed
-from wand.image import Image
-from webcolors import normalize_integer_triplet, rgb_to_hex
 
 from ..algorithms.formula import get_kmeans, reject_outliers
 from ..apps.base import (
@@ -56,6 +46,20 @@ from .base import (
     savefig,
     set_helvetica_axis,
 )
+
+try:
+    from pyefd import elliptic_fourier_descriptors
+    from pytesseract import image_to_string
+    from skimage.color import gray2rgb, rgb2gray
+    from skimage.feature import canny, peak_local_max
+    from skimage.filters import roberts, sobel, threshold_otsu
+    from skimage.measure import find_contours, label, regionprops
+    from skimage.morphology import closing, disk
+    from skimage.segmentation import clear_border, watershed
+    from wand.image import Image
+    from webcolors import normalize_integer_triplet, rgb_to_hex
+except ImportError as e:
+    missing_extra(e, "grabseeds")
 
 np.seterr(all="ignore")
 
@@ -168,11 +172,9 @@ def sam(img: np.ndarray, checkpoint: str) -> List[dict]:
     """
     Use Segment Anything Model (SAM) to segment objects.
     """
-    try:
-        from segment_anything import SamAutomaticMaskGenerator, sam_model_registry
-    except ImportError:
-        logger.fatal("segment_anything not installed. Please install it first.")
-        sys.exit(1)
+    segment_anything = require("segment_anything", "segment")
+    SamAutomaticMaskGenerator = segment_anything.SamAutomaticMaskGenerator
+    sam_model_registry = segment_anything.sam_model_registry
 
     model_type = "vit_h"
     if not op.exists(checkpoint):

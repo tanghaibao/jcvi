@@ -12,9 +12,12 @@ from functools import partial
 import sys
 from typing import IO, Optional
 
-from goatools.obo_parser import GODag
+from ..apps.base import OptionParser, logger, missing_extra
 
-from ..apps.base import OptionParser, logger
+try:
+    from goatools.obo_parser import GODag
+except ImportError as e:
+    missing_extra(e, "ontology")
 
 GO_URL = "http://purl.obolibrary.org/obo/go/go-basic.obo"
 SO_URL = (

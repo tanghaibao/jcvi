@@ -9,9 +9,12 @@ import os.path as op
 import sys
 from urllib.parse import urljoin
 
-from BeautifulSoup import BeautifulSoup
+from ..apps.base import ActionDispatcher, OptionParser, download, logger, missing_extra
 
-from ..apps.base import ActionDispatcher, OptionParser, download, logger
+try:
+    from bs4 import BeautifulSoup
+except ImportError as e:
+    missing_extra(e, "web")
 
 
 def main():
@@ -89,7 +92,7 @@ def links(args):
 
     htmlfile = download(url)
     page = open(htmlfile).read()
-    soup = BeautifulSoup(page)
+    soup = BeautifulSoup(page, "html.parser")
 
     tag = "img" if img else "a"
     src = "src" if img else "href"
@@ -130,7 +133,7 @@ def table(args):
 
     (htmlfile,) = args
     page = open(htmlfile).read()
-    soup = BeautifulSoup(page)
+    soup = BeautifulSoup(page, "html.parser")
 
     for i, tabl in enumerate(soup.findAll("table")):
         nrows = 0

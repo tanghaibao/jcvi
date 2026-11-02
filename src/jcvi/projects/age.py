@@ -10,13 +10,17 @@ import os
 import os.path as op
 import sys
 
-from jinja2 import Template
 import numpy as np
 import pandas as pd
 import seaborn as sns
 
-from ..apps.base import ActionDispatcher, OptionParser, iglob, logger
+from ..apps.base import ActionDispatcher, OptionParser, iglob, logger, missing_extra
 from ..graphics.base import panel_labels, plt, savefig
+
+try:
+    from jinja2 import Template
+except ImportError as e:
+    missing_extra(e, "projects")
 
 
 def main():

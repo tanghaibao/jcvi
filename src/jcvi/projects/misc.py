@@ -10,10 +10,8 @@ import sys
 
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
-from sklearn.preprocessing import StandardScaler
 
-from ..apps.base import ActionDispatcher, OptionParser, fname, logger
+from ..apps.base import ActionDispatcher, OptionParser, fname, logger, missing_extra
 from ..graphics.base import (
     Polygon,
     normalize_axes,
@@ -22,6 +20,12 @@ from ..graphics.base import (
     savefig,
     set_helvetica_axis,
 )
+
+try:
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+except ImportError as e:
+    missing_extra(e, "projects")
 from ..graphics.glyph import DoubleSquare, GeneGlyph, RoundRect, TextCircle, plot_cap
 from ..graphics.karyotype import Karyotype
 from ..graphics.synteny import Synteny, draw_gene_legend

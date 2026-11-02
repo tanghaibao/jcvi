@@ -17,8 +17,6 @@ import sys
 import numpy as np
 import numpy.ma as ma
 import pandas as pd
-from pybedtools import BedTool, cleanup, set_tempdir
-import pysam
 
 from ..algorithms.formula import get_kmeans
 from ..apps.base import (
@@ -26,13 +24,21 @@ from ..apps.base import (
     OptionParser,
     getfilesize,
     logger,
+    missing_extra,
     mkdir,
     popen,
+    require,
     sh,
 )
 from ..apps.grid import MakeManager
 from ..utils.aws import glob_s3, push_to_s3, sync_from_s3
 from ..utils.cbook import percentage
+
+try:
+    from pybedtools import BedTool, cleanup, set_tempdir
+    import pysam
+except ImportError as e:
+    missing_extra(e, "ngs")
 
 autosomes = [f"chr{x}" for x in range(1, 23)]
 sexsomes = ["chrX", "chrY"]
@@ -180,7 +186,7 @@ class CopyNumberHMM(object):
         return segment
 
     def initialize(self, mu, sigma, step):
-        from hmmlearn import hmm
+        hmm = require("hmmlearn.hmm", "variation")
 
         # Initial population probability
         n = int(10 / step)
@@ -489,7 +495,7 @@ def exonunion(args):
 
 def get_gain_loss_summary(vcffile):
     """Extract Canvas:GAIN/LOSS/REF/LOH tags"""
-    from cyvcf2 import VCF
+    VCF = require("cyvcf2", "variation").VCF
 
     counter = Counter()
     for v in VCF(vcffile):
@@ -530,7 +536,7 @@ def parse_segments(vcffile):
     """
     from io import StringIO
 
-    from cyvcf2 import VCF
+    VCF = require("cyvcf2", "variation").VCF
 
     output = StringIO()
     for v in VCF(vcffile):
@@ -1205,8 +1211,8 @@ def validate(args):
     if len(args) != 2:
         sys.exit(not p.print_help())
 
-    import holoviews as hv
-    import hvplot.pandas
+    hv = require("holoviews", "variation")
+    require("hvplot.pandas", "variation")  # registers the .hvplot accessor
 
     hv.extension("bokeh")
 
@@ -1296,7 +1302,7 @@ def get_segments(rfx: pd.DataFrame):
     """
     Return a holoviews object for segments.
     """
-    import holoviews as hv
+    hv = require("holoviews", "variation")
 
     rfx_gain = rfx[(rfx["type"] == "GAIN") & rfx["is_pass"]]
     rfx_loss = rfx[(rfx["type"] == "LOSS") & rfx["is_pass"]]
@@ -1388,7 +1394,7 @@ def get_CNV_records(vcffile: str) -> list[CNV]:
     """
     Get CNV records from a VCF file.
     """
-    from cyvcf2 import VCF
+    VCF = require("cyvcf2", "variation").VCF
 
     vcf_reader = VCF(vcffile)
     records = []
@@ -1444,8 +1450,8 @@ def wes_vs_wgs(args):
     if len(args) != 3:
         sys.exit(not p.print_help())
 
-    import holoviews as hv
-    import hvplot.pandas
+    hv = require("holoviews", "variation")
+    require("hvplot.pandas", "variation")  # registers the .hvplot accessor
 
     hv.extension("bokeh")
 

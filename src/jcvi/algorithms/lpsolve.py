@@ -32,7 +32,7 @@ import os.path as op
 from more_itertools import pairwise
 import networkx as nx
 
-from ..apps.base import cleanup, logger, mkdir, sh
+from ..apps.base import cleanup, logger, mkdir, require, sh
 from ..formats.base import flexible_cast
 from ..utils.cbook import fill
 from .tsp import node_to_edge, populate_edge_weights
@@ -107,7 +107,7 @@ class MIPDataModel:
         Returns:
             OR-tools solver instance
         """
-        from ortools.linear_solver import pywraplp
+        pywraplp = require("ortools.linear_solver.pywraplp", "lp")
 
         solver = pywraplp.Solver.CreateSolver(backend)
         x = {}
@@ -151,7 +151,7 @@ class MIPDataModel:
 
         if has_ortools():
             # Use OR-tools
-            from ortools.linear_solver import pywraplp
+            pywraplp = require("ortools.linear_solver.pywraplp", "lp")
 
             solver, x = self.create_solver()
             status = solver.Solve()
@@ -490,7 +490,8 @@ def tsp_gurobi(edges):
     """
     Modeled using GUROBI python example.
     """
-    from gurobipy import GRB, Model, quicksum
+    gp = require("gurobipy", "gurobi")
+    GRB, Model, quicksum = gp.GRB, gp.Model, gp.quicksum
 
     edges = populate_edge_weights(edges)
     incoming, outgoing, nodes = node_to_edge(edges)

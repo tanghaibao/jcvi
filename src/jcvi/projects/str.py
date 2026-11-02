@@ -35,6 +35,7 @@ from ..apps.base import (
     iglob,
     logger,
     mkdir,
+    require,
     sh,
 )
 from ..apps.bwa import align
@@ -390,7 +391,7 @@ def mendelian2(args):
         print(line)
 
     # Combine into a master spreadsheet
-    import xlwt
+    xlwt = require("xlwt", "excel")
 
     wb = xlwt.Workbook()
     converter = lambda x: int(x) if is_number(x, cast=int) else x
@@ -460,7 +461,8 @@ def alts(args):
     Build alternative loci based on simulation data.
     """
     from more_itertools import pairwise
-    import pysam
+
+    pysam = require("pysam", "ngs")
 
     from jcvi.utils.grouper import Grouper
 

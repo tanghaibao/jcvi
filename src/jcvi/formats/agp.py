@@ -25,6 +25,7 @@ from ..apps.base import (
     flatten,
     logger,
     need_update,
+    require,
 )
 from ..assembly.base import calculate_A50
 from ..utils.range import range_intersect
@@ -1734,7 +1735,7 @@ def bed(args):
 
     print out the tiling paths in bed/gff3 format
     """
-    from jcvi.formats.obo import validate_term
+    validate_term = require("jcvi.formats.obo", "ontology").validate_term
 
     p = OptionParser(bed.__doc__)
     p.add_argument(

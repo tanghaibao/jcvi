@@ -10,9 +10,15 @@
 import logging
 
 import numpy as np
-from skimage.color import deltaE_cmc, rgb2lab
-from webcolors import hex_to_rgb
-from webcolors._definitions import _CSS3_NAMES_TO_HEX
+
+from ..apps.base import missing_extra
+
+try:
+    from skimage.color import deltaE_cmc, rgb2lab
+    from webcolors import hex_to_rgb
+    from webcolors._definitions import _CSS3_NAMES_TO_HEX
+except ImportError as e:
+    missing_extra(e, "grabseeds")
 
 
 def color_diff(rgb1, rgb2):

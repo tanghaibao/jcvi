@@ -2,8 +2,8 @@
 # -*- coding: UTF-8 -*-
 
 import copy
-from functools import partial
-from os import remove
+from functools import lru_cache, partial
+from os import remove, replace
 import os.path as op
 import re
 import sys
@@ -61,9 +61,22 @@ GRAPHIC_FORMATS = (
 )
 
 
+@lru_cache(maxsize=None)
 def is_tex_available() -> bool:
-    """Check if latex command is available"""
-    return bool(which("latex")) and bool(which("lp"))
+    """Check that latex and dvipng are installed and actually run"""
+    if not (which("latex") and which("dvipng")):
+        return False
+    try:
+        from matplotlib.texmanager import TexManager
+
+        # Typeset a small string, as installed binaries may still fail to run
+        tm = TexManager()
+        tm.get_text_width_height_descent("jcvi", 12)
+        tm.get_grey("jcvi", 12, 72)
+    except Exception as e:
+        logger.info("latex is installed but unusable (%s). latex use is disabled.", e)
+        return False
+    return True
 
 
 class ImageOptions(object):
@@ -73,7 +86,7 @@ class ImageOptions(object):
         self.format = opts.format
         self.cmap = mpl.colormaps[opts.cmap]
         self.seed = opts.seed
-        self.usetex = is_tex_available() and not opts.notex
+        self.usetex = not opts.notex and is_tex_available()
         self.opts = opts
 
     def __str__(self):
@@ -327,19 +340,21 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
     except:
         format = "pdf"
     logger.debug("Matplotlib backend is: %s", mpl.get_backend())
+    # Write to a temporary file, so a failed save neither leaves a partial
+    # figure nor destroys an existing one
+    tmpname = op.join(op.dirname(figname), f".{op.basename(figname)}.tmp")
     try:
         logger.debug("Attempting save as: `%s`", figname)
-        plt.savefig(figname, dpi=dpi, format=format, transparent=transparent)
+        plt.savefig(tmpname, dpi=dpi, format=format, transparent=transparent)
+        replace(tmpname, figname)
     except Exception as e:
         message = "savefig failed with message:"
         message += "\n{0}".format(str(e))
         logger.error(message)
         logger.debug("Attempted save as: %s", format)
         logger.info("Try running again with --notex option to disable latex.")
-        if op.exists(figname):
-            if op.getsize(figname) < 1000:
-                logger.debug("Cleaning up empty file: %s", figname)
-                remove(figname)
+        if op.exists(tmpname):
+            remove(tmpname)
         sys.exit(1)
 
     msg = f"Figure saved to `{figname}`"

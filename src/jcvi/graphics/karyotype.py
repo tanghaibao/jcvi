@@ -91,19 +91,30 @@ class Layout(AbstractLayout):
                     samearc = None
                 i, j = int(i), int(j)
                 assert args[0] == "e"
+                if not (0 <= i < len(self) and 0 <= j < len(self)):
+                    raise ValueError(
+                        f"Edge `{line}` in `{filename}` refers to a track not "
+                        f"defined above, valid (0-based) indices are 0-{len(self) - 1}"
+                    )
                 blocks = self.parse_blocks(fn, i)
                 self.edges.append((i, j, blocks, samearc))
             else:
                 ll = LayoutLine(line, delimiter=delimiter, generank=generank)
-                # only keep non-empty layout lines
-                if not ll.empty:
-                    self.append(ll)
+                # A dropped track line would shift all later track indices
+                if ll.empty:
+                    raise ValueError(
+                        f"Track `{line}` in `{filename}` needs 8 columns: "
+                        "y, xstart, xend, rotation, color, label, va, bed"
+                    )
+                self.append(ll)
 
         self.assign_colors(seed=seed)
 
     def parse_blocks(self, simplefile, i):
-        order = self[i].order
-        return SimpleFile(simplefile, order=order).blocks
+        try:
+            return SimpleFile(simplefile, order=self[i].order).blocks
+        except ValueError as e:
+            raise ValueError(f"{e} (track {i}: `{self[i].bed.filename}`)") from None
 
 
 MaxSeqids = 16  # above which no labels are written
@@ -362,12 +373,18 @@ class Karyotype(object):
     ):
         layout = Layout(layoutfile, generank=generank, seed=seed)
 
-        fp = open(seqidsfile)
         # Strip the reverse orientation tag for e.g. chr3-
         di = lambda x: x[:-1] if x[-1] == "-" else x
         # Comments can cause layout and seqids to be out of sync
         # https://github.com/tanghaibao/jcvi/issues/676
-        for i, row in enumerate(_ for _ in fp if not _.startswith("#") and _.strip()):
+        with open(seqidsfile) as fp:
+            rows = [x for x in fp if not x.startswith("#") and x.strip()]
+        if len(rows) != len(layout):
+            raise ValueError(
+                f"`{seqidsfile}` has {len(rows)} rows but `{layoutfile}` has "
+                f"{len(layout)} tracks, they must match one row per track"
+            )
+        for i, row in enumerate(rows):
             logger.info("Processing `%s` (track %d)", row.strip(), i)
             t = layout[i]
             # There can be comments in seqids file:

@@ -179,7 +179,7 @@ class SimpleFile(object):
         # Sometimes the simplefile has query and subject wrong
         fp = open(simplefile)
         self.blocks = []
-        check = False
+        missing = []
         for row in fp:
             if row[:2] == "##" or row.startswith("StartGeneA"):
                 continue
@@ -187,28 +187,30 @@ class SimpleFile(object):
             if hl:
                 hl, row = row.split("*", 1)
                 hl = hl or defaultcolor
-            a, b, c, d, score, orientation = row.split()
+            fields = row.split()
+            if not fields:
+                continue
+            if len(fields) != 6:
+                raise ValueError(
+                    f"`{simplefile}` needs 6 columns, as made by "
+                    f"`jcvi.compara.synteny screen --simple`, got: {row.strip()}"
+                )
+            a, b, c, d, score, orientation = fields
             if order and a not in order:
                 if c not in order:
-                    check = True
-                    print(
-                        """{} {} {} {} can not found in bed files.""".format(
-                            a, b, c, d
-                        ),
-                        file=sys.stderr,
-                    )
+                    missing.append(" ".join((a, b, c, d)))
                 else:
                     a, b, c, d = c, d, a, b
             if orientation == "-":
                 c, d = d, c
             score = int(score)
             self.blocks.append((a, b, c, d, score, orientation, hl))
-        if check:
-            print(
-                "Error: some genes in blocks can't be found, please rerun after making sure that bed file agree with simple file.",
-                file=sys.stderr,
+        if missing:
+            raise ValueError(
+                f"{len(missing)} blocks in `{simplefile}` have genes not in the "
+                f"bed file, e.g. `{missing[0]}`. Check the edge's track indices "
+                "and that bed files agree with the simple file"
             )
-            exit(1)
 
 
 def _score(cluster):

@@ -3,7 +3,7 @@
 
 import copy
 from functools import lru_cache, partial
-from os import remove
+from os import remove, replace
 import os.path as op
 import re
 import sys
@@ -86,7 +86,7 @@ class ImageOptions(object):
         self.format = opts.format
         self.cmap = mpl.colormaps[opts.cmap]
         self.seed = opts.seed
-        self.usetex = is_tex_available() and not opts.notex
+        self.usetex = not opts.notex and is_tex_available()
         self.opts = opts
 
     def __str__(self):
@@ -340,18 +340,21 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
     except:
         format = "pdf"
     logger.debug("Matplotlib backend is: %s", mpl.get_backend())
+    # Write to a temporary file, so a failed save neither leaves a partial
+    # figure nor destroys an existing one
+    tmpname = op.join(op.dirname(figname), f".{op.basename(figname)}.tmp")
     try:
         logger.debug("Attempting save as: `%s`", figname)
-        plt.savefig(figname, dpi=dpi, format=format, transparent=transparent)
+        plt.savefig(tmpname, dpi=dpi, format=format, transparent=transparent)
+        replace(tmpname, figname)
     except Exception as e:
         message = "savefig failed with message:"
         message += "\n{0}".format(str(e))
         logger.error(message)
         logger.debug("Attempted save as: %s", format)
         logger.info("Try running again with --notex option to disable latex.")
-        if op.exists(figname):
-            logger.debug("Cleaning up partial file: %s", figname)
-            remove(figname)
+        if op.exists(tmpname):
+            remove(tmpname)
         sys.exit(1)
 
     msg = f"Figure saved to `{figname}`"

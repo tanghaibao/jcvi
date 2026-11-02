@@ -124,3 +124,25 @@ def test_is_tex_available(monkeypatch):
     gb.is_tex_available.cache_clear()
     assert not gb.is_tex_available()
     gb.is_tex_available.cache_clear()
+
+
+def test_savefig_replaces_only_on_success(tmp_path, monkeypatch):
+    from jcvi.graphics.base import plt, savefig
+
+    figname = tmp_path / "fig.png"
+    figname.write_bytes(b"old")
+    plt.figure()
+    savefig(str(figname))
+    assert figname.read_bytes()[:4] == b"\x89PNG"
+
+    # A failed save keeps the existing figure and leaves no temporary file
+    def broken(*args, **kwargs):
+        raise RuntimeError("render failed")
+
+    figname.write_bytes(b"old")
+    monkeypatch.setattr(plt, "savefig", broken)
+    with pytest.raises(SystemExit):
+        savefig(str(figname))
+    assert figname.read_bytes() == b"old"
+    assert [x.name for x in tmp_path.iterdir()] == ["fig.png"]
+    plt.close("all")

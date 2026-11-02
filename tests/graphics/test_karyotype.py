@@ -80,3 +80,48 @@ def test_main_invalid_input(copy_data, seqids, layout, error):
 
     with pytest.raises(ValueError, match=error):
         karyotype_main(["seqids_bad", "layout_bad", "--notex"])
+
+
+def test_main_reversed_track_label(copy_data):
+    from jcvi.graphics.base import plt
+
+    copy_data(op.join(op.dirname(__file__), "data"))
+    # https://github.com/tanghaibao/jcvi/issues/774, peach runs right to left
+    with open("layout_rev", "w") as fw:
+        fw.write(" .6, .1, .8, 0, , Grape, top, grape.bed\n")
+        fw.write(" .4, .8, .1, 0, , Peach, top, peach.bed\n")
+        fw.write("e, 0, 1, grape.peach.anchors.simple\n")
+    karyotype_main(["seqids", "layout_rev", "--notex"])
+    texts = {t.get_text(): t for t in plt.gcf().axes[0].texts}
+    plt.close("all")
+    # Labels sit left of the track, aligned away from it
+    for label in ("Grape", "Peach"):
+        assert texts[label].get_position()[0] < 0.1
+        assert texts[label].get_ha() == "right"
+
+
+@pytest.mark.parametrize("xstart,xend", [(0.1, 0.8), (0.8, 0.1)])
+def test_track_gaps(xstart, xend):
+    from types import SimpleNamespace
+
+    from jcvi.graphics.base import plt
+    from jcvi.graphics.karyotype import Track
+
+    seqids = ["chr1", "chr2", "chr3"]
+    t = SimpleNamespace(
+        empty=False, y=0.5, xstart=xstart, xend=xend, rotation=0, va="top",
+        label="t", label_va="center", color="k", seqids=seqids, rev=set(),
+        sizes=dict(zip(seqids, (100, 200, 300))), bed=None, order=None,
+        order_in_chr=None,
+    )  # fmt: skip
+    ax = plt.figure().add_axes((0, 0, 1, 1))
+    tr = Track(ax, t, gap=0.01, draw=False)
+    plt.close("all")
+
+    sign = 1 if xend > xstart else -1
+    ends = [tr.offsets[x] + tr.ratio * tr.sizes[x] for x in seqids]
+    # Chromosomes are separated by the gap, also on reversed tracks (#774)
+    for end, nxt in zip(ends, seqids[1:]):
+        assert sign * (tr.offsets[nxt] - end) == pytest.approx(0.01)
+    assert tr.offsets["chr1"] == xstart
+    assert ends[-1] == pytest.approx(xend)

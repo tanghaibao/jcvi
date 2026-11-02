@@ -19,6 +19,7 @@ section specify which connections to draw.
 e, 0, 1, athaliana.grape.4x1.simple
 """
 
+import math
 import sys
 from typing import List, Optional
 
@@ -196,10 +197,12 @@ class Track(object):
         nseqids = len(self.seqids)
         if nseqids > MaxSeqids:
             gap = min(gap, gap * MaxSeqids / nseqids + 0.001)
+        # A reversed track (xend < xstart) runs leftwards, and so do its gaps
+        if t.xend < xstart:
+            gap = -gap
         self.gap = gap
 
-        rpad = 1 - t.xend
-        span = 1 - xstart - rpad - gap * (len(sizes) - 1)
+        span = t.xend - xstart - gap * (len(sizes) - 1)
         self.total = total = sum(sizes.values())
         ratio = span / total
 
@@ -273,13 +276,18 @@ class Track(object):
         label = markup(self.label)
         c = color if color != "gainsboro" else "k"
         if plot_label:
+            ha = "center"
             if self.label_va == "top":
                 x, y = self.x, self.y + vpad
             elif self.label_va == "bottom":
                 x, y = self.x, self.y - vpad
-            else:  # "center"
-                x, y = self.xstart - vpad / 2, self.y
-            ax.text(x, y, label, ha="center", va="center", color=c, transform=tr)
+            else:  # "center", left of the track, even when it is reversed
+                x, y = min(self.xstart, self.xend) - pad / 2, self.y
+                # Align the text away from the track, as it appears after rotation
+                dx = math.cos(math.radians(self.rotation))
+                if abs(dx) > 0.25:
+                    ha = "right" if dx > 0 else "left"
+            ax.text(x, y, label, ha=ha, va="center", color=c, transform=tr)
 
     def update_offsets(self):
         self.offsets = {}

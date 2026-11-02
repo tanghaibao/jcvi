@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-import copy
 from functools import lru_cache, partial
 from os import remove, replace
 import os.path as op
@@ -276,13 +275,8 @@ set1, set2, set3, paired = set1_n(), set2_n(), set3_n(), paired_n()
 
 
 def prettyplot():
-    reds = copy.copy(mpl.cm.Reds)
-    reds.set_bad("white")
-    reds.set_under("white")
-
-    blues_r = copy.copy(mpl.cm.Blues_r)
-    blues_r.set_bad("white")
-    blues_r.set_under("white")
+    reds = mpl.cm.Reds.with_extremes(bad="white", under="white")
+    blues_r = mpl.cm.Blues_r.with_extremes(bad="white", under="white")
 
     # Need to 'reverse' red to blue so that blue=cold=small numbers,
     # and red=hot=large numbers with '_r' suffix

@@ -680,7 +680,7 @@ def main(args):
 
     pf = datafile.rsplit(".", 1)[0]
 
-    fig = plt.figure(1, (iopts.w, iopts.h))
+    fig = plt.figure(figsize=(iopts.w, iopts.h))
     root = fig.add_axes([0, 0, 1, 1])
 
     supportcolor = "k" if opts.support else None

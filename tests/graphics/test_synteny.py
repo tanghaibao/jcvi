@@ -98,3 +98,11 @@ def test_main_genelabels(copy_data, rotation):
     plt.close("all")
     # Labels follow the gene when its track is rotated
     assert (label.get_position()[0] > 0.5) == (rotation == 180)
+
+    # An explicit size of 0 still hides labels
+    synteny_main(
+        ["blocks", "grape_peach.bed", "rotated.layout", f"--genelabels={gene}"]
+        + ["--genelabelsize=0", "--notex"]
+    )
+    assert gene not in [t.get_text() for t in plt.gcf().axes[0].texts]
+    plt.close("all")

@@ -690,7 +690,7 @@ def main(args: List[str]):
     )
     p.add_argument(
         "--genelabelsize",
-        default=0,
+        default=None,
         type=int,
         help="Show gene labels at this font size, useful for debugging. "
         + "However, plot may appear visually crowded. "
@@ -746,8 +746,10 @@ def main(args: List[str]):
     switch = opts.switch
     tree = opts.tree
     gene_labels = None if not opts.genelabels else set(opts.genelabels.split(","))
-    # Labels are only drawn with a non-zero size
-    genelabelsize = opts.genelabelsize or (6 if gene_labels else 0)
+    # Labels are only drawn with a non-zero size, keep an explicit 0
+    genelabelsize = opts.genelabelsize
+    if genelabelsize is None:
+        genelabelsize = 6 if gene_labels else 0
     prune_features = not opts.noprune
 
     pf = datafile.rsplit(".", 1)[0]

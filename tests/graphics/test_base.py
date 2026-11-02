@@ -104,3 +104,23 @@ def test_assign_array_existing_attribute_preserved():
     assert item_with_color.color == "blue"
     # Empty/falsy color should be replaced
     assert item_without_color.color == "green"
+
+
+def test_is_tex_available(monkeypatch):
+    import jcvi.graphics.base as gb
+    from matplotlib.texmanager import TexManager
+
+    def broken(*args, **kwargs):
+        raise OSError("[Errno 86] Bad CPU type in executable: 'luatex'")
+
+    # dvipng missing
+    monkeypatch.setattr(gb, "which", lambda x: None if x == "dvipng" else x)
+    gb.is_tex_available.cache_clear()
+    assert not gb.is_tex_available()
+
+    # Installed, but fails to run
+    monkeypatch.setattr(gb, "which", lambda x: x)
+    monkeypatch.setattr(TexManager, "get_text_width_height_descent", broken)
+    gb.is_tex_available.cache_clear()
+    assert not gb.is_tex_available()
+    gb.is_tex_available.cache_clear()

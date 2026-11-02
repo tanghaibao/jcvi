@@ -2,7 +2,7 @@
 # -*- coding: UTF-8 -*-
 
 import copy
-from functools import partial
+from functools import lru_cache, partial
 from os import remove
 import os.path as op
 import re
@@ -61,9 +61,22 @@ GRAPHIC_FORMATS = (
 )
 
 
+@lru_cache(maxsize=None)
 def is_tex_available() -> bool:
-    """Check if latex command is available"""
-    return bool(which("latex")) and bool(which("lp"))
+    """Check that latex and dvipng are installed and actually run"""
+    if not (which("latex") and which("dvipng")):
+        return False
+    try:
+        from matplotlib.texmanager import TexManager
+
+        # Typeset a small string, as installed binaries may still fail to run
+        tm = TexManager()
+        tm.get_text_width_height_descent("jcvi", 12)
+        tm.get_grey("jcvi", 12, 72)
+    except Exception as e:
+        logger.info("latex is installed but unusable (%s). latex use is disabled.", e)
+        return False
+    return True
 
 
 class ImageOptions(object):
@@ -337,9 +350,8 @@ def savefig(figname, dpi=150, iopts=None, cleanup=True, transparent=False):
         logger.debug("Attempted save as: %s", format)
         logger.info("Try running again with --notex option to disable latex.")
         if op.exists(figname):
-            if op.getsize(figname) < 1000:
-                logger.debug("Cleaning up empty file: %s", figname)
-                remove(figname)
+            logger.debug("Cleaning up partial file: %s", figname)
+            remove(figname)
         sys.exit(1)
 
     msg = f"Figure saved to `{figname}`"

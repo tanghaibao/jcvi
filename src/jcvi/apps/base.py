@@ -591,8 +591,8 @@ class OptionParser(ArgumentParser):
         elif not is_tex_available():
             if not bool(which("latex")):
                 logger.info("`latex` not found. latex use is disabled.")
-            if not bool(which("lp")):
-                logger.info("`lp` not found. latex use is disabled.")
+            if not bool(which("dvipng")):
+                logger.info("`dvipng` not found. latex use is disabled.")
 
         setup_theme(style=opts.style, font=opts.font, usetex=iopts.usetex)
 

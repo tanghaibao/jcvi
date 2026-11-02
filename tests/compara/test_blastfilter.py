@@ -22,5 +22,5 @@ def test_blastfilter_main(tmp_path, monkeypatch):
 
     main(["a.b.last", "--qbed=a.bed", "--sbed=b.bed", "--exclude=excl.anchors"])
     with open("a.b.last.filtered") as fp:
-        rows = [x.split()[:2] + [x.split()[-1]] for x in fp]
-    assert rows == [["a0", "b0", "100"], ["a3", "b3", "80"]]
+        rows = [(*x.split()[:2], float(x.split()[-1])) for x in fp]
+    assert rows == [("a0", "b0", 100), ("a3", "b3", 80)]

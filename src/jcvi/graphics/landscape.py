@@ -1013,6 +1013,11 @@ def draw_heatmaps(
 
         yy -= yh
         m = stackarray(p, chr, window, shift)
+        # Colors are scaled per track, so show the range in the label
+        lo, hi = (
+            np.format_float_positional(x * 100, 2, fractional=False, trim="-")
+            for x in (np.nanmin(m), np.nanmax(m))
+        )
 
         Y = np.array([m, m])
         root.imshow(
@@ -1022,7 +1027,8 @@ def draw_heatmaps(
             aspect="auto",
             cmap=cmap,
         )
-        root.text(xx + xlen + 0.01, yy, s, size=10)
+        label = markup(f"{s} ({lo}-{hi}%)")
+        root.text(xx + xlen + 0.01, yy, label, size=10)
 
     yy -= yh
 
@@ -1037,6 +1043,20 @@ def draw_heatmaps(
             accn = b.accn.capitalize()
             root.add_patch(CirclePolygon((xx, yy), radius=0.01, fc="m", ec="m"))
             root.text(xx + 0.014, yy, accn, va="center", color="m")
+
+    # Colorbar, from low to high within each track, below meres if any
+    if meres:
+        yy -= yh
+    lx, lw = margin + xlen + 0.01, 0.12
+    ly = yy + inner
+    root.imshow(
+        np.linspace(0, 1, 256).reshape(1, -1),
+        extent=(lx, lx + lw, ly, ly + inner),
+        aspect="auto",
+        cmap=cmap,
+    )
+    root.text(lx, ly - 0.005, "Low", ha="left", va="top", size=8)
+    root.text(lx + lw, ly - 0.005, "High", ha="right", va="top", size=8)
 
     normalize_axes(root)
 
@@ -1094,6 +1114,7 @@ def heatmap(args):
 
     image_name = chr + "." + iopts.format
     savefig(image_name, dpi=iopts.dpi, iopts=iopts)
+    return image_name
 
 
 def draw_gauge(ax, margin: float, maxl: int, rightmargin: Optional[float] = None):

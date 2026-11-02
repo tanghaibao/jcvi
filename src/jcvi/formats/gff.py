@@ -7,6 +7,7 @@ import os.path as op
 import re
 import sys
 from urllib.parse import quote, unquote
+import weakref
 
 from ..annotation.reformat import atg_name
 from ..apps.base import (
@@ -3149,11 +3150,15 @@ def make_index(gff_file):
     if need_update(gff_file, db_file):
         cleanup(db_file)
         logger.debug("Indexing `%s`", gff_file)
-        gffutils.create_db(gff_file, db_file, merge_strategy="create_unique")
+        db = gffutils.create_db(gff_file, db_file, merge_strategy="create_unique")
+        db.conn.close()
     else:
         logger.debug("Load index `%s`", gff_file)
 
-    return gffutils.FeatureDB(db_file)
+    db = gffutils.FeatureDB(db_file)
+    # gffutils never closes its sqlite connection, close it with the db
+    weakref.finalize(db, db.conn.close)
+    return db
 
 
 def get_parents(gff_file, parents):

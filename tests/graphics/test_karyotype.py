@@ -80,3 +80,21 @@ def test_main_invalid_input(copy_data, seqids, layout, error):
 
     with pytest.raises(ValueError, match=error):
         karyotype_main(["seqids_bad", "layout_bad", "--notex"])
+
+
+def test_main_reversed_track_label(copy_data):
+    from jcvi.graphics.base import plt
+
+    copy_data(op.join(op.dirname(__file__), "data"))
+    # https://github.com/tanghaibao/jcvi/issues/774, peach runs right to left
+    with open("layout_rev", "w") as fw:
+        fw.write(" .6, .1, .8, 0, , Grape, top, grape.bed\n")
+        fw.write(" .4, .8, .1, 0, , Peach, top, peach.bed\n")
+        fw.write("e, 0, 1, grape.peach.anchors.simple\n")
+    karyotype_main(["seqids", "layout_rev", "--notex"])
+    texts = {t.get_text(): t for t in plt.gcf().axes[0].texts}
+    plt.close("all")
+    # Labels sit left of the track, aligned away from it
+    for label in ("Grape", "Peach"):
+        assert texts[label].get_position()[0] < 0.1
+        assert texts[label].get_ha() == "right"

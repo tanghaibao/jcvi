@@ -3,10 +3,12 @@
 
 """Syntenty inference in comparative genomics"""
 
+from array import array
 from collections import defaultdict
 from collections.abc import Iterable
 import os.path as op
 import sys
+from typing import Dict, Set, Tuple
 
 import numpy as np
 
@@ -299,45 +301,34 @@ def read_blast(blast_file, qorder, sorder, is_self=False, ostrip=True):
     return filtered_blast
 
 
-def process_blast_for_liftover(blast_file, qorder, sorder, is_self=False, ostrip=True):
+def process_blast_for_liftover(
+    blast_file: str,
+    qorder: dict,
+    sorder: dict,
+    anchor_pairs: Set[Tuple[str, str]],
+    chr_pairs: Set[Tuple[str, str]],
+    is_self: bool = False,
+    ostrip: bool = True,
+) -> Tuple[Dict[Tuple[str, str], str], Dict[Tuple[str, str], np.ndarray], int]:
     """
-    Memory-efficient processing of BLAST file for liftover operation.
-
-    Instead of loading all BlastLine objects into memory, this function
-    processes the file in a single pass and builds only the required
-    data structures. This significantly reduces memory usage for large
-    BLAST files (e.g., from 50GB+ to ~5GB for a 5GB input file).
-
-    Parameters
-    ----------
-    blast_file : str
-        Path to BLAST output file
-    qorder : dict
-        Query gene order mapping (gene -> (index, BedLine))
-    sorder : dict
-        Subject gene order mapping (gene -> (index, BedLine))
-    is_self : bool, optional
-        Whether this is a self-self comparison (default: False)
-    ostrip : bool, optional
-        Whether to strip gene names (default: True)
+    Stream the BLAST file and keep only what liftover needs, so memory stays
+    small for large BLAST files (#803).
 
     Returns
     -------
-    blast_to_score : dict
-        Mapping of (qi, si) tuples to integer scores
     accepted : dict
-        Mapping of (query, subject) tuples to string scores
-    all_hits : defaultdict(list)
-        Mapping of (qseqid, sseqid) tuples to lists of (qi, si, score) tuples
+        (query, subject) -> score string, for the anchor pairs
+    all_hits : dict
+        (qseqid, sseqid) -> array of (qi, si, score) rows, for chromosome pairs
+        that have anchors, keeping the first HSP of each gene pair
+    nblast : int
+        Number of BLAST lines that pass the filters
     """
-    blast_to_score = {}
     accepted = {}
-    all_hits = defaultdict(list)
-    seen = set()
+    hits = defaultdict(lambda: array("q"))
     nblast = 0
 
-    bl = Blast(blast_file)
-    for b in bl:
+    for b in Blast(blast_file):
         query, subject = b.query, b.subject
         if is_self and query == subject:
             continue
@@ -359,21 +350,25 @@ def process_blast_for_liftover(blast_file, qorder, sorder, is_self=False, ostrip
             if q.seqid == s.seqid and si - qi < 40:
                 continue
 
-        key = query, subject
-        if key in seen:
-            continue
-        seen.add(key)
-
-        # Build the required data structures
-        score = int(b.score)
-        blast_to_score[(qi, si)] = score
-        accepted[(query, subject)] = str(score)
-        all_hits[(q.seqid, s.seqid)].append((qi, si, b.score))
         nblast += 1
+        score = int(b.score)
+        key = query, subject
+        if key in anchor_pairs and key not in accepted:
+            accepted[key] = str(score)
+        chr_pair = q.seqid, s.seqid
+        if chr_pair in chr_pairs:
+            hits[chr_pair].extend((qi, si, score))
 
     logger.debug("A total of %d BLAST imported from `%s`.", nblast, blast_file)
 
-    return blast_to_score, accepted, all_hits
+    all_hits = {}
+    for chr_pair, h in hits.items():
+        h = np.frombuffer(h, dtype=np.int64).reshape(-1, 3)
+        # Keep the first HSP of each gene pair, in file order
+        _, first = np.unique(h[:, 0] * (h[:, 1].max() + 1) + h[:, 1], return_index=True)
+        all_hits[chr_pair] = h[np.sort(first)]
+
+    return accepted, all_hits, nblast
 
 
 def read_anchors(ac, qorder, sorder, minsize=0):
@@ -1937,35 +1932,39 @@ def liftover(args):
     blast_file, anchor_file, dist, opts = add_arguments(p, args)
     qbed, sbed, qorder, sorder, is_self = check_beds(blast_file, p, opts)
 
-    # Use memory-efficient processing for liftover
-    blast_to_score, accepted, all_hits = process_blast_for_liftover(
-        blast_file, qorder, sorder, is_self=is_self, ostrip=opts.strip_names
-    )
-
+    # Read anchors first, so only hits near them are kept in memory
     ac = AnchorFile(anchor_file)
     all_anchors, anchor_to_block = read_anchors(ac, qorder, sorder)
+    anchor_pairs = {tuple(row[:2]) for block in ac.blocks for row in block}
+    accepted, all_hits, nblast = process_blast_for_liftover(
+        blast_file,
+        qorder,
+        sorder,
+        anchor_pairs,
+        set(all_anchors),
+        is_self=is_self,
+        ostrip=opts.strip_names,
+    )
 
     # select hits that are close to the anchor list
     lifted = 0
     for chr_pair in sorted(all_anchors.keys()):
-        hits = np.array(all_hits[chr_pair])
+        if chr_pair not in all_hits:
+            continue
         anchors = np.array(all_anchors[chr_pair])
 
-        if not len(hits):
-            continue
-
-        for point, nearest in synteny_liftover(hits, anchors, dist):
-            qi, si = point[:2]
+        for point, nearest in synteny_liftover(all_hits[chr_pair], anchors, dist):
+            qi, si, score = (int(x) for x in point[:3])
             block_id = anchor_to_block[nearest]
             query, subject = qbed[qi].accn, sbed[si].accn
-            score = blast_to_score[(qi, si)]
 
             ac.blocks[block_id].append((query, subject, str(score) + "L"))
+            accepted[(query, subject)] = str(score)
             lifted += 1
 
     logger.debug("%d new pairs found (dist=%d).", lifted, dist)
     newanchorfile = opts.outfile or anchor_file.rsplit(".", 1)[0] + ".lifted.anchors"
-    if accepted:
+    if nblast:
         ac.filter_blocks(accepted)
     ac.print_to_file(filename=newanchorfile)
     summary([newanchorfile])

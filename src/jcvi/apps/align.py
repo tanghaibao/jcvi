@@ -641,6 +641,14 @@ def run_lastdb(
     sh(cmd)
 
 
+def log_lastal_error(e: CalledProcessError) -> None:
+    """Log lastal failure, and hint at memory when it was killed."""
+    logger.error("lastal failed with message:\n%s", e.output.decode())
+    # SIGKILL, from the shell (128 + 9) or directly, usually out of memory
+    if e.returncode in (137, -9):
+        logger.error("lastal was killed, likely out of memory")
+
+
 def last(args, dbtype=None):
     """
     %prog database.fasta query.fasta
@@ -706,7 +714,9 @@ def last(args, dbtype=None):
     )
 
     u = 2 if opts.mask else 0
-    cmd = "{0} -u {1} -i3G".format(lastal_bin, u)
+    # Threads hold a whole query batch of output in memory, small batches keep
+    # memory low with the same hits
+    cmd = "{0} -u {1} -i1M".format(lastal_bin, u)
     cmd += " -f {0}".format(opts.format)
 
     minlen = opts.minlen
@@ -732,9 +742,7 @@ def last(args, dbtype=None):
             redirect_error=STDOUT,
         )
     except CalledProcessError as e:  # multi-threading disabled
-        message = "lastal failed with message:"
-        message += "\n{0}".format(e.output.decode())
-        logger.error(message)
+        log_lastal_error(e)
         try:
             logger.debug("Failed to run `lastal` with multi-threading. Trying again.")
             sh(
@@ -744,9 +752,7 @@ def last(args, dbtype=None):
                 redirect_error=STDOUT,
             )
         except CalledProcessError as e:
-            message = "lastal failed with message:"
-            message += "\n{0}".format(e.output.decode())
-            logger.error(message)
+            log_lastal_error(e)
             logger.fatal("Failed to run `lastal`. Aborted.")
             cleanup(lastfile)
             sys.exit(1)

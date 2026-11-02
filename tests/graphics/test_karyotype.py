@@ -38,3 +38,45 @@ def test_main(copy_data):
         ["seqids_with_empty_lines", "layout", "-o", "karyotype_with_empty_lines.pdf"]
     )
     assert op.exists(image_name)
+
+
+TRACKS = """\
+ .6, .1, .8, 0, , Grape, top, grape.bed
+ .4, .1, .8, 0, , Peach, top, peach.bed
+"""
+
+
+@pytest.mark.parametrize(
+    "seqids,layout,error",
+    [
+        # https://github.com/tanghaibao/jcvi/issues/771
+        ("chr1\n", TRACKS + "e, 0, 1, grape.peach.anchors.simple\n", "has 1 rows"),
+        # https://github.com/tanghaibao/jcvi/issues/557
+        ("chr1\nPp01\nPp02\n", TRACKS, "has 3 rows"),
+        # https://github.com/tanghaibao/jcvi/issues/769
+        ("chr1\nPp01\n", TRACKS + "e, 1, 2, grape.peach.anchors.simple\n", "0-1"),
+        # https://github.com/tanghaibao/jcvi/issues/788
+        ("chr1\nPp01\n", " .8, .1, .8, 0, , Fake, top\n" + TRACKS, "8 columns"),
+        (
+            "chrF\nPp01\n",
+            TRACKS.replace("grape.bed", "fake.bed")
+            + "e, 0, 1, grape.peach.anchors.simple\n",
+            "not in",
+        ),
+        # https://github.com/tanghaibao/jcvi/issues/768
+        ("chr1\nPp01\n", TRACKS + "e, 0, 1, three.anchors\n", "6 columns"),
+    ],
+)
+def test_main_invalid_input(copy_data, seqids, layout, error):
+    copy_data(op.join(op.dirname(__file__), "data"))
+    with open("fake.bed", "w") as fw:
+        print("chrF\t0\t100\tfake", file=fw)
+    with open("three.anchors", "w") as fw:
+        print("GSVIVT01012255001\tPrupe.1G281700.1\t110", file=fw)
+    with open("seqids_bad", "w") as fw:
+        fw.write(seqids)
+    with open("layout_bad", "w") as fw:
+        fw.write(layout)
+
+    with pytest.raises(ValueError, match=error):
+        karyotype_main(["seqids_bad", "layout_bad", "--notex"])

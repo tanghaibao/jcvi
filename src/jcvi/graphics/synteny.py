@@ -334,12 +334,13 @@ class Region(object):
             )
             gp.set_transform(tr)
             if genelabelsize and (not gene_labels or gene_name in gene_labels):
+                # a, b are already rotated with the track, unlike x1, x2, y
+                text_y = (a[1] + b[1]) / 2
                 if genelabelrotation == 0:
-                    text_x = x1 if x1 > x2 else x2
-                    text_y = y
+                    text_x = max(a[0], b[0])
                 else:
-                    text_x = (x1 + x2) / 2
-                    text_y = y + height / 2 + genelabelsize * vpad / 3
+                    text_x = (a[0] + b[0]) / 2
+                    text_y += height / 2 + genelabelsize * vpad / 3
                 ax.text(
                     text_x,
                     text_y,
@@ -684,11 +685,12 @@ def main(args: List[str]):
     p.add_argument("--extra", help="Extra features in BED format")
     p.add_argument(
         "--genelabels",
-        help='Show only these gene labels, separated by comma. Example: "At1g12340,At5g54690"',
+        help='Show only these gene labels, separated by comma. Example: "At1g12340,At5g54690". '
+        + "Label size defaults to 6 unless --genelabelsize is set",
     )
     p.add_argument(
         "--genelabelsize",
-        default=0,
+        default=None,
         type=int,
         help="Show gene labels at this font size, useful for debugging. "
         + "However, plot may appear visually crowded. "
@@ -744,6 +746,10 @@ def main(args: List[str]):
     switch = opts.switch
     tree = opts.tree
     gene_labels = None if not opts.genelabels else set(opts.genelabels.split(","))
+    # Labels are only drawn with a non-zero size, keep an explicit 0
+    genelabelsize = opts.genelabelsize
+    if genelabelsize is None:
+        genelabelsize = 6 if gene_labels else 0
     prune_features = not opts.noprune
 
     pf = datafile.rsplit(".", 1)[0]
@@ -759,7 +765,7 @@ def main(args: List[str]):
         tree=tree,
         extra_features=opts.extra,
         gene_labels=gene_labels,
-        genelabelsize=opts.genelabelsize,
+        genelabelsize=genelabelsize,
         genelabelrotation=opts.genelabelrotation,
         scalebar=opts.scalebar,
         shadestyle=opts.shadestyle,

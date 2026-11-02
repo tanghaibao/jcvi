@@ -75,3 +75,34 @@ def test_layout_with_blank_lines():
         assert layout[1].color == "k"
     finally:
         os.unlink(tmpfile)
+
+
+@pytest.mark.parametrize("rotation", [0, 180])
+def test_main_genelabels(copy_data, rotation):
+    from jcvi.graphics.base import plt
+
+    copy_data(op.join(op.dirname(__file__), "data"))
+    merge(["grape.bed", "peach.bed", "-o", "grape_peach.bed"])
+    with open("blocks.layout") as fp:
+        layout = fp.read().replace("0.6,        0,", f"0.6, {rotation},")
+    with open("rotated.layout", "w") as fw:
+        fw.write(layout)
+
+    # https://github.com/tanghaibao/jcvi/issues/558, labels need no size option
+    gene = "GSVIVT01012261001"  # first gene of the grape track
+    synteny_main(
+        ["blocks", "grape_peach.bed", "rotated.layout", f"--genelabels={gene}"]
+        + ["--genelabelrotation=0", "--notex"]
+    )
+    (label,) = [t for t in plt.gcf().axes[0].texts if t.get_text() == gene]
+    plt.close("all")
+    # Labels follow the gene when its track is rotated
+    assert (label.get_position()[0] > 0.5) == (rotation == 180)
+
+    # An explicit size of 0 still hides labels
+    synteny_main(
+        ["blocks", "grape_peach.bed", "rotated.layout", f"--genelabels={gene}"]
+        + ["--genelabelsize=0", "--notex"]
+    )
+    assert gene not in [t.get_text() for t in plt.gcf().axes[0].texts]
+    plt.close("all")

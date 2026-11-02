@@ -24,10 +24,11 @@ from collections import defaultdict
 from itertools import groupby
 import os.path as op
 import sys
+from typing import Dict, Iterable, Iterator, Optional, Set, Tuple
 
 from ..apps.base import OptionParser, logger
 from ..compara.synteny import check_beds
-from ..formats.blast import Blast
+from ..formats.blast import Blast, BlastLine
 from ..utils.cbook import gene_name
 from ..utils.grouper import Grouper
 
@@ -45,70 +46,30 @@ def blastfilter_main(blast_file, p, opts):
     logger.debug(
         "Load BLAST file `{}` (total {} lines)".format(blast_file, total_lines)
     )
-    bl = Blast(blast_file)
-    blasts = sorted(list(bl), key=lambda b: b.score, reverse=True)
+    excluded_pairs = read_excluded_pairs(exclude)
+    blasts = iter_blasts(
+        blast_file, qbed, sbed, is_self, opts.strip_names, excluded_pairs
+    )
+    if cscore:
+        # Two passes, so that only lines passing the C-score filter are held in
+        # memory, rather than the whole BLAST file (#803)
+        logger.debug("running the cscore filter (cscore>=%.2f) .." % cscore)
+        best_score = get_best_score(blasts)
+        blasts = iter_blasts(
+            blast_file, qbed, sbed, is_self, opts.strip_names, excluded_pairs, False
+        )
+        blasts = filter_cscore(blasts, best_score, cscore=cscore)
 
+    # Keep the best hit of each gene pair
     filtered_blasts = []
     seen = set()
-    ostrip = opts.strip_names
-    nwarnings = 0
-    for b in blasts:
-        query, subject = b.query, b.subject
-        if is_self and query == subject:
-            continue
-
-        if ostrip:
-            query, subject = gene_name(query), gene_name(subject)
-        if query not in qorder:
-            if nwarnings < 100:
-                logger.warning("{} not in {}".format(query, qbed.filename))
-            elif nwarnings == 100:
-                logger.warning("too many warnings.. suppressed")
-            nwarnings += 1
-            continue
-        if subject not in sorder:
-            if nwarnings < 100:
-                logger.warning("{} not in {}".format(subject, sbed.filename))
-            elif nwarnings == 100:
-                logger.warning("too many warnings.. suppressed")
-            nwarnings += 1
-            continue
-
-        qi, q = qorder[query]
-        si, s = sorder[subject]
-
-        if is_self and qi > si:
-            # move all hits to same side when doing self-self BLAST
-            query, subject = subject, query
-            qi, si = si, qi
-            q, s = s, q
-
-        key = query, subject
+    for b in sorted(blasts, key=lambda b: b.score, reverse=True):
+        key = b.query, b.subject
         if key in seen:
             continue
         seen.add(key)
-        b.query, b.subject = [str(k) for k in key]
-
-        b.qi, b.si = qi, si
-        b.qseqid, b.sseqid = q.seqid, s.seqid
-
         filtered_blasts.append(b)
-
-    if exclude:
-        before_filter = len(filtered_blasts)
-        logger.debug("running excluded pairs (--exclude `{}`) ..".format(exclude))
-        filtered_blasts = list(filter_exclude(filtered_blasts, exclude=exclude))
-        logger.debug(
-            "after filter ({}->{}) ..".format(before_filter, len(filtered_blasts))
-        )
-
-    if cscore:
-        before_filter = len(filtered_blasts)
-        logger.debug("running the cscore filter (cscore>=%.2f) .." % cscore)
-        filtered_blasts = list(filter_cscore(filtered_blasts, cscore=cscore))
-        logger.debug(
-            "after filter ({}->{}) ..".format(before_filter, len(filtered_blasts))
-        )
+    logger.debug("after filter ({}->{}) ..".format(total_lines, len(filtered_blasts)))
 
     if tandem_Nmax:
         logger.debug(
@@ -202,35 +163,80 @@ def write_new_blast(filtered_blasts, fh=sys.stdout):
         print(b, file=fh)
 
 
-def filter_exclude(blast_list, exclude=None):
-    """Filter gene pairs from an excluded list
+def iter_blasts(
+    blast_file: str,
+    qbed,
+    sbed,
+    is_self: bool,
+    ostrip: bool,
+    excluded_pairs: Set[Tuple[str, str]],
+    warn: bool = True,
+) -> Iterator[BlastLine]:
+    """Stream BLAST lines on genes in the beds, with names normalized."""
+    qorder, sorder = qbed.order, sbed.order
+    nwarnings = 0
+    for b in Blast(blast_file):
+        query, subject = b.query, b.subject
+        if is_self and query == subject:
+            continue
 
-    Args:
-        blast_list (List[BlastLine]): List of BlastLines
-        exclude (str, optional): Path to the excluded anchors file. Defaults to None.
-    """
+        if ostrip:
+            query, subject = gene_name(query), gene_name(subject)
+        for gene, order, bed in ((query, qorder, qbed), (subject, sorder, sbed)):
+            if gene in order:
+                continue
+            if warn and nwarnings < 100:
+                logger.warning("{} not in {}".format(gene, bed.filename))
+            elif warn and nwarnings == 100:
+                logger.warning("too many warnings.. suppressed")
+            nwarnings += 1
+            break
+        else:
+            qi, q = qorder[query]
+            si, s = sorder[subject]
+
+            if is_self and qi > si:
+                # move all hits to same side when doing self-self BLAST
+                query, subject = subject, query
+                qi, si = si, qi
+                q, s = s, q
+
+            if (query, subject) in excluded_pairs:
+                continue
+            b.query, b.subject = str(query), str(subject)
+            b.qi, b.si = qi, si
+            b.qseqid, b.sseqid = q.seqid, s.seqid
+            yield b
+
+
+def read_excluded_pairs(exclude: Optional[str] = None) -> Set[Tuple[str, str]]:
+    """Read gene pairs to exclude, in both directions, from an anchors file."""
     from .base import AnchorFile
 
     excluded_pairs = set()
-    ac = AnchorFile(exclude)
-    for a, b, block in ac.iter_pairs():
+    if not exclude:
+        return excluded_pairs
+    logger.debug("running excluded pairs (--exclude `{}`) ..".format(exclude))
+    for a, b, _ in AnchorFile(exclude).iter_pairs():
         excluded_pairs.add((a, b))
         excluded_pairs.add((b, a))
-    for b in blast_list:
-        if (b.query, b.subject) in excluded_pairs:
-            continue
-        yield b
+    return excluded_pairs
 
 
-def filter_cscore(blast_list, cscore=0.5):
-
+def get_best_score(blast_list: Iterable[BlastLine]) -> Dict[str, float]:
+    """Best score of each gene, as query or subject."""
     best_score = defaultdict(float)
     for b in blast_list:
         if b.score > best_score[b.query]:
             best_score[b.query] = b.score
         if b.score > best_score[b.subject]:
             best_score[b.subject] = b.score
+    return best_score
 
+
+def filter_cscore(
+    blast_list: Iterable[BlastLine], best_score: Dict[str, float], cscore=0.5
+) -> Iterator[BlastLine]:
     for b in blast_list:
         cur_cscore = b.score / max(best_score[b.query], best_score[b.subject])
         if cur_cscore > cscore:
